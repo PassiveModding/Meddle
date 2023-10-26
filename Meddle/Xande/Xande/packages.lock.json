@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net7.0-windows7.0": {
+      "SharpGLTF.Core": {
+        "type": "Direct",
+        "requested": "[1.0.0-alpha0028, )",
+        "resolved": "1.0.0-alpha0028",
+        "contentHash": "ALHHo0St08I77sZGEf/eFOIpSFF8aP/nbWNIvh27omQz/ds9MJADU4aF4MyOrHaW4Ir4bwZ1xF3QLwKyIH3Oow=="
+      },
+      "SharpGLTF.Toolkit": {
+        "type": "Direct",
+        "requested": "[1.0.0-alpha0028, )",
+        "resolved": "1.0.0-alpha0028",
+        "contentHash": "CNw7Cc0vPtbeqag4Jv+/x7Dgc5Vfcz6PmE5TiVzfsyLho4uEve2suQO42KSJa85q8g9MeWU/cMVy0ND/9gz+Qw==",
+        "dependencies": {
+          "SharpGLTF.Core": "1.0.0-alpha0028"
+        }
+      },
+      "System.Drawing.Common": {
+        "type": "Direct",
+        "requested": "[8.0.0-preview.2.23128.3, )",
+        "resolved": "8.0.0-preview.2.23128.3",
+        "contentHash": "kTEwdz83KrBKPVWEcrF4OGqLeJ6aK7jsPWBp/hX7ngT8BCvWLKAaBd5HZ4cmux0t7k5Lka/B/DqmKC8jc8TrOQ==",
+        "dependencies": {
+          "Microsoft.Win32.SystemEvents": "8.0.0-preview.2.23128.3"
+        }
+      },
+      "Lumina": {
+        "type": "Transitive",
+        "resolved": "3.11.0",
+        "contentHash": "G7HQq2i5k4eL8kXxQCtrwQtRBuQi5qW1reb5oYZv+hazgOgpqX6YAX56dW6r5uraef1L1j/jMXMlXQDb3wMUmQ=="
+      },
+      "Microsoft.Win32.SystemEvents": {
+        "type": "Transitive",
+        "resolved": "8.0.0-preview.2.23128.3",
+        "contentHash": "2ugSY6UuqJfYhvVUaf4ueuUiMjIyN9dU03wpbKfRDsn13XvZ91yOlw7NLhYvB1Xc8gCAZpND20Tgbe3uBVytKA=="
+      },
+      "xande.gltfimporter": {
+        "type": "Project",
+        "dependencies": {
+          "Lumina": "[3.11.0, )",
+          "SharpGLTF.Core": "[1.0.0-alpha0028, )",
+          "SharpGLTF.Toolkit": "[1.0.0-alpha0028, )"
+        }
+      }
+    }
+  }
+}

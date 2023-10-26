@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net7.0-windows7.0": {
+      "DalamudPackager": {
+        "type": "Direct",
+        "requested": "[2.1.12, )",
+        "resolved": "2.1.12",
+        "contentHash": "Sc0PVxvgg4NQjcI8n10/VfUQBAS4O+Fw2pZrAqBdRMbthYGeogzu5+xmIGCGmsEZ/ukMOBuAqiNiB5qA3MRalg=="
+      },
+      "Lumina": {
+        "type": "Transitive",
+        "resolved": "3.11.0",
+        "contentHash": "G7HQq2i5k4eL8kXxQCtrwQtRBuQi5qW1reb5oYZv+hazgOgpqX6YAX56dW6r5uraef1L1j/jMXMlXQDb3wMUmQ=="
+      },
+      "Microsoft.Win32.SystemEvents": {
+        "type": "Transitive",
+        "resolved": "8.0.0-preview.2.23128.3",
+        "contentHash": "2ugSY6UuqJfYhvVUaf4ueuUiMjIyN9dU03wpbKfRDsn13XvZ91yOlw7NLhYvB1Xc8gCAZpND20Tgbe3uBVytKA=="
+      },
+      "Penumbra.Api": {
+        "type": "Transitive",
+        "resolved": "1.0.12",
+        "contentHash": "0plNvXfhnOMYdyO+9jqRVx91SQv4lnGj3isRIRdZ0q6MGyk3oCpd4imu/nyrO5tH9cQEsVltakzJAXecSuDAMQ=="
+      },
+      "SharpGLTF.Core": {
+        "type": "Transitive",
+        "resolved": "1.0.0-alpha0028",
+        "contentHash": "ALHHo0St08I77sZGEf/eFOIpSFF8aP/nbWNIvh27omQz/ds9MJADU4aF4MyOrHaW4Ir4bwZ1xF3QLwKyIH3Oow=="
+      },
+      "SharpGLTF.Toolkit": {
+        "type": "Transitive",
+        "resolved": "1.0.0-alpha0028",
+        "contentHash": "CNw7Cc0vPtbeqag4Jv+/x7Dgc5Vfcz6PmE5TiVzfsyLho4uEve2suQO42KSJa85q8g9MeWU/cMVy0ND/9gz+Qw==",
+        "dependencies": {
+          "SharpGLTF.Core": "1.0.0-alpha0028"
+        }
+      },
+      "System.Drawing.Common": {
+        "type": "Transitive",
+        "resolved": "8.0.0-preview.2.23128.3",
+        "contentHash": "kTEwdz83KrBKPVWEcrF4OGqLeJ6aK7jsPWBp/hX7ngT8BCvWLKAaBd5HZ4cmux0t7k5Lka/B/DqmKC8jc8TrOQ==",
+        "dependencies": {
+          "Microsoft.Win32.SystemEvents": "8.0.0-preview.2.23128.3"
+        }
+      },
+      "meddle.lumina": {
+        "type": "Project",
+        "dependencies": {
+          "Lumina": "[3.11.0, )",
+          "SharpGLTF.Core": "[1.0.0-alpha0028, )",
+          "SharpGLTF.Toolkit": "[1.0.0-alpha0028, )"
+        }
+      },
+      "meddle.xande": {
+        "type": "Project",
+        "dependencies": {
+          "Meddle.Lumina": "[1.0.0, )",
+          "Penumbra.Api": "[1.0.12, )",
+          "Xande": "[1.0.0, )"
+        }
+      },
+      "xande": {
+        "type": "Project",
+        "dependencies": {
+          "SharpGLTF.Core": "[1.0.0-alpha0028, )",
+          "SharpGLTF.Toolkit": "[1.0.0-alpha0028, )",
+          "System.Drawing.Common": "[8.0.0-preview.2.23128.3, )",
+          "Xande.GltfImporter": "[1.0.0, )"
+        }
+      },
+      "xande.gltfimporter": {
+        "type": "Project",
+        "dependencies": {
+          "Lumina": "[3.11.0, )",
+          "SharpGLTF.Core": "[1.0.0-alpha0028, )",
+          "SharpGLTF.Toolkit": "[1.0.0-alpha0028, )"
+        }
+      }
+    }
+  }
+}
