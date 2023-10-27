@@ -25,6 +25,26 @@ public static class CharacterUtility
         return orderedPaths.FirstOrDefault() ?? suspectedPath;
     }
     
+    public static unsafe bool HasDrawObject(ushort gameObjectId, IObjectTable objectTable)
+    {
+        var characters = objectTable.OfType<Character>();
+
+        var match = characters.FirstOrDefault(x => x.ObjectIndex == gameObjectId);
+        if (match == null || !match.IsValid())
+        {
+            return false;
+        }
+
+        var gameObject = (GameObject*) match.Address;
+        var drawObject = gameObject->GetDrawObject();
+        if (drawObject == null)
+        {
+            return false;
+        }
+
+        return true;
+    }
+    
     public static unsafe Models.Character? GetCharacterInfo(ushort gameObjectId, IObjectTable objectTable, LuminaManager lumina)
     {
         var characters = objectTable.OfType<Character>();

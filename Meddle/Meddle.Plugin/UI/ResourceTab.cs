@@ -125,7 +125,9 @@ public class ResourceTab : ITab
             .Where(x =>
                 x.ObjectKind is ObjectKind.Player or ObjectKind.BattleNpc or ObjectKind.Retainer or ObjectKind.EventNpc
                     or ObjectKind.Companion
-            ).ToArray();
+            )
+            .Where(x => CharacterUtility.HasDrawObject(x.ObjectIndex, Service.ObjectTable))
+            .ToArray();
         if (objects.Length == 0)
         {
             ImGui.Text("No game objects found");
@@ -152,7 +154,15 @@ public class ResourceTab : ITab
                 }
             }
 
-            var names = objects.Select(x => $"{x.Name} - {x.ObjectKind}").ToArray();
+            var names = objects.Select(x =>
+            {
+                var name = x.Name?.ToString();
+                if (string.IsNullOrEmpty(name))
+                {
+                    name = x.ObjectIndex.ToString();
+                }
+                return $"{name} - {x.ObjectKind}";
+            }).ToArray();
 
             if (selected == -1 && names.Length > 0)
             {
