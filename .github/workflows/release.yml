@@ -75,7 +75,7 @@ jobs:
 
       - name: Update repo.json
         run: |
-          cd ../
+          cd ../../
 
           release_version=$(echo ${{ github.ref_name }} | sed 's/^v//')
           repo_url=$(echo ${{ github.server_url }}/${{ github.repository }} | sed 's/#/\\#/g')
