@@ -1,16 +1,31 @@
-﻿using Dalamud.Game.ClientState.Objects.Types;
+﻿using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
-using Meddle.Xande.Models;
+using Penumbra.Api;
+using Xande;
 using Xande.Enums;
+using Character = Dalamud.Game.ClientState.Objects.Types.Character;
 using GameObject = FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject;
 
 namespace Meddle.Xande.Utility;
 
 public static class CharacterUtility
 {
-    public static unsafe CharacterResourceMap? GetCharacterInfo(ushort gameObjectId, IObjectTable objectTable)
+    public static string? ResolveGameObjectPath(string key, ushort selectedObjectObjectIndex, string? suspectedPath, DalamudPluginInterface pluginInterface)
+    {
+        string?[] gamePaths = Ipc.ReverseResolveGameObjectPath.Subscriber(pluginInterface)
+            .Invoke(key, selectedObjectObjectIndex);
+        
+        var orderedPaths = gamePaths
+            .Where(x => x != null)
+            .OrderByDescending(x => x?.ComputeLd(suspectedPath ?? key))
+            .ToArray();
+        
+        return orderedPaths.FirstOrDefault() ?? suspectedPath;
+    }
+    
+    public static unsafe Models.Character? GetCharacterInfo(ushort gameObjectId, IObjectTable objectTable, LuminaManager lumina)
     {
         var characters = objectTable.OfType<Character>();
 
@@ -22,94 +37,104 @@ public static class CharacterUtility
 
         //var gameObjectAddress = match.Address;
         var gameObject = (GameObject*) match.Address;
-        //var character = (FFXIVClientStructs.FFXIV.Client.Game.Character.Character*)gameObjectAddress;
         var drawObject = gameObject->GetDrawObject();
         if (drawObject == null)
         {
             return null;
         }
 
-        var model = (CharacterBase*) drawObject;
-        var raceCode = model->GetModelType() == CharacterBase.ModelType.Human
-            ? (GenderRace) ((Human*) model)->RaceSexId
+        var character = (CharacterBase*) drawObject;
+        var raceCode = character->GetModelType() == CharacterBase.ModelType.Human
+            ? (GenderRace) ((Human*) character)->RaceSexId
             : GenderRace.Unknown;
 
-        // model -> mtrl -> tex
-        var output = new Dictionary<string, Dictionary<string, List<string>>>();
-
-        for (var i = 0; i < model->SlotCount; i++)
+        var characterData = new Models.Character
         {
-            var mdl = model->Models[i];
-            if (mdl == null ||
-                mdl->ModelResourceHandle == null) //|| mdl->ModelResourceHandle->Category != ResourceCategory.Chara)
+            GenderRace = raceCode,
+            SelectedObjectObjectIndex = gameObjectId
+        };
+
+        for (var i = 0; i < character->SlotCount; i++)
+        {
+            var model = character->Models[i];
+            if (model == null || model->ModelResourceHandle == null || model->ModelResourceHandle->ResourceHandle.Type.Category != ResourceHandleType.HandleCategory.Chara)
             {
                 continue;
             }
 
-            var mdlHandle = mdl->ModelResourceHandle;
+            var mdlHandle = model->ModelResourceHandle;
             //var modelName = mdlHandle->ResourceHandle.FileName.ToString();
-            var modelName = GetResourceHandleFileName(&mdlHandle->ResourceHandle);
-            if (modelName == null || output.ContainsKey(modelName)) continue;
-            output[modelName] = new Dictionary<string, List<string>>();
+            var activeModelPath = GetResourceHandleFileName(&mdlHandle->ResourceHandle);
+            if (activeModelPath == null) continue;
+            
+            var luminaModel = ModelUtility.GetModel(lumina, activeModelPath);
+            characterData.AddModel(activeModelPath);
 
-            for (var j = 0; j < mdl->MaterialCount; j++)
+            for (var j = 0; j < model->MaterialsSpan.Length; j++)
             {
-                var mtrl = mdl->Materials[j];
-                if (mtrl == null)
+                var drawMaterial = model->MaterialsSpan[j].Value;
+                var luminaMaterial = luminaModel.Materials[j];
+                
+                luminaMaterial.Update(lumina.GameData);
+
+                
+                if (drawMaterial == null)
                 {
                     continue;
                 }
 
-                if (mtrl->MaterialResourceHandle == null)
+                if (drawMaterial->MaterialResourceHandle == null)
                 {
                     continue;
                 }
 
-                var mtrlResource = mtrl->MaterialResourceHandle;
-
+                var mtrlResource = drawMaterial->MaterialResourceHandle;
                 if (mtrlResource == null)
                 {
                     continue;
                 }
 
-                //var mtrlName = mtrl->MaterialResourceHandle->ResourceHandle.FileName.ToString();
-                var mtrlName = GetResourceHandleFileName(&mtrlResource->ResourceHandle);
-                if (mtrlName == null || output[modelName].ContainsKey(mtrlName)) continue;
-                output[modelName][mtrlName] = new List<string>();
-
+                var activeMaterialPath = GetResourceHandleFileName(&mtrlResource->ResourceHandle);
+                if (activeMaterialPath == null) continue;
+                var luminaMaterialPath = luminaMaterial.ResolvedPath ?? luminaMaterial.MaterialPath;
+                characterData.AddMaterial(activeModelPath, activeMaterialPath, luminaMaterialPath);
 
                 var shaderResource = mtrlResource->ShaderPackageResourceHandle;
                 if (shaderResource != null)
                 {
-                    //var shaderName = shaderResource->ResourceHandle.FileName.ToString();
-                    var shaderName = GetResourceHandleFileName(&shaderResource->ResourceHandle);
-
-                    if (shaderName != null && !output[modelName][mtrlName].Contains(shaderName))
+                    var activeShaderPath = GetResourceHandleFileName(&shaderResource->ResourceHandle);
+                    if (activeShaderPath != null)
                     {
-                        output[modelName][mtrlName].Add(shaderName);
+                        characterData.AddShaderpack(activeModelPath, activeMaterialPath, activeShaderPath);
                     }
                 }
 
                 for (var k = 0; k < mtrlResource->TexturesSpan.Length; k++)
                 {
-                    var tex = mtrlResource->TexturesSpan[k];
-                    if (tex.TextureResourceHandle == null)
+                    var drawTexture = mtrlResource->TexturesSpan[k];
+
+                    Lumina.Materials.Texture? luminaTexture = null;
+                    if (luminaMaterial.Textures != null)
+                    {
+                        luminaTexture = luminaMaterial.Textures[k];
+                    }
+
+                    if (drawTexture.TextureResourceHandle == null)
                     {
                         continue;
                     }
 
-                    //var texName = tex.TextureResourceHandle->ResourceHandle.FileName.ToString();
-                    var texName = GetResourceHandleFileName(&tex.TextureResourceHandle->ResourceHandle);
-
-                    if (texName != null && !output[modelName][mtrlName].Contains(texName))
+                    var activeTexturePath = GetResourceHandleFileName(&drawTexture.TextureResourceHandle->ResourceHandle);
+                    if (activeTexturePath != null)
                     {
-                        output[modelName][mtrlName].Add(texName);
+                        var luminaTexturePath = luminaTexture?.TexturePath ?? string.Empty;
+                        characterData.AddTexture(activeModelPath, activeMaterialPath, activeTexturePath, luminaTexturePath);
                     }
                 }
             }
         }
 
-        var skeleton = model->Skeleton;
+        var skeleton = character->Skeleton;
         if (skeleton != null)
         {
             for (var i = 0; i < skeleton->PartialSkeletonCount; i++)
@@ -121,20 +146,20 @@ public static class CharacterUtility
                     continue;
                 }
 
-                var skeletonName = GetResourceHandleFileName(&handle->ResourceHandle);
-                if (skeletonName == null || output.ContainsKey(skeletonName)) continue;
-                output[skeletonName] = new Dictionary<string, List<string>>();
+                var activeSkeletonPath = GetResourceHandleFileName(&handle->ResourceHandle);
+                if (activeSkeletonPath == null) continue;
+                characterData.AddSkeleton(activeSkeletonPath);
 
                 if (partialSkeleton.SkeletonParameterResourceHandle == null) continue;
                 var skeletonParameterName = GetResourceHandleFileName((ResourceHandle*) partialSkeleton.SkeletonParameterResourceHandle);
-                if (skeletonParameterName != null && !output[skeletonName].ContainsKey(skeletonParameterName))
+                if (skeletonParameterName != null)
                 {
-                    output[skeletonName][skeletonParameterName] = new List<string>();
+                    characterData.AddSkeletonParameters(activeSkeletonPath, skeletonParameterName);
                 }
             }
         }
 
-        return new CharacterResourceMap(raceCode, output);
+        return characterData;
     }
 
     private static unsafe string? GetResourceHandleFileName(ResourceHandle* handle)

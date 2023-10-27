@@ -18,6 +18,8 @@ using Xande;
 using Xande.Files;
 using Xande.Havok;
 using Xande.Models.Export;
+using Material = Meddle.Lumina.Materials.Material;
+using Model = Meddle.Lumina.Models.Model;
 
 namespace Meddle.Xande
 {
@@ -206,7 +208,7 @@ namespace Meddle.Xande
                 var raceDeformer = new RaceDeformer(_pbd, boneMap);
                 var modelNodes = nodes.Where(x =>
                     x.Type == Penumbra.Api.Enums.ResourceType.Mdl).ToArray();
-                var glTfScene = new SceneBuilder(modelNodes.Length > 0 ? modelNodes[0].GamePath : "scene");
+                var glTfScene = new SceneBuilder(modelNodes.Length > 0 ? modelNodes[0].FullPath : "scene");
                 if (root != null)
                 {
                     glTfScene.AddNode(root);

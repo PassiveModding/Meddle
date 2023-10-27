@@ -87,6 +87,13 @@ namespace Meddle.Lumina.Materials
             VariantId = GetVariantIdFromPath( file.FilePath );
             BuildMaterial();
         }
+        
+        public Material( MtrlFile file, int variantId )
+        {
+            File = file;
+            VariantId = variantId;
+            BuildMaterial();
+        }
 
         /// <summary>
         /// Creates a new Material instance using the provided path and

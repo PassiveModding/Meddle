@@ -32,14 +32,15 @@ public class ResourceTab : ITab
     private readonly string _tempDirectory = Path.Combine(Path.GetTempPath(), "Meddle.Export");
     private readonly ModelConverter _modelConverter;
     private ExportType _selectedExportTypeFlags = ExportType.Gltf;
+    private readonly LuminaManager _luminaManager;
 
 
     public ResourceTab()
     {
         _fileDialogManager = new FileDialogManager();
         var converter = new HavokConverter(Service.PluginInterface);
-        var luminaManager = new LuminaManager();
-        _modelConverter = new ModelConverter(converter, luminaManager, Service.Log, Service.Framework);
+        _luminaManager = new LuminaManager();
+        _modelConverter = new ModelConverter(converter, _luminaManager, Service.Log, Service.Framework);
         _exportCts = new CancellationTokenSource();
         _selectedGameObject = ("None", -1);
     }
@@ -341,7 +342,10 @@ public class ResourceTab : ITab
                 DrawCopyableText(node.FullPath);
 
                 if (!section) continue;
-                DrawResourceNode(node);
+                foreach (var childNode in node.Children)
+                {
+                    DrawResourceNode(childNode);
+                }
                 // add line to separate
                 ImGui.TableNextRow();
                 ImGui.TableNextColumn();
@@ -458,50 +462,20 @@ public class ResourceTab : ITab
         {
             try
             {
-                var characterInfo = GetCharacterInfo(selectedObjectObjectIndex);
-                var resourceTree = new ResourceTree(name, characterInfo.RaceCode);
-
-                var resourceMap = characterInfo.ModelData;
-                var ipcSubscriber =
-                    Service.PluginInterface
-                        .GetIpcSubscriber<ResourceType, bool, ushort[],
-                            IReadOnlyDictionary<long, (string, string, ChangedItemIcon)>?[]>(
-                            "Penumbra.GetGameObjectResourcesOfType");
-                var modelMeta = ipcSubscriber.InvokeFunc(ResourceType.Mdl, true, new[] {selectedObjectObjectIndex});
-                (string gamepath, string name)[]? meta = modelMeta?[0]?
-                    .Select(x => x.Value)
-                    .Select(x => (x.Item1, x.Item2))
-                    .ToArray();
-
-                if (meta == null)
+                var characterInfo = CharacterUtility.GetCharacterInfo(selectedObjectObjectIndex, Service.ObjectTable, _luminaManager);
+                if (characterInfo == null)
                 {
-                    throw new Exception("Failed to get model meta");
+                    throw new Exception("Failed to get character info");
                 }
-
-                var nodes = new List<Node>();
-
-                foreach (var (key, value) in resourceMap)
-                {
-                    var gamePath = ResolveGameObjectPath(key, selectedObjectObjectIndex);
-
-                    if (gamePath == null)
-                    {
-                        Service.Log.Warning($"Failed to resolve game path for {key}");
-                        continue;
-                    }
-
-                    var resourceType = GetResourceType(key);
-                    var node = CreateBaseNode(key, gamePath, meta, value, resourceType, selectedObjectObjectIndex);
-
-                    nodes.Add(node);
-                }
-
-                resourceTree.Nodes = nodes.ToArray();
+                
+                var resourceTree = characterInfo.AsResourceTree(name, Service.PluginInterface);
                 
                 Directory.CreateDirectory(_tempDirectory);
-                File.WriteAllText(Path.Combine(_tempDirectory, $"{name}.json"), JsonConvert.SerializeObject(resourceTree, Formatting.Indented));
+                var content = JsonConvert.SerializeObject(resourceTree, Formatting.Indented);
+                var hash = Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(content)));
+                File.WriteAllText(Path.Combine(_tempDirectory, $"{name}.json"), content);
                 
-                return (name, resourceTree, DateTime.UtcNow, new bool[resourceTree.Nodes.Length]);
+                return (hash, resourceTree, DateTime.UtcNow, new bool[resourceTree.Nodes.Length]);
             }
             catch (Exception e)
             {
@@ -510,97 +484,6 @@ public class ResourceTab : ITab
             }
         });
     }
-
-    private CharacterResourceMap GetCharacterInfo(ushort selectedObjectObjectIndex)
-    {
-        var characterInfo = CharacterUtility.GetCharacterInfo(selectedObjectObjectIndex, Service.ObjectTable);
-
-        if (characterInfo == null)
-        {
-            throw new Exception("Failed to get character info");
-        }
-
-        return characterInfo;
-    }
-
-    private string? ResolveGameObjectPath(string key, ushort selectedObjectObjectIndex)
-    {
-        string?[] gamePaths = Ipc.ReverseResolveGameObjectPath.Subscriber(Service.PluginInterface)
-            .Invoke(key, selectedObjectObjectIndex);
-        return gamePaths is {Length: > 0} ? gamePaths[0] : null;
-    }
-
-    private ResourceType GetResourceType(string key)
-    {
-        var type = key.Split(".").Last();
-
-        if (!Enum.TryParse<ResourceType>(type, true, out var resourceType))
-        {
-            Service.Log.Warning($"Failed to parse resource type {type}");
-        }
-
-        return resourceType;
-    }
-
-    private Node CreateBaseNode(string fullPath, string gamePath, IEnumerable<(string path, string name)> meta,
-        Dictionary<string,List<string>>? children, ResourceType resourceType,
-        ushort selectedObjectObjectIndex)
-    {
-        var node = new Node(fullPath, gamePath, gamePath, resourceType);
-        var metaEntry = meta.FirstOrDefault(x => 
-            string.Equals(x.path, fullPath, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(x.path, gamePath, StringComparison.OrdinalIgnoreCase));
-        if (metaEntry != default)
-        {
-            node.Name = metaEntry.Item2;
-        }
-
-        if (children == null) return node;
-        var childNodes = new List<Node>();
-
-        foreach (var (key, value) in children)
-        {
-            var childGamePath = ResolveGameObjectPath(key, selectedObjectObjectIndex);
-            if (childGamePath == null)
-            {
-                Service.Log.Warning($"Failed to resolve game path for {key}");
-                continue;
-            }
-
-            var childResourceType = GetResourceType(key);
-            var childNode = new Node(key, childGamePath, childResourceType.ToString().ToLower(), childResourceType);
-            var childChildNodes = CreateChildNodes(value, selectedObjectObjectIndex);
-            childNode.Children = childChildNodes.ToArray();
-            childNodes.Add(childNode);
-        }
-
-        node.Children = childNodes.ToArray();
-
-        return node;
-    }
-
-    private List<Node> CreateChildNodes(List<string> values, ushort selectedObjectObjectIndex)
-    {
-        var childNodes = new List<Node>();
-
-        foreach (var value in values)
-        {
-            var gamePath = ResolveGameObjectPath(value, selectedObjectObjectIndex);
-
-            if (gamePath == null)
-            {
-                Service.Log.Warning($"Failed to parse resources for {value}");
-                continue;
-            }
-
-            var resourceType = GetResourceType(value);
-            var node = new Node(value, gamePath, resourceType.ToString(), resourceType);
-            childNodes.Add(node);
-        }
-
-        return childNodes;
-    }
-
 
     public void Dispose()
     {

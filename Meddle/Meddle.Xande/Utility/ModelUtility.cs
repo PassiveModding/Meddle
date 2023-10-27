@@ -5,6 +5,7 @@ using Meddle.Xande.Models;
 using SharpGLTF.Scenes;
 using Xande;
 using Xande.Havok;
+using Model = Meddle.Lumina.Models.Model;
 
 namespace Meddle.Xande.Utility;
 
