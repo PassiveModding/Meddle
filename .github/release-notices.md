@@ -1,0 +1,1 @@
+This plugin is currently for testing. Expect bugs. [GitHub repository](https://github.com/PassiveModding/Meddle).
