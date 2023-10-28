@@ -503,6 +503,7 @@ public class ResourceTab : ITab
                 var hash = Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(content)));
                 File.WriteAllText(Path.Combine(Plugin.TempDirectory, $"{name}.json"), content);
                 
+                _log.Information($"Built resource tree for {name}");
                 return (hash, resourceTree, DateTime.UtcNow, new bool[resourceTree.Nodes.Length]);
             }
             catch (Exception e)

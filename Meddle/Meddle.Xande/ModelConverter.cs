@@ -384,7 +384,17 @@ namespace Meddle.Xande
             }
 
             var fileName = Path.GetFileNameWithoutExtension(path);
-            var raceCode = raceDeformer.RaceCodeFromPath(path);
+            
+            ushort? raceCode = null;
+            try
+            {
+                raceCode = raceDeformer.RaceCodeFromPath(path);
+            }
+            catch (Exception e)
+            {
+                _log.Error(e, $"Failed to parse race code from path {path}");
+            }
+            
 
             // reaper eye go away
             var stupidEyeMeshRegex = new Regex(@"^/mt_c\d+f.+_etc_b.mtrl$");

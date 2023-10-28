@@ -226,11 +226,32 @@ public class MeshBuilder {
 
     /// <summary>Obtain the correct geometry type for a given set of vertices.</summary>
     private static Type GetVertexGeometryType( Vertex[] vertex )
-        => vertex[ 0 ].Tangent1 != null ? typeof( VertexPositionNormalTangent ) :
-           vertex[ 0 ].Normal != null   ? typeof( VertexPositionNormal ) : typeof( VertexPosition );
+    {
+        if (vertex.Length == 0)
+        {
+            return typeof(VertexPosition);
+        }
+        
+        if (vertex[0].Tangent1 != null)
+        {
+            return typeof(VertexPositionNormalTangent);
+        }
+        
+        if (vertex[0].Normal != null)
+        {
+            return typeof(VertexPositionNormal);
+        }
+        
+        return typeof(VertexPosition);
+    }
 
     /// <summary>Obtain the correct material type for a set of vertices.</summary>
     private static Type GetVertexMaterialType( Vertex[] vertex ) {
+        if (vertex.Length == 0)
+        {
+            return typeof(VertexColor1);
+        }
+        
         var hasColor = vertex[ 0 ].Color != null;
         var hasUv    = vertex[ 0 ].UV != null;
 

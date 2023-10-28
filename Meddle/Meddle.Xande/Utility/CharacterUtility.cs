@@ -134,7 +134,7 @@ public static class CharacterUtility
                     var drawTexture = mtrlResource->TexturesSpan[k];
 
                     Lumina.Materials.Texture? luminaTexture = null;
-                    if (luminaMaterial.Textures != null)
+                    if (luminaMaterial.Textures != null && luminaMaterial.Textures.Length > k)
                     {
                         luminaTexture = luminaMaterial.Textures[k];
                     }

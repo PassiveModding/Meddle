@@ -14,7 +14,7 @@ public struct ShapeMesh {
 
         var meshDict = new Dictionary< uint, Mesh >();
         foreach( var mesh in meshes ) {
-            meshDict.Add( file.Meshes[ mesh.MeshIndex ].StartIndex, mesh );
+            meshDict.TryAdd( file.Meshes[ mesh.MeshIndex ].StartIndex, mesh );
         }
 
         foreach( var shapeMeshStruct in file.ShapeMeshes ) {
