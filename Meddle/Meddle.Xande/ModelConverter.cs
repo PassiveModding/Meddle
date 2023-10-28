@@ -195,6 +195,100 @@ namespace Meddle.Xande
             }, cancellationToken: cancellationToken);
         }
 
+        public async Task ExportModel(string exportPath, Model model, ExportType exportType,
+            CancellationToken cancellationToken = default)
+        {
+            Directory.CreateDirectory(exportPath);
+            var filePath = Path.GetFileNameWithoutExtension(model.File.FilePath.Path);
+            var path = Path.Combine(exportPath, $"{filePath}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}");
+            Directory.CreateDirectory(path);
+            
+            var gltfScene = new SceneBuilder(model.File.FilePath.Path);
+            
+            var textureTasks = new List<Task>();
+            var materials = new List<(string gamepath, MaterialBuilder material)>();
+            foreach (var material in model.Materials)
+            {
+                // update material
+                material.Update(_luminaManager.GameData);
+
+                textureTasks.Add(Task.Run(async () =>
+                {
+                    var glTfMaterial = await ComposeTextures(material, path, null, cancellationToken);
+                    if (glTfMaterial == null)
+                    {
+                        return;
+                    }
+
+                    materials.Add((material.File.FilePath.Path, glTfMaterial));
+                }, cancellationToken));
+            }
+            
+            await Task.WhenAll(textureTasks);
+            
+            foreach (var mesh in model.Meshes)
+            {
+                var material = materials.FirstOrDefault(x => x.gamepath == mesh.Material.File.FilePath.Path);
+                if (material == default)
+                {
+                    _log.Warning($"Could not find material for {mesh.Material.File.FilePath.Path}");
+                    continue;
+                }
+
+                try
+                {
+                    var meshbuilder = new MeshBuilder(mesh, 
+                        false, 
+                        new Dictionary<int, int>(), 
+                        material.material, 
+                        new RaceDeformer(_pbd, new Dictionary<string, NodeBuilder>()));
+                    
+                    meshbuilder.BuildVertices();
+
+                    for (int i = 0; i < mesh.Submeshes.Length; i++)
+                    {
+                        var sub = mesh.Submeshes[i];
+                        var submesh = meshbuilder.BuildSubmesh(sub);
+                        submesh.Name = $"{sub.IndexNum}_{i}";
+                        meshbuilder.BuildShapes(model.Shapes.Values.ToArray(), submesh,
+                            (int) mesh.Submeshes[i].IndexOffset,
+                            (int) (mesh.Submeshes[i].IndexOffset + mesh.Submeshes[i].IndexNum));
+                        gltfScene.AddRigidMesh(submesh, Matrix4x4.Identity);
+                    }
+                }
+                catch (Exception e)
+                {
+                    _log.Error(e, $"Failed to handle mesh creation for {mesh.Material.File.FilePath.Path}");
+                }
+            }
+            
+            var glTfModel = gltfScene.ToGltf2();
+            
+            // check if exportType contains each type using flags
+            if (exportType.HasFlag(ExportType.Glb))
+            {
+                var glbFolder = Path.Combine(path, "glb");
+                Directory.CreateDirectory(glbFolder);
+                glTfModel.SaveGLB(Path.Combine(glbFolder, "glb.glb"));
+            }
+            
+            if (exportType.HasFlag(ExportType.Gltf))
+            {
+                var glTfFolder = Path.Combine(path, "gltf");
+                Directory.CreateDirectory(glTfFolder);
+                glTfModel.SaveGLTF(Path.Combine(glTfFolder, "gltf.gltf"));
+            }
+            
+            if (exportType.HasFlag(ExportType.Wavefront))
+            {
+                var waveFrontFolder = Path.Combine(path, "wavefront");
+                Directory.CreateDirectory(waveFrontFolder);
+                SharpGLTF.Schema2.Toolkit.SaveAsWavefront(glTfModel, Path.Combine(waveFrontFolder, "wavefront.obj"));
+            }
+            
+            Process.Start("explorer.exe", path);
+        }
+
         public async Task ExportModel(string exportPath, IEnumerable<HavokXml> skeletons, ResourceTree tree,
             IEnumerable<Node> nodes,
             ExportType exportType,
@@ -594,253 +688,29 @@ namespace Meddle.Xande
                 {
                     //alphaMode = SharpGLTF.Materials.AlphaMode.MASK;
                     // for character gear, split the normal map into diffuse, specular and emission
-                    if (xivTextureMap.TryGetValue(TextureUsage.SamplerNormal, out var normal))
-                    {
-                        xivTextureMap.TryGetValue(TextureUsage.SamplerDiffuse, out var initDiffuse);
-                        if (!xivTextureMap.ContainsKey(TextureUsage.SamplerDiffuse) ||
-                            !xivTextureMap.ContainsKey(TextureUsage.SamplerSpecular) ||
-                            !xivTextureMap.ContainsKey(TextureUsage.SamplerReflection))
-                        {
-                            var normalData = normal.LockBits(new Rectangle(0, 0, normal.Width, normal.Height),
-                                ImageLockMode.ReadWrite, normal.PixelFormat);
-                            var initDiffuseData = initDiffuse?.LockBits(
-                                new Rectangle(0, 0, initDiffuse.Width, initDiffuse.Height), ImageLockMode.ReadWrite,
-                                initDiffuse.PixelFormat);
-
-                            try
-                            {
-                                var characterTextures =
-                                    TextureUtility.ComputeCharacterModelTextures(xivMaterial, normalData,
-                                        initDiffuseData);
-
-                                // If the textures already exist, tryAdd will make sure they are not overwritten
-                                foreach (var (usage, texture) in characterTextures)
-                                {
-                                    xivTextureMap.TryAdd(usage, texture);
-                                }
-                            }
-                            finally
-                            {
-                                normal.UnlockBits(normalData);
-                                if (initDiffuse != null && initDiffuseData != null)
-                                {
-                                    initDiffuse.UnlockBits(initDiffuseData);
-                                }
-                            }
-                        }
-                    }
-
-                    if (xivTextureMap.TryGetValue(TextureUsage.SamplerMask, out var mask) &&
-                        xivTextureMap.TryGetValue(TextureUsage.SamplerSpecular, out var specularMap))
-                    {
-                        var maskData = mask.LockBits(new Rectangle(0, 0, mask.Width, mask.Height),
-                            ImageLockMode.ReadWrite, mask.PixelFormat);
-                        var specularMapData = specularMap.LockBits(
-                            new Rectangle(0, 0, specularMap.Width, specularMap.Height), ImageLockMode.ReadWrite,
-                            specularMap.PixelFormat);
-                        var occlusion = TextureUtility.ComputeOcclusion(maskData, specularMapData);
-                        mask.UnlockBits(maskData);
-                        specularMap.UnlockBits(specularMapData);
-
-                        // Add the specular occlusion texture to xivTextureMap
-                        xivTextureMap.Add(TextureUsage.SamplerWaveMap, occlusion);
-                    }
-
+                    TextureUtility.ParseCharacterTextures(xivTextureMap, xivMaterial, _log);
                     break;
                 }
                 case "skin.shpk":
                 {
                     alphaMode = AlphaMode.MASK;
-                    if (xivTextureMap.TryGetValue(TextureUsage.SamplerNormal, out var normal))
-                    {
-                        xivTextureMap.TryGetValue(TextureUsage.SamplerDiffuse, out var diffuse);
-
-                        if (diffuse == null) throw new Exception("Diffuse texture is null");
-
-                        var normalData = normal.LockBits(new Rectangle(0, 0, normal.Width, normal.Height),
-                            ImageLockMode.ReadWrite, normal.PixelFormat);
-                        var diffuseData = diffuse.LockBits(new Rectangle(0, 0, diffuse.Width, diffuse.Height),
-                            ImageLockMode.ReadWrite, diffuse.PixelFormat);
-                        try
-                        {
-                            // use blue for opacity
-                            TextureUtility.CopyNormalBlueChannelToDiffuseAlphaChannel(normalData, diffuseData);
-
-                            for (var x = 0; x < normal.Width; x++)
-                            {
-                                for (var y = 0; y < normal.Height; y++)
-                                {
-                                    var normalPixel = TextureUtility.GetPixel(normalData, x, y, _log);
-                                    TextureUtility.SetPixel(normalData, x, y,
-                                        Color.FromArgb(normalPixel.B, normalPixel.R, normalPixel.G, 255));
-                                }
-                            }
-                        }
-                        finally
-                        {
-                            normal.UnlockBits(normalData);
-                            diffuse.UnlockBits(diffuseData);
-                        }
-                    }
-
+                    TextureUtility.ParseSkinTextures(xivTextureMap, xivMaterial, _log);
                     break;
                 }
                 case "hair.shpk":
                 {
                     alphaMode = AlphaMode.MASK;
                     backfaceCulling = false;
-                    if (xivTextureMap.TryGetValue(TextureUsage.SamplerNormal, out var normal))
-                    {
-                        var specular = new Bitmap(normal.Width, normal.Height, PixelFormat.Format32bppArgb);
-                        var colorSetInfo = xivMaterial.File!.ColorSetInfo;
-
-                        var normalData = normal.LockBits(new Rectangle(0, 0, normal.Width, normal.Height),
-                            ImageLockMode.ReadWrite, normal.PixelFormat);
-                        try
-                        {
-                            for (int x = 0; x < normalData.Width; x++)
-                            {
-                                for (int y = 0; y < normalData.Height; y++)
-                                {
-                                    var normalPixel = TextureUtility.GetPixel(normalData, x, y, _log);
-                                    var colorSetIndex1 = normalPixel.A / 17 * 16;
-                                    var colorSetBlend = normalPixel.A % 17 / 17.0;
-                                    var colorSetIndexT2 = normalPixel.A / 17;
-                                    var colorSetIndex2 = (colorSetIndexT2 >= 15 ? 15 : colorSetIndexT2 + 1) * 16;
-
-                                    var specularBlendColour = ColorUtility.BlendColorSet(in colorSetInfo,
-                                        colorSetIndex1, colorSetIndex2, 255, colorSetBlend,
-                                        ColorUtility.TextureType.Specular);
-
-                                    // Use normal blue channel for opacity
-                                    specular.SetPixel(x, y, Color.FromArgb(
-                                        normalPixel.A,
-                                        specularBlendColour.R,
-                                        specularBlendColour.G,
-                                        specularBlendColour.B
-                                    ));
-                                }
-                            }
-                        }
-                        finally
-                        {
-                            normal.UnlockBits(normalData);
-                        }
-
-                        xivTextureMap.Add(TextureUsage.SamplerSpecular, specular);
-
-                        if (xivTextureMap.TryGetValue(TextureUsage.SamplerMask, out var mask) &&
-                            xivTextureMap.TryGetValue(TextureUsage.SamplerSpecular, out var specularMap))
-                        {
-                            // TODO: Diffuse is to be generated using character options for colors
-                            // Currently based on the mask it seems I am blending it in a weird way
-                            var diffuse = (Bitmap) mask.Clone();
-                            var specularScaleX = specularMap.Width / (float) diffuse.Width;
-                            var specularScaleY = specularMap.Height / (float) diffuse.Height;
-
-                            var normalScaleX = normal.Width / (float) diffuse.Width;
-                            var normalScaleY = normal.Height / (float) diffuse.Height;
-
-                            var maskData = mask.LockBits(new Rectangle(0, 0, mask.Width, mask.Height),
-                                ImageLockMode.ReadWrite, mask.PixelFormat);
-                            var specularMapData = specularMap.LockBits(
-                                new Rectangle(0, 0, specularMap.Width, specularMap.Height), ImageLockMode.ReadWrite,
-                                specularMap.PixelFormat);
-                            var diffuseData = diffuse.LockBits(new Rectangle(0, 0, diffuse.Width, diffuse.Height),
-                                ImageLockMode.ReadWrite, diffuse.PixelFormat);
-                            normalData = normal.LockBits(new Rectangle(0, 0, normal.Width, normal.Height),
-                                ImageLockMode.ReadWrite, normal.PixelFormat);
-                            try
-                            {
-                                for (var x = 0; x < maskData.Width; x++)
-                                {
-                                    for (var y = 0; y < maskData.Height; y++)
-                                    {
-                                        var maskPixel = TextureUtility.GetPixel(maskData, x, y, _log);
-                                        var specularPixel = TextureUtility.GetPixel(specularMapData,
-                                            (int) (x * specularScaleX), (int) (y * specularScaleY), _log);
-                                        var normalPixel = TextureUtility.GetPixel(normalData, (int) (x * normalScaleX),
-                                            (int) (y * normalScaleY), _log);
-
-                                        TextureUtility.SetPixel(maskData, x, y, Color.FromArgb(
-                                            normalPixel.A,
-                                            Convert.ToInt32(specularPixel.R * Math.Pow(maskPixel.G / 255.0, 2)),
-                                            Convert.ToInt32(specularPixel.G * Math.Pow(maskPixel.G / 255.0, 2)),
-                                            Convert.ToInt32(specularPixel.B * Math.Pow(maskPixel.G / 255.0, 2))
-                                        ));
-
-                                        // Copy alpha channel from normal to diffuse
-                                        // var diffusePixel = TextureUtility.GetPixel( diffuseData, x, y, _log );
-
-                                        // TODO: Blending using mask
-                                        TextureUtility.SetPixel(diffuseData, x, y, Color.FromArgb(
-                                            normalPixel.A,
-                                            255,
-                                            255,
-                                            255
-                                        ));
-                                    }
-                                }
-
-                                diffuse.UnlockBits(diffuseData);
-                                // Add the specular occlusion texture to xivTextureMap
-                                xivTextureMap.Add(TextureUsage.SamplerDiffuse, diffuse);
-                            }
-                            finally
-                            {
-                                mask.UnlockBits(maskData);
-                                specularMap.UnlockBits(specularMapData);
-                                normal.UnlockBits(normalData);
-                            }
-                        }
-                    }
-
+                    TextureUtility.ParseHairTextures(xivTextureMap, xivMaterial, _log);
                     break;
                 }
                 case "iris.shpk":
                 {
-                    if (xivTextureMap.TryGetValue(TextureUsage.SamplerNormal, out var normal))
-                    {
-                        var specular = new Bitmap(normal.Width, normal.Height, PixelFormat.Format32bppArgb);
-                        var colorSetInfo = xivMaterial.File!.ColorSetInfo;
-
-                        var normalData = normal.LockBits(new Rectangle(0, 0, normal.Width, normal.Height),
-                            ImageLockMode.ReadWrite, normal.PixelFormat);
-                        try
-                        {
-                            for (int x = 0; x < normal.Width; x++)
-                            {
-                                for (int y = 0; y < normal.Height; y++)
-                                {
-                                    //var normalPixel = normal.GetPixel( x, y );
-                                    var normalPixel = TextureUtility.GetPixel(normalData, x, y, _log);
-                                    var colorSetIndex1 = normalPixel.A / 17 * 16;
-                                    var colorSetBlend = normalPixel.A % 17 / 17.0;
-                                    var colorSetIndexT2 = normalPixel.A / 17;
-                                    var colorSetIndex2 = (colorSetIndexT2 >= 15 ? 15 : colorSetIndexT2 + 1) * 16;
-
-                                    var specularBlendColour = ColorUtility.BlendColorSet(in colorSetInfo,
-                                        colorSetIndex1, colorSetIndex2, 255, colorSetBlend,
-                                        ColorUtility.TextureType.Specular);
-
-                                    specular.SetPixel(x, y,
-                                        Color.FromArgb(255, specularBlendColour.R, specularBlendColour.G,
-                                            specularBlendColour.B));
-                                }
-                            }
-
-                            xivTextureMap.Add(TextureUsage.SamplerSpecular, specular);
-                        }
-                        finally
-                        {
-                            normal.UnlockBits(normalData);
-                        }
-                    }
-
+                    TextureUtility.ParseIrisTextures(xivTextureMap!, xivMaterial, _log);
                     break;
                 }
                 default:
-                    _log.Debug($"Unhandled shader pack {xivMaterial.ShaderPack}");
+                    _log.Warning($"Unhandled shader pack {xivMaterial.ShaderPack}");
                     break;
             }
 

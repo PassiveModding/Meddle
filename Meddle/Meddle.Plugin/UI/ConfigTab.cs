@@ -17,6 +17,7 @@ public class ConfigTab : ITab
     }
 
     public string Name => "Config";
+    public int Order => Int32.MaxValue;
     public void Draw()
     {
         var autoOpen = _configuration.AutoOpen;

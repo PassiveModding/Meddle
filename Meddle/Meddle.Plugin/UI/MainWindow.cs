@@ -13,7 +13,7 @@ public class MainWindow : Window, IDisposable
 
     public MainWindow(IEnumerable<ITab> tabs, Configuration config, IPluginLog log) : base("Meddle")
     {
-        _tabs = tabs.ToArray();
+        _tabs = tabs.OrderBy(x => x.Order).ToArray();
         _log = log;
         SizeConstraints = new WindowSizeConstraints {
             MinimumSize = new Vector2( 375, 350 ),
@@ -26,7 +26,7 @@ public class MainWindow : Window, IDisposable
     private readonly Dictionary<string, DateTime> _errorLog = new();
     public override void Draw()
     {
-        using var tabBar = ImRaii.TabBar("##meddle_tabs");
+        using var tabBar = ImRaii.TabBar("##meddle_tabs", ImGuiTabBarFlags.Reorderable);
         foreach (var tab in _tabs)
         {
             using var tabItem = ImRaii.TabItem(tab.Name);

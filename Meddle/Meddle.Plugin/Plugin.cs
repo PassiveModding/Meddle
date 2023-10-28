@@ -15,6 +15,7 @@ public class Plugin : IDalamudPlugin
 {
     public string Name => "Meddle";
     private static readonly WindowSystem WindowSystem = new("Meddle");
+    public static readonly string TempDirectory = Path.Combine(Path.GetTempPath(), "Meddle.Export");
     private readonly MainWindow _mainWindow;
     private readonly ICommandManager _commandManager;
     private readonly DalamudPluginInterface _pluginInterface;

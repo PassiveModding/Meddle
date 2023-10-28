@@ -26,6 +26,7 @@ namespace Meddle.Plugin.UI;
 public class ResourceTab : ITab
 {
     public string Name => "Resources";
+    public int Order => 1;
     private readonly FileDialogManager _fileDialogManager;
     private Task<(string hash, ResourceTree tree, DateTime refreshedAt, bool[] exportOptions)>? _resourceTask;
     private (string hash, ResourceTree tree, DateTime refreshedAt, bool[] exportOptions)? _resourceTaskResult;
@@ -33,7 +34,6 @@ public class ResourceTab : ITab
     private Task? _exportTask;
     private (string name, int index) _selectedGameObject;
     private string _searchFilter = string.Empty;
-    private readonly string _tempDirectory = Path.Combine(Path.GetTempPath(), "Meddle.Export");
     private readonly ModelConverter _modelConverter;
     private ExportType _selectedExportTypeFlags = ExportType.Gltf;
     private readonly LuminaManager _luminaManager;
@@ -120,13 +120,13 @@ public class ResourceTab : ITab
 
                 var path = paths[0];
                 _resourceTask = LoadResourceListFromDisk(path);
-            }, 1, startPath: _tempDirectory, isModal: true);
+            }, 1, startPath: Plugin.TempDirectory, isModal: true);
         }
 
         ImGui.SameLine();
         if (ImGui.Button("Open Temp Directory"))
         {
-            Process.Start("explorer.exe", _tempDirectory);
+            Process.Start("explorer.exe", Plugin.TempDirectory);
         }
 
 
@@ -232,7 +232,7 @@ public class ResourceTab : ITab
             {
                 _exportTask = _modelConverter.ExportResourceTree(resourceTree, exportOptions,
                     true,
-                    _selectedExportTypeFlags, _tempDirectory, _exportCts.Token);
+                    _selectedExportTypeFlags, Plugin.TempDirectory, _exportCts.Token);
             }
 
             ImGui.SameLine();
@@ -243,7 +243,7 @@ public class ResourceTab : ITab
                     new bool[resourceTree.Nodes.Length].Select(_ => true).ToArray(),
                     true,
                     _selectedExportTypeFlags,
-                    _tempDirectory,
+                    Plugin.TempDirectory,
                     _exportCts.Token);
             }
 
@@ -346,7 +346,7 @@ public class ResourceTab : ITab
                                 _exportTask = _modelConverter.ExportResourceTree(resourceTree, tmpExportOptions,
                                     true,
                                     _selectedExportTypeFlags,
-                                    _tempDirectory,
+                                    Plugin.TempDirectory,
                                     _exportCts.Token);
                             }
                         }
@@ -498,10 +498,10 @@ public class ResourceTab : ITab
                 
                 var resourceTree = characterInfo.AsResourceTree(name, _pluginInterface);
                 
-                Directory.CreateDirectory(_tempDirectory);
+                Directory.CreateDirectory(Plugin.TempDirectory);
                 var content = JsonConvert.SerializeObject(resourceTree, Formatting.Indented);
                 var hash = Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(content)));
-                File.WriteAllText(Path.Combine(_tempDirectory, $"{name}.json"), content);
+                File.WriteAllText(Path.Combine(Plugin.TempDirectory, $"{name}.json"), content);
                 
                 return (hash, resourceTree, DateTime.UtcNow, new bool[resourceTree.Nodes.Length]);
             }
