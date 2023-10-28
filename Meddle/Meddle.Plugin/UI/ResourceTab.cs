@@ -6,7 +6,10 @@ using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Interface;
 using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.Utility.Raii;
+using Dalamud.Plugin;
+using Dalamud.Plugin.Services;
 using ImGuiNET;
+using Lumina;
 using Meddle.Xande;
 using Meddle.Xande.Enums;
 using Meddle.Xande.Models;
@@ -16,6 +19,7 @@ using Penumbra.Api;
 using Penumbra.Api.Enums;
 using Xande;
 using Xande.Havok;
+using Task = System.Threading.Tasks.Task;
 
 namespace Meddle.Plugin.UI;
 
@@ -33,14 +37,19 @@ public class ResourceTab : ITab
     private readonly ModelConverter _modelConverter;
     private ExportType _selectedExportTypeFlags = ExportType.Gltf;
     private readonly LuminaManager _luminaManager;
+    private readonly DalamudPluginInterface _pluginInterface;
+    private readonly IPluginLog _log;
+    private readonly IObjectTable _objectTable;
 
 
-    public ResourceTab()
+    public ResourceTab(DalamudPluginInterface pluginInterface, ModelConverter modelConverter, LuminaManager luminaManager, IPluginLog log, IObjectTable objectTable)
     {
+        _pluginInterface = pluginInterface;
+        _log = log;
+        _objectTable = objectTable;
+        _modelConverter = modelConverter;
+        _luminaManager = luminaManager;
         _fileDialogManager = new FileDialogManager();
-        var converter = new HavokConverter(Service.PluginInterface);
-        _luminaManager = new LuminaManager();
-        _modelConverter = new ModelConverter(converter, _luminaManager, Service.Log, Service.Framework);
         _exportCts = new CancellationTokenSource();
         _selectedGameObject = ("None", -1);
     }
@@ -121,12 +130,12 @@ public class ResourceTab : ITab
         }
 
 
-        var objects = Service.ObjectTable.Where(x => x.IsValid())
+        var objects = _objectTable.Where(x => x.IsValid())
             .Where(x =>
                 x.ObjectKind is ObjectKind.Player or ObjectKind.BattleNpc or ObjectKind.Retainer or ObjectKind.EventNpc
                     or ObjectKind.Companion
             )
-            .Where(x => CharacterUtility.HasDrawObject(x.ObjectIndex, Service.ObjectTable))
+            .Where(x => CharacterUtility.HasDrawObject(x.ObjectIndex, _objectTable))
             .ToArray();
         if (objects.Length == 0)
         {
@@ -459,7 +468,7 @@ public class ResourceTab : ITab
             }
             catch (Exception e)
             {
-                Service.Log.Error(e, "Error loading resources from file");
+                _log.Error(e, "Error loading resources from file");
                 throw;
             }
         });
@@ -472,13 +481,13 @@ public class ResourceTab : ITab
         {
             try
             {
-                var characterInfo = CharacterUtility.GetCharacterInfo(selectedObjectObjectIndex, Service.ObjectTable, _luminaManager);
+                var characterInfo = CharacterUtility.GetCharacterInfo(selectedObjectObjectIndex, _objectTable, _luminaManager);
                 if (characterInfo == null)
                 {
                     throw new Exception("Failed to get character info");
                 }
                 
-                var resourceTree = characterInfo.AsResourceTree(name, Service.PluginInterface);
+                var resourceTree = characterInfo.AsResourceTree(name, _pluginInterface);
                 
                 Directory.CreateDirectory(_tempDirectory);
                 var content = JsonConvert.SerializeObject(resourceTree, Formatting.Indented);
@@ -489,7 +498,7 @@ public class ResourceTab : ITab
             }
             catch (Exception e)
             {
-                Service.Log.Error(e, "Error loading resources");
+                _log.Error(e, "Error loading resources");
                 throw;
             }
         });

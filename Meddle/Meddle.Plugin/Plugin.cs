@@ -1,39 +1,51 @@
 ﻿using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
+using Dalamud.Plugin.Services;
 using Meddle.Plugin.UI;
+using Meddle.Plugin.Utility;
+using Meddle.Xande;
+using Microsoft.Extensions.DependencyInjection;
+using Xande;
+using Xande.Havok;
 
 namespace Meddle.Plugin;
 
 public class Plugin : IDalamudPlugin
 {
     public string Name => "Meddle";
-
-    public static Configuration Configuration { get; private set; } = null!;
     private static readonly WindowSystem WindowSystem = new("Meddle");
     private readonly MainWindow _mainWindow;
+    private readonly ICommandManager _commandManager;
+    private readonly DalamudPluginInterface _pluginInterface;
 
     public Plugin(DalamudPluginInterface pluginInterface)
     {
-        pluginInterface.Create<Service>();
+        var config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        config.Initialize(pluginInterface);
+        config.Save();
 
-        Configuration = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
-        Configuration.Save();
-
-        var resourceTab = new ResourceTab();
-        _mainWindow = new MainWindow(new ITab[]
-        {
-            resourceTab,
-            new ConfigTab()
-        });
+        var services = new ServiceCollection()
+            .AddDalamud(pluginInterface)
+            .AddUi()
+            .AddSingleton(pluginInterface)
+            .AddSingleton(config)
+            .AddSingleton<HavokConverter>()
+            .AddSingleton<ModelConverter>()
+            .AddSingleton<LuminaManager>()
+            .BuildServiceProvider();
+        
+        _mainWindow = services.GetRequiredService<MainWindow>();
         WindowSystem.AddWindow(_mainWindow);
         
-        Service.CommandManager.AddHandler( "/meddle", new CommandInfo( OnCommand ) {
+        _commandManager = services.GetRequiredService<ICommandManager>();
+        _commandManager.AddHandler( "/meddle", new CommandInfo( OnCommand ) {
             HelpMessage = "Open the menu"
         } );
         
-        Service.PluginInterface.UiBuilder.Draw         += DrawUi;
-        Service.PluginInterface.UiBuilder.OpenConfigUi += OpenUi;
+        _pluginInterface = services.GetRequiredService<DalamudPluginInterface>();
+        _pluginInterface.UiBuilder.Draw         += DrawUi;
+        _pluginInterface.UiBuilder.OpenConfigUi += OpenUi;
     }
     
     private void OnCommand( string command, string args ) {
@@ -52,10 +64,9 @@ public class Plugin : IDalamudPlugin
     {        
         _mainWindow.Dispose();
         WindowSystem.RemoveAllWindows();
+        _commandManager.RemoveHandler( "/meddle" );
 
-        Service.CommandManager.RemoveHandler( "/meddle" );
-
-        Service.PluginInterface.UiBuilder.Draw         -= DrawUi;
-        Service.PluginInterface.UiBuilder.OpenConfigUi -= OpenUi;
+        _pluginInterface.UiBuilder.Draw         -= DrawUi;
+        _pluginInterface.UiBuilder.OpenConfigUi -= OpenUi;
     }
 }

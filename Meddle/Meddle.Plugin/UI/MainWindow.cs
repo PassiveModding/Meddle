@@ -1,6 +1,7 @@
 using System.Numerics;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
+using Dalamud.Plugin.Services;
 using ImGuiNET;
 
 namespace Meddle.Plugin.UI;
@@ -8,19 +9,21 @@ namespace Meddle.Plugin.UI;
 public class MainWindow : Window, IDisposable
 {
     private readonly ITab[] _tabs;
+    private readonly IPluginLog _log;
 
-    public MainWindow(ITab[] tabs) : base("Meddle")
+    public MainWindow(IEnumerable<ITab> tabs, Configuration config, IPluginLog log) : base("Meddle")
     {
-        _tabs = tabs;
+        _tabs = tabs.ToArray();
+        _log = log;
         SizeConstraints = new WindowSizeConstraints {
             MinimumSize = new Vector2( 375, 350 ),
             MaximumSize = new Vector2( 1200, 1000 ),
         };
 
-        IsOpen          = Plugin.Configuration.AutoOpen;
+        IsOpen          = config.AutoOpen;
     }
 
-    private Dictionary<string, DateTime> _errorLog = new();
+    private readonly Dictionary<string, DateTime> _errorLog = new();
     public override void Draw()
     {
         using var tabBar = ImRaii.TabBar("##meddle_tabs");
@@ -42,7 +45,7 @@ public class MainWindow : Window, IDisposable
                     return; // Don't spam the log
                 }
 
-                Service.Log.Error(e, $"Error in {tab.Name}");
+                _log.Error(e, $"Error in {tab.Name}");
                 _errorLog[errorString] = DateTime.Now;
             }
         }

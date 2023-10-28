@@ -1,21 +1,30 @@
 ﻿using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Meddle.Plugin;
 
 public class Service {
-    [PluginService]
-    public static DalamudPluginInterface PluginInterface { get; private set; } = null!;
+    public Service(DalamudPluginInterface pluginInterface) {
+        pluginInterface.Inject(this);
+    }
+    
+    public void AddServices(IServiceCollection services)
+    {
+        services.AddSingleton(PluginInterface);
+        services.AddSingleton(Framework);
+        services.AddSingleton(CommandManager);
+        services.AddSingleton(Log);
+        services.AddSingleton(ObjectTable);
+    }
+    
+    [PluginService] private DalamudPluginInterface PluginInterface { get; set; } = null!;
 
-    [PluginService]
-    public static IFramework Framework { get; private set; } = null!;
+    [PluginService] private IFramework Framework { get; set; } = null!;
 
-    [PluginService]
-    public static ICommandManager CommandManager { get; private set; } = null!;
+    [PluginService] private ICommandManager CommandManager { get; set; } = null!;
 
-    [PluginService]
-    public static IPluginLog Log { get; private set; } = null!;
-    [PluginService]
-    public static IObjectTable ObjectTable { get; private set; } = null!;
+    [PluginService] private IPluginLog Log { get; set; } = null!;
+    [PluginService] private IObjectTable ObjectTable { get; set; } = null!;
 }
