@@ -187,6 +187,29 @@ public class ResourceTab : ITab
                 var selectedObject = objects[selected];
                 _resourceTask = TryBuildResourceList(selectedObject.Name.ToString(), selectedObject.ObjectIndex);
             }
+            
+            ImGui.SameLine();
+            // left/right arrow buttons
+            using (ImRaii.PushFont(UiBuilder.IconFont))
+            {
+                if (ImGui.Button($"{FontAwesomeIcon.ArrowLeft.ToIconString()}##Left") && _selectedGameObject.index > 0)
+                {
+                    _selectedGameObject.index--;
+                    _selectedGameObject.name = names[_selectedGameObject.index];
+                    var selectedObject = objects[_selectedGameObject.index];
+                    _resourceTask = TryBuildResourceList(selectedObject.Name.ToString(), selectedObject.ObjectIndex);
+                }
+
+                ImGui.SameLine();
+                if (ImGui.Button($"{FontAwesomeIcon.ArrowRight.ToIconString()}##Right") &&
+                    _selectedGameObject.index < objects.Length - 1)
+                {
+                    _selectedGameObject.index++;
+                    _selectedGameObject.name = names[_selectedGameObject.index];
+                    var selectedObject = objects[_selectedGameObject.index];
+                    _resourceTask = TryBuildResourceList(selectedObject.Name.ToString(), selectedObject.ObjectIndex);
+                }
+            }
 
             if (ImGui.Button("Refresh") && _selectedGameObject.index != -1 &&
                 (_resourceTask == null || _resourceTask.IsCompleted))
@@ -201,48 +224,41 @@ public class ResourceTab : ITab
     {
         // disable buttons if exporting
         var disableExport = _exportTask != null;
-
-        if (disableExport)
+        using (ImRaii.PushStyle(ImGuiStyleVar.Alpha, ImGui.GetStyle().Alpha * 0.5f, disableExport))
         {
-            ImGui.PushStyleVar(ImGuiStyleVar.Alpha, ImGui.GetStyle().Alpha * 0.5f);
-        }
 
-        // export button
-        if (ImGui.Button($"Export {exportOptions.Count(x => x)} selected") && _exportTask == null)
-        {
-            _exportTask = _modelConverter.ExportResourceTree(resourceTree, exportOptions, 
-                true,
-                _selectedExportTypeFlags, _tempDirectory, _exportCts.Token);
-        }
+            // export button
+            if (ImGui.Button($"Export {exportOptions.Count(x => x)} selected") && _exportTask == null)
+            {
+                _exportTask = _modelConverter.ExportResourceTree(resourceTree, exportOptions,
+                    true,
+                    _selectedExportTypeFlags, _tempDirectory, _exportCts.Token);
+            }
 
-        ImGui.SameLine();
-        // export all button
-        if (ImGui.Button("Export All") && _exportTask == null)
-        {
-            _exportTask = _modelConverter.ExportResourceTree(resourceTree,
-                new bool[resourceTree.Nodes.Length].Select(_ => true).ToArray(), 
-                true, 
-                _selectedExportTypeFlags,
-                _tempDirectory,
-                _exportCts.Token);
-        }
+            ImGui.SameLine();
+            // export all button
+            if (ImGui.Button("Export All") && _exportTask == null)
+            {
+                _exportTask = _modelConverter.ExportResourceTree(resourceTree,
+                    new bool[resourceTree.Nodes.Length].Select(_ => true).ToArray(),
+                    true,
+                    _selectedExportTypeFlags,
+                    _tempDirectory,
+                    _exportCts.Token);
+            }
 
-        // exportType option, checkboxes for types
-        var exportTypeFlags = (int) _selectedExportTypeFlags;
-        ImGui.SameLine();
-        ImGui.CheckboxFlags("Gltf", ref exportTypeFlags, (int) ExportType.Gltf);
-        ImGui.SameLine();
-        ImGui.CheckboxFlags("Glb", ref exportTypeFlags, (int) ExportType.Glb);
-        ImGui.SameLine();
-        ImGui.CheckboxFlags("Wavefront", ref exportTypeFlags, (int) ExportType.Wavefront);
-        if (exportTypeFlags != (int) _selectedExportTypeFlags)
-        {
-            _selectedExportTypeFlags = (ExportType) exportTypeFlags;
-        }
-
-        if (disableExport)
-        {
-            ImGui.PopStyleVar();
+            // exportType option, checkboxes for types
+            var exportTypeFlags = (int) _selectedExportTypeFlags;
+            ImGui.SameLine();
+            ImGui.CheckboxFlags("Gltf", ref exportTypeFlags, (int) ExportType.Gltf);
+            ImGui.SameLine();
+            ImGui.CheckboxFlags("Glb", ref exportTypeFlags, (int) ExportType.Glb);
+            ImGui.SameLine();
+            ImGui.CheckboxFlags("Wavefront", ref exportTypeFlags, (int) ExportType.Wavefront);
+            if (exportTypeFlags != (int) _selectedExportTypeFlags)
+            {
+                _selectedExportTypeFlags = (ExportType) exportTypeFlags;
+            }
         }
 
         // cancel button
@@ -318,31 +334,24 @@ public class ResourceTab : ITab
 
                     // quick export button
                     ImGui.SameLine();
-                    ImGui.PushFont(UiBuilder.IconFont);
-                    // if export task is running, disable button
-                    if (disableExport)
+                    using (ImRaii.PushFont(UiBuilder.IconFont))
                     {
-                        ImGui.PushStyleVar(ImGuiStyleVar.Alpha, ImGui.GetStyle().Alpha * 0.5f);
+                        // if export task is running, disable button
+                        using (ImRaii.PushStyle(ImGuiStyleVar.Alpha, ImGui.GetStyle().Alpha * 0.5f, disableExport))
+                        {
+                            if (ImGui.Button($"{FontAwesomeIcon.FileExport.ToIconString()}##{node.GetHashCode()}") && _exportTask == null)
+                            {
+                                var tmpExportOptions = new bool[resourceTree.Nodes.Length];
+                                tmpExportOptions[i] = true;
+                                _exportTask = _modelConverter.ExportResourceTree(resourceTree, tmpExportOptions,
+                                    true,
+                                    _selectedExportTypeFlags,
+                                    _tempDirectory,
+                                    _exportCts.Token);
+                            }
+                        }
                     }
 
-                    if (ImGui.Button($"{FontAwesomeIcon.FileExport.ToIconString()}##{node.GetHashCode()}") &&
-                        _exportTask == null)
-                    {
-                        var tmpExportOptions = new bool[resourceTree.Nodes.Length];
-                        tmpExportOptions[i] = true;
-                        _exportTask = _modelConverter.ExportResourceTree(resourceTree, tmpExportOptions, 
-                            true,
-                            _selectedExportTypeFlags, 
-                            _tempDirectory,
-                            _exportCts.Token);
-                    }
-
-                    if (disableExport)
-                    {
-                        ImGui.PopStyleVar();
-                    }
-
-                    ImGui.PopFont();
                     if (ImGui.IsItemHovered())
                     {
                         ImGui.SetTooltip($"Export \"{node.Name}\" as individual model");
