@@ -1,116 +1,183 @@
 ﻿using System.Numerics;
-using Dalamud.Interface.Utility.Raii;
+using System.Text.Json;
+using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
-using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using ImGuiNET;
 using Lumina.Data.Files;
 using Meddle.Lumina.Models;
-using Meddle.Xande;
-using Meddle.Xande.Enums;
+using Meddle.Plugin.UI.Shared;
 using Meddle.Xande.Models;
+using Penumbra.Api;
+using Penumbra.Api.Enums;
 using Xande;
+using Xande.Enums;
 
 namespace Meddle.Plugin.UI;
 
 public class TestingTab : ITab
 {
-    private readonly IObjectTable _objectTable;
     private readonly IPluginLog _log;
-    private readonly ModelConverter _modelConverter;
     private readonly LuminaManager _luminaManager;
-
-    public void Dispose()
-    {
-        // TODO release managed resources here
-    }
+    private readonly DalamudPluginInterface _pluginInterface;
+    private readonly ResourceTreeRenderer _resourceTreeRenderer;
     
-    public TestingTab(IObjectTable objectTable, IPluginLog log, ModelConverter modelConverter, LuminaManager luminaManager)
+    public TestingTab(IPluginLog log, LuminaManager luminaManager, DalamudPluginInterface pluginInterface, ResourceTreeRenderer resourceTreeRenderer)
     {
-        _objectTable = objectTable;
         _log = log;
-        _modelConverter = modelConverter;
         _luminaManager = luminaManager;
+        _pluginInterface = pluginInterface;
+        _resourceTreeRenderer = resourceTreeRenderer;
     }
 
     public string Name => "Testing";
     public int Order => 2;
-    private string _models = "";
-    private Task<(string path, Model? model)>? _modelTask;
-    private Task? _exportTask;
+    private string _modelPath = "";
+    private string _skeletons = "";
+    private GenderRace _genderRace = GenderRace.Unknown;
+    private Task<ResourceTree?>? _modelTask;
+    private bool[] _exportOptions = Array.Empty<bool>();
+
     public void Draw()
     {
-        ImGui.Text("Models Paths");
-        var input = _models;
+        ImGui.Text("Model Path");
+        var input = _modelPath;
         if (ImGui.InputText("##models", ref input, 1000))
         {
-            _models = input;
+            _modelPath = input;
         }
+        
+        var skeletons = _skeletons;
+        ImGui.Text("Skeleton Paths");
+        if (ImGui.InputTextMultiline("##skeletons", ref skeletons, 1000, new Vector2(0,0)))
+        {
+            _skeletons = skeletons;
+        }
+        
+        // dropdown genderrace select
+        var genderRace = _genderRace;
+        var options = Enum.GetValues<GenderRace>();
+        ImGui.PushItemWidth(180);
+        if (ImGui.BeginCombo("##genderrace", genderRace.ToString()))
+        {
+            foreach (var option in options)
+            {
+                var isSelected = option == genderRace;
+                if (ImGui.Selectable(option.ToString(), isSelected))
+                {
+                    _genderRace = option;
+                }
+
+                if (isSelected)
+                {
+                    ImGui.SetItemDefaultFocus();
+                }
+            }
+
+            ImGui.EndCombo();
+        }
+        
+        ImGui.SameLine();
+        ImGui.Text($"{(int)genderRace}");
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip($"Used to set deform steps for the model");
+        }
+        
+        
         
         if (_modelTask == null || _modelTask.IsCompleted)
         {
             if (ImGui.Button("Load Model"))
             {
-                _modelTask = ModelTask(input);
+                _modelTask = ModelToResourceTree(_modelPath, genderRace, skeletons.Split("\n"));
             }
         }
 
         if (_modelTask == null || !_modelTask.IsCompletedSuccessfully) return;
-        var model = _modelTask.Result;
-        ImGui.Text(model.path);
-        if (model.model == null)
+        var tree = _modelTask.Result;
+        if (tree == null) return;
+        
+        if (_exportOptions.Length != tree.Nodes.Length)
         {
-            ImGui.Text("Failed to load model");
-            return;
+            _exportOptions = new bool[tree.Nodes.Length];
         }
-            
-        ImGui.Text($"Materials: {model.model.Materials?.Length}");
-        ImGui.Text($"Meshes: {model.model.Meshes?.Length}");
-        ImGui.Text($"Shapes: {model.model.Shapes?.Count}");
-            
-        if (ImGui.Button("Export") && (_exportTask == null || _exportTask.IsCompleted))
-        {
-            _exportTask = _modelConverter.ExportModel(Plugin.TempDirectory, model.model, ExportType.Gltf);
-        }
-
-        if (_exportTask == null || !_exportTask.IsCompleted) return;
-        if (_exportTask.IsCompletedSuccessfully)
-        {
-            ImGui.Text("Exported");
-        }
-        else
-        {
-            ImGui.Text("Failed to export");
-            if (_exportTask.Exception == null) return;
-            ImGui.TextWrapped(_exportTask.Exception.ToString() ?? "");
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip("Click to copy");
-            }
-                        
-            if (ImGui.IsItemClicked())
-            {
-                ImGui.SetClipboardText(_exportTask.Exception.ToString() ?? "");
-            }
-        }
+        
+        _resourceTreeRenderer.DrawResourceTree(tree, ref _exportOptions);
     }
 
-    private Task<(string, Model?)> ModelTask(string modelPath)
+    private Task<ResourceTree?> ModelToResourceTree(string modelPath, GenderRace genderRace, string[] skeletons)
     {
-        return Task.Run(() =>
+        if (string.IsNullOrEmpty(modelPath))
         {
-            if (string.IsNullOrEmpty(modelPath))
+            return Task.FromResult<ResourceTree?>(null);
+        }
+        
+        var modelFile = _luminaManager.GetFile<MdlFile>(modelPath);
+        if (modelFile == null)
+        {
+            return Task.FromResult<ResourceTree?>(null);
+        }
+        
+        var model = new Model(modelFile);
+
+        var name = Path.GetFileNameWithoutExtension(modelPath);
+
+        var resourceTree = new ResourceTree(name, genderRace);
+        var rootNodes = new List<Node>();
+        var modelNode = new Node(modelPath, modelPath, ResourceType.Mdl.ToString(), ResourceType.Mdl);
+        rootNodes.Add(modelNode);
+        
+        var modelChildren = new List<Node>();
+        
+        foreach (var material in model.Materials)
+        {
+            material.Update(_luminaManager.GameData);
+            
+            var materialPath = material.ResolvedPath ?? material.MaterialPath;
+            var resolvedPath = Ipc.ResolveGameObjectPath.Subscriber(_pluginInterface)
+                .Invoke(materialPath, 0);
+            
+            var materialNode = new Node(resolvedPath, materialPath, ResourceType.Mtrl.ToString(), ResourceType.Mtrl);
+            var materialChildren = new List<Node>();
+            var resolvedMaterial = _luminaManager.GetMaterial(resolvedPath, materialPath);
+
+            foreach (var texture in resolvedMaterial.Textures)
             {
-                return (modelPath, null);
+                var resolvedTexturePath = Ipc.ResolveGameObjectPath.Subscriber(_pluginInterface)
+                    .Invoke(texture.TexturePath, 0);
+                
+                var textureNode = new Node(resolvedTexturePath, texture.TexturePath, ResourceType.Tex.ToString(), ResourceType.Tex);
+                materialChildren.Add(textureNode);
             }
 
-            var modelFile = _luminaManager.GetFile<MdlFile>(modelPath);
-            if (modelFile == null)
-            {
-                return (modelPath, null);
-            }
+            materialNode.Children = materialChildren.ToArray();
+            modelChildren.Add(materialNode);
+        }
+        
+        foreach (var skeleton in skeletons.Where(x => !string.IsNullOrWhiteSpace(x) && x.EndsWith(".sklb", StringComparison.OrdinalIgnoreCase)))
+        {
+            var resolvedPath = Ipc.ResolveGameObjectPath.Subscriber(_pluginInterface)
+                .Invoke(skeleton, 0);
             
-            var model = new Model(modelFile);
-            return (modelPath, model);
+            var skeletonNode = new Node(resolvedPath, skeleton, ResourceType.Sklb.ToString(), ResourceType.Sklb);
+            rootNodes.Add(skeletonNode);
+        }
+        
+        modelNode.Children = modelChildren.ToArray();
+        resourceTree.Nodes = rootNodes.ToArray();
+        
+        // log tree
+        var treeJson = JsonSerializer.Serialize(resourceTree, new JsonSerializerOptions
+        {
+            WriteIndented = true
         });
+        
+        File.WriteAllText(Path.Combine(_pluginInterface.GetPluginConfigDirectory(), $"{name}.json"), treeJson);
+        return Task.FromResult(resourceTree)!;
+    }
+    
+    public void Dispose()
+    {
+        _modelTask?.Dispose();
     }
 }

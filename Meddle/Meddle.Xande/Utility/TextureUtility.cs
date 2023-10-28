@@ -14,7 +14,7 @@ namespace Meddle.Xande.Utility;
 public static class TextureUtility
 {
     public static IEnumerable<(TextureUsage, Bitmap)> ComputeCharacterModelTextures(Material xivMaterial,
-        BitmapData normal, BitmapData? initDiffuse)
+        BitmapData normal, BitmapData? initDiffuse, bool copyNormalAlphaToDiffuse = true)
     {
         var diffuse = new Bitmap(normal.Width, normal.Height, PixelFormat.Format32bppArgb);
         var specular = new Bitmap(normal.Width, normal.Height, PixelFormat.Format32bppArgb);
@@ -23,7 +23,7 @@ public static class TextureUtility
         var colorSetInfo = xivMaterial.File!.ColorSetInfo;
 
         // copy alpha from normal to original diffuse if it exists
-        if (initDiffuse != null) CopyNormalBlueChannelToDiffuseAlphaChannel(normal, initDiffuse);
+        if (initDiffuse != null && copyNormalAlphaToDiffuse) CopyNormalBlueChannelToDiffuseAlphaChannel(normal, initDiffuse);
 
         for (var x = 0; x < normal.Width; x++)
         for (var y = 0; y < normal.Height; y++)
@@ -447,7 +447,7 @@ public static class TextureUtility
     }
 
     public static void ParseCharacterTextures(Dictionary<TextureUsage, Bitmap> xivTextureMap, Material xivMaterial,
-        IPluginLog log)
+        IPluginLog log, bool copyNormalAlphaToDiffuse = true)
     {
         if (xivTextureMap.TryGetValue(TextureUsage.SamplerNormal, out var normal))
         {
@@ -466,7 +466,7 @@ public static class TextureUtility
                 {
                     var characterTextures =
                         ComputeCharacterModelTextures(xivMaterial, normalData,
-                            initDiffuseData);
+                            initDiffuseData, copyNormalAlphaToDiffuse);
 
                     // If the textures already exist, tryAdd will make sure they are not overwritten
                     foreach (var (usage, texture) in characterTextures)

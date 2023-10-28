@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics;
-using System.Numerics;
 using System.Security.Cryptography;
 using System.Text;
 using Dalamud.Game.ClientState.Objects.Enums;
@@ -9,17 +8,11 @@ using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using ImGuiNET;
-using Lumina;
-using Meddle.Xande;
-using Meddle.Xande.Enums;
+using Meddle.Plugin.UI.Shared;
 using Meddle.Xande.Models;
 using Meddle.Xande.Utility;
 using Newtonsoft.Json;
-using Penumbra.Api;
-using Penumbra.Api.Enums;
 using Xande;
-using Xande.Havok;
-using Task = System.Threading.Tasks.Task;
 
 namespace Meddle.Plugin.UI;
 
@@ -29,28 +22,25 @@ public class ResourceTab : ITab
     public int Order => 1;
     private readonly FileDialogManager _fileDialogManager;
     private Task<(string hash, ResourceTree tree, DateTime refreshedAt, bool[] exportOptions)>? _resourceTask;
+    // storing result separately so it doesn't disappear while running a new task
     private (string hash, ResourceTree tree, DateTime refreshedAt, bool[] exportOptions)? _resourceTaskResult;
-    private CancellationTokenSource _exportCts;
-    private Task? _exportTask;
     private (string name, int index) _selectedGameObject;
     private string _searchFilter = string.Empty;
-    private readonly ModelConverter _modelConverter;
-    private ExportType _selectedExportTypeFlags = ExportType.Gltf;
     private readonly LuminaManager _luminaManager;
     private readonly DalamudPluginInterface _pluginInterface;
     private readonly IPluginLog _log;
     private readonly IObjectTable _objectTable;
+    private readonly ResourceTreeRenderer _resourceTreeRenderer;
 
 
-    public ResourceTab(DalamudPluginInterface pluginInterface, ModelConverter modelConverter, LuminaManager luminaManager, IPluginLog log, IObjectTable objectTable)
+    public ResourceTab(DalamudPluginInterface pluginInterface, LuminaManager luminaManager, IPluginLog log, IObjectTable objectTable, ResourceTreeRenderer resourceTreeRenderer)
     {
         _pluginInterface = pluginInterface;
         _log = log;
         _objectTable = objectTable;
-        _modelConverter = modelConverter;
+        _resourceTreeRenderer = resourceTreeRenderer;
         _luminaManager = luminaManager;
         _fileDialogManager = new FileDialogManager();
-        _exportCts = new CancellationTokenSource();
         _selectedGameObject = ("None", -1);
     }
 
@@ -100,8 +90,7 @@ public class ResourceTab : ITab
             return;
 
         var resourceTaskResult = _resourceTaskResult.Value;
-
-        DrawResourceTree(resourceTaskResult.tree, ref resourceTaskResult.exportOptions);
+        _resourceTreeRenderer.DrawResourceTree(resourceTaskResult.tree, ref resourceTaskResult.exportOptions);
     }
 
     private void DrawObjectPicker()
@@ -220,233 +209,6 @@ public class ResourceTab : ITab
         }
     }
 
-    private void DrawResourceTree(ResourceTree resourceTree, ref bool[] exportOptions)
-    {
-        // disable buttons if exporting
-        var disableExport = _exportTask != null;
-        using (ImRaii.PushStyle(ImGuiStyleVar.Alpha, ImGui.GetStyle().Alpha * 0.5f, disableExport))
-        {
-
-            // export button
-            if (ImGui.Button($"Export {exportOptions.Count(x => x)} selected") && _exportTask == null)
-            {
-                _exportTask = _modelConverter.ExportResourceTree(resourceTree, exportOptions,
-                    true,
-                    _selectedExportTypeFlags, Plugin.TempDirectory, _exportCts.Token);
-            }
-
-            ImGui.SameLine();
-            // export all button
-            if (ImGui.Button("Export All") && _exportTask == null)
-            {
-                _exportTask = _modelConverter.ExportResourceTree(resourceTree,
-                    new bool[resourceTree.Nodes.Length].Select(_ => true).ToArray(),
-                    true,
-                    _selectedExportTypeFlags,
-                    Plugin.TempDirectory,
-                    _exportCts.Token);
-            }
-
-            // exportType option, checkboxes for types
-            var exportTypeFlags = (int) _selectedExportTypeFlags;
-            ImGui.SameLine();
-            ImGui.CheckboxFlags("Gltf", ref exportTypeFlags, (int) ExportType.Gltf);
-            ImGui.SameLine();
-            ImGui.CheckboxFlags("Glb", ref exportTypeFlags, (int) ExportType.Glb);
-            ImGui.SameLine();
-            ImGui.CheckboxFlags("Wavefront", ref exportTypeFlags, (int) ExportType.Wavefront);
-            if (exportTypeFlags != (int) _selectedExportTypeFlags)
-            {
-                _selectedExportTypeFlags = (ExportType) exportTypeFlags;
-            }
-        }
-
-        // cancel button
-        if (_exportTask == null)
-        {
-            ImGui.SameLine();
-            ImGui.Text("No export in progress");
-        }
-        else
-        {
-            if (_exportTask.IsCompleted)
-            {
-                _exportTask = null!;
-            }
-            else if (_exportTask.IsCanceled)
-            {
-                ImGui.SameLine();
-                ImGui.TextUnformatted("Export Cancelled...");
-            }
-            else
-            {
-                ImGui.SameLine();
-                if (ImGui.Button("Cancel Export"))
-                {
-                    _exportCts.Cancel();
-                    _exportCts.Dispose();
-                    _exportCts = new CancellationTokenSource();
-                }
-            }
-        }
-
-        if (resourceTree?.Nodes == null)
-        {
-            return;
-        }
-
-        using var table = ImRaii.Table("##ResourceTable", 3,
-            ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable);
-        if (!table)
-            return;
-
-        ImGui.TableSetupColumn(string.Empty, ImGuiTableColumnFlags.WidthFixed, 250);
-        ImGui.TableSetupColumn("GamePath", ImGuiTableColumnFlags.WidthStretch, 0.3f);
-        ImGui.TableSetupColumn("FullPath", ImGuiTableColumnFlags.WidthStretch, 0.5f);
-        ImGui.TableHeadersRow();
-
-        for (int i = 0; i < resourceTree.Nodes.Length; i++)
-        {
-            var node = resourceTree.Nodes[i];
-            var exportOption = exportOptions[i];
-
-            // only interested in mdl, sklb and tex
-            var type = node.Type;
-            if (type != ResourceType.Mdl
-                && type != ResourceType.Sklb
-                && type != ResourceType.Tex)
-                continue;
-
-            ImGui.TableNextRow();
-            ImGui.TableNextColumn();
-            if (node?.Children == null) continue;
-            if (node.Children.Length > 0)
-            {
-                if (type == ResourceType.Mdl)
-                {
-                    ImGui.Checkbox($"##{node.GetHashCode()}", ref exportOption);
-                    exportOptions[i] = exportOption;
-                    // hover to show tooltip
-                    if (ImGui.IsItemHovered())
-                    {
-                        ImGui.SetTooltip($"Export \"{node.Name}\"");
-                    }
-
-                    // quick export button
-                    ImGui.SameLine();
-                    using (ImRaii.PushFont(UiBuilder.IconFont))
-                    {
-                        // if export task is running, disable button
-                        using (ImRaii.PushStyle(ImGuiStyleVar.Alpha, ImGui.GetStyle().Alpha * 0.5f, disableExport))
-                        {
-                            if (ImGui.Button($"{FontAwesomeIcon.FileExport.ToIconString()}##{node.GetHashCode()}") && _exportTask == null)
-                            {
-                                var tmpExportOptions = new bool[resourceTree.Nodes.Length];
-                                tmpExportOptions[i] = true;
-                                _exportTask = _modelConverter.ExportResourceTree(resourceTree, tmpExportOptions,
-                                    true,
-                                    _selectedExportTypeFlags,
-                                    Plugin.TempDirectory,
-                                    _exportCts.Token);
-                            }
-                        }
-                    }
-
-                    if (ImGui.IsItemHovered())
-                    {
-                        ImGui.SetTooltip($"Export \"{node.Name}\" as individual model");
-                    }
-
-                    ImGui.SameLine();
-                }
-
-                using var section = ImRaii.TreeNode($"{node.Name}##{node.GetHashCode()}",
-                    ImGuiTreeNodeFlags.SpanAvailWidth);
-
-                // only render current row
-                ImGui.TableNextColumn();
-                DrawCopyableText(node.GamePath);
-                ImGui.TableNextColumn();
-                DrawCopyableText(node.FullPath);
-
-                if (!section) continue;
-                foreach (var childNode in node.Children)
-                {
-                    DrawResourceNode(childNode);
-                }
-                // add line to separate
-                ImGui.TableNextRow();
-                ImGui.TableNextColumn();
-                // vertical spacing to help separate next node
-                ImGui.Dummy(new Vector2(0, 10));
-            }
-            else
-            {
-                using var section = ImRaii.TreeNode($"{node.Name}##{node.GetHashCode()}",
-                    ImGuiTreeNodeFlags.SpanFullWidth | ImGuiTreeNodeFlags.Leaf);
-                ImGui.TableNextColumn();
-                DrawCopyableText(node.GamePath);
-                ImGui.TableNextColumn();
-                DrawCopyableText(node.FullPath);
-            }
-        }
-    }
-
-    private void DrawCopyableText(string text)
-    {
-        ImGui.Text(text);
-        // click to copy
-        if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
-        {
-            ImGui.SetClipboardText(text);
-        }
-
-        // hover to show tooltip
-        if (ImGui.IsItemHovered())
-        {
-            ImGui.SetTooltip($"Copy \"{text}\" to clipboard");
-        }
-    }
-
-    private void DrawResourceNode(Node node)
-    {
-        // add same data to the table, expandable if more children, increase indent in first column
-        // indent
-        ImGui.TableNextRow();
-        ImGui.TableNextColumn();
-        if (node.Children.Length > 0)
-        {
-            ImGui.Dummy(new Vector2(5, 0));
-            ImGui.SameLine();
-
-            // default open all children
-            ImGui.SetNextItemOpen(true, ImGuiCond.Once);
-            using var section = ImRaii.TreeNode($"{node.Name}##{node.GetHashCode()}",
-                ImGuiTreeNodeFlags.SpanFullWidth | ImGuiTreeNodeFlags.Bullet);
-            ImGui.TableNextColumn();
-            DrawCopyableText(node.GamePath);
-            ImGui.TableNextColumn();
-            DrawCopyableText(node.FullPath);
-
-            if (section)
-            {
-                foreach (var child in node.Children)
-                {
-                    DrawResourceNode(child);
-                }
-            }
-        }
-        else
-        {
-            using var section = ImRaii.TreeNode($"{node.Name}##{node.GetHashCode()}",
-                ImGuiTreeNodeFlags.SpanFullWidth | ImGuiTreeNodeFlags.Leaf);
-            ImGui.TableNextColumn();
-            DrawCopyableText(node.GamePath);
-            ImGui.TableNextColumn();
-            DrawCopyableText(node.FullPath);
-        }
-    }
-
     private Task<(string, ResourceTree, DateTime, bool[])> LoadResourceListFromDisk(string pathToFile)
     {
         return Task.Run(() =>
@@ -517,7 +279,5 @@ public class ResourceTab : ITab
     public void Dispose()
     {
         _resourceTask?.Dispose();
-        _exportCts.Dispose();
-        _exportTask?.Dispose();
     }
 }

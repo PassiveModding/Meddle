@@ -3,6 +3,7 @@ using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Meddle.Plugin.UI;
+using Meddle.Plugin.UI.Shared;
 using Meddle.Plugin.Utility;
 using Meddle.Xande;
 using Microsoft.Extensions.DependencyInjection;
@@ -34,6 +35,7 @@ public class Plugin : IDalamudPlugin
             .AddSingleton<HavokConverter>()
             .AddSingleton<ModelConverter>()
             .AddSingleton<LuminaManager>()
+            .AddSingleton<ResourceTreeRenderer>()
             .BuildServiceProvider();
         
         _mainWindow = services.GetRequiredService<MainWindow>();
