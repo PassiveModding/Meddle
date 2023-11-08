@@ -752,6 +752,12 @@ namespace Meddle.Xande
                 {
                     continue;
                 }
+                
+                var dummyRegex = new Regex(@"^.+/dummy_?.+?\.tex$");
+                if (dummyRegex.IsMatch(xivTexture.TexturePath))
+                {
+                    continue;
+                }
 
                 var texturePath = xivTexture.TexturePath;
                 // try find matching node for tex file
