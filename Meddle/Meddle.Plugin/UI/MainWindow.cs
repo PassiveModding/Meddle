@@ -1,8 +1,8 @@
-using System.Numerics;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
 using ImGuiNET;
+using System.Numerics;
 
 namespace Meddle.Plugin.UI;
 
@@ -15,12 +15,13 @@ public class MainWindow : Window, IDisposable
     {
         _tabs = tabs.OrderBy(x => x.Order).ToArray();
         _log = log;
-        SizeConstraints = new WindowSizeConstraints {
-            MinimumSize = new Vector2( 375, 350 ),
-            MaximumSize = new Vector2( 1200, 1000 ),
+        SizeConstraints = new WindowSizeConstraints
+        {
+            MinimumSize = new Vector2(375, 350),
+            MaximumSize = new Vector2(1200, 1000),
         };
 
-        IsOpen          = config.AutoOpen;
+        IsOpen = config.AutoOpen;
     }
 
     private readonly Dictionary<string, DateTime> _errorLog = new();
@@ -32,7 +33,8 @@ public class MainWindow : Window, IDisposable
             using var tabItem = ImRaii.TabItem(tab.Name);
             try
             {
-                if (tabItem) {
+                if (tabItem)
+                {
                     tab.Draw();
                 }
             }

@@ -27,10 +27,6 @@
             <HintPath>$(DalamudLibPath)Dalamud.dll</HintPath>
             <Private>false</Private>
         </Reference>
-        <Reference Include="FFXIVClientStructs">
-            <HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath>
-            <Private>false</Private>
-        </Reference>
         <Reference Include="ImGui.NET">
             <HintPath>$(DalamudLibPath)ImGui.NET.dll</HintPath>
             <Private>false</Private>
@@ -46,9 +42,9 @@
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\..\FFXIVClientStructs\FFXIVClientStructs\FFXIVClientStructs.csproj" />
       <ProjectReference Include="..\..\Xande\Xande.GltfImporter\Xande.GltfImporter.csproj" />
       <ProjectReference Include="..\..\Xande\Xande\Xande.csproj" />
-      <ProjectReference Include="..\Meddle.Lumina\Meddle.Lumina.csproj" />
       <ProjectReference Include="..\Meddle.Xande\Meddle.Xande.csproj" />
     </ItemGroup>
 </Project>

@@ -1,7 +1,7 @@
-using System.Reflection;
 using Dalamud.Plugin;
 using Meddle.Plugin.UI;
 using Microsoft.Extensions.DependencyInjection;
+using System.Reflection;
 
 namespace Meddle.Plugin.Utility;
 
@@ -13,7 +13,7 @@ public static class ServiceUtility
         dalamud.AddServices(services);
         return services;
     }
-    
+
     public static IServiceCollection AddUi(this IServiceCollection services)
     {
         // reflection get all tab types
@@ -25,7 +25,7 @@ public static class ServiceUtility
         {
             services.AddSingleton(typeof(ITab), tab);
         }
-        
+
         return services
             .AddSingleton<MainWindow>();
     }

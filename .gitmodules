@@ -1,3 +1,12 @@
 [submodule "Xande"]
 	path = Xande
 	url = https://github.com/xivdev/Xande.git
+[submodule "FFXIVClientStructs"]
+	path = FFXIVClientStructs
+	url = https://github.com/aers/FFXIVClientStructs.git
+[submodule "Lumina"]
+	path = Lumina
+	url = https://github.com/NotAdam/Lumina.git
+[submodule "Penumbra.Api"]
+	path = Penumbra.Api
+	url = https://github.com/Ottermandias/Penumbra.Api.git

@@ -1,6 +1,3 @@
-﻿using System.Diagnostics;
-using System.Security.Cryptography;
-using System.Text;
 using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Interface;
 using Dalamud.Interface.ImGuiFileDialog;
@@ -9,9 +6,12 @@ using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using ImGuiNET;
 using Meddle.Plugin.UI.Shared;
-using Meddle.Xande.Models;
 using Meddle.Xande.Utility;
 using Newtonsoft.Json;
+using Penumbra.Api;
+using System.Diagnostics;
+using System.Security.Cryptography;
+using System.Text;
 using Xande;
 
 namespace Meddle.Plugin.UI;
@@ -21,9 +21,9 @@ public class ResourceTab : ITab
     public string Name => "Resources";
     public int Order => 1;
     private readonly FileDialogManager _fileDialogManager;
-    private Task<(string hash, ResourceTree tree, DateTime refreshedAt, bool[] exportOptions)>? _resourceTask;
+    private Task<(string hash, Ipc.ResourceTree tree, DateTime refreshedAt, bool[] exportOptions)>? _resourceTask;
     // storing result separately so it doesn't disappear while running a new task
-    private (string hash, ResourceTree tree, DateTime refreshedAt, bool[] exportOptions)? _resourceTaskResult;
+    private (string hash, Ipc.ResourceTree tree, DateTime refreshedAt, bool[] exportOptions)? _resourceTaskResult;
     private (string name, int index) _selectedGameObject;
     private string _searchFilter = string.Empty;
     private readonly LuminaManager _luminaManager;
@@ -176,7 +176,7 @@ public class ResourceTab : ITab
                 var selectedObject = objects[selected];
                 _resourceTask = TryBuildResourceList(selectedObject.Name.ToString(), selectedObject.ObjectIndex);
             }
-            
+
             ImGui.SameLine();
             // left/right arrow buttons
             using (ImRaii.PushFont(UiBuilder.IconFont))
@@ -209,7 +209,7 @@ public class ResourceTab : ITab
         }
     }
 
-    private Task<(string, ResourceTree, DateTime, bool[])> LoadResourceListFromDisk(string pathToFile)
+    private Task<(string, Ipc.ResourceTree, DateTime, bool[])> LoadResourceListFromDisk(string pathToFile)
     {
         return Task.Run(() =>
         {
@@ -221,20 +221,20 @@ public class ResourceTab : ITab
                 }
 
                 var contents = File.ReadAllText(pathToFile);
-                var resourceTree = JsonConvert.DeserializeObject<ResourceTree>(contents);
+                var resourceTree = JsonConvert.DeserializeObject<Ipc.ResourceTree>(contents);
 
                 if (resourceTree == null)
                 {
                     throw new Exception("No resource trees found");
                 }
 
-                if (resourceTree.Nodes.Length == 0)
+                if (!resourceTree.Nodes.Any())
                 {
                     throw new Exception("No resources found");
                 }
 
                 var contentHash = Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(contents)));
-                var exportOptions = new bool[resourceTree.Nodes.Length];
+                var exportOptions = new bool[resourceTree.Nodes.Count];
                 return (contentHash, resourceTree, DateTime.UtcNow, exportOptions);
             }
             catch (Exception e)
@@ -246,27 +246,21 @@ public class ResourceTab : ITab
     }
 
 
-    private Task<(string hash, ResourceTree tree, DateTime refreshedAt, bool[] exportOptions)> TryBuildResourceList(string name, ushort selectedObjectObjectIndex)
+    private Task<(string hash, Ipc.ResourceTree tree, DateTime refreshedAt, bool[] exportOptions)> TryBuildResourceList(string name, ushort selectedObjectObjectIndex)
     {
         return Task.Run(() =>
         {
             try
             {
-                var characterInfo = CharacterUtility.GetCharacterInfo(selectedObjectObjectIndex, _objectTable, _luminaManager);
-                if (characterInfo == null)
-                {
-                    throw new Exception("Failed to get character info");
-                }
-                
-                var resourceTree = characterInfo.AsResourceTree(name, _pluginInterface);
-                
+                var resourceTree = Ipc.GetGameObjectResourceTrees.Subscriber(_pluginInterface).Invoke(true, selectedObjectObjectIndex)[0]!;
+
                 Directory.CreateDirectory(Plugin.TempDirectory);
                 var content = JsonConvert.SerializeObject(resourceTree, Formatting.Indented);
                 var hash = Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(content)));
                 File.WriteAllText(Path.Combine(Plugin.TempDirectory, $"{name}.json"), content);
-                
+
                 _log.Information($"Built resource tree for {name}");
-                return (hash, resourceTree, DateTime.UtcNow, new bool[resourceTree.Nodes.Length]);
+                return (hash, resourceTree, DateTime.UtcNow, new bool[resourceTree.Nodes.Count]);
             }
             catch (Exception e)
             {

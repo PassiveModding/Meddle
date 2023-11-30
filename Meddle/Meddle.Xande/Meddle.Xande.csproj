@@ -8,8 +8,9 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\..\FFXIVClientStructs\FFXIVClientStructs\FFXIVClientStructs.csproj" />
+      <ProjectReference Include="..\..\Penumbra.Api\Penumbra.Api.csproj" />
       <ProjectReference Include="..\..\Xande\Xande\Xande.csproj" />
-      <ProjectReference Include="..\Meddle.Lumina\Meddle.Lumina.csproj" />
     </ItemGroup>
     
     <PropertyGroup>
@@ -25,17 +26,9 @@
             <HintPath>$(DalamudLibPath)Dalamud.dll</HintPath>
             <Private>false</Private>
         </Reference>
-        <Reference Include="FFXIVClientStructs">
-            <HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath>
-            <Private>false</Private>
-        </Reference>
         <Reference Include="Lumina">
             <HintPath>$(DalamudLibPath)Lumina.dll</HintPath>
             <Private>false</Private>
         </Reference>
-    </ItemGroup>
-
-    <ItemGroup>
-      <PackageReference Include="Penumbra.Api" Version="1.0.12" />
     </ItemGroup>
 </Project>

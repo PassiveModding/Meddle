@@ -12,7 +12,7 @@ public class Configuration : IPluginConfiguration
     {
         _pluginInterface = pluginInterface;
     }
-    
+
     public int Version { get; set; } = 0;
 
     public bool AutoOpen { get; set; } = false;

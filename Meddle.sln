@@ -1,14 +1,23 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meddle.Plugin", "Meddle\Meddle.Plugin\Meddle.Plugin.csproj", "{ABA6105F-84F8-421E-9365-4D19416FC850}"
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34309.116
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Meddle.Plugin", "Meddle\Meddle.Plugin\Meddle.Plugin.csproj", "{ABA6105F-84F8-421E-9365-4D19416FC850}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meddle.Lumina", "Meddle\Meddle.Lumina\Meddle.Lumina.csproj", "{62526E67-AA76-40CB-B1C5-E35A9D6021E4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Meddle.Xande", "Meddle\Meddle.Xande\Meddle.Xande.csproj", "{FBFE8C22-24F2-4BB9-8FA4-290656E9E895}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meddle.Xande", "Meddle\Meddle.Xande\Meddle.Xande.csproj", "{FBFE8C22-24F2-4BB9-8FA4-290656E9E895}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Xande", "Xande\Xande\Xande.csproj", "{A2345A24-7842-4733-91CF-DC7628521B1D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Xande", "Xande\Xande\Xande.csproj", "{A2345A24-7842-4733-91CF-DC7628521B1D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Xande.GltfImporter", "Xande\Xande.GltfImporter\Xande.GltfImporter.csproj", "{D8CCF05E-DD2D-455F-A537-C71BDBD931B2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Xande.GltfImporter", "Xande\Xande.GltfImporter\Xande.GltfImporter.csproj", "{D8CCF05E-DD2D-455F-A537-C71BDBD931B2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FFXIVClientStructs", "FFXIVClientStructs\FFXIVClientStructs\FFXIVClientStructs.csproj", "{13C16D26-657B-4EC2-90F2-365125403E2D}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FFXIVClientStructs.InteropSourceGenerators", "FFXIVClientStructs\FFXIVClientStructs.InteropSourceGenerators\FFXIVClientStructs.InteropSourceGenerators.csproj", "{768B4B01-444D-42FB-9C08-49BEB30EB5B8}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Lumina", "Lumina\src\Lumina\Lumina.csproj", "{FE724766-CF66-42E5-B964-EEA42D1C2209}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Penumbra.Api", "Penumbra.Api\Penumbra.Api.csproj", "{84106829-3287-4FDD-8502-4FB5A80D8649}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -20,18 +29,6 @@ Global
 		{ABA6105F-84F8-421E-9365-4D19416FC850}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{ABA6105F-84F8-421E-9365-4D19416FC850}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{ABA6105F-84F8-421E-9365-4D19416FC850}.Release|Any CPU.Build.0 = Release|Any CPU
-		{62526E67-AA76-40CB-B1C5-E35A9D6021E4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{62526E67-AA76-40CB-B1C5-E35A9D6021E4}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{62526E67-AA76-40CB-B1C5-E35A9D6021E4}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{62526E67-AA76-40CB-B1C5-E35A9D6021E4}.Release|Any CPU.Build.0 = Release|Any CPU
-		{4018BFFC-C9BD-4AF5-8AEC-E9611DB4FB76}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{4018BFFC-C9BD-4AF5-8AEC-E9611DB4FB76}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{4018BFFC-C9BD-4AF5-8AEC-E9611DB4FB76}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{4018BFFC-C9BD-4AF5-8AEC-E9611DB4FB76}.Release|Any CPU.Build.0 = Release|Any CPU
-		{42488303-BD91-496B-9191-A47749467E95}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{42488303-BD91-496B-9191-A47749467E95}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{42488303-BD91-496B-9191-A47749467E95}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{42488303-BD91-496B-9191-A47749467E95}.Release|Any CPU.Build.0 = Release|Any CPU
 		{FBFE8C22-24F2-4BB9-8FA4-290656E9E895}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{FBFE8C22-24F2-4BB9-8FA4-290656E9E895}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FBFE8C22-24F2-4BB9-8FA4-290656E9E895}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -44,5 +41,27 @@ Global
 		{D8CCF05E-DD2D-455F-A537-C71BDBD931B2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D8CCF05E-DD2D-455F-A537-C71BDBD931B2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D8CCF05E-DD2D-455F-A537-C71BDBD931B2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{13C16D26-657B-4EC2-90F2-365125403E2D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{13C16D26-657B-4EC2-90F2-365125403E2D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{13C16D26-657B-4EC2-90F2-365125403E2D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{13C16D26-657B-4EC2-90F2-365125403E2D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{768B4B01-444D-42FB-9C08-49BEB30EB5B8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{768B4B01-444D-42FB-9C08-49BEB30EB5B8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{768B4B01-444D-42FB-9C08-49BEB30EB5B8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{768B4B01-444D-42FB-9C08-49BEB30EB5B8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FE724766-CF66-42E5-B964-EEA42D1C2209}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FE724766-CF66-42E5-B964-EEA42D1C2209}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FE724766-CF66-42E5-B964-EEA42D1C2209}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FE724766-CF66-42E5-B964-EEA42D1C2209}.Release|Any CPU.Build.0 = Release|Any CPU
+		{84106829-3287-4FDD-8502-4FB5A80D8649}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{84106829-3287-4FDD-8502-4FB5A80D8649}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{84106829-3287-4FDD-8502-4FB5A80D8649}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{84106829-3287-4FDD-8502-4FB5A80D8649}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {74A28FFB-AEAB-4FBB-817C-8881B34F4D47}
 	EndGlobalSection
 EndGlobal

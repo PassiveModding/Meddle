@@ -1,11 +1,12 @@
-﻿using System.Numerics;
 using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
 using ImGuiNET;
 using Meddle.Xande;
-using Meddle.Xande.Enums;
-using Meddle.Xande.Models;
+using Meddle.Xande.Utility;
+using Penumbra.Api;
 using Penumbra.Api.Enums;
+using System.Numerics;
+using Xande.Enums;
 
 namespace Meddle.Plugin.UI.Shared;
 
@@ -13,16 +14,16 @@ public class ResourceTreeRenderer : IDisposable
 {
     private readonly ModelConverter _modelConverter;
     private Task? ExportTask { get; set; }
-    private bool CopyNormalAlphaToDiffuse { get; set; }= true;
-    private ExportType ExportTypeFlags { get; set; }= ExportType.Gltf;
+    private bool CopyNormalAlphaToDiffuse { get; set; } = true;
+    private ExportType ExportTypeFlags { get; set; } = ExportType.Gltf;
     private CancellationTokenSource ExportCts { get; set; } = new();
 
     public ResourceTreeRenderer(ModelConverter modelConverter)
     {
         _modelConverter = modelConverter;
     }
-    
-    public void DrawResourceTree(ResourceTree resourceTree, ref bool[] exportOptions)
+
+    public void DrawResourceTree(Ipc.ResourceTree resourceTree, ref bool[] exportOptions)
     {
         // disable buttons if exporting
         var disableExport = ExportTask != null;
@@ -33,8 +34,8 @@ public class ResourceTreeRenderer : IDisposable
             {
                 ExportTask = _modelConverter.ExportResourceTree(resourceTree, exportOptions,
                     true,
-                    ExportTypeFlags, 
-                    Plugin.TempDirectory, 
+                    ExportTypeFlags,
+                    Plugin.TempDirectory,
                     CopyNormalAlphaToDiffuse,
                     ExportCts.Token);
             }
@@ -44,7 +45,7 @@ public class ResourceTreeRenderer : IDisposable
             if (ImGui.Button("Export All") && ExportTask == null)
             {
                 ExportTask = _modelConverter.ExportResourceTree(resourceTree,
-                    new bool[resourceTree.Nodes.Length].Select(_ => true).ToArray(),
+                    new bool[resourceTree.Nodes.Count].Select(_ => true).ToArray(),
                     true,
                     ExportTypeFlags,
                     Plugin.TempDirectory,
@@ -53,18 +54,18 @@ public class ResourceTreeRenderer : IDisposable
             }
 
             // exportType option, checkboxes for types
-            var exportTypeFlags = (int) ExportTypeFlags;
+            var exportTypeFlags = (int)ExportTypeFlags;
             ImGui.SameLine();
-            ImGui.CheckboxFlags("Gltf", ref exportTypeFlags, (int) ExportType.Gltf);
+            ImGui.CheckboxFlags("Gltf", ref exportTypeFlags, (int)ExportType.Gltf);
             ImGui.SameLine();
-            ImGui.CheckboxFlags("Glb", ref exportTypeFlags, (int) ExportType.Glb);
+            ImGui.CheckboxFlags("Glb", ref exportTypeFlags, (int)ExportType.Glb);
             ImGui.SameLine();
-            ImGui.CheckboxFlags("Wavefront", ref exportTypeFlags, (int) ExportType.Wavefront);
-            if (exportTypeFlags != (int) ExportTypeFlags)
+            ImGui.CheckboxFlags("Wavefront", ref exportTypeFlags, (int)ExportType.Wavefront);
+            if (exportTypeFlags != (int)ExportTypeFlags)
             {
-                ExportTypeFlags = (ExportType) exportTypeFlags;
+                ExportTypeFlags = (ExportType)exportTypeFlags;
             }
-            
+
             var copyNormalAlphaToDiffuseX = CopyNormalAlphaToDiffuse;
             if (ImGui.Checkbox("Copy Normal Alpha to Diffuse", ref copyNormalAlphaToDiffuseX) && copyNormalAlphaToDiffuseX != CopyNormalAlphaToDiffuse)
             {
@@ -95,14 +96,9 @@ public class ResourceTreeRenderer : IDisposable
                 }
             }
         }
-        
+
         ImGui.SameLine();
         ImGui.Text(_modelConverter.GetLastMessage()?.Split("\n").FirstOrDefault() ?? string.Empty);
-
-        if (resourceTree?.Nodes == null)
-        {
-            return;
-        }
 
         using var table = ImRaii.Table("##ResourceTable", 3,
             ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable);
@@ -114,7 +110,7 @@ public class ResourceTreeRenderer : IDisposable
         ImGui.TableSetupColumn("FullPath", ImGuiTableColumnFlags.WidthStretch, 0.5f);
         ImGui.TableHeadersRow();
 
-        for (int i = 0; i < resourceTree.Nodes.Length; i++)
+        for (int i = 0; i < resourceTree.Nodes.Count; i++)
         {
             var node = resourceTree.Nodes[i];
             var exportOption = exportOptions[i];
@@ -129,7 +125,7 @@ public class ResourceTreeRenderer : IDisposable
             ImGui.TableNextRow();
             ImGui.TableNextColumn();
             if (node?.Children == null) continue;
-            if (node.Children.Length > 0)
+            if (node.Children.Any())
             {
                 if (type == ResourceType.Mdl)
                 {
@@ -150,7 +146,7 @@ public class ResourceTreeRenderer : IDisposable
                         {
                             if (ImGui.Button($"{FontAwesomeIcon.FileExport.ToIconString()}##{node.GetHashCode()}") && ExportTask == null)
                             {
-                                var tmpExportOptions = new bool[resourceTree.Nodes.Length];
+                                var tmpExportOptions = new bool[resourceTree.Nodes.Count];
                                 tmpExportOptions[i] = true;
                                 ExportTask = _modelConverter.ExportResourceTree(resourceTree, tmpExportOptions,
                                     true,
@@ -175,9 +171,9 @@ public class ResourceTreeRenderer : IDisposable
 
                 // only render current row
                 ImGui.TableNextColumn();
-                DrawCopyableText(node.GamePath);
+                DrawCopyableText(node.GamePath ?? "Unknown");
                 ImGui.TableNextColumn();
-                DrawCopyableText(node.FullPath);
+                DrawCopyableText(node.FullPath());
 
                 if (!section) continue;
                 foreach (var childNode in node.Children)
@@ -195,9 +191,9 @@ public class ResourceTreeRenderer : IDisposable
                 using var section = ImRaii.TreeNode($"{node.Name}##{node.GetHashCode()}",
                     ImGuiTreeNodeFlags.SpanFullWidth | ImGuiTreeNodeFlags.Leaf);
                 ImGui.TableNextColumn();
-                DrawCopyableText(node.GamePath);
+                DrawCopyableText(node.GamePath ?? "Unknown");
                 ImGui.TableNextColumn();
-                DrawCopyableText(node.FullPath);
+                DrawCopyableText(node.FullPath());
             }
         }
     }
@@ -218,13 +214,13 @@ public class ResourceTreeRenderer : IDisposable
         }
     }
 
-    public static void DrawResourceNode(Node node)
+    public static void DrawResourceNode(Ipc.ResourceNode node)
     {
         // add same data to the table, expandable if more children, increase indent in first column
         // indent
         ImGui.TableNextRow();
         ImGui.TableNextColumn();
-        if (node.Children.Length > 0)
+        if (node.Children.Any())
         {
             ImGui.Dummy(new Vector2(5, 0));
             ImGui.SameLine();
@@ -234,9 +230,9 @@ public class ResourceTreeRenderer : IDisposable
             using var section = ImRaii.TreeNode($"{node.Name}##{node.GetHashCode()}",
                 ImGuiTreeNodeFlags.SpanFullWidth | ImGuiTreeNodeFlags.Bullet);
             ImGui.TableNextColumn();
-            DrawCopyableText(node.GamePath);
+            DrawCopyableText(node.GamePath ?? "Unknown");
             ImGui.TableNextColumn();
-            DrawCopyableText(node.FullPath);
+            DrawCopyableText(node.FullPath());
 
             if (section)
             {
@@ -251,9 +247,9 @@ public class ResourceTreeRenderer : IDisposable
             using var section = ImRaii.TreeNode($"{node.Name}##{node.GetHashCode()}",
                 ImGuiTreeNodeFlags.SpanFullWidth | ImGuiTreeNodeFlags.Leaf);
             ImGui.TableNextColumn();
-            DrawCopyableText(node.GamePath);
+            DrawCopyableText(node.GamePath ?? "Unknown");
             ImGui.TableNextColumn();
-            DrawCopyableText(node.FullPath);
+            DrawCopyableText(node.FullPath());
         }
     }
 

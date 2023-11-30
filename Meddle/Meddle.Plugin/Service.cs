@@ -5,11 +5,13 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Meddle.Plugin;
 
-public class Service {
-    public Service(DalamudPluginInterface pluginInterface) {
+public class Service
+{
+    public Service(DalamudPluginInterface pluginInterface)
+    {
         pluginInterface.Inject(this);
     }
-    
+
     public void AddServices(IServiceCollection services)
     {
         services.AddSingleton(PluginInterface);
@@ -18,7 +20,7 @@ public class Service {
         services.AddSingleton(Log);
         services.AddSingleton(ObjectTable);
     }
-    
+
     [PluginService] private DalamudPluginInterface PluginInterface { get; set; } = null!;
 
     [PluginService] private IFramework Framework { get; set; } = null!;

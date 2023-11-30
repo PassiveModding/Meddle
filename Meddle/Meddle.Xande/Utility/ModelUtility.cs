@@ -1,11 +1,10 @@
-﻿using System.Text.RegularExpressions;
-using Lumina.Data.Files;
-using Meddle.Lumina.Models;
-using Meddle.Xande.Models;
+﻿using Lumina.Data.Files;
+using Lumina.Models.Models;
+using Penumbra.Api;
 using SharpGLTF.Scenes;
+using System.Text.RegularExpressions;
 using Xande;
 using Xande.Havok;
-using Model = Meddle.Lumina.Models.Model;
 
 namespace Meddle.Xande.Utility;
 
@@ -52,7 +51,7 @@ public static class ModelUtility
 
         return boneMap;
     }
-    
+
     private static readonly object ModelLoadLock = new();
     public static Model GetModel(LuminaManager manager, string path)
     {
@@ -64,45 +63,47 @@ public static class ModelUtility
                 : throw new FileNotFoundException();
         }
     }
-    
-    public static bool TryGetModel( this LuminaManager manager, Node node, ushort? deform, out string path, out Model? model ) {
 
-            path = node.FullPath;
-            if( TryLoadModel( node.FullPath, out model ) ) { return true; }
+    public static bool TryGetModel(this LuminaManager manager, Ipc.ResourceNode node, ushort? deform, out string path, out Model? model)
+    {
 
-            if( TryLoadModel( node.GamePath, out model ) ) { return true; }
+        path = node.FullPath();
+        if (TryLoadModel(node.FullPath(), out model)) { return true; }
 
-            if( TryLoadRacialModel( node.GamePath, deform, out var newPath, out model ) ) { return true; }
-            
-            return false;
+        if (TryLoadModel(node.GamePath ?? string.Empty, out model)) { return true; }
 
-            bool TryLoadRacialModel( string path, ushort? cDeform, out string nPath, out Model? model ) {
-                nPath = path;
-                model = null;
-                if( cDeform == null ) { return false; }
+        if (TryLoadRacialModel(node.GamePath ?? string.Empty, deform, out _, out model)) { return true; }
 
-                nPath = Regex.Replace( path, @"c\d+", $"c{cDeform}" );
-                try
-                {
-                    model = GetModel(manager, nPath);
-                    return true;
-                }
-                catch { return false; }
-            }
+        return false;
 
-            bool TryLoadModel(string path, out Model? model)
+        bool TryLoadRacialModel(string path, ushort? cDeform, out string nPath, out Model? model)
+        {
+            nPath = path;
+            model = null;
+            if (cDeform == null) { return false; }
+
+            nPath = Regex.Replace(path, @"c\d+", $"c{cDeform}");
+            try
             {
-                model = null;
-                try
-                {
-                    model = GetModel(manager, path);
-                    return true;
-                }
-                catch
-                {
-                    return false;
-                }
+                model = GetModel(manager, nPath);
+                return true;
             }
+            catch { return false; }
+        }
+
+        bool TryLoadModel(string path, out Model? model)
+        {
+            model = null;
+            try
+            {
+                model = GetModel(manager, path);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
 
     }
 }

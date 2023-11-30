@@ -37,39 +37,43 @@ public class Plugin : IDalamudPlugin
             .AddSingleton<LuminaManager>()
             .AddSingleton<ResourceTreeRenderer>()
             .BuildServiceProvider();
-        
+
         _mainWindow = services.GetRequiredService<MainWindow>();
         WindowSystem.AddWindow(_mainWindow);
-        
+
         _commandManager = services.GetRequiredService<ICommandManager>();
-        _commandManager.AddHandler( "/meddle", new CommandInfo( OnCommand ) {
+        _commandManager.AddHandler("/meddle", new CommandInfo(OnCommand)
+        {
             HelpMessage = "Open the menu"
-        } );
-        
+        });
+
         _pluginInterface = services.GetRequiredService<DalamudPluginInterface>();
-        _pluginInterface.UiBuilder.Draw         += DrawUi;
+        _pluginInterface.UiBuilder.Draw += DrawUi;
         _pluginInterface.UiBuilder.OpenConfigUi += OpenUi;
     }
-    
-    private void OnCommand( string command, string args ) {
+
+    private void OnCommand(string command, string args)
+    {
         OpenUi();
     }
 
-    private void OpenUi() {
+    private void OpenUi()
+    {
         _mainWindow.IsOpen = true;
     }
 
-    private void DrawUi() {
+    private void DrawUi()
+    {
         WindowSystem.Draw();
     }
 
     public void Dispose()
-    {        
+    {
         _mainWindow.Dispose();
         WindowSystem.RemoveAllWindows();
-        _commandManager.RemoveHandler( "/meddle" );
+        _commandManager.RemoveHandler("/meddle");
 
-        _pluginInterface.UiBuilder.Draw         -= DrawUi;
+        _pluginInterface.UiBuilder.Draw -= DrawUi;
         _pluginInterface.UiBuilder.OpenConfigUi -= OpenUi;
     }
 }
