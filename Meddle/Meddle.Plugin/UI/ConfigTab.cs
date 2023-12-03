@@ -2,29 +2,31 @@ using ImGuiNET;
 
 namespace Meddle.Plugin.UI;
 
-public class ConfigTab : ITab
+public sealed class ConfigTab : ITab
 {
-    private readonly Configuration _configuration;
+    public string Name => "Config";
 
-    public void Dispose()
-    {
-        //
-    }
+    public int Order => int.MaxValue;
+
+    private Configuration Config { get; }
 
     public ConfigTab(Configuration configuration)
     {
-        _configuration = configuration;
+        Config = configuration;
     }
 
-    public string Name => "Config";
-    public int Order => Int32.MaxValue;
     public void Draw()
     {
-        var autoOpen = _configuration.AutoOpen;
+        var autoOpen = Config.AutoOpen;
         if (ImGui.Checkbox("Auto-open", ref autoOpen))
         {
-            _configuration.AutoOpen = autoOpen;
-            _configuration.Save();
+            Config.AutoOpen = autoOpen;
+            Config.Save();
         }
+    }
+
+    public void Dispose()
+    {
+        
     }
 }

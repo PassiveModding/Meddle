@@ -1,4 +1,5 @@
-﻿using Dalamud.Game.Command;
+using Dalamud.Game;
+using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
@@ -12,9 +13,8 @@ using Xande.Havok;
 
 namespace Meddle.Plugin;
 
-public class Plugin : IDalamudPlugin
+public sealed class Plugin : IDalamudPlugin
 {
-    public string Name => "Meddle";
     private static readonly WindowSystem WindowSystem = new("Meddle");
     public static readonly string TempDirectory = Path.Combine(Path.GetTempPath(), "Meddle.Export");
     private readonly MainWindow _mainWindow;
@@ -50,6 +50,14 @@ public class Plugin : IDalamudPlugin
         _pluginInterface = services.GetRequiredService<DalamudPluginInterface>();
         _pluginInterface.UiBuilder.Draw += DrawUi;
         _pluginInterface.UiBuilder.OpenConfigUi += OpenUi;
+        _pluginInterface.UiBuilder.DisableGposeUiHide = true;
+
+        // https://github.com/Caraxi/SimpleTweaksPlugin/blob/2b7c105d1671fd6a344edb5c621632b8825a81c5/SimpleTweaksPlugin.cs#L101C13-L103C75
+        Task.Run(() =>
+        {
+            FFXIVClientStructs.Interop.Resolver.GetInstance.SetupSearchSpace(services.GetRequiredService<ISigScanner>().SearchBase);
+            FFXIVClientStructs.Interop.Resolver.GetInstance.Resolve();
+        });
     }
 
     private void OnCommand(string command, string args)

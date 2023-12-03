@@ -1,4 +1,5 @@
-﻿using Dalamud.IoC;
+using Dalamud.Game;
+using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,6 +20,8 @@ public class Service
         services.AddSingleton(CommandManager);
         services.AddSingleton(Log);
         services.AddSingleton(ObjectTable);
+        services.AddSingleton(ClientState);
+        services.AddSingleton(SigScanner);
     }
 
     [PluginService] private DalamudPluginInterface PluginInterface { get; set; } = null!;
@@ -29,4 +32,6 @@ public class Service
 
     [PluginService] private IPluginLog Log { get; set; } = null!;
     [PluginService] private IObjectTable ObjectTable { get; set; } = null!;
+    [PluginService] private IClientState ClientState { get; set; } = null!;
+    [PluginService] private ISigScanner SigScanner { get; set; } = null!;
 }

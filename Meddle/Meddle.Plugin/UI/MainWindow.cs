@@ -1,12 +1,11 @@
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
-using ImGuiNET;
 using System.Numerics;
 
 namespace Meddle.Plugin.UI;
 
-public class MainWindow : Window, IDisposable
+public sealed class MainWindow : Window, IDisposable
 {
     private readonly ITab[] _tabs;
     private readonly IPluginLog _log;
@@ -20,14 +19,14 @@ public class MainWindow : Window, IDisposable
             MinimumSize = new Vector2(375, 350),
             MaximumSize = new Vector2(1200, 1000),
         };
-
+        
         IsOpen = config.AutoOpen;
     }
 
     private readonly Dictionary<string, DateTime> _errorLog = new();
     public override void Draw()
     {
-        using var tabBar = ImRaii.TabBar("##meddle_tabs", ImGuiTabBarFlags.Reorderable);
+        using var tabBar = ImRaii.TabBar("##meddleTabs");
         foreach (var tab in _tabs)
         {
             using var tabItem = ImRaii.TabItem(tab.Name);

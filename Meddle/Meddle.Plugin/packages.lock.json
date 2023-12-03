@@ -67,21 +67,14 @@
           "Serilog": "[2.11.0, )"
         }
       },
-      "lumina": {
+      "Lumina2": {
         "type": "Project"
-      },
-      "meddle.lumina": {
-        "type": "Project",
-        "dependencies": {
-          "Lumina": "[2.4.2, )",
-          "SharpGLTF.Core": "[1.0.0-alpha0028, )",
-          "SharpGLTF.Toolkit": "[1.0.0-alpha0028, )"
-        }
       },
       "meddle.xande": {
         "type": "Project",
         "dependencies": {
           "FFXIVClientStructs": "[1.0.0, )",
+          "Lumina2": "[2.4.3, )",
           "Penumbra.Api": "[1.0.12, )",
           "Xande": "[1.0.0, )"
         }
@@ -93,6 +86,7 @@
         "type": "Project",
         "dependencies": {
           "FFXIVClientStructs": "[1.0.0, )",
+          "Lumina2": "[2.4.3, )",
           "System.Drawing.Common": "[8.0.0, )",
           "Xande.GltfImporter": "[1.0.0, )"
         }
@@ -100,7 +94,7 @@
       "xande.gltfimporter": {
         "type": "Project",
         "dependencies": {
-          "Lumina": "[2.4.2, )",
+          "Lumina2": "[2.4.3, )",
           "SharpGLTF.Core": "[1.0.0-alpha0030, )",
           "SharpGLTF.Toolkit": "[1.0.0-alpha0030, )"
         }

@@ -6,12 +6,6 @@
         <Nullable>enable</Nullable>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
-
-    <ItemGroup>
-      <ProjectReference Include="..\..\FFXIVClientStructs\FFXIVClientStructs\FFXIVClientStructs.csproj" />
-      <ProjectReference Include="..\..\Penumbra.Api\Penumbra.Api.csproj" />
-      <ProjectReference Include="..\..\Xande\Xande\Xande.csproj" />
-    </ItemGroup>
     
     <PropertyGroup>
         <DalamudLibPath>$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
@@ -26,9 +20,14 @@
             <HintPath>$(DalamudLibPath)Dalamud.dll</HintPath>
             <Private>false</Private>
         </Reference>
-        <Reference Include="Lumina">
-            <HintPath>$(DalamudLibPath)Lumina.dll</HintPath>
-            <Private>false</Private>
-        </Reference>
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\..\FFXIVClientStructs\FFXIVClientStructs\FFXIVClientStructs.csproj" />
+        <ProjectReference Include="..\..\Lumina\src\Lumina\Lumina.csproj">
+            <Private>true</Private>
+        </ProjectReference>
+      <ProjectReference Include="..\..\Penumbra.Api\Penumbra.Api.csproj" />
+      <ProjectReference Include="..\..\Xande\Xande\Xande.csproj" />
     </ItemGroup>
 </Project>

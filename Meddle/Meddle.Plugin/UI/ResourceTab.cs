@@ -12,7 +12,6 @@ using Penumbra.Api;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
-using Xande;
 
 namespace Meddle.Plugin.UI;
 
@@ -26,20 +25,18 @@ public class ResourceTab : ITab
     private (string hash, Ipc.ResourceTree tree, DateTime refreshedAt, bool[] exportOptions)? _resourceTaskResult;
     private (string name, int index) _selectedGameObject;
     private string _searchFilter = string.Empty;
-    private readonly LuminaManager _luminaManager;
     private readonly DalamudPluginInterface _pluginInterface;
     private readonly IPluginLog _log;
     private readonly IObjectTable _objectTable;
     private readonly ResourceTreeRenderer _resourceTreeRenderer;
 
 
-    public ResourceTab(DalamudPluginInterface pluginInterface, LuminaManager luminaManager, IPluginLog log, IObjectTable objectTable, ResourceTreeRenderer resourceTreeRenderer)
+    public ResourceTab(DalamudPluginInterface pluginInterface, IPluginLog log, IObjectTable objectTable, ResourceTreeRenderer resourceTreeRenderer)
     {
         _pluginInterface = pluginInterface;
         _log = log;
         _objectTable = objectTable;
         _resourceTreeRenderer = resourceTreeRenderer;
-        _luminaManager = luminaManager;
         _fileDialogManager = new FileDialogManager();
         _selectedGameObject = ("None", -1);
     }

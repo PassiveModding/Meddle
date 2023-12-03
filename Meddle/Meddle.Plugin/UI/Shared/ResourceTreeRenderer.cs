@@ -37,6 +37,8 @@ public class ResourceTreeRenderer : IDisposable
                     ExportTypeFlags,
                     Plugin.TempDirectory,
                     CopyNormalAlphaToDiffuse,
+                    null,
+                    null,
                     ExportCts.Token);
             }
 
@@ -50,6 +52,8 @@ public class ResourceTreeRenderer : IDisposable
                     ExportTypeFlags,
                     Plugin.TempDirectory,
                     CopyNormalAlphaToDiffuse,
+                    null,
+                    null,
                     ExportCts.Token);
             }
 
@@ -153,6 +157,8 @@ public class ResourceTreeRenderer : IDisposable
                                     ExportTypeFlags,
                                     Plugin.TempDirectory,
                                     CopyNormalAlphaToDiffuse,
+                                    null,
+                                    null,
                                     ExportCts.Token);
                             }
                         }
