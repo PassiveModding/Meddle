@@ -7,13 +7,13 @@ namespace Meddle.Plugin.UI;
 
 public sealed class MainWindow : Window, IDisposable
 {
-    private readonly ITab[] _tabs;
-    private readonly IPluginLog _log;
+    private ITab[] Tabs { get; }
+    private IPluginLog Log { get; }
 
     public MainWindow(IEnumerable<ITab> tabs, Configuration config, IPluginLog log) : base("Meddle")
     {
-        _tabs = tabs.OrderBy(x => x.Order).ToArray();
-        _log = log;
+        Tabs = tabs.OrderBy(x => x.Order).ToArray();
+        Log = log;
         SizeConstraints = new WindowSizeConstraints
         {
             MinimumSize = new Vector2(375, 350),
@@ -23,40 +23,34 @@ public sealed class MainWindow : Window, IDisposable
         IsOpen = config.AutoOpen;
     }
 
-    private readonly Dictionary<string, DateTime> _errorLog = new();
+    private Dictionary<string, DateTime> ErrorLog { get; } = new();
     public override void Draw()
     {
         using var tabBar = ImRaii.TabBar("##meddleTabs");
-        foreach (var tab in _tabs)
+        foreach (var tab in Tabs)
         {
             using var tabItem = ImRaii.TabItem(tab.Name);
             try
             {
                 if (tabItem)
-                {
                     tab.Draw();
-                }
             }
             catch (Exception e)
             {
                 var errorString = e.ToString();
                 // compare error string to last error
-                if (_errorLog.TryGetValue(errorString, out var lastError) && (DateTime.Now - lastError < TimeSpan.FromSeconds(5)))
-                {
+                if (ErrorLog.TryGetValue(errorString, out var lastError) && (DateTime.Now - lastError < TimeSpan.FromSeconds(5)))
                     return; // Don't spam the log
-                }
 
-                _log.Error(e, $"Error in {tab.Name}");
-                _errorLog[errorString] = DateTime.Now;
+                Log.Error(e, $"Error in {tab.Name}");
+                ErrorLog[errorString] = DateTime.Now;
             }
         }
     }
 
     public void Dispose()
     {
-        foreach (var tab in _tabs)
-        {
+        foreach (var tab in Tabs)
             tab.Dispose();
-        }
     }
 }

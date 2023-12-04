@@ -1,4 +1,4 @@
-﻿using Dalamud.Configuration;
+using Dalamud.Configuration;
 using Dalamud.Plugin;
 
 namespace Meddle.Plugin;
@@ -6,18 +6,19 @@ namespace Meddle.Plugin;
 [Serializable]
 public class Configuration : IPluginConfiguration
 {
-    [NonSerialized]
-    private DalamudPluginInterface _pluginInterface = null!;
+    private DalamudPluginInterface PluginInterface { get; set; } = null!;
+
+    public int Version { get; set; }
+
+    public bool AutoOpen { get; set; }
+
     public void Initialize(DalamudPluginInterface pluginInterface)
     {
-        _pluginInterface = pluginInterface;
+        PluginInterface = pluginInterface;
     }
 
-    public int Version { get; set; } = 0;
-
-    public bool AutoOpen { get; set; } = false;
     public void Save()
     {
-        _pluginInterface.SavePluginConfig(this);
+        PluginInterface.SavePluginConfig(this);
     }
 }

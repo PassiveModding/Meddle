@@ -19,64 +19,67 @@ public class ResourceTab : ITab
 {
     public string Name => "Resources";
     public int Order => 1;
-    private readonly FileDialogManager _fileDialogManager;
-    private Task<(string hash, Ipc.ResourceTree tree, DateTime refreshedAt, bool[] exportOptions)>? _resourceTask;
+
+    private FileDialogManager FileDialogManager { get; }
+
+    private Task<(string hash, Ipc.ResourceTree tree, DateTime refreshedAt)>? ResourceTask { get; set; }
     // storing result separately so it doesn't disappear while running a new task
-    private (string hash, Ipc.ResourceTree tree, DateTime refreshedAt, bool[] exportOptions)? _resourceTaskResult;
-    private (string name, int index) _selectedGameObject;
-    private string _searchFilter = string.Empty;
-    private readonly DalamudPluginInterface _pluginInterface;
-    private readonly IPluginLog _log;
-    private readonly IObjectTable _objectTable;
-    private readonly ResourceTreeRenderer _resourceTreeRenderer;
+    private (string hash, Ipc.ResourceTree tree, DateTime refreshedAt)? ResourceTaskResult { get; set; }
+    private (string name, int index) SelectedGameObject { get; set; }
+    private string SearchFilter { get; set; } = string.Empty;
+
+    private DalamudPluginInterface PluginInterface { get; }
+    private IPluginLog Log { get; }
+    private IObjectTable ObjectTable { get; }
+    private ResourceTreeRenderer ResourceTreeRenderer { get; }
 
 
     public ResourceTab(DalamudPluginInterface pluginInterface, IPluginLog log, IObjectTable objectTable, ResourceTreeRenderer resourceTreeRenderer)
     {
-        _pluginInterface = pluginInterface;
-        _log = log;
-        _objectTable = objectTable;
-        _resourceTreeRenderer = resourceTreeRenderer;
-        _fileDialogManager = new FileDialogManager();
-        _selectedGameObject = ("None", -1);
+        PluginInterface = pluginInterface;
+        Log = log;
+        ObjectTable = objectTable;
+        ResourceTreeRenderer = resourceTreeRenderer;
+        FileDialogManager = new FileDialogManager();
+        SelectedGameObject = ("None", -1);
     }
 
     public void Draw()
     {
         DrawObjectPicker();
-        if (_resourceTask == null)
+        if (ResourceTask == null)
         {
             ImGui.Text("No resources found");
             return;
         }
 
-        if (_resourceTaskResult != null)
+        if (ResourceTaskResult != null)
         {
             // check if hash is different
-            if (_resourceTask != null && _resourceTask.IsCompletedSuccessfully &&
-                _resourceTask.Result.hash != _resourceTaskResult.Value.hash)
+            if (ResourceTask != null && ResourceTask.IsCompletedSuccessfully &&
+                ResourceTask.Result.hash != ResourceTaskResult.Value.hash)
             {
-                _resourceTaskResult = _resourceTask.Result;
+                ResourceTaskResult = ResourceTask.Result;
             }
         }
-        else if (_resourceTask != null)
+        else if (ResourceTask != null)
         {
-            if (!_resourceTask.IsCompleted)
+            if (!ResourceTask.IsCompleted)
             {
                 ImGui.Text("Loading...");
             }
-            else if (_resourceTask.Exception != null)
+            else if (ResourceTask.Exception != null)
             {
-                ImGui.Text($"Error loading resources\n\n{_resourceTask.Exception}");
+                ImGui.Text($"Error loading resources\n\n{ResourceTask.Exception}");
             }
-            else if (_resourceTask.IsCompletedSuccessfully)
+            else if (ResourceTask.IsCompletedSuccessfully)
             {
-                _resourceTaskResult = _resourceTask.Result;
+                ResourceTaskResult = ResourceTask.Result;
             }
         }
 
         // dropdown to select
-        if (!_resourceTaskResult.HasValue)
+        if (!ResourceTaskResult.HasValue)
         {
             ImGui.Text("No resources found");
             return;
@@ -86,17 +89,17 @@ public class ResourceTab : ITab
         if (!child)
             return;
 
-        var resourceTaskResult = _resourceTaskResult.Value;
-        _resourceTreeRenderer.DrawResourceTree(resourceTaskResult.tree, ref resourceTaskResult.exportOptions);
+        var resourceTaskResult = ResourceTaskResult.Value;
+        ResourceTreeRenderer.DrawResourceTree(resourceTaskResult.tree);
     }
 
     private void DrawObjectPicker()
     {
-        _fileDialogManager.Draw();
+        FileDialogManager.Draw();
         // show load from disk button
         if (ImGui.Button("Load from disk"))
         {
-            _fileDialogManager.OpenFileDialog("Select Resource File", "Json Files{.json}", (selected, paths) =>
+            FileDialogManager.OpenFileDialog("Select Resource File", "Json Files{.json}", (selected, paths) =>
             {
                 if (!selected) return;
                 if (paths.Count == 0)
@@ -105,7 +108,7 @@ public class ResourceTab : ITab
                 }
 
                 var path = paths[0];
-                _resourceTask = LoadResourceListFromDisk(path);
+                ResourceTask = LoadResourceListFromDisk(path);
             }, 1, startPath: Plugin.TempDirectory, isModal: true);
         }
 
@@ -116,12 +119,12 @@ public class ResourceTab : ITab
         }
 
 
-        var objects = _objectTable.Where(x => x.IsValid())
+        var objects = ObjectTable.Where(x => x.IsValid())
             .Where(x =>
                 x.ObjectKind is ObjectKind.Player or ObjectKind.BattleNpc or ObjectKind.Retainer or ObjectKind.EventNpc
                     or ObjectKind.Companion
             )
-            .Where(x => CharacterUtility.HasDrawObject(x.ObjectIndex, _objectTable))
+            .Where(x => CharacterUtility.HasDrawObject(x.ObjectIndex, ObjectTable))
             .ToArray();
         if (objects.Length == 0)
         {
@@ -131,11 +134,11 @@ public class ResourceTab : ITab
         {
             // combo for selecting game object
             ImGui.Text("Select Game Object");
-            var selected = _selectedGameObject.index;
-            var filter = _searchFilter;
+            var selected = SelectedGameObject.index;
+            var filter = SearchFilter;
             if (ImGui.InputText("##Filter", ref filter, 100))
             {
-                _searchFilter = filter;
+                SearchFilter = filter;
             }
 
             if (!string.IsNullOrEmpty(filter))
@@ -162,51 +165,49 @@ public class ResourceTab : ITab
             if (selected == -1 && names.Length > 0)
             {
                 // set to first object
-                _selectedGameObject.index = 0;
-                _selectedGameObject.name = names[0];
+                SelectedGameObject = (names[0], 0);
             }
 
             if (ImGui.Combo("##GameObject", ref selected, names, names.Length))
             {
-                _selectedGameObject.index = selected;
-                _selectedGameObject.name = names[selected];
+                SelectedGameObject = (names[selected], selected);
                 var selectedObject = objects[selected];
-                _resourceTask = TryBuildResourceList(selectedObject.Name.ToString(), selectedObject.ObjectIndex);
+                ResourceTask = TryBuildResourceList(selectedObject.Name.ToString(), selectedObject.ObjectIndex);
             }
 
             ImGui.SameLine();
             // left/right arrow buttons
             using (ImRaii.PushFont(UiBuilder.IconFont))
             {
-                if (ImGui.Button($"{FontAwesomeIcon.ArrowLeft.ToIconString()}##Left") && _selectedGameObject.index > 0)
+                if (ImGui.Button($"{FontAwesomeIcon.ArrowLeft.ToIconString()}##Left") && SelectedGameObject.index > 0)
                 {
-                    _selectedGameObject.index--;
-                    _selectedGameObject.name = names[_selectedGameObject.index];
-                    var selectedObject = objects[_selectedGameObject.index];
-                    _resourceTask = TryBuildResourceList(selectedObject.Name.ToString(), selectedObject.ObjectIndex);
+                    var idx = SelectedGameObject.index - 1;
+                    SelectedGameObject = (names[idx], idx);
+                    var selectedObject = objects[idx];
+                    ResourceTask = TryBuildResourceList(selectedObject.Name.ToString(), selectedObject.ObjectIndex);
                 }
 
                 ImGui.SameLine();
                 if (ImGui.Button($"{FontAwesomeIcon.ArrowRight.ToIconString()}##Right") &&
-                    _selectedGameObject.index < objects.Length - 1)
+                    SelectedGameObject.index < objects.Length - 1)
                 {
-                    _selectedGameObject.index++;
-                    _selectedGameObject.name = names[_selectedGameObject.index];
-                    var selectedObject = objects[_selectedGameObject.index];
-                    _resourceTask = TryBuildResourceList(selectedObject.Name.ToString(), selectedObject.ObjectIndex);
+                    var idx = SelectedGameObject.index + 1;
+                    SelectedGameObject = (names[idx], idx);
+                    var selectedObject = objects[SelectedGameObject.index];
+                    ResourceTask = TryBuildResourceList(selectedObject.Name.ToString(), selectedObject.ObjectIndex);
                 }
             }
 
-            if (ImGui.Button("Refresh") && _selectedGameObject.index != -1 &&
-                (_resourceTask == null || _resourceTask.IsCompleted))
+            if (ImGui.Button("Refresh") && SelectedGameObject.index != -1 &&
+                (ResourceTask == null || ResourceTask.IsCompleted))
             {
-                var selectedObject = objects[_selectedGameObject.index];
-                _resourceTask = TryBuildResourceList(selectedObject.Name.ToString(), selectedObject.ObjectIndex);
+                var selectedObject = objects[SelectedGameObject.index];
+                ResourceTask = TryBuildResourceList(selectedObject.Name.ToString(), selectedObject.ObjectIndex);
             }
         }
     }
 
-    private Task<(string, Ipc.ResourceTree, DateTime, bool[])> LoadResourceListFromDisk(string pathToFile)
+    private Task<(string, Ipc.ResourceTree, DateTime)> LoadResourceListFromDisk(string pathToFile)
     {
         return Task.Run(() =>
         {
@@ -231,37 +232,35 @@ public class ResourceTab : ITab
                 }
 
                 var contentHash = Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(contents)));
-                var exportOptions = new bool[resourceTree.Nodes.Count];
-                return (contentHash, resourceTree, DateTime.UtcNow, exportOptions);
+                return (contentHash, resourceTree, DateTime.UtcNow);
             }
             catch (Exception e)
             {
-                _log.Error(e, "Error loading resources from file");
+                Log.Error(e, "Error loading resources from file");
                 throw;
             }
         });
     }
 
-
-    private Task<(string hash, Ipc.ResourceTree tree, DateTime refreshedAt, bool[] exportOptions)> TryBuildResourceList(string name, ushort selectedObjectObjectIndex)
+    private Task<(string hash, Ipc.ResourceTree tree, DateTime refreshedAt)> TryBuildResourceList(string name, ushort selectedObjectObjectIndex)
     {
         return Task.Run(() =>
         {
             try
             {
-                var resourceTree = Ipc.GetGameObjectResourceTrees.Subscriber(_pluginInterface).Invoke(true, selectedObjectObjectIndex)[0]!;
+                var resourceTree = Ipc.GetGameObjectResourceTrees.Subscriber(PluginInterface).Invoke(true, selectedObjectObjectIndex)[0]!;
 
                 Directory.CreateDirectory(Plugin.TempDirectory);
                 var content = JsonConvert.SerializeObject(resourceTree, Formatting.Indented);
                 var hash = Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(content)));
                 File.WriteAllText(Path.Combine(Plugin.TempDirectory, $"{name}.json"), content);
 
-                _log.Information($"Built resource tree for {name}");
-                return (hash, resourceTree, DateTime.UtcNow, new bool[resourceTree.Nodes.Count]);
+                Log.Information($"Built resource tree for {name}");
+                return (hash, resourceTree, DateTime.UtcNow);
             }
             catch (Exception e)
             {
-                _log.Error(e, "Error loading resources");
+                Log.Error(e, "Error loading resources");
                 throw;
             }
         });
@@ -269,6 +268,6 @@ public class ResourceTab : ITab
 
     public void Dispose()
     {
-        _resourceTask?.Dispose();
+        ResourceTask?.Dispose();
     }
 }

@@ -1,4 +1,3 @@
-using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
 using ImGuiNET;
 using Meddle.Xande;
@@ -12,7 +11,8 @@ namespace Meddle.Plugin.UI.Shared;
 
 public class ResourceTreeRenderer : IDisposable
 {
-    private readonly ModelConverter _modelConverter;
+    private ModelConverter ModelConverter { get; }
+
     private Task? ExportTask { get; set; }
     private bool CopyNormalAlphaToDiffuse { get; set; } = true;
     private ExportType ExportTypeFlags { get; set; } = ExportType.Gltf;
@@ -20,38 +20,23 @@ public class ResourceTreeRenderer : IDisposable
 
     public ResourceTreeRenderer(ModelConverter modelConverter)
     {
-        _modelConverter = modelConverter;
+        ModelConverter = modelConverter;
     }
 
-    public void DrawResourceTree(Ipc.ResourceTree resourceTree, ref bool[] exportOptions)
+    public void DrawResourceTree(Ipc.ResourceTree resourceTree)
     {
         // disable buttons if exporting
         var disableExport = ExportTask != null;
         using (ImRaii.PushStyle(ImGuiStyleVar.Alpha, ImGui.GetStyle().Alpha * 0.5f, disableExport))
         {
-            // export button
-            if (ImGui.Button($"Export {exportOptions.Count(x => x)} selected") && ExportTask == null)
+            if (ImGui.Button("Export") && ExportTask == null)
             {
-                ExportTask = _modelConverter.ExportResourceTree(resourceTree, exportOptions,
+                ExportTask = ModelConverter.ExportResourceTree(resourceTree,
                     true,
                     ExportTypeFlags,
                     Plugin.TempDirectory,
                     CopyNormalAlphaToDiffuse,
                     null,
-                    null,
-                    ExportCts.Token);
-            }
-
-            ImGui.SameLine();
-            // export all button
-            if (ImGui.Button("Export All") && ExportTask == null)
-            {
-                ExportTask = _modelConverter.ExportResourceTree(resourceTree,
-                    new bool[resourceTree.Nodes.Count].Select(_ => true).ToArray(),
-                    true,
-                    ExportTypeFlags,
-                    Plugin.TempDirectory,
-                    CopyNormalAlphaToDiffuse,
                     null,
                     null,
                     ExportCts.Token);
@@ -102,7 +87,7 @@ public class ResourceTreeRenderer : IDisposable
         }
 
         ImGui.SameLine();
-        ImGui.Text(_modelConverter.GetLastMessage()?.Split("\n").FirstOrDefault() ?? string.Empty);
+        ImGui.Text(ModelConverter.GetLastMessage()?.Split("\n").FirstOrDefault() ?? string.Empty);
 
         using var table = ImRaii.Table("##ResourceTable", 3,
             ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable);
@@ -117,7 +102,6 @@ public class ResourceTreeRenderer : IDisposable
         for (int i = 0; i < resourceTree.Nodes.Count; i++)
         {
             var node = resourceTree.Nodes[i];
-            var exportOption = exportOptions[i];
 
             // only interested in mdl, sklb and tex
             var type = node.Type;
@@ -131,47 +115,6 @@ public class ResourceTreeRenderer : IDisposable
             if (node?.Children == null) continue;
             if (node.Children.Any())
             {
-                if (type == ResourceType.Mdl)
-                {
-                    ImGui.Checkbox($"##{node.GetHashCode()}", ref exportOption);
-                    exportOptions[i] = exportOption;
-                    // hover to show tooltip
-                    if (ImGui.IsItemHovered())
-                    {
-                        ImGui.SetTooltip($"Export \"{node.Name}\"");
-                    }
-
-                    // quick export button
-                    ImGui.SameLine();
-                    using (ImRaii.PushFont(UiBuilder.IconFont))
-                    {
-                        // if export task is running, disable button
-                        using (ImRaii.PushStyle(ImGuiStyleVar.Alpha, ImGui.GetStyle().Alpha * 0.5f, disableExport))
-                        {
-                            if (ImGui.Button($"{FontAwesomeIcon.FileExport.ToIconString()}##{node.GetHashCode()}") && ExportTask == null)
-                            {
-                                var tmpExportOptions = new bool[resourceTree.Nodes.Count];
-                                tmpExportOptions[i] = true;
-                                ExportTask = _modelConverter.ExportResourceTree(resourceTree, tmpExportOptions,
-                                    true,
-                                    ExportTypeFlags,
-                                    Plugin.TempDirectory,
-                                    CopyNormalAlphaToDiffuse,
-                                    null,
-                                    null,
-                                    ExportCts.Token);
-                            }
-                        }
-                    }
-
-                    if (ImGui.IsItemHovered())
-                    {
-                        ImGui.SetTooltip($"Export \"{node.Name}\" as individual model");
-                    }
-
-                    ImGui.SameLine();
-                }
-
                 using var section = ImRaii.TreeNode($"{node.Name}##{node.GetHashCode()}",
                     ImGuiTreeNodeFlags.SpanAvailWidth);
 

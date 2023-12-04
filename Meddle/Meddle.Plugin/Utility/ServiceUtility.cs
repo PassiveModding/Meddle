@@ -22,9 +22,7 @@ public static class ServiceUtility
             .ToList();
 
         foreach (var tab in tabTypes)
-        {
             services.AddSingleton(typeof(ITab), tab);
-        }
 
         return services
             .AddSingleton<MainWindow>();

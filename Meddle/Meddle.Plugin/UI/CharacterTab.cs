@@ -1,5 +1,6 @@
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Logging;
+using Dalamud.Memory;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
@@ -21,7 +22,6 @@ namespace Meddle.Plugin.UI;
 
 public unsafe class CharacterTab : ITab
 {
-
     public string Name => "Character";
 
     public int Order => 0;
@@ -99,6 +99,26 @@ public unsafe class CharacterTab : ITab
         var human = (Human*)charPtr->GameObject.DrawObject;
         var mainPose = GetPose(human->CharacterBase.Skeleton)!;
 
+        var modelMetas = new List<ModelMeta>();
+        foreach(var modelPtr in human->CharacterBase.ModelsSpan)
+        {
+            var model = modelPtr.Value;
+            if (model == null)
+                continue;
+            if (model->ModelResourceHandle == null)
+                continue;
+            var shapes = model->ModelResourceHandle->Shapes.ToDictionary(kv => MemoryHelper.ReadStringNullTerminated((nint)kv.Item1.Value), kv => kv.Item2);
+            var attributes = model->ModelResourceHandle->Attributes.ToDictionary(kv => MemoryHelper.ReadStringNullTerminated((nint)kv.Item1.Value), kv => kv.Item2);
+            modelMetas.Add(new()
+            {
+                ModelPath = model->ModelResourceHandle->ResourceHandle.FileName.ToString(),
+                EnabledShapes = shapes.Where(kv => ((1 << kv.Value) & model->EnabledShapeKeyIndexMask) != 0).Select(kv => kv.Key).ToArray(),
+                EnabledAttributes = attributes.Where(kv => ((1 << kv.Value) & model->EnabledAttributeIndexMask) != 0).Select(kv => kv.Key).ToArray(),
+                ShapesMask = model->EnabledShapeKeyIndexMask,
+                AttributesMask = model->EnabledAttributeIndexMask,
+            });
+        }
+
         var weaponInfos = GetWeaponData(character);
 
         using (var d = ImRaii.Disabled(ResourceTree == null))
@@ -109,12 +129,12 @@ public unsafe class CharacterTab : ITab
                 ExportCts = new();
                 ExportTask = ModelConverter.ExportResourceTree(
                     ResourceTree!,
-                    Enumerable.Repeat(true, ResourceTree!.Nodes.Count).ToArray(),
                     true,
                     ExportType.Glb,
                     Plugin.TempDirectory,
                     true,
                     mainPose.ToDictionary(kv => kv.Key, kv => AsAffineTransform(kv.Value)),
+                    modelMetas,
                     weaponInfos,
                     ExportCts.Token);
             }
@@ -127,6 +147,17 @@ public unsafe class CharacterTab : ITab
         ImGui.TextUnformatted($"Position: {t.Position:0.00}");
         ImGui.TextUnformatted($"Rotation: {t.Rotation.EulerAngles:0.00}");
         ImGui.TextUnformatted($"Scale: {t.Scale:0.00}");
+
+        if (ImGui.CollapsingHeader("Model Metas"))
+        {
+            foreach (var meta in modelMetas)
+            {
+                ImGui.TextUnformatted($"{meta.ModelPath}");
+                ImGui.TextUnformatted($"Shapes ({meta.ShapesMask:X8}): {string.Join(", ", meta.EnabledShapes)}");
+                ImGui.TextUnformatted($"Attributes ({meta.AttributesMask:X8}): {string.Join(", ", meta.EnabledAttributes)}");
+                ImGui.Separator();
+            }
+        }
 
         if (ImGui.CollapsingHeader("Main Pose"))
         {
@@ -171,7 +202,6 @@ public unsafe class CharacterTab : ITab
         {
             ImGui.TextUnformatted($"{new Transform(data.Model->CharacterBase.DrawObject.Object.Transform)} {(nint)data.Model:X8}");
             ImGui.TextUnformatted($"{new Transform(data.Model->CharacterBase.Skeleton->Transform)}");
-            ImGui.TextUnformatted($"{new Transform(data.Model->CharacterBase.UnkTransform)}");
             {
                 var attach = &data.Model->CharacterBase.Attach;
                 var skele = attach->OwnerSkeleton;
@@ -212,6 +242,9 @@ public unsafe class CharacterTab : ITab
             if (weaponData.Model == null)
                 continue;
             var attach = &weaponData.Model->CharacterBase.Attach;
+            if (attach->ExecuteType == 0)
+                continue;
+
             if (attach->ExecuteType != 4)
                 PluginLog.Error($"Unsupported executetype {attach->ExecuteType}");
             var att = attach->SkeletonBoneAttachments[0];
@@ -251,7 +284,7 @@ public unsafe class CharacterTab : ITab
 
     private static Vector4 AsVector(hkQuaternionf hkVector) =>
         new(hkVector.X, hkVector.Y, hkVector.Z, hkVector.W);
-
+    
     private static Quaternion AsQuaternion(hkQuaternionf hkQuaternion) =>
         new(hkQuaternion.X, hkQuaternion.Y, hkQuaternion.Z, hkQuaternion.W);
 

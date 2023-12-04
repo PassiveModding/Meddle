@@ -127,7 +127,7 @@ public class MeshBuilder
     }
 
     /// <summary>Builds shape keys (known as morph targets in glTF).</summary>
-    public void BuildShapes(IReadOnlyList<Shape> shapes, IMeshBuilder<MaterialBuilder> builder, int subMeshStart, int subMeshEnd)
+    public IEnumerable<Shape> BuildShapes(IReadOnlyList<Shape> shapes, IMeshBuilder<MaterialBuilder> builder, int subMeshStart, int subMeshEnd)
     {
         var primitive = builder.Primitives.First();
         var triangles = primitive.Triangles;
@@ -169,6 +169,8 @@ public class MeshBuilder
         var data = new ExtraDataManager();
         data.AddShapeNames(nameList);
         builder.Extras = data.Serialize();
+
+        return nameList;
     }
 
     private IVertexBuilder BuildVertex(Vertex vertex)

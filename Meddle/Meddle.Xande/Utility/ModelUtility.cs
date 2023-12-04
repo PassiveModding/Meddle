@@ -175,7 +175,6 @@ public static class ModelUtility
 
     public static bool TryGetModel(this LuminaManager manager, Ipc.ResourceNode node, ushort? deform, out string path, [MaybeNullWhen(false)] out Model model)
     {
-
         path = node.FullPath();
         if (TryLoadModel(node.FullPath(), out model)) { return true; }
 
