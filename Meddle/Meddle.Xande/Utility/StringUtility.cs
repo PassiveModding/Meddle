@@ -1,16 +1,9 @@
-﻿using Penumbra.Api;
+using Penumbra.Api;
 
 namespace Meddle.Xande.Utility;
 
 public static class StringUtility
 {
-    public static string FullPath(this Ipc.ResourceNode me)
-    {
-        if (Path.IsPathRooted(me.ActualPath))
-            return me.ActualPath;
-        return me.ActualPath.Replace('\\', '/');
-    }
-
     /// <summary>
     /// Compute the distance between two strings.
     /// Using for matching default materials to ones which may be race-specific reported by penumbra.

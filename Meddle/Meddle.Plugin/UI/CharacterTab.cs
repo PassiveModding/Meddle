@@ -31,22 +31,7 @@ public unsafe class CharacterTab : ITab
     private IClientState ClientState { get; }
     private ModelConverter ModelConverter { get; }
     
-    private Character? selectedCharacter;
-    private Character? SelectedCharacter
-    {
-        get => selectedCharacter;
-        set
-        {
-            if (selectedCharacter == value)
-                return;
-            selectedCharacter = value;
-            if (selectedCharacter == null)
-                ResourceTree = null;
-            else
-                ResourceTree = Ipc.GetGameObjectResourceTrees.Subscriber(PluginInterface).Invoke(true, selectedCharacter.ObjectIndex)[0];
-        }
-    }
-    private Ipc.ResourceTree? ResourceTree { get; set; }
+    private Character? SelectedCharacter { get; set; }
 
     private Task? ExportTask { get; set; }
     private CancellationTokenSource? ExportCts { get; set; }
@@ -121,21 +106,28 @@ public unsafe class CharacterTab : ITab
 
         var weaponInfos = GetWeaponData(character);
 
-        using (var d = ImRaii.Disabled(ResourceTree == null))
+        using (var d = ImRaii.Disabled(!(ExportTask?.IsCompleted ?? true)))
         {
             if (ImGui.Button("Export"))
             {
+                var tree = GetCharacterResourceTree(character);
+                if (tree == null)
+                    throw new InvalidOperationException("No resource tree found");
+
                 ExportCts?.Cancel();
                 ExportCts = new();
                 ExportTask = ModelConverter.ExportResourceTree(
-                    ResourceTree!,
+                    new()
+                    {
+                        Resources = new(tree),
+                        Pose = mainPose.ToDictionary(kv => kv.Key, kv => AsAffineTransform(kv.Value)),
+                        ModelMetas = modelMetas,
+                        WeaponDatas = weaponInfos,
+                    },
                     true,
                     ExportType.Glb,
                     Plugin.TempDirectory,
                     true,
-                    mainPose.ToDictionary(kv => kv.Key, kv => AsAffineTransform(kv.Value)),
-                    modelMetas,
-                    weaponInfos,
                     ExportCts.Token);
             }
             ImGui.SameLine();
@@ -234,9 +226,6 @@ public unsafe class CharacterTab : ITab
 
         var ret = new List<HkSkeleton.WeaponData>();
         
-        if (ResourceTree == null)
-            return ret;
-
         foreach(var weaponData in charPtr->DrawData.WeaponDataSpan)
         {
             if (weaponData.Model == null)
@@ -271,10 +260,6 @@ public unsafe class CharacterTab : ITab
     {
         if (data.Model == null)
             return null;
-
-        // Only true for gpose characters, it seems
-        //if ((data.Model->Flags & 0x9) == 0)
-        //    return null;
 
         return data.Model->CharacterBase.Skeleton;
     }
@@ -431,6 +416,11 @@ public unsafe class CharacterTab : ITab
         }
 
         return ret;
+    }
+
+    private Ipc.ResourceTree? GetCharacterResourceTree(Character obj)
+    {
+        return Ipc.GetGameObjectResourceTrees.Subscriber(PluginInterface).Invoke(true, obj.ObjectIndex)[0];
     }
 
     private Vector3 GetCharacterDistance(Character obj) {

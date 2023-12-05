@@ -173,10 +173,10 @@ public static class ModelUtility
         }
     }
 
-    public static bool TryGetModel(this LuminaManager manager, Ipc.ResourceNode node, ushort? deform, out string path, [MaybeNullWhen(false)] out Model model)
+    public static bool TryGetModel(this LuminaManager manager, CharacterNode node, ushort? deform, out string path, [MaybeNullWhen(false)] out Model model)
     {
-        path = node.FullPath();
-        if (TryLoadModel(node.FullPath(), out model)) { return true; }
+        path = node.FullPath;
+        if (TryLoadModel(node.FullPath, out model)) { return true; }
 
         if (TryLoadModel(node.GamePath ?? string.Empty, out model)) { return true; }
 

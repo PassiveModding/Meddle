@@ -1,8 +1,6 @@
 using Dalamud.Interface.Utility.Raii;
 using ImGuiNET;
 using Meddle.Xande;
-using Meddle.Xande.Utility;
-using Penumbra.Api;
 using Penumbra.Api.Enums;
 using System.Numerics;
 using Xande.Enums;
@@ -23,7 +21,7 @@ public class ResourceTreeRenderer : IDisposable
         ModelConverter = modelConverter;
     }
 
-    public void DrawResourceTree(Ipc.ResourceTree resourceTree)
+    public void DrawResourceTree(CharacterTree resourceTree)
     {
         // disable buttons if exporting
         var disableExport = ExportTask != null;
@@ -31,14 +29,12 @@ public class ResourceTreeRenderer : IDisposable
         {
             if (ImGui.Button("Export") && ExportTask == null)
             {
-                ExportTask = ModelConverter.ExportResourceTree(resourceTree,
+                ExportTask = ModelConverter.ExportResourceTree(
+                    new() { Resources = resourceTree },
                     true,
                     ExportTypeFlags,
                     Plugin.TempDirectory,
                     CopyNormalAlphaToDiffuse,
-                    null,
-                    null,
-                    null,
                     ExportCts.Token);
             }
 
@@ -122,7 +118,7 @@ public class ResourceTreeRenderer : IDisposable
                 ImGui.TableNextColumn();
                 DrawCopyableText(node.GamePath ?? "Unknown");
                 ImGui.TableNextColumn();
-                DrawCopyableText(node.FullPath());
+                DrawCopyableText(node.FullPath);
 
                 if (!section) continue;
                 foreach (var childNode in node.Children)
@@ -142,7 +138,7 @@ public class ResourceTreeRenderer : IDisposable
                 ImGui.TableNextColumn();
                 DrawCopyableText(node.GamePath ?? "Unknown");
                 ImGui.TableNextColumn();
-                DrawCopyableText(node.FullPath());
+                DrawCopyableText(node.FullPath);
             }
         }
     }
@@ -163,7 +159,7 @@ public class ResourceTreeRenderer : IDisposable
         }
     }
 
-    public static void DrawResourceNode(Ipc.ResourceNode node)
+    public static void DrawResourceNode(CharacterNode node)
     {
         // add same data to the table, expandable if more children, increase indent in first column
         // indent
@@ -181,7 +177,7 @@ public class ResourceTreeRenderer : IDisposable
             ImGui.TableNextColumn();
             DrawCopyableText(node.GamePath ?? "Unknown");
             ImGui.TableNextColumn();
-            DrawCopyableText(node.FullPath());
+            DrawCopyableText(node.FullPath);
 
             if (section)
             {
@@ -198,7 +194,7 @@ public class ResourceTreeRenderer : IDisposable
             ImGui.TableNextColumn();
             DrawCopyableText(node.GamePath ?? "Unknown");
             ImGui.TableNextColumn();
-            DrawCopyableText(node.FullPath());
+            DrawCopyableText(node.FullPath);
         }
     }
 

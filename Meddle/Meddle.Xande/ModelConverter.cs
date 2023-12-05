@@ -5,8 +5,8 @@ using Lumina.Data.Parsing;
 using Lumina.Models.Materials;
 using Lumina.Models.Models;
 using Meddle.Xande.Utility;
-using Penumbra.Api;
 using Penumbra.Api.Enums;
+using SharpGLTF.Geometry;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
 using SharpGLTF.Transforms;
@@ -14,11 +14,14 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Numerics;
 using System.Text.RegularExpressions;
+using System.Threading;
+using System.Xml.Linq;
 using Xande;
 using Xande.Enums;
 using Xande.Files;
 using Xande.Havok;
 using Xande.Models.Export;
+using static SharpGLTF.Scenes.LightBuilder;
 using static SharpGLTF.Schema2.Toolkit;
 
 namespace Meddle.Xande;
@@ -84,23 +87,20 @@ public class ModelConverter
         Pbd = LuminaManager.GetPbdFile();
     }
 
-    public Task ExportResourceTree(Ipc.ResourceTree tree, bool openFolderWhenComplete,
+    public Task ExportResourceTree(CharacterData character, bool openFolderWhenComplete,
         ExportType exportType,
         string exportPath,
         bool copyNormalAlphaToDiffuse,
-        Dictionary<string, AffineTransform>? currentPose,
-        IEnumerable<ModelMeta>? modelMetas,
-        List<HkSkeleton.WeaponData>? weaponInfos,
         CancellationToken cancellationToken)
     {
-        var path = Path.Combine(exportPath, $"{tree.GetHashCode():X8}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}");
+        var path = Path.Combine(exportPath, $"{character.GetHashCode():X8}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}");
         Directory.CreateDirectory(path);
 
         return Framework.RunOnTick(() =>
         {
             Log.Debug($"Exporting character to {path}");
 
-            var skeletonNodes = tree.Nodes.Where(x => x.Type == ResourceType.Sklb).ToList();
+            var skeletonNodes = character.Resources.Nodes.Where(x => x.Type == ResourceType.Sklb).ToList();
 
             // will error if not done on the framework thread
             var skeletons = new List<HkSkeleton>();
@@ -110,18 +110,18 @@ public class ModelConverter
                 {
                     HkSkeleton.WeaponData? weaponInfo = null;
                     if (node.GamePath?.Contains("weapon") ?? false)
-                        weaponInfo = weaponInfos?.FirstOrDefault(n => n.SklbPath == node.GamePath);
+                        weaponInfo = character.WeaponDatas?.FirstOrDefault(n => n.SklbPath == node.GamePath);
 
                     // cannot use fullpath because things like ivcs are fucky and crash the game
                     try
                     {
-                        skeletons.Add(new(LoadSkeleton(node.FullPath()), weaponInfo));
-                        Log.Debug($"Loaded skeleton {node.FullPath()}");
+                        skeletons.Add(new(LoadSkeleton(node.FullPath), weaponInfo));
+                        Log.Debug($"Loaded skeleton {node.FullPath}");
                         continue;
                     }
                     catch (Exception ex)
                     {
-                        Log.Error(ex, $"Failed to load {node.FullPath()}, falling back to GamePath");
+                        Log.Error(ex, $"Failed to load {node.FullPath}, falling back to GamePath");
                     }
 
                     try
@@ -145,7 +145,7 @@ public class ModelConverter
             {
                 try
                 {
-                    await ExportModel(path, skeletons, currentPose, modelMetas, tree, exportType, copyNormalAlphaToDiffuse,
+                    await ExportModel(path, skeletons, character.Pose, character.ModelMetas, character.Resources, exportType, copyNormalAlphaToDiffuse,
                         cancellationToken);
                     // open path
                     if (openFolderWhenComplete)
@@ -182,7 +182,7 @@ public class ModelConverter
         IEnumerable<HkSkeleton> skeletons,
         Dictionary<string, AffineTransform>? currentPose,
         IEnumerable<ModelMeta>? modelMetas,
-        Ipc.ResourceTree tree,
+        CharacterTree tree,
         ExportType exportType,
         bool copyNormalAlphaToDiffuse,
         CancellationToken cancellationToken = default)
@@ -191,7 +191,7 @@ public class ModelConverter
         {
             var modelNodes = tree.Nodes.Where(x =>
                 x.Type == ResourceType.Mdl).ToArray();
-            var glTfScene = new SceneBuilder(modelNodes.Length > 0 ? modelNodes[0].FullPath() : "scene");
+            var glTfScene = new SceneBuilder(modelNodes.Length > 0 ? modelNodes[0].FullPath : "scene");
             var modelTasks = new List<Task>();
             var skeletonArray = skeletons.ToArray();
             var mainSkeletons = skeletonArray.Where(s => s.WeaponInfo == null).Select(s => s.Xml).ToArray();
@@ -217,14 +217,14 @@ public class ModelConverter
                 {
                     if (stupidLowPolyModelRegex.IsMatch(node.GamePath ?? string.Empty))
                     {
-                        Log.Warning($"Skipping model {node.FullPath()}");
+                        Log.Warning($"Skipping model {node.FullPath}");
                         continue;
                     }
 
                     if (node.GamePath?.Contains("weapon") ?? false)
                         continue;
 
-                    Log.Debug($"Handling model {node.FullPath()}");
+                    Log.Debug($"Handling model {node.FullPath}");
                     
                     var meta = modelMetas?.FirstOrDefault(m => m.ModelPath == (node.GamePath ?? string.Empty));
                     modelTasks.Add(HandleModel(node, meta, raceDeformer, tree.RaceCode, exportPath, rootArmatureBoneMap, joints, glTfScene,
@@ -244,63 +244,7 @@ public class ModelConverter
                         var meta = modelMetas?.FirstOrDefault(m => m.ModelPath == (node.GamePath ?? string.Empty));
 
                         var fileName = Path.GetFileNameWithoutExtension(modelPath);
-                        var materials =
-                            new List<(string fullpath, string gamepath, MaterialBuilder material)>();
-                        var textureTasks = new List<Task>();
-
-                        foreach (var child in node.Children)
-                        {
-                            textureTasks.Add(Task.Run(async () =>
-                            {
-                                if (child.Type != ResourceType.Mtrl)
-                                {
-                                    return;
-                                }
-
-                                Material? material;
-                                try
-                                {
-                                    var mtrlFile = Path.IsPathRooted(child.FullPath())
-                                        ? LuminaManager.GameData.GetFileFromDisk<MtrlFile>(child.FullPath(),
-                                            child.GamePath)
-                                        : LuminaManager.GameData.GetFile<MtrlFile>(child.FullPath());
-
-                                    if (mtrlFile == null)
-                                    {
-                                        Log.Warning($"Could not load material {child.FullPath()}");
-                                        return;
-                                    }
-
-                                    material = new Material(mtrlFile);
-                                }
-                                catch (Exception e)
-                                {
-                                    Log.Error(e, $"Failed to load material {child.FullPath()}");
-                                    return;
-                                }
-
-                                try
-                                {
-                                    var glTfMaterial =
-                                        await ComposeTextures(material, exportPath, child.Children,
-                                            copyNormalAlphaToDiffuse,
-                                            cancellationToken);
-
-                                    if (glTfMaterial == null)
-                                    {
-                                        return;
-                                    }
-
-                                    materials.Add((child.FullPath(), child.GamePath ?? string.Empty, glTfMaterial));
-                                }
-                                catch (Exception e)
-                                {
-                                    Log.Error(e, $"Failed to compose textures for material {child.FullPath()}");
-                                }
-                            }, cancellationToken));
-                        }
-
-                        await Task.WhenAll(textureTasks);
+                        var materials = await GetMaterialsFromModelNode(node, exportPath, copyNormalAlphaToDiffuse, cancellationToken);
 
                         // log all materials 
                         Log.Debug($"Handling model {fileName} with {model.Meshes.Length} meshes\n" +
@@ -308,65 +252,21 @@ public class ModelConverter
 
                         foreach (var mesh in model.Meshes)
                         {
-                            mesh.Material.Update(LuminaManager.GameData);
-                            var material = materials.FirstOrDefault(x =>
-                                x.fullpath == mesh.Material.ResolvedPath ||
-                                x.gamepath == mesh.Material.ResolvedPath ||
-                                x.fullpath == mesh.Material.MaterialPath ||
-                                x.gamepath == mesh.Material.MaterialPath);
-
-                            if (material == default)
-                            {
-                                var match = materials
-                                    .Select(x => (x.fullpath, x.gamepath,
-                                        x.fullpath.ComputeLd(mesh.Material.MaterialPath))).OrderBy(x => x.Item3)
-                                    .FirstOrDefault();
-                                var match2 = materials
-                                    .Select(x => (x.fullpath, x.gamepath,
-                                        x.gamepath.ComputeLd(mesh.Material.MaterialPath))).OrderBy(x => x.Item3)
-                                    .FirstOrDefault();
-
-                                material = match.Item3 < match2.Item3
-                                    ? materials.FirstOrDefault(x =>
-                                        x.fullpath == match.fullpath || x.gamepath == match.gamepath)
-                                    : materials.FirstOrDefault(x =>
-                                        x.fullpath == match2.fullpath || x.gamepath == match2.gamepath);
-                            }
-
-                            if (material == default)
-                            {
-                                Log.Warning($"Could not find material for {mesh.Material.ResolvedPath}");
+                            var material = ResolveMaterialFromList(materials, mesh.Material);
+                            if (material == null)
                                 continue;
-                            }
-                            //SharpGLTF.Schema2.Mesh n;
-                            //n.OnValidateContent();
+                            
                             try
                             {
-                                if (mesh.Material.ResolvedPath != material.gamepath)
-                                {
-                                    Log.Warning(
-                                        $"Using material {material.gamepath} for {mesh.Material.ResolvedPath}");
-                                }
-
                                 var meshbuilder = new MeshBuilder(mesh,
                                     false,
                                     new Dictionary<int, int>(),
-                                    material.material,
+                                    material,
                                     new RaceDeformer(Pbd, new Dictionary<string, NodeBuilder>()));
 
                                 meshbuilder.BuildVertices();
 
-                                for (var i = 0; i < mesh.Submeshes.Length; i++)
-                                {
-                                    var sub = mesh.Submeshes[i];
-                                    var submesh = meshbuilder.BuildSubmesh(sub);
-                                    submesh.Name = $"{sub.IndexNum}_{i}";
-                                    var shapeList = meshbuilder.BuildShapes(model.Shapes.Values.ToArray(), submesh,
-                                        (int)sub.IndexOffset,
-                                        (int)(sub.IndexOffset + sub.IndexNum));
-                                    var instance = glTfScene.AddRigidMesh(submesh, Matrix4x4.Identity);
-                                    meta?.ApplyModifiers(instance, shapeList, sub.Attributes);
-                                }
+                                BuildSubmeshes(meshbuilder, fileName, model, mesh, meta, glTfScene, Matrix4x4.Identity, null, false);
                             }
                             catch (Exception e)
                             {
@@ -399,7 +299,7 @@ public class ModelConverter
 
                 if (modelNodes.FirstOrDefault(n => n.GamePath == info.ModelPath) is { } node)
                 {
-                    Log.Debug($"Handling weapon model {node.FullPath()}");
+                    Log.Debug($"Handling weapon model {node.FullPath}");
                     
                     var meta = modelMetas?.FirstOrDefault(m => m.ModelPath == (node.GamePath ?? string.Empty));
                     modelTasks.Add(HandleModel(node, meta, null, tree.RaceCode, exportPath, boneMap, joints, glTfScene,
@@ -439,12 +339,12 @@ public class ModelConverter
         }
     }
 
-    private async Task HandleModel(Ipc.ResourceNode node, ModelMeta? meta, RaceDeformer? raceDeformer, ushort? deform, string exportPath,
+    private async Task HandleModel(CharacterNode node, ModelMeta? meta, RaceDeformer? raceDeformer, ushort? deform, string exportPath,
         Dictionary<string, NodeBuilder> boneMap, NodeBuilder[] joints,
         SceneBuilder glTfScene, bool copyNormalAlphaToDiffuse, Matrix4x4 worldLocation, CancellationToken cancellationToken)
     {
         Log.Info($"Handling model {node.GamePath}");
-        var path = node.FullPath();
+        var path = node.FullPath;
 
         if (!LuminaManager.TryGetModel(node, deform, out var modelPath, out var model))
             return;
@@ -477,8 +377,37 @@ public class ModelConverter
                                              !stupidEyeMeshRegex.IsMatch(x.Material.MaterialPath.ToString()))
             .ToArray();
 
-        var materials = new List<(string fullpath, string gamepath, MaterialBuilder material)>();
+        var materials = await GetMaterialsFromModelNode(node, exportPath, copyNormalAlphaToDiffuse, cancellationToken);
 
+        if (cancellationToken.IsCancellationRequested)
+            return;
+
+        Log.Debug(
+            $"Handling model {fileName} with {meshes.Length} meshes\n" +
+            $"{string.Join("\n", meshes.Select(x => x.Material.ResolvedPath))}\n" +
+            $"Using materials\n{string.Join("\n", materials.Select(x => x.fullpath == x.gamepath ? x.fullpath : $"{x.gamepath} -> {x.fullpath}"))}");
+
+        foreach (var mesh in meshes)
+        {
+            var material = ResolveMaterialFromList(materials, mesh.Material);
+            if (material == null)
+                continue;
+
+            try
+            {
+                await HandleMeshCreation(material, raceDeformer, glTfScene, mesh, model, meta, raceCode, deform,
+                    boneMap, fileName, joints, worldLocation);
+            }
+            catch (Exception e)
+            {
+                Log.Error(e, $"Failed to handle mesh creation for {mesh.Material.ResolvedPath}");
+            }
+        }
+    }
+
+    private async Task<List<(string fullpath, string gamepath, MaterialBuilder material)>> GetMaterialsFromModelNode(CharacterNode node, string exportPath, bool copyNormalAlphaToDiffuse, CancellationToken cancellationToken)
+    {
+        var materials = new List<(string fullpath, string gamepath, MaterialBuilder material)>();
         var textureTasks = new List<Task>();
 
         foreach (var child in node.Children)
@@ -486,20 +415,18 @@ public class ModelConverter
             textureTasks.Add(Task.Run(async () =>
             {
                 if (child.Type != ResourceType.Mtrl)
-                {
                     return;
-                }
 
                 Material? material;
                 try
                 {
-                    var mtrlFile = Path.IsPathRooted(child.FullPath())
-                        ? LuminaManager.GameData.GetFileFromDisk<MtrlFile>(child.FullPath(), child.GamePath)
-                        : LuminaManager.GameData.GetFile<MtrlFile>(child.FullPath());
+                    var mtrlFile = Path.IsPathRooted(child.FullPath)
+                        ? LuminaManager.GameData.GetFileFromDisk<MtrlFile>(child.FullPath, child.GamePath)
+                        : LuminaManager.GameData.GetFile<MtrlFile>(child.FullPath);
 
                     if (mtrlFile == null)
                     {
-                        Log.Warning($"Could not load material {child.FullPath()}");
+                        Log.Warning($"Could not load material {child.FullPath}");
                         return;
                     }
 
@@ -507,7 +434,7 @@ public class ModelConverter
                 }
                 catch (Exception e)
                 {
-                    Log.Error(e, $"Failed to load material {child.FullPath()}");
+                    Log.Error(e, $"Failed to load material {child.FullPath}");
                     return;
                 }
 
@@ -520,79 +447,94 @@ public class ModelConverter
                     if (glTfMaterial == null)
                         return;
 
-                    materials.Add((child.FullPath(), child.GamePath ?? string.Empty, glTfMaterial));
+                    materials.Add((child.FullPath, child.GamePath ?? string.Empty, glTfMaterial));
                 }
                 catch (Exception e)
                 {
-                    Log.Error(e, $"Failed to compose textures for material {child.FullPath()}");
+                    Log.Error(e, $"Failed to compose textures for material {child.FullPath}");
                 }
             }, cancellationToken));
         }
 
         await Task.WhenAll(textureTasks);
 
-        if (cancellationToken.IsCancellationRequested)
-            return;
+        return materials;
+    }
 
-        foreach (var mesh in meshes)
+    private MaterialBuilder? ResolveMaterialFromList(List<(string fullpath, string gamepath, MaterialBuilder material)> materials, Material luminaMaterial)
+    {
+        luminaMaterial.Update(LuminaManager.GameData);
+        var material = materials.FirstOrDefault(x =>
+            x.fullpath == luminaMaterial.ResolvedPath ||
+            x.gamepath == luminaMaterial.ResolvedPath ||
+            x.fullpath == luminaMaterial.MaterialPath ||
+            x.gamepath == luminaMaterial.MaterialPath);
+
+        if (material == default)
         {
-            mesh.Material.Update(LuminaManager.GameData);
-            Log.Debug($"[{mesh.MeshIndex}] => {{ {(mesh.Attributes == null ? "NULL" : string.Join(", ", mesh.Attributes))} }}");
+            var match = materials
+                .Select(x => (x.fullpath, x.gamepath,
+                    x.fullpath.ComputeLd(luminaMaterial.MaterialPath))).OrderBy(x => x.Item3)
+                .FirstOrDefault();
+            var match2 = materials
+                .Select(x => (x.fullpath, x.gamepath,
+                    x.gamepath.ComputeLd(luminaMaterial.MaterialPath))).OrderBy(x => x.Item3)
+                .FirstOrDefault();
+
+            material = match.Item3 < match2.Item3
+                ? materials.FirstOrDefault(x =>
+                    x.fullpath == match.fullpath || x.gamepath == match.gamepath)
+                : materials.FirstOrDefault(x =>
+                    x.fullpath == match2.fullpath || x.gamepath == match2.gamepath);
         }
 
-        Log.Debug(
-            $"Handling model {fileName} with {meshes.Length} meshes\n" +
-            $"{string.Join("\n", meshes.Select(x => x.Material.ResolvedPath))}\n" +
-            $"Using materials\n{string.Join("\n", materials.Select(x => x.fullpath == x.gamepath ? x.fullpath : $"{x.gamepath} -> {x.fullpath}"))}");
-
-        foreach (var mesh in meshes)
+        if (material == default)
         {
-            // try get material from materials
-            var material = materials.FirstOrDefault(x =>
-                x.fullpath == mesh.Material.ResolvedPath || x.gamepath == mesh.Material.ResolvedPath);
+            Log.Warning($"Could not find material for {luminaMaterial.ResolvedPath}");
+            return null;
+        }
 
-            if (material == default)
-            {
-                // match most similar material from list
-                if (mesh.Material.ResolvedPath == null)
-                {
-                    Log.Warning($"Could not find material for {mesh.Material.ResolvedPath}");
-                    continue;
-                }
+        if (luminaMaterial.ResolvedPath != material.gamepath)
+            Log.Warning(
+                $"Using material {material.gamepath} for {luminaMaterial.ResolvedPath}");
 
-                var match = materials
-                    .Select(x => (x.fullpath, x.gamepath,
-                        x.fullpath.ComputeLd(mesh.Material.ResolvedPath))).OrderBy(x => x.Item3)
-                    .FirstOrDefault();
-                var match2 = materials
-                    .Select(x => (x.fullpath, x.gamepath,
-                        x.gamepath.ComputeLd(mesh.Material.ResolvedPath))).OrderBy(x => x.Item3)
-                    .FirstOrDefault();
+        return material.material;
+    }
 
-                material = match.Item3 < match2.Item3
-                    ? materials.FirstOrDefault(x => x.fullpath == match.fullpath || x.gamepath == match.gamepath)
-                    : materials.FirstOrDefault(x => x.fullpath == match2.fullpath || x.gamepath == match2.gamepath);
-            }
-
-            if (material == default)
-            {
-                Log.Warning($"Could not find material for {mesh.Material.ResolvedPath}");
-                continue;
-            }
-
+    private void BuildSubmeshes(MeshBuilder meshBuilder, string name, Model xivModel, Mesh xivMesh, ModelMeta? meta, SceneBuilder glTfScene, Matrix4x4 worldLocation, NodeBuilder[]? joints, bool useSkinning)
+    {
+        for (var i = 0; i < xivMesh.Submeshes.Length; i++)
+        {
             try
             {
-                if (mesh.Material.ResolvedPath != material.gamepath)
+                var xivSubmesh = xivMesh.Submeshes[i];
+                var subMesh = meshBuilder.BuildSubmesh(xivSubmesh);
+                subMesh.Name = $"{name}_{xivMesh.MeshIndex}.{i}";
+                if (xivSubmesh.Attributes != null && xivSubmesh.Attributes.Length > 0)
+                    subMesh.Name = $"{subMesh.Name};{string.Join(";", xivSubmesh.Attributes)}";
+                var shapeList = meshBuilder.BuildShapes(xivModel.Shapes.Values.ToArray(), subMesh, (int)xivSubmesh.IndexOffset,
+                    (int)(xivSubmesh.IndexOffset + xivSubmesh.IndexNum));
+                InstanceBuilder? instance;
+                if (joints != null)
                 {
-                    Log.Warning($"Using material {material.gamepath} for {mesh.Material.ResolvedPath}");
+                    if (!NodeBuilder.IsValidArmature(joints))
+                    {
+                        Log.Warning(
+                            $"Joints are not valid, skipping submesh {i} for {name}, {string.Join(", ", joints.Select(x => x.Name))}");
+                        continue;
+                    }
+                    instance =
+                        useSkinning ?
+                            glTfScene.AddSkinnedMesh(subMesh, worldLocation, joints) :
+                            glTfScene.AddRigidMesh(subMesh, worldLocation);
                 }
-
-                await HandleMeshCreation(material.material, raceDeformer, glTfScene, mesh, model, meta, raceCode, deform,
-                    boneMap, fileName, joints, worldLocation);
+                else
+                    instance = glTfScene.AddRigidMesh(subMesh, worldLocation);
+                meta?.ApplyModifiers(instance, shapeList, xivSubmesh.Attributes);
             }
             catch (Exception e)
             {
-                Log.Error(e, $"Failed to handle mesh creation for {mesh.Material.ResolvedPath}");
+                Log.Error(e, $"Failed to build submesh {i} for {name}");
             }
         }
     }
@@ -664,37 +606,7 @@ public class ModelConverter
 
         if (xivMesh.Submeshes.Length > 0)
         {
-            for (var i = 0; i < xivMesh.Submeshes.Length; i++)
-            {
-                try
-                {
-                    var xivSubmesh = xivMesh.Submeshes[i];
-                    Log.Debug($"Submesh [{i}] => {{ {(xivSubmesh.Attributes == null ? "NULL" : string.Join(", ", xivSubmesh.Attributes))} }}");
-                    var subMesh = meshBuilder.BuildSubmesh(xivSubmesh);
-                    subMesh.Name = $"{name}_{xivMesh.MeshIndex}.{i}";
-                    if (xivSubmesh.Attributes != null && xivSubmesh.Attributes.Length > 0)
-                        subMesh.Name = $"{subMesh.Name};{string.Join(";", xivSubmesh.Attributes)}";
-                    var shapeList = meshBuilder.BuildShapes(xivModel.Shapes.Values.ToArray(), subMesh, (int)xivSubmesh.IndexOffset,
-                        (int)(xivSubmesh.IndexOffset + xivSubmesh.IndexNum));
-
-                    if (!NodeBuilder.IsValidArmature(joints))
-                    {
-                        Log.Warning(
-                            $"Joints are not valid, skipping submesh {i} for {name}, {string.Join(", ", joints.Select(x => x.Name))}");
-                        continue;
-                    }
-
-                    var instance =
-                        useSkinning ?
-                            glTfScene.AddSkinnedMesh(subMesh, worldLocation, joints) :
-                            glTfScene.AddRigidMesh(subMesh, worldLocation);
-                    meta?.ApplyModifiers(instance, shapeList, xivSubmesh.Attributes);
-                }
-                catch (Exception e)
-                {
-                    Log.Error(e, $"Failed to build submesh {i} for {name}");
-                }
-            }
+            BuildSubmeshes(meshBuilder, name, xivModel, xivMesh, meta, glTfScene, worldLocation, joints, useSkinning);
         }
         else
         {
@@ -712,7 +624,7 @@ public class ModelConverter
         return Task.CompletedTask;
     }
 
-    private async Task<MaterialBuilder?> ComposeTextures(Material xivMaterial, string outputDir, IEnumerable<Ipc.ResourceNode>? nodes,
+    private async Task<MaterialBuilder?> ComposeTextures(Material xivMaterial, string outputDir, IEnumerable<CharacterNode>? nodes,
         bool copyNormalAlphaToDiffuse,
         CancellationToken cancellationToken)
     {
@@ -744,7 +656,7 @@ public class ModelConverter
                 var nodeMatch = nodes.FirstOrDefault(x => x.GamePath == texturePath);
                 if (nodeMatch != null)
                 {
-                    texturePath = nodeMatch.FullPath();
+                    texturePath = nodeMatch.FullPath;
                 }
                 else
                 {
@@ -754,7 +666,7 @@ public class ModelConverter
 
                     if (nodeMatch != null)
                     {
-                        texturePath = nodeMatch.FullPath();
+                        texturePath = nodeMatch.FullPath;
                     }
                 }
             }
@@ -814,7 +726,7 @@ public class ModelConverter
                    $"New: {string.Join(", ", newTextureTypes)}\n" +
                    $"Missing: {string.Join(", ", missingTextureTypes)}\n" +
                    $"Final: {string.Join(", ", textureTypes)}\n" +
-                   $"Nodes:\n{string.Join("\n", nodes?.Select(x => $"{x.FullPath()} -> {x.GamePath}") ?? Array.Empty<string>())}");
+                   $"Nodes:\n{string.Join("\n", nodes?.Select(x => $"{x.FullPath} -> {x.GamePath}") ?? Array.Empty<string>())}");
 
         var glTfMaterial = new MaterialBuilder
         {
