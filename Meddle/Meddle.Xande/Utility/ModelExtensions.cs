@@ -1,4 +1,4 @@
-﻿using Meddle.Lumina.Models;
+﻿using Lumina.Models.Models;
 
 namespace Meddle.Xande.Utility;
 

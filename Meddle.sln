@@ -2,13 +2,13 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meddle.Plugin", "Meddle\Meddle.Plugin\Meddle.Plugin.csproj", "{ABA6105F-84F8-421E-9365-4D19416FC850}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meddle.Lumina", "Meddle\Meddle.Lumina\Meddle.Lumina.csproj", "{62526E67-AA76-40CB-B1C5-E35A9D6021E4}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meddle.Xande", "Meddle\Meddle.Xande\Meddle.Xande.csproj", "{FBFE8C22-24F2-4BB9-8FA4-290656E9E895}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Xande", "Xande\Xande\Xande.csproj", "{A2345A24-7842-4733-91CF-DC7628521B1D}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Xande.GltfImporter", "Xande\Xande.GltfImporter\Xande.GltfImporter.csproj", "{D8CCF05E-DD2D-455F-A537-C71BDBD931B2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Lumina", "Xande\Lumina\src\Lumina\Lumina.csproj", "{878C93FA-8203-448D-9F55-4A472118227A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -20,10 +20,6 @@ Global
 		{ABA6105F-84F8-421E-9365-4D19416FC850}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{ABA6105F-84F8-421E-9365-4D19416FC850}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{ABA6105F-84F8-421E-9365-4D19416FC850}.Release|Any CPU.Build.0 = Release|Any CPU
-		{62526E67-AA76-40CB-B1C5-E35A9D6021E4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{62526E67-AA76-40CB-B1C5-E35A9D6021E4}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{62526E67-AA76-40CB-B1C5-E35A9D6021E4}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{62526E67-AA76-40CB-B1C5-E35A9D6021E4}.Release|Any CPU.Build.0 = Release|Any CPU
 		{4018BFFC-C9BD-4AF5-8AEC-E9611DB4FB76}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{4018BFFC-C9BD-4AF5-8AEC-E9611DB4FB76}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4018BFFC-C9BD-4AF5-8AEC-E9611DB4FB76}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -44,5 +40,9 @@ Global
 		{D8CCF05E-DD2D-455F-A537-C71BDBD931B2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D8CCF05E-DD2D-455F-A537-C71BDBD931B2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D8CCF05E-DD2D-455F-A537-C71BDBD931B2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{878C93FA-8203-448D-9F55-4A472118227A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{878C93FA-8203-448D-9F55-4A472118227A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{878C93FA-8203-448D-9F55-4A472118227A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{878C93FA-8203-448D-9F55-4A472118227A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

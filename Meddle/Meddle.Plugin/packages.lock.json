@@ -17,11 +17,6 @@
           "Microsoft.Extensions.DependencyInjection.Abstractions": "7.0.0"
         }
       },
-      "Lumina": {
-        "type": "Transitive",
-        "resolved": "3.11.0",
-        "contentHash": "G7HQq2i5k4eL8kXxQCtrwQtRBuQi5qW1reb5oYZv+hazgOgpqX6YAX56dW6r5uraef1L1j/jMXMlXQDb3wMUmQ=="
-      },
       "Microsoft.Extensions.DependencyInjection.Abstractions": {
         "type": "Transitive",
         "resolved": "7.0.0",
@@ -58,18 +53,12 @@
           "Microsoft.Win32.SystemEvents": "8.0.0-preview.2.23128.3"
         }
       },
-      "meddle.lumina": {
-        "type": "Project",
-        "dependencies": {
-          "Lumina": "[3.11.0, )",
-          "SharpGLTF.Core": "[1.0.0-alpha0028, )",
-          "SharpGLTF.Toolkit": "[1.0.0-alpha0028, )"
-        }
+      "Lumina2": {
+        "type": "Project"
       },
       "meddle.xande": {
         "type": "Project",
         "dependencies": {
-          "Meddle.Lumina": "[1.0.0, )",
           "Penumbra.Api": "[1.0.12, )",
           "Xande": "[1.0.0, )"
         }
@@ -77,6 +66,7 @@
       "xande": {
         "type": "Project",
         "dependencies": {
+          "Lumina2": "[2.4.2, )",
           "SharpGLTF.Core": "[1.0.0-alpha0028, )",
           "SharpGLTF.Toolkit": "[1.0.0-alpha0028, )",
           "System.Drawing.Common": "[8.0.0-preview.2.23128.3, )",
@@ -86,7 +76,7 @@
       "xande.gltfimporter": {
         "type": "Project",
         "dependencies": {
-          "Lumina": "[3.11.0, )",
+          "Lumina2": "[2.4.2, )",
           "SharpGLTF.Core": "[1.0.0-alpha0028, )",
           "SharpGLTF.Toolkit": "[1.0.0-alpha0028, )"
         }

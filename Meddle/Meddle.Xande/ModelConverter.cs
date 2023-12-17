@@ -9,8 +9,8 @@ using Lumina;
 using Lumina.Data;
 using Lumina.Data.Files;
 using Lumina.Data.Parsing;
-using Meddle.Lumina.Materials;
-using Meddle.Lumina.Models;
+using Lumina.Models.Materials;
+using Lumina.Models.Models;
 using Meddle.Xande.Enums;
 using Meddle.Xande.Models;
 using Meddle.Xande.Utility;
@@ -22,8 +22,6 @@ using Xande;
 using Xande.Files;
 using Xande.Havok;
 using Xande.Models.Export;
-using Material = Meddle.Lumina.Materials.Material;
-using Model = Meddle.Lumina.Models.Model;
 
 namespace Meddle.Xande
 {

@@ -2,6 +2,7 @@
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
+using Lumina.Models.Materials;
 using Penumbra.Api;
 using Xande;
 using Xande.Enums;
@@ -133,7 +134,7 @@ public static class CharacterUtility
                 {
                     var drawTexture = mtrlResource->TexturesSpan[k];
 
-                    Lumina.Materials.Texture? luminaTexture = null;
+                    Texture? luminaTexture = null;
                     if (luminaMaterial.Textures != null && luminaMaterial.Textures.Length > k)
                     {
                         luminaTexture = luminaMaterial.Textures[k];

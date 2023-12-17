@@ -35,10 +35,6 @@
             <HintPath>$(DalamudLibPath)ImGui.NET.dll</HintPath>
             <Private>false</Private>
         </Reference>
-        <Reference Include="Lumina">
-            <HintPath>$(DalamudLibPath)Lumina.dll</HintPath>
-            <Private>false</Private>
-        </Reference>
         <Reference Include="Newtonsoft.Json">
             <HintPath>$(DalamudLibPath)Newtonsoft.Json.dll</HintPath>
             <Private>False</Private>
@@ -48,7 +44,6 @@
     <ItemGroup>
       <ProjectReference Include="..\..\Xande\Xande.GltfImporter\Xande.GltfImporter.csproj" />
       <ProjectReference Include="..\..\Xande\Xande\Xande.csproj" />
-      <ProjectReference Include="..\Meddle.Lumina\Meddle.Lumina.csproj" />
       <ProjectReference Include="..\Meddle.Xande\Meddle.Xande.csproj" />
     </ItemGroup>
 </Project>
