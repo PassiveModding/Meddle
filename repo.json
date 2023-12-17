@@ -4,8 +4,8 @@
     "Name": "Meddle",
     "InternalName": "Meddle.Plugin",
     "Description": "Did I mention I'm a model?",
-    "AssemblyVersion": "0.0.2",
-    "TestingAssemblyVersion": "0.0.2",
+    "AssemblyVersion": "0.0.3",
+    "TestingAssemblyVersion": "0.0.3",
     "RepoUrl": "https://github.com/PassiveModding/Meddle",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 9,
@@ -13,8 +13,8 @@
       "Xande",
       "Models"
     ],
-    "DownloadLinkInstall": "https://github.com/PassiveModding/Meddle/releases/download/v0.0.2/latest.zip",
-    "DownloadLinkTesting": "https://github.com/PassiveModding/Meddle/releases/download/v0.0.2/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/PassiveModding/Meddle/releases/download/v0.0.2/latest.zip"
+    "DownloadLinkInstall": "https://github.com/PassiveModding/Meddle/releases/download/v0.0.3/latest.zip",
+    "DownloadLinkTesting": "https://github.com/PassiveModding/Meddle/releases/download/v0.0.3/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/PassiveModding/Meddle/releases/download/v0.0.3/latest.zip"
   }
 ]
