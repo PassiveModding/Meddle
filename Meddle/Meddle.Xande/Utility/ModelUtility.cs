@@ -1,11 +1,10 @@
 ﻿using System.Text.RegularExpressions;
 using Lumina.Data.Files;
-using Meddle.Lumina.Models;
+using Lumina.Models.Models;
 using Meddle.Xande.Models;
 using SharpGLTF.Scenes;
 using Xande;
 using Xande.Havok;
-using Model = Meddle.Lumina.Models.Model;
 
 namespace Meddle.Xande.Utility;
 

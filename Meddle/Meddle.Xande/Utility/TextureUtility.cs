@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 using Dalamud.Logging;
 using Dalamud.Plugin.Services;
 using Lumina.Data.Parsing;
-using Meddle.Lumina.Materials;
+using Lumina.Models.Materials;
 using SharpGLTF.Materials;
 using Xande;
 

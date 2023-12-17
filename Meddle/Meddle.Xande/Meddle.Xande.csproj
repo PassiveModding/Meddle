@@ -9,7 +9,6 @@
 
     <ItemGroup>
       <ProjectReference Include="..\..\Xande\Xande\Xande.csproj" />
-      <ProjectReference Include="..\Meddle.Lumina\Meddle.Lumina.csproj" />
     </ItemGroup>
     
     <PropertyGroup>
@@ -27,10 +26,6 @@
         </Reference>
         <Reference Include="FFXIVClientStructs">
             <HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath>
-            <Private>false</Private>
-        </Reference>
-        <Reference Include="Lumina">
-            <HintPath>$(DalamudLibPath)Lumina.dll</HintPath>
             <Private>false</Private>
         </Reference>
     </ItemGroup>

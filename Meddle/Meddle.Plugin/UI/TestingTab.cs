@@ -4,7 +4,7 @@ using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using ImGuiNET;
 using Lumina.Data.Files;
-using Meddle.Lumina.Models;
+using Lumina.Models.Models;
 using Meddle.Plugin.UI.Shared;
 using Meddle.Xande.Models;
 using Penumbra.Api;
