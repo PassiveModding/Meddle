@@ -10,6 +10,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Xande.GltfImporter", "Xande
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Lumina", "Xande\Lumina\src\Lumina\Lumina.csproj", "{878C93FA-8203-448D-9F55-4A472118227A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Xande.TestPlugin", "Xande\Xande.TestPlugin\Xande.TestPlugin.csproj", "{6CEBB347-7ABF-4022-93BD-8896A5F13126}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -44,5 +46,9 @@ Global
 		{878C93FA-8203-448D-9F55-4A472118227A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{878C93FA-8203-448D-9F55-4A472118227A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{878C93FA-8203-448D-9F55-4A472118227A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6CEBB347-7ABF-4022-93BD-8896A5F13126}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6CEBB347-7ABF-4022-93BD-8896A5F13126}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6CEBB347-7ABF-4022-93BD-8896A5F13126}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6CEBB347-7ABF-4022-93BD-8896A5F13126}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
