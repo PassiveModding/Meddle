@@ -797,26 +797,25 @@ namespace Meddle.Xande
                 {
                     // not sure if backface culling should be done here, depends on model ugh
                     backfaceCulling = false;
-                    TextureUtility.ParseCharacterTextures(xivTextureMap, xivMaterial, _log.PluginLog,
-                        copyNormalAlphaToDiffuse);
+                    TextureUtility.ParseCharacterTextures(xivTextureMap, xivMaterial, _log.PluginLog);
                     break;
                 }
                 case "skin.shpk":
                 {
                     alphaMode = AlphaMode.MASK;
-                    TextureUtility.ParseSkinTextures(xivTextureMap, xivMaterial, _log.PluginLog);
+                    TextureUtility.ParseSkinTextures(xivTextureMap, xivMaterial);
                     break;
                 }
                 case "hair.shpk":
                 {
                     alphaMode = AlphaMode.MASK;
                     backfaceCulling = false;
-                    TextureUtility.ParseHairTextures(xivTextureMap, xivMaterial, _log.PluginLog);
+                    TextureUtility.ParseHairTextures(xivTextureMap, xivMaterial);
                     break;
                 }
                 case "iris.shpk":
                 {
-                    TextureUtility.ParseIrisTextures(xivTextureMap!, xivMaterial, _log.PluginLog);
+                    TextureUtility.ParseIrisTextures(xivTextureMap!, xivMaterial);
                     break;
                 }
                 default:
