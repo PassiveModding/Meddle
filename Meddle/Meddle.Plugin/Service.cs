@@ -22,6 +22,7 @@ public class Service
         services.AddSingleton(ObjectTable);
         services.AddSingleton(ClientState);
         services.AddSingleton(SigScanner);
+        services.AddSingleton(GameInteropProvider);
     }
 
     [PluginService] private DalamudPluginInterface PluginInterface { get; set; } = null!;
@@ -34,4 +35,5 @@ public class Service
     [PluginService] private IObjectTable ObjectTable { get; set; } = null!;
     [PluginService] private IClientState ClientState { get; set; } = null!;
     [PluginService] private ISigScanner SigScanner { get; set; } = null!;
+    [PluginService] private IGameInteropProvider GameInteropProvider { get; set; } = null!;
 }

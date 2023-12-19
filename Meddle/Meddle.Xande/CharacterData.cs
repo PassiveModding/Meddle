@@ -4,14 +4,16 @@ using SharpGLTF.Transforms;
 
 namespace Meddle.Xande;
 
+[Obsolete("Use NewTree", true)]
 public class CharacterData
 {
     public required CharacterTree Resources { get; set; }
     public Dictionary<string, AffineTransform>? Pose { get; set; }
-    public List<ModelMeta>? ModelMetas { get; set; }
-    public List<HkSkeleton.WeaponData>? WeaponDatas { get; set; }
+    //public List<ModelMeta>? ModelMetas { get; set; }
+    //public List<HkSkeleton.WeaponData>? WeaponDatas { get; set; }
 }
 
+[Obsolete("Use NewTree", true)]
 public class CharacterTree
 {
     public string Name { get; init; }
@@ -26,6 +28,7 @@ public class CharacterTree
     }
 }
 
+[Obsolete("Use NewTree", true)]
 public class CharacterNode
 {
     public ResourceType Type { get; init; }

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <Version>0.0.1</Version>
         <TargetFramework>net7.0-windows</TargetFramework>
@@ -19,6 +19,12 @@
     <PropertyGroup Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Linux)))'">
         <DalamudLibPath>$(DALAMUD_HOME)/</DalamudLibPath>
     </PropertyGroup>
+
+    <ItemGroup>
+      <Compile Remove="UI\Shared\**" />
+      <EmbeddedResource Remove="UI\Shared\**" />
+      <None Remove="UI\Shared\**" />
+    </ItemGroup>
 
     <ItemGroup>
         <PackageReference Include="DalamudPackager" Version="2.1.12" />

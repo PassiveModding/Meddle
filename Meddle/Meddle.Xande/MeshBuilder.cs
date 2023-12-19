@@ -1,4 +1,3 @@
-using Lumina.Models.Models;
 using SharpGLTF.Geometry;
 using SharpGLTF.Geometry.VertexTypes;
 using SharpGLTF.Materials;
@@ -10,7 +9,7 @@ namespace Meddle.Xande;
 
 public class MeshBuilder
 {
-    private Mesh Mesh { get; }
+    private NewMesh Mesh { get; }
     private List<object> GeometryParamCache { get; } = new();
     private List<object> MaterialParamCache { get; } = new();
     private List<(int, float)> SkinningParamCache { get; } = new();
@@ -31,7 +30,7 @@ public class MeshBuilder
     private List<IVertexBuilder> Vertices { get; }
 
     public MeshBuilder(
-        Mesh mesh,
+        NewMesh mesh,
         bool useSkinning,
         IReadOnlyDictionary<int, int> jointMap,
         MaterialBuilder materialBuilder,
@@ -48,7 +47,7 @@ public class MeshBuilder
         SkinningT = useSkinning ? typeof(VertexJoints4) : typeof(VertexEmpty);
         VertexBuilderT = typeof(VertexBuilder<,,>).MakeGenericType(GeometryT, MaterialT, SkinningT);
         MeshBuilderT = typeof(MeshBuilder<,,,>).MakeGenericType(typeof(MaterialBuilder), GeometryT, MaterialT, SkinningT);
-        Vertices = new List<IVertexBuilder>(Mesh.Vertices.Length);
+        Vertices = new List<IVertexBuilder>(Mesh.Vertices.Count);
     }
 
     /// <summary>Calculates the deformation steps from two given races.</summary>
@@ -93,12 +92,12 @@ public class MeshBuilder
     }
 
     /// <summary>Creates a mesh from the given submesh.</summary>
-    public IMeshBuilder<MaterialBuilder> BuildSubmesh(Submesh submesh)
+    public IMeshBuilder<MaterialBuilder> BuildSubmesh(NewSubMesh submesh)
     {
         var ret = (IMeshBuilder<MaterialBuilder>)Activator.CreateInstance(MeshBuilderT, string.Empty)!;
         var primitive = ret.UsePrimitive(MaterialBuilder);
 
-        for (var triIdx = 0; triIdx < submesh.IndexNum; triIdx += 3)
+        for (var triIdx = 0; triIdx < submesh.IndexCount; triIdx += 3)
         {
             var triA = Vertices[Mesh.Indices[triIdx + (int)submesh.IndexOffset + 0]];
             var triB = Vertices[Mesh.Indices[triIdx + (int)submesh.IndexOffset + 1]];
@@ -115,7 +114,7 @@ public class MeshBuilder
         var ret = (IMeshBuilder<MaterialBuilder>)Activator.CreateInstance(MeshBuilderT, string.Empty)!;
         var primitive = ret.UsePrimitive(MaterialBuilder);
 
-        for (var triIdx = 0; triIdx < Mesh.Indices.Length; triIdx += 3)
+        for (var triIdx = 0; triIdx < Mesh.Indices.Count; triIdx += 3)
         {
             var triA = Vertices[Mesh.Indices[triIdx + 0]];
             var triB = Vertices[Mesh.Indices[triIdx + 1]];
@@ -127,13 +126,12 @@ public class MeshBuilder
     }
 
     /// <summary>Builds shape keys (known as morph targets in glTF).</summary>
-    public IEnumerable<Shape> BuildShapes(IReadOnlyList<Shape> shapes, IMeshBuilder<MaterialBuilder> builder, int subMeshStart, int subMeshEnd)
+    public void BuildShapes(IReadOnlyList<NewModelShape> shapes, IMeshBuilder<MaterialBuilder> builder, int subMeshStart, int subMeshEnd)
     {
         var primitive = builder.Primitives.First();
         var triangles = primitive.Triangles;
         var vertices = primitive.Vertices;
         var vertexList = new List<(IVertexGeometry, IVertexGeometry)>();
-        var nameList = new List<Shape>();
         for (var i = 0; i < shapes.Count; ++i)
         {
             var shape = shapes[i];
@@ -158,22 +156,16 @@ public class MeshBuilder
                 }
             }
 
-            if (vertexList.Count == 0) continue;
-
-            var morph = builder.UseMorphTarget(nameList.Count);
+            var morph = builder.UseMorphTarget(i);
             foreach (var (a, b) in vertexList) { morph.SetVertex(a, b); }
-
-            nameList.Add(shape);
         }
 
         var data = new ExtraDataManager();
-        data.AddShapeNames(nameList);
+        data.AddShapeNames(shapes);
         builder.Extras = data.Serialize();
-
-        return nameList;
     }
 
-    private IVertexBuilder BuildVertex(Vertex vertex)
+    private IVertexBuilder BuildVertex(NewVertex vertex)
     {
         ClearCaches();
 
@@ -250,9 +242,9 @@ public class MeshBuilder
     }
 
     /// <summary>Obtain the correct geometry type for a given set of vertices.</summary>
-    private static Type GetVertexGeometryType(Vertex[] vertex)
+    private static Type GetVertexGeometryType(List<NewVertex> vertex)
     {
-        if (vertex.Length == 0)
+        if (vertex.Count == 0)
         {
             return typeof(VertexPosition);
         }
@@ -271,9 +263,9 @@ public class MeshBuilder
     }
 
     /// <summary>Obtain the correct material type for a set of vertices.</summary>
-    private static Type GetVertexMaterialType(Vertex[] vertex)
+    private static Type GetVertexMaterialType(List<NewVertex> vertex)
     {
-        if (vertex.Length == 0)
+        if (vertex.Count == 0)
         {
             return typeof(VertexColor1);
         }

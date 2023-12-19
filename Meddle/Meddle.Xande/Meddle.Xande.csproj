@@ -16,6 +16,10 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <PackageReference Include="Vortice.Direct3D11" Version="3.4.1-beta" />
+    </ItemGroup>
+
+    <ItemGroup>
         <Reference Include="Dalamud">
             <HintPath>$(DalamudLibPath)Dalamud.dll</HintPath>
             <Private>false</Private>

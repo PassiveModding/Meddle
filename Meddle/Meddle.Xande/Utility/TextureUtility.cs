@@ -1,10 +1,7 @@
-using Dalamud.Logging;
 using Dalamud.Plugin.Services;
 using Lumina.Data.Parsing;
-using Lumina.Models.Materials;
 using SharpGLTF.Materials;
-using System.Drawing;
-using System.Drawing.Imaging;
+using SkiaSharp;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Xande;
@@ -13,14 +10,140 @@ namespace Meddle.Xande.Utility;
 
 public static class TextureUtility
 {
-    public static IEnumerable<(TextureUsage, Bitmap)> ComputeCharacterModelTextures(Material xivMaterial,
-        BitmapData normal, BitmapData? initDiffuse, bool copyNormalAlphaToDiffuse = true)
-    {
-        var diffuse = new Bitmap(normal.Width, normal.Height, PixelFormat.Format32bppArgb);
-        var specular = new Bitmap(normal.Width, normal.Height, PixelFormat.Format32bppArgb);
-        var emission = new Bitmap(normal.Width, normal.Height, PixelFormat.Format32bppArgb);
+    //public sealed unsafe class SKTexture : IDisposable
+    //{
+    //    public SKBitmap Bitmap { get; }
+    //    private SKCanvas Canvas { get; }
 
-        var colorSetInfo = xivMaterial.File!.ColorSetInfo;
+    //    public int Width => Bitmap.Width;
+    //    public int Height => Bitmap.Height;
+
+    //    public SKTexture(SKBitmap bitmap)
+    //    {
+    //        Bitmap = bitmap;
+    //        Canvas = new SKCanvas(bitmap);
+    //    }
+
+    //    public SKTexture(int width, int height) : this(new(new(width, height, SKColorType.Rgba8888, SKAlphaType.Unpremul)))
+    //    {
+
+    //    }
+
+    //    public SKColor this[int x, int y]
+    //    {
+    //        get => Bitmap.GetPixel(x, y);
+    //        set => Canvas.DrawPoint(x, y, value);
+    //    }
+
+    //    public void Flush()
+    //    {
+    //        Canvas.Flush();
+    //    }
+
+    //    public void Dispose()
+    //    {
+    //        Canvas.Dispose();
+    //        Bitmap.Dispose();
+    //    }
+    //}
+
+    public sealed class SKTexture
+    {
+        private byte[] Data { get; }
+
+        public int Width { get; }
+        public int Height { get; }
+
+        public SKBitmap Bitmap
+        {
+            get
+            {
+                var ret = new SKBitmap(Width, Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
+                ret.Erase(new(0));
+                var p = ret.GetPixels(out var l);
+                if (l != Data.Length)
+                    throw new InvalidOperationException("Invalid length");
+                Marshal.Copy(Data, 0, p, Data.Length);
+                if (!ret.Bytes.SequenceEqual(Data))
+                    throw new InvalidOperationException("Invalid copied data");
+                return ret;
+            }
+        }
+
+        public SKTexture(int width, int height)
+        {
+            Data = new byte[width * height * 4];
+            Width = width;
+            Height = height;
+        }
+
+        public SKTexture(SKBitmap bitmap) : this(bitmap.Width, bitmap.Height)
+        {
+            if (bitmap.ColorType != SKColorType.Rgba8888 || bitmap.AlphaType != SKAlphaType.Unpremul)
+            {
+                using var newBitmap = new SKBitmap(new SKImageInfo(Width, Height, SKColorType.Rgba8888, SKAlphaType.Unpremul));
+                using (var canvas = new SKCanvas(newBitmap))
+                    canvas.DrawBitmap(bitmap, 0, 0);
+
+                if (newBitmap.ByteCount != Data.Length)
+                    throw new ArgumentException("Invalid byte count");
+                newBitmap.Bytes.CopyTo(Data, 0);
+                newBitmap.SaveToFile(@$"C:\Users\Asriel\AppData\Local\Temp\Meddle.Export\tex2\{bitmap.GetHashCode():X8}.png");
+                bitmap.SaveToFile(@$"C:\Users\Asriel\AppData\Local\Temp\Meddle.Export\tex2\{bitmap.GetHashCode():X8}_ORIG.png");
+
+                if (!newBitmap.Bytes.SequenceEqual(Data))
+                    throw new InvalidOperationException("Invalid cloned data");
+            }
+            else
+            {
+                if (bitmap.ByteCount != Data.Length)
+                    throw new ArgumentException("Invalid byte count");
+                bitmap.Bytes.CopyTo(Data, 0);
+                bitmap.SaveToFile(@$"C:\Users\Asriel\AppData\Local\Temp\Meddle.Export\tex2\{bitmap.GetHashCode():X8}_ORIG3.png");
+            }
+        }
+
+        public SKTexture Copy()
+        {
+            var ret = new SKTexture(Width, Height);
+            Data.CopyTo(ret.Data, 0);
+            return ret;
+        }
+
+        private Span<byte> GetPixelData(int x, int y) =>
+            Data.AsSpan().Slice((Width * y + x) * 4, 4);
+
+        public SKColor this[int x, int y]
+        {
+            get
+            {
+                var s = GetPixelData(x, y);
+                return new(s[0], s[1], s[2], s[3]);
+            }
+            set
+            {
+                var s = GetPixelData(x, y);
+                s[0] = value.Red;
+                s[1] = value.Green;
+                s[2] = value.Blue;
+                s[3] = value.Alpha;
+            }
+        }
+
+        public void Flush()
+        {
+
+        }
+    }
+
+    public static IEnumerable<(TextureUsage, SKTexture)> ComputeCharacterModelTextures(NewMaterial xivMaterial,
+        SKTexture normal, SKTexture? initDiffuse, bool copyNormalAlphaToDiffuse = true)
+    {
+        var diffuse = new SKTexture(normal.Width, normal.Height);
+        var specular = new SKTexture(normal.Width, normal.Height);
+        var emission = new SKTexture(normal.Width, normal.Height);
+
+        var colorSetInfo = xivMaterial.ColorTable ?? throw new ArgumentException($"Expected color table for {xivMaterial.HandlePath}");
 
         // copy alpha from normal to original diffuse if it exists
         if (initDiffuse != null && copyNormalAlphaToDiffuse) CopyNormalBlueChannelToDiffuseAlphaChannel(normal, initDiffuse);
@@ -28,31 +151,36 @@ public static class TextureUtility
         for (var x = 0; x < normal.Width; x++)
             for (var y = 0; y < normal.Height; y++)
             {
-                var normalPixel = GetPixel(normal, x, y);
+                var normalPixel = normal[x, y];
 
-                var colorSetIndex1 = normalPixel.A / 17 * 16;
-                var colorSetBlend = normalPixel.A % 17 / 17.0;
-                var colorSetIndexT2 = normalPixel.A / 17;
+                var colorSetIndex1 = normalPixel.Alpha / 17 * 16;
+                var colorSetBlend = normalPixel.Alpha % 17 / 17.0;
+                var colorSetIndexT2 = normalPixel.Alpha / 17;
                 var colorSetIndex2 = (colorSetIndexT2 >= 15 ? 15 : colorSetIndexT2 + 1) * 16;
 
                 // to fix transparency issues 
                 // normal.SetPixel( x, y, Color.FromArgb( normalPixel.B, normalPixel.R, normalPixel.G, 255 ) );
-                SetPixel(normal, x, y, Color.FromArgb(normalPixel.B, normalPixel.R, normalPixel.G, 255));
+                normal[x, y] = new(normalPixel.Red, normalPixel.Green, 255, normalPixel.Blue);
 
-                var diffuseBlendColour = ColorUtility.BlendColorSet(in colorSetInfo, colorSetIndex1, colorSetIndex2,
-                    normalPixel.B, colorSetBlend, ColorUtility.TextureType.Diffuse);
-                var specularBlendColour = ColorUtility.BlendColorSet(in colorSetInfo, colorSetIndex1, colorSetIndex2, 255,
+                var diffuseBlendColour = ColorUtility.BlendColorSet(colorSetInfo, colorSetIndex1, colorSetIndex2,
+                    normalPixel.Blue, colorSetBlend, ColorUtility.TextureType.Diffuse);
+                var specularBlendColour = ColorUtility.BlendColorSet(colorSetInfo, colorSetIndex1, colorSetIndex2, 255,
                     colorSetBlend, ColorUtility.TextureType.Specular);
-                var emissionBlendColour = ColorUtility.BlendColorSet(in colorSetInfo, colorSetIndex1, colorSetIndex2, 255,
+                var emissionBlendColour = ColorUtility.BlendColorSet(colorSetInfo, colorSetIndex1, colorSetIndex2, 255,
                     colorSetBlend, ColorUtility.TextureType.Emissive);
 
                 // Set the blended colors in the respective bitmaps
-                diffuse.SetPixel(x, y, diffuseBlendColour);
-                specular.SetPixel(x, y, specularBlendColour);
-                emission.SetPixel(x, y, emissionBlendColour);
+                diffuse[x, y] = diffuseBlendColour;
+                specular[x, y] = specularBlendColour;
+                emission[x, y] = emissionBlendColour;
             }
 
-        return new List<(TextureUsage, Bitmap)>
+        normal.Flush();
+        diffuse.Flush();
+        specular.Flush();
+        emission.Flush();
+
+        return new List<(TextureUsage, SKTexture)>
         {
             (TextureUsage.SamplerDiffuse, diffuse),
             (TextureUsage.SamplerSpecular, specular),
@@ -61,7 +189,7 @@ public static class TextureUtility
     }
 
     // Workaround for transparency on diffuse textures
-    public static void CopyNormalBlueChannelToDiffuseAlphaChannel(BitmapData normal, BitmapData diffuse)
+    public static void CopyNormalBlueChannelToDiffuseAlphaChannel(SKTexture normal, SKTexture diffuse)
     {
         // need to scale normal map lookups to diffuse size since the maps are often smaller
         // will look blocky but its better than nothing
@@ -74,143 +202,74 @@ public static class TextureUtility
                 //var diffusePixel = diffuse.GetPixel( x, y );
                 //var normalPixel = normal.GetPixel( ( int )( x / scaleX ), ( int )( y / scaleY ) );
                 //diffuse.SetPixel( x, y, Color.FromArgb( normalPixel.B, diffusePixel.R, diffusePixel.G, diffusePixel.B ) );
-                var diffusePixel = GetPixel(diffuse, x, y);
-                var normalPixel = GetPixel(normal, (int)(x / scaleX), (int)(y / scaleY));
+                var diffusePixel = diffuse[x, y];
+                var normalPixel = normal[(int)(x / scaleX), (int)(y / scaleY)];
 
-                SetPixel(diffuse, x, y, Color.FromArgb(normalPixel.B, diffusePixel.R, diffusePixel.G, diffusePixel.B));
+                diffuse[x, y] = diffusePixel.WithAlpha(normalPixel.Blue);
             }
+
+        diffuse.Flush();
     }
 
-    public static void SetPixel(BitmapData data, int x, int y, Color color)
+    public static SKTexture ComputeOcclusion(SKTexture mask, SKTexture specularMap)
     {
-        try
-        {
-            if (x < 0 || x >= data.Width || y < 0 || y >= data.Height)
-                throw new ArgumentOutOfRangeException(nameof(x), nameof(y), "x or y is out of bounds");
-
-            var bytesPerPixel = Image.GetPixelFormatSize(data.PixelFormat) / 8;
-            var offset = y * data.Stride + x * bytesPerPixel;
-
-            if (offset < 0 || offset + bytesPerPixel > data.Stride * data.Height)
-                throw new ArgumentOutOfRangeException("Memory access error");
-
-            var pixel = new byte[bytesPerPixel];
-            Marshal.Copy(data.Scan0 + offset, pixel, 0, bytesPerPixel);
-
-            pixel[0] = color.B; // Blue
-            pixel[1] = color.G; // Green
-            pixel[2] = color.R; // Red
-
-            if (bytesPerPixel == 4) pixel[3] = color.A; // Alpha
-
-            Marshal.Copy(pixel, 0, data.Scan0 + offset, bytesPerPixel);
-        }
-        catch (ArgumentOutOfRangeException ex)
-        {
-            PluginLog.Error(ex, ex.Message);
-        }
-    }
-
-    public static Color GetPixel(BitmapData data, int x, int y, IPluginLog? logger = null)
-    {
-        try
-        {
-            if (x < 0 || x >= data.Width || y < 0 || y >= data.Height)
-                throw new ArgumentOutOfRangeException(nameof(x), nameof(y), "x or y is out of bounds");
-
-            var bytesPerPixel = Image.GetPixelFormatSize(data.PixelFormat) / 8;
-            var offset = y * data.Stride + x * bytesPerPixel;
-
-            if (offset < 0 || offset + bytesPerPixel > data.Stride * data.Height)
-                throw new InvalidOperationException("Memory access error");
-
-            var pixel = new byte[bytesPerPixel];
-            Marshal.Copy(data.Scan0 + offset, pixel, 0, bytesPerPixel);
-
-            if (bytesPerPixel == 4)
-                return Color.FromArgb(pixel[3], pixel[2], pixel[1], pixel[0]);
-            if (bytesPerPixel == 3)
-                return Color.FromArgb(255, pixel[2], pixel[1], pixel[0]);
-            throw new InvalidOperationException("Unsupported pixel format");
-        }
-        catch (ArgumentOutOfRangeException ex)
-        {
-            logger?.Error(ex, ex.Message);
-            return Color.Transparent;
-        }
-        catch (InvalidOperationException ex)
-        {
-            logger?.Error(ex, ex.Message);
-            return Color.Transparent;
-        }
-    }
-
-
-    public static Bitmap ComputeOcclusion(BitmapData mask, BitmapData specularMap)
-    {
-        var occlusion = new Bitmap(mask.Width, mask.Height, PixelFormat.Format32bppArgb);
+        var occlusion = new SKTexture(mask.Width, mask.Height);
 
         for (var x = 0; x < mask.Width; x++)
             for (var y = 0; y < mask.Height; y++)
             {
-                var maskPixel = GetPixel(mask, x, y);
-                var specularPixel = GetPixel(specularMap, x, y);
+                var maskPixel = mask[x, y];
+                var specularPixel = specularMap[x, y];
 
                 // Calculate the new RGB channels for the specular pixel based on the mask pixel
-                SetPixel(specularMap, x, y, Color.FromArgb(
-                    specularPixel.A,
-                    Convert.ToInt32(specularPixel.R * Math.Pow(maskPixel.G / 255.0, 2)),
-                    Convert.ToInt32(specularPixel.G * Math.Pow(maskPixel.G / 255.0, 2)),
-                    Convert.ToInt32(specularPixel.B * Math.Pow(maskPixel.G / 255.0, 2))
-                ));
+                specularMap[x, y] = new(
+                    (byte)Convert.ToInt32(specularPixel.Red * Math.Pow(maskPixel.Green / 255.0, 2)),
+                    (byte)Convert.ToInt32(specularPixel.Green * Math.Pow(maskPixel.Green / 255.0, 2)),
+                    (byte)Convert.ToInt32(specularPixel.Blue * Math.Pow(maskPixel.Green / 255.0, 2)),
+                    specularPixel.Alpha
+                );
 
                 // Oops all red
-                occlusion.SetPixel(x, y, Color.FromArgb(
-                    255,
-                    maskPixel.R,
-                    maskPixel.R,
-                    maskPixel.R
-                ));
+                occlusion[x, y] = new(
+                    maskPixel.Red,
+                    maskPixel.Red,
+                    maskPixel.Red,
+                    255
+                );
             }
+
+        specularMap.Flush();
+        occlusion.Flush();
 
         return occlusion;
     }
 
-    /// <summary>
-    /// Safely get a texture buffer copy from Lumina.
-    /// </summary>
-    /// <param name="manager"></param>
-    /// <param name="path"></param>
-    /// <param name="origPath"></param>
-    /// <returns></returns>
-    public static Bitmap GetTextureBufferCopy(LuminaManager manager, string path, string? origPath = null)
-    {
-        var textureBuffer = manager.GetTextureBuffer(path, origPath);
-        var copy = new Bitmap(textureBuffer);
-        textureBuffer.Dispose();
-        return copy;
-    }
-
-    public static async Task ExportTextures(MaterialBuilder glTfMaterial,
-        Dictionary<TextureUsage, Bitmap> xivTextureMap,
+    public static void ExportTextures(MaterialBuilder glTfMaterial,
+        Dictionary<TextureUsage, SKTexture> xivTextureMap,
         string outputDir)
     {
         foreach (var xivTexture in xivTextureMap)
-        {
-            await ExportTexture(glTfMaterial, xivTexture.Key, xivTexture.Value, outputDir);
-        }
+            ExportTexture(glTfMaterial, xivTexture.Key, xivTexture.Value.Bitmap, outputDir);
 
         // Set the metallic roughness factor to 0
         glTfMaterial.WithMetallicRoughness(0);
     }
 
-    private static SemaphoreSlim TextureSemaphore { get; } = new(1, 1);
+    private static object TextureSemaphore { get; } = new();
 
-    public static async Task ExportTexture(MaterialBuilder glTfMaterial, TextureUsage textureUsage, Bitmap bitmap,
+    public static void SaveToFile(this SKBitmap bitmap, string path)
+    {
+        using var f = new FileStream(path, FileMode.Create, FileAccess.Write);
+        using var data = bitmap.Encode(SKEncodedImageFormat.Png, 100);
+        using var stream = data.AsStream();
+
+        stream.CopyTo(f);
+    }
+
+    public static void ExportTexture(MaterialBuilder glTfMaterial, TextureUsage textureUsage, SKBitmap bitmap,
         string outputDir)
     {
-        await TextureSemaphore.WaitAsync();
-        try
+        lock (TextureSemaphore)
         {
             // tbh can overwrite or delete these after use but theyre helpful for debugging
             var name = glTfMaterial.Name.Replace("\\", "/").Split("/").Last().Split(".").First();
@@ -222,128 +281,103 @@ public static class TextureUtility
                 case TextureUsage.SamplerColorMap0:
                 case TextureUsage.SamplerDiffuse:
                     path = Path.Combine(outputDir, $"{name}_diffuse.png");
-                    bitmap.Save(path);
+                    bitmap.SaveToFile(path);
                     glTfMaterial.WithBaseColor(path);
                     break;
                 case TextureUsage.SamplerNormalMap0:
                 case TextureUsage.SamplerNormal:
                     path = Path.Combine(outputDir, $"{name}_normal.png");
-                    bitmap.Save(path);
+                    bitmap.SaveToFile(path);
                     glTfMaterial.WithNormal(path);
                     break;
                 case TextureUsage.SamplerSpecularMap0:
                 case TextureUsage.SamplerSpecular:
                     path = Path.Combine(outputDir, $"{name}_specular.png");
-                    bitmap.Save(path);
+                    bitmap.SaveToFile(path);
                     glTfMaterial.WithSpecularColor(path);
                     break;
                 case TextureUsage.SamplerWaveMap:
                     path = Path.Combine(outputDir, $"{name}_occlusion.png");
-                    bitmap.Save(path);
+                    bitmap.SaveToFile(path);
                     glTfMaterial.WithOcclusion(path);
                     break;
                 case TextureUsage.SamplerReflection:
                     path = Path.Combine(outputDir, $"{name}_emissive.png");
-                    bitmap.Save(path);
+                    bitmap.SaveToFile(path);
                     glTfMaterial.WithEmissive(path, new Vector3(255, 255, 255));
                     break;
                 case TextureUsage.SamplerMask:
                     path = Path.Combine(outputDir, $"{name}_mask.png");
                     // Do something with this texture
-                    bitmap.Save(path);
+                    bitmap.SaveToFile(path);
                     break;
                 default:
                     path = Path.Combine(outputDir, $"{name}_{textureUsage}.png");
-                    bitmap.Save(path);
+                    bitmap.SaveToFile(path);
                     break;
             }
         }
-        finally
-        {
-            TextureSemaphore.Release();
-        }
     }
 
-    public static void ParseIrisTextures(Dictionary<TextureUsage, Bitmap> xivTextureMap, Material xivMaterial,
+    public static void ParseIrisTextures(Dictionary<TextureUsage, SKTexture> xivTextureMap, NewMaterial xivMaterial,
         IPluginLog log)
     {
         if (!xivTextureMap.TryGetValue(TextureUsage.SamplerNormal, out var normal)) return;
-        var specular = new Bitmap(normal.Width, normal.Height, PixelFormat.Format32bppArgb);
-        var colorSetInfo = xivMaterial.File!.ColorSetInfo;
+        var specular = new SKTexture(normal.Width, normal.Height);
+        var colorSetInfo = xivMaterial.ColorTable ?? throw new ArgumentException($"Expected color table for {xivMaterial.HandlePath}");
 
-        var normalData = normal.LockBits(new Rectangle(0, 0, normal.Width, normal.Height),
-            ImageLockMode.ReadWrite, normal.PixelFormat);
-        try
+        for (int x = 0; x < normal.Width; x++)
         {
-            for (int x = 0; x < normal.Width; x++)
+            for (int y = 0; y < normal.Height; y++)
             {
-                for (int y = 0; y < normal.Height; y++)
-                {
-                    //var normalPixel = normal.GetPixel( x, y );
-                    var normalPixel = TextureUtility.GetPixel(normalData, x, y, log);
-                    var colorSetIndex1 = normalPixel.A / 17 * 16;
-                    var colorSetBlend = normalPixel.A % 17 / 17.0;
-                    var colorSetIndexT2 = normalPixel.A / 17;
-                    var colorSetIndex2 = (colorSetIndexT2 >= 15 ? 15 : colorSetIndexT2 + 1) * 16;
+                //var normalPixel = normal.GetPixel( x, y );
+                var normalPixel = normal[x, y];
+                var colorSetIndex1 = normalPixel.Alpha / 17 * 16;
+                var colorSetBlend = normalPixel.Alpha % 17 / 17.0;
+                var colorSetIndexT2 = normalPixel.Alpha / 17;
+                var colorSetIndex2 = (colorSetIndexT2 >= 15 ? 15 : colorSetIndexT2 + 1) * 16;
 
-                    var specularBlendColour = ColorUtility.BlendColorSet(in colorSetInfo,
-                        colorSetIndex1, colorSetIndex2, 255, colorSetBlend,
-                        ColorUtility.TextureType.Specular);
+                var specularBlendColour = ColorUtility.BlendColorSet(colorSetInfo,
+                    colorSetIndex1, colorSetIndex2, 255, colorSetBlend,
+                    ColorUtility.TextureType.Specular);
 
-                    specular.SetPixel(x, y,
-                        Color.FromArgb(255, specularBlendColour.R, specularBlendColour.G,
-                            specularBlendColour.B));
-                }
+                specular[x, y] = specularBlendColour.WithAlpha(255);
             }
+        }
 
-            xivTextureMap.Add(TextureUsage.SamplerSpecular, specular);
-        }
-        finally
-        {
-            normal.UnlockBits(normalData);
-        }
+        specular.Flush();
+
+        xivTextureMap.Add(TextureUsage.SamplerSpecular, specular);
     }
 
-    public static void ParseHairTextures(Dictionary<TextureUsage, Bitmap> xivTextureMap, Material xivMaterial,
+    public static void ParseHairTextures(Dictionary<TextureUsage, SKTexture> xivTextureMap, NewMaterial xivMaterial,
         IPluginLog log)
     {
         if (!xivTextureMap.TryGetValue(TextureUsage.SamplerNormal, out var normal)) return;
 
-        var specular = new Bitmap(normal.Width, normal.Height, PixelFormat.Format32bppArgb);
-        var colorSetInfo = xivMaterial.File!.ColorSetInfo;
+        var specular = new SKTexture(normal.Width, normal.Height);
+        var colorSetInfo = xivMaterial.ColorTable ?? throw new ArgumentException($"Expected color table for {xivMaterial.HandlePath}");
 
-        var normalData = normal.LockBits(new Rectangle(0, 0, normal.Width, normal.Height),
-            ImageLockMode.ReadWrite, normal.PixelFormat);
-        try
+        for (int x = 0; x < normal.Width; x++)
         {
-            for (int x = 0; x < normalData.Width; x++)
+            for (int y = 0; y < normal.Height; y++)
             {
-                for (int y = 0; y < normalData.Height; y++)
-                {
-                    var normalPixel = GetPixel(normalData, x, y, log);
-                    var colorSetIndex1 = normalPixel.A / 17 * 16;
-                    var colorSetBlend = normalPixel.A % 17 / 17.0;
-                    var colorSetIndexT2 = normalPixel.A / 17;
-                    var colorSetIndex2 = (colorSetIndexT2 >= 15 ? 15 : colorSetIndexT2 + 1) * 16;
+                var normalPixel = normal[x, y];
+                var colorSetIndex1 = normalPixel.Alpha / 17 * 16;
+                var colorSetBlend = normalPixel.Alpha % 17 / 17.0;
+                var colorSetIndexT2 = normalPixel.Alpha / 17;
+                var colorSetIndex2 = (colorSetIndexT2 >= 15 ? 15 : colorSetIndexT2 + 1) * 16;
 
-                    var specularBlendColour = ColorUtility.BlendColorSet(in colorSetInfo,
-                        colorSetIndex1, colorSetIndex2, 255, colorSetBlend,
-                        ColorUtility.TextureType.Specular);
+                var specularBlendColour = ColorUtility.BlendColorSet(colorSetInfo,
+                    colorSetIndex1, colorSetIndex2, 255, colorSetBlend,
+                    ColorUtility.TextureType.Specular);
 
-                    // Use normal blue channel for opacity
-                    specular.SetPixel(x, y, Color.FromArgb(
-                        normalPixel.A,
-                        specularBlendColour.R,
-                        specularBlendColour.G,
-                        specularBlendColour.B
-                    ));
-                }
+                // Use normal blue channel for opacity
+                specular[x, y] = specularBlendColour.WithAlpha(normalPixel.Alpha);
             }
         }
-        finally
-        {
-            normal.UnlockBits(normalData);
-        }
+
+        specular.Flush();
 
         xivTextureMap.Add(TextureUsage.SamplerSpecular, specular);
 
@@ -352,67 +386,44 @@ public static class TextureUtility
 
         // TODO: Diffuse is to be generated using character options for colors
         // Currently based on the mask it seems I am blending it in a weird way
-        var diffuse = (Bitmap)mask.Clone();
+        var diffuse = mask.Copy();
         var specularScaleX = specularMap.Width / (float)diffuse.Width;
         var specularScaleY = specularMap.Height / (float)diffuse.Height;
 
         var normalScaleX = normal.Width / (float)diffuse.Width;
         var normalScaleY = normal.Height / (float)diffuse.Height;
 
-        var maskData = mask.LockBits(new Rectangle(0, 0, mask.Width, mask.Height),
-            ImageLockMode.ReadWrite, mask.PixelFormat);
-        var specularMapData = specularMap.LockBits(
-            new Rectangle(0, 0, specularMap.Width, specularMap.Height), ImageLockMode.ReadWrite,
-            specularMap.PixelFormat);
-        var diffuseData = diffuse.LockBits(new Rectangle(0, 0, diffuse.Width, diffuse.Height),
-            ImageLockMode.ReadWrite, diffuse.PixelFormat);
-        normalData = normal.LockBits(new Rectangle(0, 0, normal.Width, normal.Height),
-            ImageLockMode.ReadWrite, normal.PixelFormat);
-        try
+        for (var x = 0; x < mask.Width; x++)
         {
-            for (var x = 0; x < maskData.Width; x++)
+            for (var y = 0; y < mask.Height; y++)
             {
-                for (var y = 0; y < maskData.Height; y++)
-                {
-                    var maskPixel = GetPixel(maskData, x, y, log);
-                    var specularPixel = GetPixel(specularMapData,
-                        (int)(x * specularScaleX), (int)(y * specularScaleY), log);
-                    var normalPixel = GetPixel(normalData, (int)(x * normalScaleX),
-                        (int)(y * normalScaleY), log);
+                var maskPixel = mask[x, y];
+                var specularPixel = specularMap[(int)(x * specularScaleX), (int)(y * specularScaleY)];
+                var normalPixel = normal[(int)(x * normalScaleX), (int)(y * normalScaleY)];
 
-                    SetPixel(maskData, x, y, Color.FromArgb(
-                        normalPixel.A,
-                        Convert.ToInt32(specularPixel.R * Math.Pow(maskPixel.G / 255.0, 2)),
-                        Convert.ToInt32(specularPixel.G * Math.Pow(maskPixel.G / 255.0, 2)),
-                        Convert.ToInt32(specularPixel.B * Math.Pow(maskPixel.G / 255.0, 2))
-                    ));
+                mask[x, y] = new(
+                    (byte)Convert.ToInt32(specularPixel.Red * Math.Pow(maskPixel.Green / 255.0, 2)),
+                    (byte)Convert.ToInt32(specularPixel.Green * Math.Pow(maskPixel.Green / 255.0, 2)),
+                    (byte)Convert.ToInt32(specularPixel.Blue * Math.Pow(maskPixel.Green / 255.0, 2)),
+                    normalPixel.Alpha
+                );
 
-                    // Copy alpha channel from normal to diffuse
-                    // var diffusePixel = TextureUtility.GetPixel( diffuseData, x, y, _log );
+                // Copy alpha channel from normal to diffuse
+                // var diffusePixel = TextureUtility.GetPixel( diffuseData, x, y, _log );
 
-                    // TODO: Blending using mask
-                    TextureUtility.SetPixel(diffuseData, x, y, Color.FromArgb(
-                        normalPixel.A,
-                        255,
-                        255,
-                        255
-                    ));
-                }
+                // TODO: Blending using mask
+                diffuse[x, y] = SKColors.White.WithAlpha(normalPixel.Alpha);
             }
+        }
 
-            diffuse.UnlockBits(diffuseData);
-            // Add the specular occlusion texture to xivTextureMap
-            xivTextureMap.Add(TextureUsage.SamplerDiffuse, diffuse);
-        }
-        finally
-        {
-            mask.UnlockBits(maskData);
-            specularMap.UnlockBits(specularMapData);
-            normal.UnlockBits(normalData);
-        }
+        mask.Flush();
+        diffuse.Flush();
+
+        // Add the specular occlusion texture to xivTextureMap
+        xivTextureMap.Add(TextureUsage.SamplerDiffuse, diffuse);
     }
 
-    public static void ParseSkinTextures(Dictionary<TextureUsage, Bitmap> xivTextureMap, Material xivMaterial,
+    public static void ParseSkinTextures(Dictionary<TextureUsage, SKTexture> xivTextureMap, NewMaterial xivMaterial,
         IPluginLog log)
     {
         if (!xivTextureMap.TryGetValue(TextureUsage.SamplerNormal, out var normal)) return;
@@ -420,33 +431,22 @@ public static class TextureUtility
 
         if (diffuse == null) throw new Exception("Diffuse texture is null");
 
-        var normalData = normal.LockBits(new Rectangle(0, 0, normal.Width, normal.Height),
-            ImageLockMode.ReadWrite, normal.PixelFormat);
-        var diffuseData = diffuse.LockBits(new Rectangle(0, 0, diffuse.Width, diffuse.Height),
-            ImageLockMode.ReadWrite, diffuse.PixelFormat);
-        try
-        {
-            // use blue for opacity
-            CopyNormalBlueChannelToDiffuseAlphaChannel(normalData, diffuseData);
+        // use blue for opacity
+        CopyNormalBlueChannelToDiffuseAlphaChannel(normal, diffuse);
 
-            for (var x = 0; x < normal.Width; x++)
+        for (var x = 0; x < normal.Width; x++)
+        {
+            for (var y = 0; y < normal.Height; y++)
             {
-                for (var y = 0; y < normal.Height; y++)
-                {
-                    var normalPixel = GetPixel(normalData, x, y, log);
-                    SetPixel(normalData, x, y,
-                        Color.FromArgb(normalPixel.B, normalPixel.R, normalPixel.G, 255));
-                }
+                var normalPixel = normal[x, y];
+                normal[x, y] = new(normalPixel.Red, normalPixel.Green, 255, normalPixel.Blue);
             }
         }
-        finally
-        {
-            normal.UnlockBits(normalData);
-            diffuse.UnlockBits(diffuseData);
-        }
+
+        normal.Flush();
     }
 
-    public static void ParseCharacterTextures(Dictionary<TextureUsage, Bitmap> xivTextureMap, Material xivMaterial,
+    public static void ParseCharacterTextures(Dictionary<TextureUsage, SKTexture> xivTextureMap, NewMaterial xivMaterial,
         IPluginLog log, bool copyNormalAlphaToDiffuse = true)
     {
         if (xivTextureMap.TryGetValue(TextureUsage.SamplerNormal, out var normal))
@@ -456,45 +456,18 @@ public static class TextureUtility
                 !xivTextureMap.ContainsKey(TextureUsage.SamplerSpecular) ||
                 !xivTextureMap.ContainsKey(TextureUsage.SamplerReflection))
             {
-                var normalData = normal.LockBits(new Rectangle(0, 0, normal.Width, normal.Height),
-                    ImageLockMode.ReadWrite, normal.PixelFormat);
-                var initDiffuseData = initDiffuse?.LockBits(
-                    new Rectangle(0, 0, initDiffuse.Width, initDiffuse.Height), ImageLockMode.ReadWrite,
-                    initDiffuse.PixelFormat);
+                var characterTextures = ComputeCharacterModelTextures(xivMaterial, normal, initDiffuse, copyNormalAlphaToDiffuse);
 
-                try
-                {
-                    var characterTextures =
-                        ComputeCharacterModelTextures(xivMaterial, normalData,
-                            initDiffuseData, copyNormalAlphaToDiffuse);
-
-                    // If the textures already exist, tryAdd will make sure they are not overwritten
-                    foreach (var (usage, texture) in characterTextures)
-                    {
-                        xivTextureMap.TryAdd(usage, texture);
-                    }
-                }
-                finally
-                {
-                    normal.UnlockBits(normalData);
-                    if (initDiffuse != null && initDiffuseData != null)
-                    {
-                        initDiffuse.UnlockBits(initDiffuseData);
-                    }
-                }
+                // If the textures already exist, tryAdd will make sure they are not overwritten
+                foreach (var (usage, texture) in characterTextures)
+                    xivTextureMap.TryAdd(usage, texture);
             }
         }
 
         if (!xivTextureMap.TryGetValue(TextureUsage.SamplerMask, out var mask) ||
             !xivTextureMap.TryGetValue(TextureUsage.SamplerSpecular, out var specularMap)) return;
-        var maskData = mask.LockBits(new Rectangle(0, 0, mask.Width, mask.Height),
-            ImageLockMode.ReadWrite, mask.PixelFormat);
-        var specularMapData = specularMap.LockBits(
-            new Rectangle(0, 0, specularMap.Width, specularMap.Height), ImageLockMode.ReadWrite,
-            specularMap.PixelFormat);
-        var occlusion = ComputeOcclusion(maskData, specularMapData);
-        mask.UnlockBits(maskData);
-        specularMap.UnlockBits(specularMapData);
+        
+        var occlusion = ComputeOcclusion(mask, specularMap);
 
         // Add the specular occlusion texture to xivTextureMap
         xivTextureMap.Add(TextureUsage.SamplerWaveMap, occlusion);

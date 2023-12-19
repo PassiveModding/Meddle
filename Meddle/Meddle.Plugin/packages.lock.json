@@ -22,15 +22,23 @@
         "resolved": "7.0.0",
         "contentHash": "h3j/QfmFN4S0w4C2A6X7arXij/M/OVw3uQHSOFxnND4DyAzO1F9eMX7Eti7lU/OkSthEE0WzRsfT/Dmx86jzCw=="
       },
-      "Microsoft.Win32.SystemEvents": {
-        "type": "Transitive",
-        "resolved": "8.0.0",
-        "contentHash": "9opKRyOKMCi2xJ7Bj7kxtZ1r9vbzosMvRrdEhVhDz8j8MoBGgB+WmC94yH839NPH+BclAjtQ/pyagvi/8gDLkw=="
-      },
       "Serilog": {
         "type": "Transitive",
         "resolved": "2.11.0",
         "contentHash": "ysv+hBzTul6Dp+Hvm10FlhJO3yMQcFKSAleus+LpiIzvNstpeV4Z7gGuIZ1OPNfIMulSHOjmLuGAEDKzpnV8ZQ=="
+      },
+      "SharpGen.Runtime": {
+        "type": "Transitive",
+        "resolved": "2.1.2-beta",
+        "contentHash": "nqZAjfEG1jX1ivvdZLsi6Pkt0DiOJyuOgRgldNFsmjXFPhxUbXQibofLSwuDZidL2kkmtTF8qLoRIeqeVdXgYw=="
+      },
+      "SharpGen.Runtime.COM": {
+        "type": "Transitive",
+        "resolved": "2.1.2-beta",
+        "contentHash": "HBCrb6HfnUWx9v5/GjJeBr5DuodZLnHlFQQYXPrQs1Hbe1c6Wd0uCXf+SJp4hW8fQNxjXEu0FgiyHGlA/SRzRw==",
+        "dependencies": {
+          "SharpGen.Runtime": "2.1.2-beta"
+        }
       },
       "SharpGLTF.Core": {
         "type": "Transitive",
@@ -53,13 +61,61 @@
           "SharpGLTF.Runtime": "1.0.0-alpha0030"
         }
       },
-      "System.Drawing.Common": {
+      "SkiaSharp": {
         "type": "Transitive",
-        "resolved": "8.0.0",
-        "contentHash": "JkbHJjtI/dWc5dfmEdJlbe3VwgZqCkZRtfuWFh5GOv0f+gGCfBtzMpIVkmdkj2AObO9y+oiOi81UGwH3aBYuqA==",
+        "resolved": "2.88.6",
+        "contentHash": "wdfeBAQrEQCbJIRgAiargzP1Uy+0grZiG4CSgBnhAgcJTsPzlifIaO73JRdwIlT3TyBoeU9jEqzwFUhl4hTYnQ==",
         "dependencies": {
-          "Microsoft.Win32.SystemEvents": "8.0.0"
+          "SkiaSharp.NativeAssets.Win32": "2.88.6",
+          "SkiaSharp.NativeAssets.macOS": "2.88.6"
         }
+      },
+      "SkiaSharp.NativeAssets.macOS": {
+        "type": "Transitive",
+        "resolved": "2.88.6",
+        "contentHash": "Sko9LFxRXSjb3OGh5/RxrVRXxYo48tr5NKuuSy6jB85GrYt8WRqVY1iLOLwtjPiVAt4cp+pyD4i30azanS64dw=="
+      },
+      "SkiaSharp.NativeAssets.Win32": {
+        "type": "Transitive",
+        "resolved": "2.88.6",
+        "contentHash": "7TzFO0u/g2MpQsTty4fyCDdMcfcWI+aLswwfnYXr3gtNS6VLKdMXPMeKpJa3pJSLnUBN6wD0JjuCe8OoLBQ6cQ=="
+      },
+      "Vortice.Direct3D11": {
+        "type": "Transitive",
+        "resolved": "3.4.1-beta",
+        "contentHash": "L9t5BmKoRaTUym+j/aaLvUpH1qk194632t+8HPHHSqkWD7I8MtXfMZ7MQkAduxM2/5ePSMQeUAWsqawKMW/3DA==",
+        "dependencies": {
+          "SharpGen.Runtime": "2.1.2-beta",
+          "SharpGen.Runtime.COM": "2.1.2-beta",
+          "Vortice.DXGI": "3.4.1-beta",
+          "Vortice.Mathematics": "1.7.2"
+        }
+      },
+      "Vortice.DirectX": {
+        "type": "Transitive",
+        "resolved": "3.4.1-beta",
+        "contentHash": "Nj+/GfMG7GwVwSZhVe/Nh8ohWt9dc58gXy32FyWWvtuXzjl2Vt+mYedC8lFPB2nxpsFEFI86mZAP36VRMBiEBA==",
+        "dependencies": {
+          "SharpGen.Runtime": "2.1.2-beta",
+          "SharpGen.Runtime.COM": "2.1.2-beta",
+          "Vortice.Mathematics": "1.7.2"
+        }
+      },
+      "Vortice.DXGI": {
+        "type": "Transitive",
+        "resolved": "3.4.1-beta",
+        "contentHash": "umhExc5HMufrOJXf5G5eoRZ23RdLxwrcLQmZbemNi8gfexos1VMM3zrIeWUpzeJdh+O50nSBLyhJcsJSTiB9NA==",
+        "dependencies": {
+          "SharpGen.Runtime": "2.1.2-beta",
+          "SharpGen.Runtime.COM": "2.1.2-beta",
+          "Vortice.DirectX": "3.4.1-beta",
+          "Vortice.Mathematics": "1.7.2"
+        }
+      },
+      "Vortice.Mathematics": {
+        "type": "Transitive",
+        "resolved": "1.7.2",
+        "contentHash": "WUUzB3MowHdOqNfSMAms5Ovra+SKgLC4ttH1w75ra3srDGctebSg+aywm7hLdvDn592ydgdbOJN11JKsyAcX+A=="
       },
       "ffxivclientstructs": {
         "type": "Project",
@@ -74,8 +130,9 @@
         "type": "Project",
         "dependencies": {
           "FFXIVClientStructs": "[1.0.0, )",
-          "Lumina2": "[2.4.3, )",
+          "Lumina2": "[2.4.2, )",
           "Penumbra.Api": "[1.0.12, )",
+          "Vortice.Direct3D11": "[3.4.1-beta, )",
           "Xande": "[1.0.0, )"
         }
       },
@@ -86,15 +143,15 @@
         "type": "Project",
         "dependencies": {
           "FFXIVClientStructs": "[1.0.0, )",
-          "Lumina2": "[2.4.3, )",
-          "System.Drawing.Common": "[8.0.0, )",
+          "Lumina2": "[2.4.2, )",
+          "SkiaSharp": "[2.88.6, )",
           "Xande.GltfImporter": "[1.0.0, )"
         }
       },
       "xande.gltfimporter": {
         "type": "Project",
         "dependencies": {
-          "Lumina2": "[2.4.3, )",
+          "Lumina2": "[2.4.2, )",
           "SharpGLTF.Core": "[1.0.0-alpha0030, )",
           "SharpGLTF.Toolkit": "[1.0.0-alpha0030, )"
         }

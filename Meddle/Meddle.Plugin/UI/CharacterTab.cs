@@ -1,18 +1,19 @@
 using Dalamud.Interface.Utility.Raii;
-using Dalamud.Logging;
-using Dalamud.Memory;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Render;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
+using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.Havok;
 using ImGuiNET;
 using Meddle.Xande;
 using Penumbra.Api;
 using SharpGLTF.Transforms;
 using System.Numerics;
+using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using Xande.Enums;
 using Character = Dalamud.Game.ClientState.Objects.Types.Character;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
@@ -30,7 +31,7 @@ public unsafe class CharacterTab : ITab
     private IObjectTable ObjectTable { get; }
     private IClientState ClientState { get; }
     private ModelConverter ModelConverter { get; }
-    
+
     private Character? SelectedCharacter { get; set; }
 
     private Task? ExportTask { get; set; }
@@ -51,13 +52,23 @@ public unsafe class CharacterTab : ITab
 
     private void DrawObjectPicker()
     {
-        var objects = ObjectTable.OfType<Character>().Where(obj => obj.IsValid() && IsHuman(obj)).OrderBy(c => GetCharacterDistance(c).LengthSquared());
+        IEnumerable<Character> objects;
+        if (ClientState.LocalPlayer != null)
+            objects = ObjectTable.OfType<Character>().Where(obj => obj.IsValid() && IsHuman(obj)).OrderBy(c => GetCharacterDistance(c).LengthSquared());
+        else
+        {
+            var chara = CharaSelectCharacterList.GetCurrentCharacter();
+            if (chara != null)
+                objects = new[] { (Character)Activator.CreateInstance(typeof(Character), BindingFlags.NonPublic | BindingFlags.Instance, null, new[] { (object?)(nint)chara }, null)! };
+            else
+                objects = Array.Empty<Character>();
+        }
 
         if (SelectedCharacter != null && !SelectedCharacter.IsValid())
             SelectedCharacter = null;
 
-        if (SelectedCharacter == null && ClientState.LocalPlayer != null)
-            SelectedCharacter = ClientState.LocalPlayer;
+        if (SelectedCharacter == null)
+            SelectedCharacter = ClientState.LocalPlayer ?? objects.FirstOrDefault();
 
         ImGui.Text("Select Character");
         using (var combo = ImRaii.Combo("##Character", SelectedCharacter != null ? GetCharacterDisplayText(SelectedCharacter) : "None"))
@@ -84,50 +95,44 @@ public unsafe class CharacterTab : ITab
         var human = (Human*)charPtr->GameObject.DrawObject;
         var mainPose = GetPose(human->CharacterBase.Skeleton)!;
 
-        var modelMetas = new List<ModelMeta>();
-        foreach(var modelPtr in human->CharacterBase.ModelsSpan)
-        {
-            var model = modelPtr.Value;
-            if (model == null)
-                continue;
-            if (model->ModelResourceHandle == null)
-                continue;
-            var shapes = model->ModelResourceHandle->Shapes.ToDictionary(kv => MemoryHelper.ReadStringNullTerminated((nint)kv.Item1.Value), kv => kv.Item2);
-            var attributes = model->ModelResourceHandle->Attributes.ToDictionary(kv => MemoryHelper.ReadStringNullTerminated((nint)kv.Item1.Value), kv => kv.Item2);
-            modelMetas.Add(new()
-            {
-                ModelPath = model->ModelResourceHandle->ResourceHandle.FileName.ToString(),
-                EnabledShapes = shapes.Where(kv => ((1 << kv.Value) & model->EnabledShapeKeyIndexMask) != 0).Select(kv => kv.Key).ToArray(),
-                EnabledAttributes = attributes.Where(kv => ((1 << kv.Value) & model->EnabledAttributeIndexMask) != 0).Select(kv => kv.Key).ToArray(),
-                ShapesMask = model->EnabledShapeKeyIndexMask,
-                AttributesMask = model->EnabledAttributeIndexMask,
-            });
-        }
-
-        var weaponInfos = GetWeaponData(character);
-
+        //var modelMetas = new List<ModelMeta>();
+        //foreach(var modelPtr in human->CharacterBase.ModelsSpan)
+        //{
+        //    var model = modelPtr.Value;
+        //    if (model == null)
+        //        continue;
+        //    if (model->ModelResourceHandle == null)
+        //        continue;
+        //    var shapes = model->ModelResourceHandle->Shapes.ToDictionary(kv => MemoryHelper.ReadStringNullTerminated((nint)kv.Item1.Value), kv => kv.Item2);
+        //    var attributes = model->ModelResourceHandle->Attributes.ToDictionary(kv => MemoryHelper.ReadStringNullTerminated((nint)kv.Item1.Value), kv => kv.Item2);
+        //    modelMetas.Add(new()
+        //    {
+        //        ModelPath = model->ModelResourceHandle->ResourceHandle.FileName.ToString(),
+        //        EnabledShapes = shapes.Where(kv => ((1 << kv.Value) & model->EnabledShapeKeyIndexMask) != 0).Select(kv => kv.Key).ToArray(),
+        //        EnabledAttributes = attributes.Where(kv => ((1 << kv.Value) & model->EnabledAttributeIndexMask) != 0).Select(kv => kv.Key).ToArray(),
+        //        ShapesMask = model->EnabledShapeKeyIndexMask,
+        //        AttributesMask = model->EnabledAttributeIndexMask,
+        //    });
+        //}
+        
+        //var weaponInfos = GetWeaponData(character);
+        
         using (var d = ImRaii.Disabled(!(ExportTask?.IsCompleted ?? true)))
         {
             if (ImGui.Button("Export"))
             {
-                var tree = GetCharacterResourceTree(character);
-                if (tree == null)
-                    throw new InvalidOperationException("No resource tree found");
-
+                //var tree = GetCharacterResourceTree(character);
+                //if (tree == null)
+                //    throw new InvalidOperationException("No resource tree found");
+                
                 ExportCts?.Cancel();
                 ExportCts = new();
                 ExportTask = ModelConverter.ExportResourceTree(
-                    new()
-                    {
-                        Resources = new(tree),
-                        Pose = mainPose.ToDictionary(kv => kv.Key, kv => AsAffineTransform(kv.Value)),
-                        ModelMetas = modelMetas,
-                        WeaponDatas = weaponInfos,
-                    },
+                    new(charPtr),
                     true,
                     ExportType.Glb,
                     Plugin.TempDirectory,
-                    true,
+                    false,
                     ExportCts.Token);
             }
             ImGui.SameLine();
@@ -140,16 +145,16 @@ public unsafe class CharacterTab : ITab
         ImGui.TextUnformatted($"Rotation: {t.Rotation.EulerAngles:0.00}");
         ImGui.TextUnformatted($"Scale: {t.Scale:0.00}");
 
-        if (ImGui.CollapsingHeader("Model Metas"))
-        {
-            foreach (var meta in modelMetas)
-            {
-                ImGui.TextUnformatted($"{meta.ModelPath}");
-                ImGui.TextUnformatted($"Shapes ({meta.ShapesMask:X8}): {string.Join(", ", meta.EnabledShapes)}");
-                ImGui.TextUnformatted($"Attributes ({meta.AttributesMask:X8}): {string.Join(", ", meta.EnabledAttributes)}");
-                ImGui.Separator();
-            }
-        }
+        //if (ImGui.CollapsingHeader("Model Metas"))
+        //{
+        //    foreach (var meta in modelMetas)
+        //    {
+        //        ImGui.TextUnformatted($"{meta.ModelPath}");
+        //        ImGui.TextUnformatted($"Shapes ({meta.ShapesMask:X8}): {string.Join(", ", meta.EnabledShapes)}");
+        //        ImGui.TextUnformatted($"Attributes ({meta.AttributesMask:X8}): {string.Join(", ", meta.EnabledAttributes)}");
+        //        ImGui.Separator();
+        //    }
+        //}
 
         if (ImGui.CollapsingHeader("Main Pose"))
         {
@@ -163,6 +168,7 @@ public unsafe class CharacterTab : ITab
         if (ImGui.CollapsingHeader("Main Pose Names"))
         {
             var sk = human->CharacterBase.Skeleton;
+            ImGui.Text($"{(nint)sk:X8}");
             for (var i = 0; i < sk->PartialSkeletonCount; ++i)
             {
                 var p = sk->PartialSkeletons[i].GetHavokPose(0);
@@ -183,6 +189,18 @@ public unsafe class CharacterTab : ITab
 
         if (ImGui.CollapsingHeader("Prop"))
             DrawWeaponData(weaponData[2]);
+
+        if (ImGui.CollapsingHeader("New Tree"))
+            DrawNewTree(new(charPtr));
+    }
+
+    private void DrawNewTree(NewTree tree)
+    {
+        var l = JsonSerializer.Serialize(tree, new JsonSerializerOptions() { WriteIndented = true, IncludeFields = true });
+        if (ImGui.Button("Copy"))
+            ImGui.SetClipboardText(l);
+        //foreach(var line in l.Split('\n'))
+        ImGui.TextUnformatted(l);
     }
 
     private void DrawWeaponData(DrawObjectData data)
@@ -219,42 +237,42 @@ public unsafe class CharacterTab : ITab
             ImGui.TextUnformatted("No pose");
     }
     
-    private List<HkSkeleton.WeaponData> GetWeaponData(Character character)
-    {
-        var charPtr = (CSCharacter*)character.Address;
-        var human = (Human*)charPtr->GameObject.DrawObject;
+    //private List<HkSkeleton.WeaponData> GetWeaponData(Character character)
+    //{
+    //    var charPtr = (CSCharacter*)character.Address;
+    //    var human = (Human*)charPtr->GameObject.DrawObject;
 
-        var ret = new List<HkSkeleton.WeaponData>();
+    //    var ret = new List<HkSkeleton.WeaponData>();
         
-        foreach(var weaponData in charPtr->DrawData.WeaponDataSpan)
-        {
-            if (weaponData.Model == null)
-                continue;
-            var attach = &weaponData.Model->CharacterBase.Attach;
-            if (attach->ExecuteType == 0)
-                continue;
+    //    foreach(var weaponData in charPtr->DrawData.WeaponDataSpan)
+    //    {
+    //        if (weaponData.Model == null)
+    //            continue;
+    //        var attach = &weaponData.Model->CharacterBase.Attach;
+    //        if (attach->ExecuteType == 0)
+    //            continue;
 
-            if (attach->ExecuteType != 4)
-                PluginLog.Error($"Unsupported executetype {attach->ExecuteType}");
-            var att = attach->SkeletonBoneAttachments[0];
+    //        if (attach->ExecuteType != 4)
+    //            PluginLog.Error($"Unsupported executetype {attach->ExecuteType}");
+    //        var att = attach->SkeletonBoneAttachments[0];
 
-            var poseMatrix = GetMatrix(*attach->OwnerSkeleton->PartialSkeletonsSpan[att.SkeletonIdx].GetHavokPose(0)->CalculateBoneModelSpace(att.BoneIdx));
-            var offsetMatrix = GetMatrix(att.ChildTransform);
-            HkSkeleton.WeaponData data = new()
-            {
-                SklbPath = weaponData.Model->CharacterBase.Skeleton->SkeletonResourceHandles[0]->ResourceHandle.FileName.ToString(),
-                ModelPath = weaponData.Model->CharacterBase.Models[0]->ModelResourceHandle->ResourceHandle.FileName.ToString(),
-                BoneName = attach->OwnerSkeleton->PartialSkeletonsSpan[att.SkeletonIdx].GetHavokPose(0)->Skeleton->Bones[att.BoneIdx].Name.String!,
-                BoneLookup = GetPose(weaponData.Model->CharacterBase.Skeleton)!.ToDictionary(k => k.Key, v => AsAffineTransform(v.Value)),
-                AttachOffset = new(offsetMatrix),
-                PoseOffset = new(poseMatrix),
-                OwnerOffset = new(GetMatrix(attach->OwnerSkeleton->Transform)),
-            };
-            ret.Add(data);
-        }
+    //        var poseMatrix = GetMatrix(*attach->OwnerSkeleton->PartialSkeletonsSpan[att.SkeletonIdx].GetHavokPose(0)->CalculateBoneModelSpace(att.BoneIdx));
+    //        var offsetMatrix = GetMatrix(att.ChildTransform);
+    //        HkSkeleton.WeaponData data = new()
+    //        {
+    //            SklbPath = weaponData.Model->CharacterBase.Skeleton->SkeletonResourceHandles[0]->ResourceHandle.FileName.ToString(),
+    //            ModelPath = weaponData.Model->CharacterBase.Models[0]->ModelResourceHandle->ResourceHandle.FileName.ToString(),
+    //            BoneName = attach->OwnerSkeleton->PartialSkeletonsSpan[att.SkeletonIdx].GetHavokPose(0)->Skeleton->Bones[att.BoneIdx].Name.String!,
+    //            BoneLookup = GetPose(weaponData.Model->CharacterBase.Skeleton)!.ToDictionary(k => k.Key, v => AsAffineTransform(v.Value)),
+    //            AttachOffset = new(offsetMatrix),
+    //            PoseOffset = new(poseMatrix),
+    //            OwnerOffset = new(GetMatrix(attach->OwnerSkeleton->Transform)),
+    //        };
+    //        ret.Add(data);
+    //    }
 
-        return ret;
-    }
+    //    return ret;
+    //}
 
     private static Skeleton* GetWeaponSkeleton(DrawObjectData data)
     {
@@ -273,102 +291,10 @@ public unsafe class CharacterTab : ITab
     private static Quaternion AsQuaternion(hkQuaternionf hkQuaternion) =>
         new(hkQuaternion.X, hkQuaternion.Y, hkQuaternion.Z, hkQuaternion.W);
 
-    private readonly record struct EulerAngles
-    {
-        public Vector3 Angles { get; init; }
-
-        // https://stackoverflow.com/a/70462919
-        public EulerAngles(Quaternion q)
-        {
-            Vector3 angles = new();
-
-            // roll / x
-            double sinr_cosp = 2 * (q.W * q.X + q.Y * q.Z);
-            double cosr_cosp = 1 - 2 * (q.X * q.X + q.Y * q.Y);
-            angles.X = (float)Math.Atan2(sinr_cosp, cosr_cosp);
-
-            // pitch / y
-            double sinp = 2 * (q.W * q.Y - q.Z * q.X);
-            if (Math.Abs(sinp) >= 1)
-            {
-                angles.Y = (float)Math.CopySign(Math.PI / 2, sinp);
-            }
-            else
-            {
-                angles.Y = (float)Math.Asin(sinp);
-            }
-
-            // yaw / z
-            double siny_cosp = 2 * (q.W * q.Z + q.X * q.Y);
-            double cosy_cosp = 1 - 2 * (q.Y * q.Y + q.Z * q.Z);
-            angles.Z = (float)Math.Atan2(siny_cosp, cosy_cosp);
-
-            Angles = angles * 180 / MathF.PI;
-        }
-
-        public static implicit operator Vector3(EulerAngles e) => e.Angles;
-
-        public override string ToString()
-        {
-            return Angles.ToString();
-        }
-
-        public readonly string ToString(string? format)
-        {
-            return Angles.ToString(format);
-        }
-
-        public readonly string ToString(string? format, IFormatProvider? formatProvider)
-        {
-            return Angles.ToString(format, formatProvider);
-        }
-    }
-
-    private readonly record struct Transform
-    {
-        public Vector3 Translation { get; init; }
-        public Quaternion Rotation { get; init; }
-        public Vector3 Scale { get; init; }
-
-        public AffineTransform AffineTransform => new(Scale, Rotation, Translation);
-
-        public Transform(hkQsTransformf hkTransform)
-        {
-            Translation = AsVector(hkTransform.Translation);
-            Rotation = AsQuaternion(hkTransform.Rotation);
-            Scale = AsVector(hkTransform.Scale);
-        }
-
-        public Transform(CSTransform transform)
-        {
-            Translation = transform.Position;
-            Rotation = transform.Rotation;
-            Scale = transform.Scale;
-        }
-
-        public Transform(AffineTransform transform)
-        {
-            transform = transform.GetDecomposed();
-            Translation = transform.Translation;
-            Rotation = transform.Rotation;
-            Scale = transform.Scale;
-        }
-
-        public Transform(Matrix4x4 transform) : this(new AffineTransform(transform))
-        {
-
-        }
-
-        public override string ToString()
-        {
-            return $"{Translation:0.00} {new EulerAngles(Rotation).Angles:0.00} {Scale:0.00}";
-        }
-    }
-
     private static Matrix4x4 GetMatrix(CSTransform transform) =>
         new Transform(transform).AffineTransform.Matrix;
 
-    private unsafe static Matrix4x4 GetMatrix(hkQsTransformf transform)
+    private static unsafe Matrix4x4 GetMatrix(hkQsTransformf transform)
     {
         var transformPtr = (hkQsTransformf*)NativeMemory.AlignedAlloc((nuint)sizeof(hkQsTransformf), 32);
         var matrixPtr = (Matrix4x4*)NativeMemory.AlignedAlloc((nuint)sizeof(Matrix4x4), 32);
@@ -390,9 +316,9 @@ public unsafe class CharacterTab : ITab
     {
         if (skeleton == null)
             return null;
-
+        
         var ret = new Dictionary<string, hkQsTransformf>();
-
+        
         for(var i = 0; i < skeleton->PartialSkeletonCount; ++i)
         {
             var partial = skeleton->PartialSkeletons[i];
@@ -401,7 +327,7 @@ public unsafe class CharacterTab : ITab
                 continue;
 
             var partialSkele = pose->Skeleton;
-
+            
             for (var j = 0; j < partialSkele->Bones.Length; ++j)
             {
                 if (j == partial.ConnectedBoneIndex)
@@ -417,7 +343,8 @@ public unsafe class CharacterTab : ITab
 
         return ret;
     }
-
+    
+    [Obsolete]
     private Ipc.ResourceTree? GetCharacterResourceTree(Character obj)
     {
         return Ipc.GetGameObjectResourceTrees.Subscriber(PluginInterface).Invoke(true, obj.ObjectIndex)[0];
