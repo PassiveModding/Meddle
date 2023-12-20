@@ -8,6 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\..\Xande\Lumina\src\Lumina\Lumina.csproj" />
       <ProjectReference Include="..\..\Xande\Xande\Xande.csproj" />
     </ItemGroup>
     
@@ -31,6 +32,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="Penumbra.Api" Version="1.0.12" />
+      <PackageReference Include="Penumbra.Api" Version="1.0.13" />
     </ItemGroup>
 </Project>

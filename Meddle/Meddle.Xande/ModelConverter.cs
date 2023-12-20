@@ -1,11 +1,8 @@
 ﻿using System.Diagnostics;
 using System.Drawing;
-using System.Drawing.Imaging;
 using System.Numerics;
 using System.Text.RegularExpressions;
-using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
-using Lumina;
 using Lumina.Data;
 using Lumina.Data.Files;
 using Lumina.Data.Parsing;
@@ -14,7 +11,6 @@ using Lumina.Models.Models;
 using Meddle.Xande.Enums;
 using Meddle.Xande.Models;
 using Meddle.Xande.Utility;
-using Penumbra.Api;
 using Penumbra.Api.Enums;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
@@ -445,14 +441,14 @@ namespace Meddle.Xande
             }
         }
 
-        private async Task HandleModel(Node node, RaceDeformer raceDeformer, ushort? deform, string exportPath,
+        private async Task HandleModel(Node modelNode, RaceDeformer raceDeformer, ushort? deform, string exportPath,
             Dictionary<string, NodeBuilder> boneMap, NodeBuilder[] joints,
             SceneBuilder glTfScene, bool copyNormalAlphaToDiffuse, CancellationToken cancellationToken)
         {
-            _log.Info($"Handling model {node.GamePath}");
-            var path = node.FullPath;
+            _log.Info($"Handling model {modelNode.GamePath}");
+            var path = modelNode.FullPath;
             //var file = _luminaManager.GetFile<FileResource>(path);
-            if (!_luminaManager.TryGetModel(node, deform, out var modelPath, out var model))
+            if (!_luminaManager.TryGetModel(modelNode, deform, out var modelPath, out var model))
             {
                 return;
             }
@@ -488,7 +484,7 @@ namespace Meddle.Xande
             var meshes = model.Meshes.Where(x => x.Types.Contains(Mesh.MeshType.Main) &&
                                                  !stupidEyeMeshRegex.IsMatch(x.Material.MaterialPath.ToString()))
                 .ToArray();
-            var nodeChildren = node.Children.ToList();
+            var nodeChildren = modelNode.Children.ToList();
 
             var materials = new List<(string fullpath, string gamepath, MaterialBuilder material)>();
 
@@ -797,7 +793,7 @@ namespace Meddle.Xande
                 {
                     // not sure if backface culling should be done here, depends on model ugh
                     backfaceCulling = false;
-                    TextureUtility.ParseCharacterTextures(xivTextureMap, xivMaterial, _log.PluginLog);
+                    TextureUtility.ParseCharacterTextures(xivTextureMap, xivMaterial, null, _log.PluginLog);
                     break;
                 }
                 case "skin.shpk":

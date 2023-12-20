@@ -64,6 +64,46 @@ public static class ModelUtility
         }
     }
     
+    public static bool TryGetModel( this LuminaManager manager, string actualPath, string gamePath, ushort? deform, out string path, out Model? model ) {
+
+        path = actualPath;
+        if( TryLoadModel( actualPath, out model ) ) { return true; }
+
+        if( TryLoadModel( gamePath, out model ) ) { return true; }
+
+        if( TryLoadRacialModel( gamePath, deform, out var newPath, out model ) ) { return true; }
+            
+        return false;
+
+        bool TryLoadRacialModel( string path, ushort? cDeform, out string nPath, out Model? model ) {
+            nPath = path;
+            model = null;
+            if( cDeform == null ) { return false; }
+
+            nPath = Regex.Replace( path, @"c\d+", $"c{cDeform}" );
+            try
+            {
+                model = GetModel(manager, nPath);
+                return true;
+            }
+            catch { return false; }
+        }
+
+        bool TryLoadModel(string path, out Model? model)
+        {
+            model = null;
+            try
+            {
+                model = GetModel(manager, path);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+    }
+    
     public static bool TryGetModel( this LuminaManager manager, Node node, ushort? deform, out string path, out Model? model ) {
 
             path = node.FullPath;
@@ -102,6 +142,5 @@ public static class ModelUtility
                     return false;
                 }
             }
-
     }
 }

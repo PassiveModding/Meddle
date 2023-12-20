@@ -14,50 +14,54 @@ public static class TextureUtility
     public static IEnumerable<(TextureUsage, Bitmap)> ComputeCharacterModelTextures(
         Material xivMaterial,
         Bitmap normal, 
-        Bitmap? initDiffuse)
+        Bitmap? initDiffuse,
+        ColorSetInfo? colorSetInfoOverride = null)
     {
         var diffuse = new Bitmap(normal.Width, normal.Height, PixelFormat.Format32bppArgb);
         var specular = new Bitmap(normal.Width, normal.Height, PixelFormat.Format32bppArgb);
         var emission = new Bitmap(normal.Width, normal.Height, PixelFormat.Format32bppArgb);
 
-        var colorSetInfo = xivMaterial.File!.ColorSetInfo;
-
-        // copy alpha from normal to original diffuse if it exists
-        //if (initDiffuse != null && copyNormalAlphaToDiffuse) CopyNormalBlueChannelToDiffuseAlphaChannel(normal, initDiffuse);
-
-        for (var x = 0; x < normal.Width; x++)
-        for (var y = 0; y < normal.Height; y++)
+        var colorSetInfo = colorSetInfoOverride ?? xivMaterial.File!.ColorSetInfo;
+        if (xivMaterial.File!.HasTable)
         {
-            var normalPixel = normal.GetPixel(x, y);
+            for (var x = 0; x < normal.Width; x++)
+            for (var y = 0; y < normal.Height; y++)
+            {
+                var normalPixel = normal.GetPixel(x, y);
 
-            var colorSetIndex1 = normalPixel.A / 17 * 16;
-            var colorSetBlend = normalPixel.A % 17 / 17.0;
-            var colorSetIndexT2 = normalPixel.A / 17;
-            var colorSetIndex2 = (colorSetIndexT2 >= 15 ? 15 : colorSetIndexT2 + 1) * 16;
+                var colorSetIndex1 = normalPixel.A / 17 * 16;
+                var colorSetBlend = normalPixel.A % 17 / 17.0;
+                var colorSetIndexT2 = normalPixel.A / 17;
+                var colorSetIndex2 = (colorSetIndexT2 >= 15 ? 15 : colorSetIndexT2 + 1) * 16;
 
-            // to fix transparency issues 
-            // normal.SetPixel( x, y, Color.FromArgb( normalPixel.B, normalPixel.R, normalPixel.G, 255 ) );
-            normal.SetPixel(x, y, Color.FromArgb(normalPixel.B, normalPixel.R, normalPixel.G, 255));
+                // to fix transparency issues 
+                // normal.SetPixel( x, y, Color.FromArgb( normalPixel.B, normalPixel.R, normalPixel.G, 255 ) );
+                normal.SetPixel(x, y, Color.FromArgb(normalPixel.B, normalPixel.R, normalPixel.G, 255));
 
-            var diffuseBlendColour = ColorUtility.BlendColorSet(in colorSetInfo, colorSetIndex1, colorSetIndex2,
-                normalPixel.B, 
-                colorSetBlend, 
-                ColorUtility.TextureType.Diffuse);
-            var specularBlendColour = ColorUtility.BlendColorSet(in colorSetInfo, colorSetIndex1, colorSetIndex2, 
-                255,
-                colorSetBlend, 
-                ColorUtility.TextureType.Specular);
-            var emissionBlendColour = ColorUtility.BlendColorSet(in colorSetInfo, colorSetIndex1, colorSetIndex2, 
-                255,
-                colorSetBlend, 
-                ColorUtility.TextureType.Emissive);
+                var diffuseBlendColour = ColorUtility.BlendColorSet(in colorSetInfo, colorSetIndex1, colorSetIndex2,
+                    normalPixel.B,
+                    colorSetBlend,
+                    ColorUtility.TextureType.Diffuse);
+                var specularBlendColour = ColorUtility.BlendColorSet(in colorSetInfo, colorSetIndex1, colorSetIndex2,
+                    255,
+                    colorSetBlend,
+                    ColorUtility.TextureType.Specular);
+                var emissionBlendColour = ColorUtility.BlendColorSet(in colorSetInfo, colorSetIndex1, colorSetIndex2,
+                    255,
+                    colorSetBlend,
+                    ColorUtility.TextureType.Emissive);
 
-            // Set the blended colors in the respective bitmaps
-            diffuse.SetPixel(x, y, diffuseBlendColour);
-            specular.SetPixel(x, y, specularBlendColour);
-            emission.SetPixel(x, y, emissionBlendColour);
+                // Set the blended colors in the respective bitmaps
+                diffuse.SetPixel(x, y, diffuseBlendColour);
+                specular.SetPixel(x, y, specularBlendColour);
+                emission.SetPixel(x, y, emissionBlendColour);
+            }
         }
-        
+        else
+        {
+            return new List<(TextureUsage, Bitmap)>();
+        }
+
         // blend the diffuse with the original diffuse if it exists
         if (initDiffuse != null)
         {
@@ -356,6 +360,7 @@ public static class TextureUtility
     }
 
     public static void ParseCharacterTextures(Dictionary<TextureUsage, Bitmap> xivTextureMap, Material xivMaterial,
+        ColorSetInfo? colorSetInfoOverride,
         IPluginLog log)
     {
         if (xivTextureMap.TryGetValue(TextureUsage.SamplerNormal, out var normal))
@@ -369,16 +374,14 @@ public static class TextureUtility
                 try
                 {
                     var characterTextures =
-                        ComputeCharacterModelTextures(xivMaterial, normal, initDiffuse);
+                        ComputeCharacterModelTextures(xivMaterial, normal, initDiffuse, colorSetInfoOverride);
 
                     // If the textures already exist, tryAdd will make sure they are not overwritten
                     foreach (var (usage, texture) in characterTextures)
                     {
-                        if (!xivTextureMap.TryAdd(usage, texture))
-                        {
-                            log.Warning($"Texture {usage} already exists in the texture map");
-                            xivTextureMap[usage] = texture;
-                        }
+                        if (xivTextureMap.TryAdd(usage, texture)) continue;
+                        log.Warning("Texture already exists for {Usage}, overwriting", usage);
+                        xivTextureMap[usage] = texture;
                     }
                 }
                 catch (Exception e)
@@ -388,11 +391,13 @@ public static class TextureUtility
             }
         }
 
-        if (!xivTextureMap.TryGetValue(TextureUsage.SamplerMask, out var mask) ||
-            !xivTextureMap.TryGetValue(TextureUsage.SamplerSpecular, out var specularMap)) return;
-        var occlusion = ComputeOcclusion(mask, specularMap);
+        if (xivTextureMap.TryGetValue(TextureUsage.SamplerMask, out var mask) &&
+            xivTextureMap.TryGetValue(TextureUsage.SamplerSpecular, out var specularMap))
+        {
+            var occlusion = ComputeOcclusion(mask, specularMap);
 
-        // Add the specular occlusion texture to xivTextureMap
-        xivTextureMap.Add(TextureUsage.SamplerWaveMap, occlusion);
+            // Add the specular occlusion texture to xivTextureMap
+            xivTextureMap.TryAdd(TextureUsage.SamplerWaveMap, occlusion);
+        }
     }
 }

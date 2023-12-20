@@ -12,6 +12,7 @@ using Meddle.Plugin.UI.Shared;
 using Meddle.Xande.Models;
 using Meddle.Xande.Utility;
 using Newtonsoft.Json;
+using Penumbra.Api;
 using Xande;
 
 namespace Meddle.Plugin.UI;
@@ -21,9 +22,43 @@ public class ResourceTab : ITab
     public string Name => "Resources";
     public int Order => 1;
     private readonly FileDialogManager _fileDialogManager;
-    private Task<(string hash, ResourceTree tree, DateTime refreshedAt, bool[] exportOptions)>? _resourceTask;
+    private Task<(string hash, Ipc.ResourceTree tree, DateTime refreshedAt)>? _resourceTask;
     // storing result separately so it doesn't disappear while running a new task
-    private (string hash, ResourceTree tree, DateTime refreshedAt, bool[] exportOptions)? _resourceTaskResult;
+    private (string hash, Ipc.ResourceTree tree, DateTime refreshedAt)? _resourceTaskResult;
+
+    private bool[] _exportOptions = Array.Empty<bool>();
+    private bool[] ExportOptions
+    {
+        get
+        {        
+            if (_resourceTaskResult == null)
+            {
+                return Array.Empty<bool>();
+            }
+
+            if (_exportOptions.Length != _resourceTaskResult.Value.tree.Nodes.Count)
+            {
+                _exportOptions = new bool[_resourceTaskResult.Value.tree.Nodes.Count];
+            }
+
+            return _exportOptions;
+        }
+        set
+        {
+            if (_resourceTaskResult == null)
+            {
+                return;
+            }
+
+            if (_exportOptions.Length != _resourceTaskResult.Value.tree.Nodes.Count)
+            {
+                _exportOptions = new bool[_resourceTaskResult.Value.tree.Nodes.Count];
+            }
+
+            _exportOptions = value;
+        }
+    }
+    
     private (string name, int index) _selectedGameObject;
     private string _searchFilter = string.Empty;
     private readonly LuminaManager _luminaManager;
@@ -75,6 +110,7 @@ public class ResourceTab : ITab
             else if (_resourceTask.IsCompletedSuccessfully)
             {
                 _resourceTaskResult = _resourceTask.Result;
+                
             }
         }
 
@@ -90,7 +126,9 @@ public class ResourceTab : ITab
             return;
 
         var resourceTaskResult = _resourceTaskResult.Value;
-        _resourceTreeRenderer.DrawResourceTree(resourceTaskResult.tree, ref resourceTaskResult.exportOptions);
+        var exportOptions = ExportOptions;
+        _resourceTreeRenderer.DrawResourceTree(resourceTaskResult.tree, ref exportOptions);
+        ExportOptions = exportOptions;
     }
 
     private void DrawObjectPicker()
@@ -209,7 +247,7 @@ public class ResourceTab : ITab
         }
     }
 
-    private Task<(string, ResourceTree, DateTime, bool[])> LoadResourceListFromDisk(string pathToFile)
+    private Task<(string, Ipc.ResourceTree, DateTime)> LoadResourceListFromDisk(string pathToFile)
     {
         return Task.Run(() =>
         {
@@ -221,21 +259,20 @@ public class ResourceTab : ITab
                 }
 
                 var contents = File.ReadAllText(pathToFile);
-                var resourceTree = JsonConvert.DeserializeObject<ResourceTree>(contents);
+                var resourceTree = JsonConvert.DeserializeObject<Ipc.ResourceTree>(contents);
 
                 if (resourceTree == null)
                 {
                     throw new Exception("No resource trees found");
                 }
 
-                if (resourceTree.Nodes.Length == 0)
+                if (resourceTree.Nodes.Count == 0)
                 {
                     throw new Exception("No resources found");
                 }
 
                 var contentHash = Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(contents)));
-                var exportOptions = new bool[resourceTree.Nodes.Length];
-                return (contentHash, resourceTree, DateTime.UtcNow, exportOptions);
+                return (contentHash, resourceTree, DateTime.UtcNow);
             }
             catch (Exception e)
             {
@@ -244,8 +281,32 @@ public class ResourceTab : ITab
             }
         });
     }
+    
+    private Task<(string hash, Ipc.ResourceTree tree, DateTime refreshedAt)> TryBuildResourceList(string name, ushort selectedObjectObjectIndex)
+    {
+        return Task.Run(() =>
+        {
+            try
+            {
+                var resourceTree = Ipc.GetGameObjectResourceTrees.Subscriber(_pluginInterface).Invoke(true, selectedObjectObjectIndex)[0]!;
 
+                Directory.CreateDirectory(Plugin.TempDirectory);
+                var content = JsonConvert.SerializeObject(resourceTree, Formatting.Indented);
+                var hash = Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(content)));
+                File.WriteAllText(Path.Combine(Plugin.TempDirectory, $"{name}.json"), content);
 
+                _log.Information($"Built resource tree for {name}");
+                return (hash, resourceTree, DateTime.UtcNow);
+            }
+            catch (Exception e)
+            {
+                _log.Error(e, "Error loading resources");
+                throw;
+            }
+        });
+    }
+
+    /*
     private Task<(string hash, ResourceTree tree, DateTime refreshedAt, bool[] exportOptions)> TryBuildResourceList(string name, ushort selectedObjectObjectIndex)
     {
         return Task.Run(() =>
@@ -275,6 +336,7 @@ public class ResourceTab : ITab
             }
         });
     }
+    */
 
     public void Dispose()
     {

@@ -34,6 +34,7 @@ public class Plugin : IDalamudPlugin
             .AddSingleton(config)
             .AddSingleton<HavokConverter>()
             .AddSingleton<ModelConverter>()
+            .AddSingleton<ResourceTreeConverter>()
             .AddSingleton<LuminaManager>()
             .AddSingleton<ResourceTreeRenderer>()
             .BuildServiceProvider();

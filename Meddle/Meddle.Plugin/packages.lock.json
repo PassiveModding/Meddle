@@ -17,6 +17,12 @@
           "Microsoft.Extensions.DependencyInjection.Abstractions": "7.0.0"
         }
       },
+      "Penumbra.Api": {
+        "type": "Direct",
+        "requested": "[1.0.13, )",
+        "resolved": "1.0.13",
+        "contentHash": "dEbT29wMRLgH0hHEMBVMdqGUgdeP94jhirpM/N+Km91vlogWTIcnVx4IADFsV0fUBEgiwe6gzYxsPqlE70uHWw=="
+      },
       "Microsoft.Extensions.DependencyInjection.Abstractions": {
         "type": "Transitive",
         "resolved": "7.0.0",
@@ -26,11 +32,6 @@
         "type": "Transitive",
         "resolved": "8.0.0-preview.2.23128.3",
         "contentHash": "2ugSY6UuqJfYhvVUaf4ueuUiMjIyN9dU03wpbKfRDsn13XvZ91yOlw7NLhYvB1Xc8gCAZpND20Tgbe3uBVytKA=="
-      },
-      "Penumbra.Api": {
-        "type": "Transitive",
-        "resolved": "1.0.12",
-        "contentHash": "0plNvXfhnOMYdyO+9jqRVx91SQv4lnGj3isRIRdZ0q6MGyk3oCpd4imu/nyrO5tH9cQEsVltakzJAXecSuDAMQ=="
       },
       "SharpGLTF.Core": {
         "type": "Transitive",
@@ -59,7 +60,8 @@
       "meddle.xande": {
         "type": "Project",
         "dependencies": {
-          "Penumbra.Api": "[1.0.12, )",
+          "Lumina2": "[2.4.2, )",
+          "Penumbra.Api": "[1.0.13, )",
           "Xande": "[1.0.0, )"
         }
       },
