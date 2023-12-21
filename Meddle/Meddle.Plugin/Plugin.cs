@@ -93,14 +93,7 @@ public unsafe sealed class Plugin : IDalamudPlugin
     private void OpenUi()
     {
         _mainWindow.IsOpen = true;
-        
-        var c = File.ReadAllBytes(@"J:\Programs\Penumbra\test\c1801e0813_met.mdl");
-        File.WriteAllText(@"J:\Programs\Penumbra\test\c1801e0813_met.json", JsonSerializer.Serialize(FileResource.Load<MdlFile>(c), new JsonSerializerOptions()
-        {
-            WriteIndented = true,
-            IncludeFields = true,
-        }));
-        PluginLog.Debug(MdlFile.LogData.ToString());
+        _mainWindow.BringToFront();
     }
     
     private void DrawUi()

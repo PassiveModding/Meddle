@@ -1,6 +1,5 @@
 using Dalamud.Logging;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
-using Meddle.Xande.Utility;
 using SharpGen.Runtime;
 using System.Runtime.InteropServices;
 using Vortice.Direct3D11;
@@ -10,9 +9,6 @@ namespace Meddle.Xande;
 
 public static unsafe class DXHelper
 {
-    private static Dictionary<nint, TextureHelper.TextureResource> TextureCache { get; } = new();
-    private static Dictionary<nint, byte[]> BufferCache { get; } = new();
-
     public static TextureHelper.TextureResource ExportTextureResource(Texture* kernelTexture)
     {
         if (kernelTexture->D3D11Texture2D == null)
@@ -20,15 +16,6 @@ public static unsafe class DXHelper
 
         using var tex = new ID3D11Texture2D1((nint)kernelTexture->D3D11Texture2D);
         tex.AddRef();
-
-        //foreach (var (k, v) in ComUtility.GetInterfaces(tex))
-        //    PluginLog.Debug($"> {v}");
-        //PluginLog.Debug($">>");
-
-        //throw new NotImplementedException();
-
-        //if (TextureCache.TryGetValue((nint)tex, out var cached))
-        //    return cached;
 
         var ret = GetResourceData(tex,
             r =>
@@ -63,7 +50,6 @@ public static unsafe class DXHelper
                 return new TextureHelper.TextureResource(desc.Format, desc.Width, desc.Height, map.RowPitch, buf);
             });
 
-        //TextureCache.TryAdd((nint)tex, ret);
         return ret;
     }
 
@@ -74,13 +60,6 @@ public static unsafe class DXHelper
 
         using var res = new ID3D11Buffer(buffer->DxPtr1);
         res.AddRef();
-
-        //foreach (var (k,v) in ComUtility.GetInterfaces(res))
-        //    PluginLog.Debug($"> {v}");
-        //PluginLog.Debug($">>");
-
-        //if (BufferCache.TryGetValue((nint)res, out var cached))
-        //    return cached;
 
         var ret = GetResourceData(res,
             r =>
@@ -102,39 +81,40 @@ public static unsafe class DXHelper
                 return ret;
             });
 
-        //BufferCache.TryAdd((nint)res, ret);
         return ret;
     }
 
     public static readonly Result WasStillDrawing = new(0x887A000A);
 
+    // It's a safer bet to clone the resource and map the clone instead.
+
+    //private static RetT GetResourceDataUncloned<T, RetT>(T res, Func<T, T> cloneResource, Func<T, MappedSubresource, RetT> getData) where T : ID3D11Resource
+    //{
+    //    var code = res.Device.ImmediateContext.Map(res, 0, MapMode.Read, MapFlags.DoNotWait, out var mapInfo);
+
+    //    if (code == Result.InvalidArg)
+    //    {
+    //        PluginLog.Debug($"Resource couldn't be mapped. Cloning to a new resource. {code.Description}");
+    //        return GetResourceData(res, cloneResource, getData);
+    //    }
+    //    else if (code == WasStillDrawing)
+    //    {
+    //        PluginLog.Debug($"GPU was still busy and couldn't do a non-blocking map. Attempting a blocking map. {code.Description}");
+    //        res.Device.ImmediateContext.Map(res, 0, MapMode.Read, MapFlags.None, out mapInfo).CheckError();
+    //    }
+    //    else
+    //        code.CheckError();
+
+    //    using var _unmap = new DisposeRaii(() => res.Device.ImmediateContext.Unmap(res, 0));
+
+    //    return getData(res, mapInfo);
+    //}
+
     // https://github.com/microsoft/graphics-driver-samples/blob/de4a2161991eda254013da6c18226f5ea06e4a9c/render-only-sample/rostest/util.cpp#L244
-    private static RetT GetResourceDataUncloned<T, RetT>(T res, Func<T, T> cloneResource, Func<T, MappedSubresource, RetT> getData) where T : ID3D11Resource
-    {
-        var code = res.Device.ImmediateContext.Map(res, 0, MapMode.Read, MapFlags.DoNotWait, out var mapInfo);
-
-        if (code == Result.InvalidArg)
-        {
-            PluginLog.Debug($"Resource couldn't be mapped. Cloning to a new resource. {code.Description}");
-            return GetResourceData(res, cloneResource, getData);
-        }
-        else if (code == WasStillDrawing)
-        {
-            PluginLog.Debug($"GPU was still busy and couldn't do a non-blocking map. Attempting a blocking map. {code.Description}");
-            res.Device.ImmediateContext.Map(res, 0, MapMode.Read, MapFlags.None, out mapInfo).CheckError();
-        }
-        else
-            code.CheckError();
-
-        using var _unmap = new DisposeRaii(() => res.Device.ImmediateContext.Unmap(res, 0));
-
-        return getData(res, mapInfo);
-    }
-
     private static RetT GetResourceData<T, RetT>(T res, Func<T, T> cloneResource, Func<T, MappedSubresource, RetT> getData) where T : ID3D11Resource
     {
         using var stagingRes = cloneResource(res);
-
+        
         res.Device.ImmediateContext.CopyResource(stagingRes, res);
 
         var code = stagingRes.Device.ImmediateContext.Map(stagingRes, 0, MapMode.Read, MapFlags.DoNotWait, out var mapInfo);

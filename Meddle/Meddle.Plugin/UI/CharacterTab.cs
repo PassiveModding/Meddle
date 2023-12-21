@@ -7,6 +7,7 @@ using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.Havok;
 using ImGuiNET;
+using Lumina.Data;
 using Meddle.Xande;
 using Penumbra.Api;
 using SharpGLTF.Transforms;
@@ -14,7 +15,10 @@ using System.Numerics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using Xande;
 using Xande.Enums;
+using Xande.Files;
+using Xande.Havok;
 using Character = Dalamud.Game.ClientState.Objects.Types.Character;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
 using CSTransform = FFXIVClientStructs.FFXIV.Client.Graphics.Transform;
@@ -31,18 +35,22 @@ public unsafe class CharacterTab : ITab
     private IObjectTable ObjectTable { get; }
     private IClientState ClientState { get; }
     private ModelConverter ModelConverter { get; }
-
+    private LuminaManager LuminaManager { get; }
+    public HavokConverter HavokConverter { get; }
+    
     private Character? SelectedCharacter { get; set; }
 
     private Task? ExportTask { get; set; }
     private CancellationTokenSource? ExportCts { get; set; }
-
-    public CharacterTab(DalamudPluginInterface pluginInterface, IObjectTable objectTable, IClientState clientState, ModelConverter modelConverter)
+    
+    public CharacterTab(DalamudPluginInterface pluginInterface, IObjectTable objectTable, IClientState clientState, ModelConverter modelConverter, LuminaManager luminaManager, HavokConverter havokConverter)
     {
         PluginInterface = pluginInterface;
         ObjectTable = objectTable;
         ClientState = clientState;
         ModelConverter = modelConverter;
+        LuminaManager = luminaManager;
+        HavokConverter = havokConverter;
     }
 
     public void Draw()
@@ -180,27 +188,46 @@ public unsafe class CharacterTab : ITab
                 ImGui.Separator();
             }
         }
-
+        
         if (ImGui.CollapsingHeader("Main Hand"))
             DrawWeaponData(weaponData[0]);
 
         if (ImGui.CollapsingHeader("Off Hand"))
             DrawWeaponData(weaponData[1]);
-
+        
         if (ImGui.CollapsingHeader("Prop"))
             DrawWeaponData(weaponData[2]);
+
+        if (ImGui.Button("Copy"))
+            ImGui.SetClipboardText(JsonSerializer.Serialize(new NewTree(charPtr), new JsonSerializerOptions() { WriteIndented = true, IncludeFields = true }));
+
+        if (ImGui.Button("Copy Model"))
+        {
+            var model = LuminaManager.GetModel("chara/equipment/e5037/model/c0101e5037_met.mdl");
+            var newModel = new NewModel(model, LuminaManager.GameData);
+            ImGui.SetClipboardText(JsonSerializer.Serialize(newModel, new JsonSerializerOptions() { WriteIndented = true, IncludeFields = true }));
+        }
 
         if (ImGui.CollapsingHeader("New Tree"))
             DrawNewTree(new(charPtr));
     }
-
+    
     private void DrawNewTree(NewTree tree)
     {
         var l = JsonSerializer.Serialize(tree, new JsonSerializerOptions() { WriteIndented = true, IncludeFields = true });
-        if (ImGui.Button("Copy"))
-            ImGui.SetClipboardText(l);
-        //foreach(var line in l.Split('\n'))
         ImGui.TextUnformatted(l);
+    }
+
+    private HavokXml LoadSkeleton(string path)
+    {
+        var file = LuminaManager.GetFile<FileResource>(path)
+            ?? throw new Exception("GetFile returned null");
+
+        var sklb = SklbFile.FromStream(file.Reader.BaseStream);
+
+        var xml = HavokConverter.HkxToXml(sklb.HkxData);
+        var ret = new HavokXml(xml);
+        return ret;
     }
 
     private void DrawWeaponData(DrawObjectData data)
@@ -236,43 +263,6 @@ public unsafe class CharacterTab : ITab
         else
             ImGui.TextUnformatted("No pose");
     }
-    
-    //private List<HkSkeleton.WeaponData> GetWeaponData(Character character)
-    //{
-    //    var charPtr = (CSCharacter*)character.Address;
-    //    var human = (Human*)charPtr->GameObject.DrawObject;
-
-    //    var ret = new List<HkSkeleton.WeaponData>();
-        
-    //    foreach(var weaponData in charPtr->DrawData.WeaponDataSpan)
-    //    {
-    //        if (weaponData.Model == null)
-    //            continue;
-    //        var attach = &weaponData.Model->CharacterBase.Attach;
-    //        if (attach->ExecuteType == 0)
-    //            continue;
-
-    //        if (attach->ExecuteType != 4)
-    //            PluginLog.Error($"Unsupported executetype {attach->ExecuteType}");
-    //        var att = attach->SkeletonBoneAttachments[0];
-
-    //        var poseMatrix = GetMatrix(*attach->OwnerSkeleton->PartialSkeletonsSpan[att.SkeletonIdx].GetHavokPose(0)->CalculateBoneModelSpace(att.BoneIdx));
-    //        var offsetMatrix = GetMatrix(att.ChildTransform);
-    //        HkSkeleton.WeaponData data = new()
-    //        {
-    //            SklbPath = weaponData.Model->CharacterBase.Skeleton->SkeletonResourceHandles[0]->ResourceHandle.FileName.ToString(),
-    //            ModelPath = weaponData.Model->CharacterBase.Models[0]->ModelResourceHandle->ResourceHandle.FileName.ToString(),
-    //            BoneName = attach->OwnerSkeleton->PartialSkeletonsSpan[att.SkeletonIdx].GetHavokPose(0)->Skeleton->Bones[att.BoneIdx].Name.String!,
-    //            BoneLookup = GetPose(weaponData.Model->CharacterBase.Skeleton)!.ToDictionary(k => k.Key, v => AsAffineTransform(v.Value)),
-    //            AttachOffset = new(offsetMatrix),
-    //            PoseOffset = new(poseMatrix),
-    //            OwnerOffset = new(GetMatrix(attach->OwnerSkeleton->Transform)),
-    //        };
-    //        ret.Add(data);
-    //    }
-
-    //    return ret;
-    //}
 
     private static Skeleton* GetWeaponSkeleton(DrawObjectData data)
     {
@@ -284,7 +274,7 @@ public unsafe class CharacterTab : ITab
 
     private static Vector3 AsVector(hkVector4f hkVector) =>
         new(hkVector.X, hkVector.Y, hkVector.Z);
-
+    
     private static Vector4 AsVector(hkQuaternionf hkVector) =>
         new(hkVector.X, hkVector.Y, hkVector.Z, hkVector.W);
     

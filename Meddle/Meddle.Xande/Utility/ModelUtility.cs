@@ -1,15 +1,14 @@
 using Dalamud.Logging;
-using Serilog;
 using SharpGLTF.Scenes;
-using System.Xml.Linq;
+using Xande.Models.Export;
 
 namespace Meddle.Xande.Utility;
 
 public static class ModelUtility
 {
-    public static List<NodeBuilder> GetBoneMap(NewSkeleton skeleton, int prefix, out NodeBuilder? root)
+    public static List<BoneNodeBuilder> GetBoneMap(NewSkeleton skeleton, out BoneNodeBuilder? root)
     {
-        List<NodeBuilder> boneMap = new();
+        List<BoneNodeBuilder> boneMap = new();
         root = null;
 
         foreach (var partial in skeleton.PartialSkeletons)
@@ -20,15 +19,21 @@ public static class ModelUtility
 
             var pose = partial.Poses.FirstOrDefault();
 
+            var skeleBones = new BoneNodeBuilder[hkSkeleton.BoneNames.Count];
             for (var i = 0; i < hkSkeleton.BoneNames.Count; i++)
             {
                 var name = hkSkeleton.BoneNames[i];
                 if (string.IsNullOrEmpty(name))
                     continue;
-                if (boneMap.Any(b => b.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                if (boneMap.FirstOrDefault(b => b.BoneName.Equals(name, StringComparison.OrdinalIgnoreCase)) is { } dupeBone)
+                {
+                    skeleBones[i] = dupeBone;
                     continue;
+                }
+                if (partial.ConnectedBoneIndex == i)
+                    throw new InvalidOperationException($"Bone {name} on {i} is connected to a skeleton that should've already been declared");
 
-                var bone = new NodeBuilder(prefix != -1 ? $"{name}_{prefix}" : name);
+                var bone = new BoneNodeBuilder(name);
                 if (pose != null)
                 {
                     var transform = pose.Pose[i];
@@ -40,21 +45,21 @@ public static class ModelUtility
 
                 var parentIdx = hkSkeleton.BoneParents[i];
                 if (parentIdx != -1)
-                    boneMap[parentIdx].AddNode(bone);
+                    skeleBones[parentIdx].AddNode(bone);
                 else
                 {
                     if (root != null)
-                        throw new Exception("Multiple root bones found");
+                        throw new InvalidOperationException("Multiple root bones found");
                     root = bone;
                 }
 
+                skeleBones[i] = bone;
                 boneMap.Add(bone);
             }
         }
 
-        if (!NodeBuilder.IsValidArmature(boneMap))
-            throw new Exception(
-                $"Joints are not valid, {string.Join(", ", boneMap.Select(x => x.Name))}");
+        if (!NodeBuilder.IsValidArmature(boneMap.Cast<NodeBuilder>()))
+            throw new InvalidOperationException($"Joints are not valid, {string.Join(", ", boneMap.Select(x => x.Name))}");
 
         return boneMap;
     }

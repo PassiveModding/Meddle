@@ -18,6 +18,9 @@ using LuminaSubmesh = Lumina.Models.Models.Submesh;
 using LuminaShape = Lumina.Models.Models.Shape;
 using LuminaShapeMesh = Lumina.Models.Models.ShapeMesh;
 using LuminaVertex = Lumina.Models.Models.Vertex;
+using LuminaMaterial = Lumina.Models.Materials.Material;
+using LuminaTexture = Lumina.Models.Materials.Texture;
+using LuminaGameData = Lumina.GameData;
 using System.Text.Json.Serialization;
 using Meddle.Xande.Utility;
 using Serilog;
@@ -97,6 +100,7 @@ public unsafe class NewPartialSkeleton
 {
     public NewHkSkeleton? HkSkeleton { get; set; }
     public List<NewSkeletonPose> Poses { get; set; }
+    public int ConnectedBoneIndex { get; set; }
 
     public NewPartialSkeleton(Pointer<PartialSkeleton> partialSkeleton) : this(partialSkeleton.Value)
     {
@@ -108,12 +112,21 @@ public unsafe class NewPartialSkeleton
         if (partialSkeleton->SkeletonResourceHandle != null)
             HkSkeleton = new(partialSkeleton->SkeletonResourceHandle->HavokSkeleton);
 
+        ConnectedBoneIndex = partialSkeleton->ConnectedBoneIndex;
+
         Poses = new();
+        //return;
         for (var i = 0; i < 4; ++i)
         {
             var pose = partialSkeleton->GetHavokPose(i);
             if (pose != null)
+            {
+                if (pose->Skeleton != partialSkeleton->SkeletonResourceHandle->HavokSkeleton)
+                {
+                    throw new ArgumentException($"Pose is not the same as the skeleton");
+                }
                 Poses.Add(new(pose));
+            }
         }
     }
 }
@@ -157,8 +170,9 @@ public unsafe class NewSkeletonPose
     {
         Pose = new();
 
-        foreach(var transform in pose->LocalPose.AsSpan())
-            Pose.Add(new(transform));
+        var boneCount = pose->LocalPose.Length;
+        for (var i = 0; i < boneCount; ++i)
+            Pose.Add(new(pose->LocalPose[i]));
     }
 }
 
@@ -169,7 +183,6 @@ public unsafe class NewModel
 
     public List<NewMaterial> Materials { get; set; }
 
-    [JsonIgnore]
     public List<NewMesh> Meshes { get; set; }
     public List<NewModelShape> Shapes { get; set; }
 
@@ -177,6 +190,32 @@ public unsafe class NewModel
     public uint AttributesMask { get; set; }
     public string[] EnabledShapes { get; set; }
     public string[] EnabledAttributes { get; set; }
+
+    public NewModel(LuminaModel model, LuminaGameData gameData)
+    {
+        model.Update(gameData);
+
+        HandlePath = model.File?.FilePath.Path ?? "Lumina Model";
+        RaceCode = GetRaceCodeFromPath(HandlePath);
+
+        Materials = new();
+        foreach (var material in model.Materials)
+            Materials.Add(new(material, gameData));
+
+        Meshes = new();
+        foreach (var mesh in model.Meshes)
+            Meshes.Add(new(mesh));
+
+        Shapes = new();
+        foreach (var shape in model.Shapes.Values)
+            Shapes.Add(new(shape));
+
+        ShapesMask = 0;
+        AttributesMask = 0;
+
+        EnabledShapes = Array.Empty<string>();
+        EnabledAttributes = Array.Empty<string>();
+    }
 
     public NewModel(Pointer<Model> model, Pointer<Pointer<Texture>> colorTable) : this(model.Value, (Texture**)colorTable.Value)
     {
@@ -186,6 +225,7 @@ public unsafe class NewModel
     public NewModel(Model* model, Texture** colorTable)
     {
         HandlePath = model->ModelResourceHandle->ResourceHandle.FileName.ToString();
+        RaceCode = GetRaceCodeFromPath(HandlePath);
 
         Materials = new();
         for (var i = 0; i < model->MaterialCount; ++i)
@@ -206,6 +246,14 @@ public unsafe class NewModel
             .Where(kv => ((1 << kv.Item2) & AttributesMask) != 0)
             .Select(kv => MemoryHelper.ReadStringNullTerminated((nint)kv.Item1.Value))
             .ToArray();
+    }
+
+    private static ushort? GetRaceCodeFromPath(string path)
+    {
+        var fileName = Path.GetFileNameWithoutExtension(path);
+        if (fileName[0] != 'c') return null;
+
+        return ushort.Parse(fileName[1..5]);
     }
 
     private void LoadMeshesAndShapes(ModelResourceHandle* hnd)
@@ -271,24 +319,9 @@ public unsafe class NewModel
                 if (meshIndices.Length != mesh->IndexCount)
                     throw new ArgumentException($"Mesh {meshIdx} has {meshIndices.Length} indices, but {mesh->IndexCount} were expected");
 
-                Meshes.Add(new(hnd, meshIdx, meshVertices, meshIndices));
+                Meshes.Add(new(hnd, meshIdx, meshVertices, mesh->StartIndex, meshIndices));
             }
         }
-    }
-
-    [Obsolete]
-    private void UseLuminaFromHandle(ModelResourceHandle* hnd)
-    {
-        var span = new ReadOnlySpan<byte>(hnd->ResourceHandle.GetData(), (int)hnd->ResourceHandle.GetLength());
-        PluginLog.Debug($"Reading data from handle {(nint)hnd:X8} for {HandlePath} (Size: {hnd->ResourceHandle.GetLength()}; {span.Length}; {(nint)hnd->ResourceHandle.GetData():X8})");
-        var modelFile = Lumina.Data.FileResource.Load<MdlFile>(hnd->ResourceHandle.GetDataSpan().ToArray());
-        var model = new LuminaModel(modelFile);
-
-        foreach (var mesh in model.Meshes)
-            Meshes.Add(new(mesh));
-
-        foreach (var shape in model.Shapes.Values)
-            Shapes.Add(new(shape));
     }
 }
 
@@ -303,6 +336,23 @@ public unsafe class NewMaterial
 
     [JsonPropertyName("ColorTable")]
     public ushort[]? JsonColorTable => ColorTable?.Select(BitConverter.HalfToUInt16Bits).ToArray();
+
+    public NewMaterial(LuminaMaterial material, LuminaGameData gameData)
+    {
+        material.Update(gameData);
+
+        HandlePath = material.File?.FilePath.Path ?? "Lumina Material";
+
+        ShaderPackage = new(material.ShaderPack);
+
+        Textures = new();
+        uint i = 0;
+        foreach(var texture in material.Textures)
+        {
+            ShaderPackage.TextureLookup[++i] = texture.TextureUsageRaw;
+            Textures.Add(new(texture, i, gameData));
+        }
+    }
 
     public NewMaterial(Pointer<Material> material, Pointer<Texture> colorTable) : this(material.Value, colorTable.Value)
     {
@@ -319,23 +369,24 @@ public unsafe class NewMaterial
         {
             var handleTexture = &material->MaterialResourceHandle->Textures[i];
             Material.TextureEntry* matEntry = null;
-            var matCount = 0;
             if (handleTexture->Index1 != 0x1F)
-            {
                 matEntry = &material->Textures[handleTexture->Index1];
-                matCount++;
-            }
-            if (handleTexture->Index2 != 0x1F)
-            {
+            else if (handleTexture->Index2 != 0x1F)
                 matEntry = &material->Textures[handleTexture->Index2];
-                matCount++;
-            }
-            if (handleTexture->Index3 != 0x1F)
-            {
+            else if (handleTexture->Index3 != 0x1F)
                 matEntry = &material->Textures[handleTexture->Index3];
-                matCount++;
+            else
+            {
+                foreach (var tex in material->TexturesSpan)
+                {
+                    if (tex.Texture == handleTexture->TextureResourceHandle)
+                    {
+                        matEntry = &tex;
+                        break;
+                    }
+                }
             }
-            Textures.Add(new(matEntry, matCount, material->MaterialResourceHandle->Strings, handleTexture, ShaderPackage));
+            Textures.Add(new(matEntry, material->MaterialResourceHandle->Strings, handleTexture, ShaderPackage));
         }
 
         if (colorTable != null)
@@ -362,6 +413,12 @@ public unsafe class NewShaderPackage
 {
     public string Name { get; set; }
     public Dictionary<uint, TextureUsage> TextureLookup { get; set; }
+
+    public NewShaderPackage(string name)
+    {
+        Name = name;
+        TextureLookup = new();
+    }
 
     public NewShaderPackage(Pointer<ShaderPackageResourceHandle> shaderPackage, string name) : this(shaderPackage.Value, name)
     {
@@ -398,16 +455,29 @@ public unsafe class NewTexture
     public uint? Id { get; set; }
     public uint? SamplerFlags { get; set; }
 
+    [JsonIgnore]
     public TextureHelper.TextureResource Resource { get; }
-    //[JsonIgnore]
-    //public SKBitmap Bitmap { get; }
 
-    public NewTexture(Pointer<Material.TextureEntry> matEntry, int matCount, Pointer<byte> matHndStrings, Pointer<MaterialResourceHandle.TextureEntry> hndEntry, NewShaderPackage shader) : this(matEntry.Value, matCount, matHndStrings.Value, hndEntry.Value, shader)
+    public NewTexture(LuminaTexture texture, uint id, LuminaGameData gameData)
+    {
+        HandlePath = texture.TexturePath;
+        Usage = texture.TextureUsageRaw;
+        KernelTexture = null;
+        Handle = null;
+
+        Id = id;
+        SamplerFlags = 0;
+
+        var f = gameData.GetFile<TexFile>(HandlePath) ?? throw new ArgumentException($"Texture {HandlePath} not found");
+        Resource = TextureHelper.FromTexFile(f);
+    }
+
+    public NewTexture(Pointer<Material.TextureEntry> matEntry, Pointer<byte> matHndStrings, Pointer<MaterialResourceHandle.TextureEntry> hndEntry, NewShaderPackage shader) : this(matEntry.Value, matHndStrings.Value, hndEntry.Value, shader)
     {
 
     }
 
-    public NewTexture(Material.TextureEntry* matEntry, int matCount, byte* matHndStrings, MaterialResourceHandle.TextureEntry* hndEntry, NewShaderPackage shader)
+    public NewTexture(Material.TextureEntry* matEntry, byte* matHndStrings, MaterialResourceHandle.TextureEntry* hndEntry, NewShaderPackage shader)
     {
         HandlePath = MemoryHelper.ReadStringNullTerminated((nint)matHndStrings + hndEntry->PathOffset);
         KernelTexture = hndEntry->TextureResourceHandle->Texture;
@@ -422,13 +492,6 @@ public unsafe class NewTexture
         }
 
         Resource = DXHelper.ExportTextureResource(KernelTexture);
-        var bitmap = TextureHelper.ToBitmap(Resource);
-        bitmap.SaveToFile(@$"C:\Users\Asriel\AppData\Local\Temp\Meddle.Export\tex2\{bitmap.GetHashCode():X8}_ORIG2.png");
-
-        var f = @"C:\Users\Asriel\AppData\Local\Temp\Meddle.Export\texs\" + HandlePath.Split('/')[^1] + ".png";
-        if (File.Exists(f))
-            return;
-        bitmap.SaveToFile(f);
     }
 }
 
@@ -436,10 +499,11 @@ public unsafe class NewMesh
 {
     public int MeshIdx { get; set; }
     public ushort MaterialIdx { get; set; }
+    //[JsonIgnore]
     public List<NewVertex> Vertices { get; set; }
+    [JsonIgnore]
     public List<ushort> Indices { get; set; }
     public List<NewSubMesh> Submeshes { get; set; }
-    public List<string> Attributes { get; set; }
     public List<string>? BoneTable { get; set; }
 
     public NewMesh(LuminaMesh mesh)
@@ -458,14 +522,12 @@ public unsafe class NewMesh
         foreach (var submesh in mesh.Submeshes)
             Submeshes.Add(new(submesh));
 
-        Attributes = new();
-        foreach (var attribute in mesh.Attributes)
-            Attributes.Add(attribute);
+        // meshes don't have attributes. lumina is lying to you.
 
         BoneTable = mesh.BoneTable?.ToList();
     }
 
-    public NewMesh(ModelResourceHandle* hnd, int meshIdx, NewVertex[] vertices, ReadOnlySpan<ushort> indices)
+    public NewMesh(ModelResourceHandle* hnd, int meshIdx, NewVertex[] vertices, uint meshIndexOffset, ReadOnlySpan<ushort> indices)
     {
         var mesh = &hnd->Meshes[meshIdx];
 
@@ -480,18 +542,20 @@ public unsafe class NewMesh
         for (var i = 0; i < mesh->SubMeshCount; ++i)
         {
             var submeshIdx = mesh->SubMeshIndex + i;
-            Submeshes.Add(new(hnd, submeshIdx));
+            var sm = new NewSubMesh(hnd, submeshIdx);
+            // sm.IndexOffset is relative to the model, not the mesh
+            sm.IndexOffset -= meshIndexOffset;
+            Submeshes.Add(sm);
         }
-
-        Attributes = new();
 
         if (mesh->BoneTableIndex != 255)
         {
+            BoneTable = new();
             var boneTable = &hnd->BoneTables[mesh->BoneTableIndex];
             for (var i = 0; i < boneTable->BoneCount; ++i)
             {
-                var namePtr = hnd->StringTable + 8 + boneTable->BoneIndex[i];
-                Attributes.Add(MemoryHelper.ReadStringNullTerminated((nint)namePtr));
+                var namePtr = hnd->StringTable + 8 + hnd->BoneNameOffsets[boneTable->BoneIndex[i]];
+                BoneTable.Add(MemoryHelper.ReadStringNullTerminated((nint)namePtr));
             }
         }
 
@@ -602,7 +666,7 @@ public unsafe struct NewVertex
     }
 
     [JsonPropertyName("BlendIndices")]
-    public byte[] BlendIndicesArray => BlendIndices.ToArray();
+    public int[] BlendIndicesArray => BlendIndices.ToArray().Select(i => (int)i).ToArray();
 
     public NewVertex(LuminaVertex vertex)
     {
@@ -634,7 +698,6 @@ public unsafe struct NewVertex
                 var s = (short*)b;
                 var h = (Half*)b;
                 var f = (float*)b;
-                var u = (uint*)b;
 
                 return type switch
                 {
@@ -649,7 +712,7 @@ public unsafe struct NewVertex
                     KernelVertexType.DXGI_FORMAT_R8G8B8A8_UNORM => new Vector4(FromUNorm(b[0]), FromUNorm(b[1]), FromUNorm(b[2]), FromUNorm(b[3])),
                     KernelVertexType.DXGI_FORMAT_R16G16_SINT => new Vector2(s[0], s[1]),
                     KernelVertexType.DXGI_FORMAT_R16G16B16A16_SINT => new Vector4(s[0], s[1], s[2], s[3]),
-                    KernelVertexType.DXGI_FORMAT_R8G8B8A8_UINT => new Vector4(u[0], u[1], u[2], u[3]),
+                    KernelVertexType.DXGI_FORMAT_R8G8B8A8_UINT => new Vector4(b[0], b[1], b[2], b[3]),
                     _ => throw new ArgumentException($"Unknown type {type}"),
                 };
             }
@@ -810,7 +873,7 @@ public unsafe class NewAttach
 
         if (attach->ExecuteType != 4)
         {
-            PluginLog.Error($"Unsupported executetype {attach->ExecuteType}");
+            PluginLog.Error($"Unsupported ExecuteType {attach->ExecuteType}");
             return;
         }
 

@@ -81,15 +81,15 @@ public static class TextureUtility
         {
             if (bitmap.ColorType != SKColorType.Rgba8888 || bitmap.AlphaType != SKAlphaType.Unpremul)
             {
-                using var newBitmap = new SKBitmap(new SKImageInfo(Width, Height, SKColorType.Rgba8888, SKAlphaType.Unpremul));
+                using var newBitmap = new SKBitmap(Width, Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
                 using (var canvas = new SKCanvas(newBitmap))
                     canvas.DrawBitmap(bitmap, 0, 0);
 
                 if (newBitmap.ByteCount != Data.Length)
                     throw new ArgumentException("Invalid byte count");
                 newBitmap.Bytes.CopyTo(Data, 0);
-                newBitmap.SaveToFile(@$"C:\Users\Asriel\AppData\Local\Temp\Meddle.Export\tex2\{bitmap.GetHashCode():X8}.png");
-                bitmap.SaveToFile(@$"C:\Users\Asriel\AppData\Local\Temp\Meddle.Export\tex2\{bitmap.GetHashCode():X8}_ORIG.png");
+                //newBitmap.SaveToFile(@$"C:\Users\Asriel\AppData\Local\Temp\Meddle.Export\tex2\{bitmap.GetHashCode():X8}.png");
+                //bitmap.SaveToFile(@$"C:\Users\Asriel\AppData\Local\Temp\Meddle.Export\tex2\{bitmap.GetHashCode():X8}_ORIG.png");
 
                 if (!newBitmap.Bytes.SequenceEqual(Data))
                     throw new InvalidOperationException("Invalid cloned data");
@@ -99,7 +99,7 @@ public static class TextureUtility
                 if (bitmap.ByteCount != Data.Length)
                     throw new ArgumentException("Invalid byte count");
                 bitmap.Bytes.CopyTo(Data, 0);
-                bitmap.SaveToFile(@$"C:\Users\Asriel\AppData\Local\Temp\Meddle.Export\tex2\{bitmap.GetHashCode():X8}_ORIG3.png");
+                //bitmap.SaveToFile(@$"C:\Users\Asriel\AppData\Local\Temp\Meddle.Export\tex2\{bitmap.GetHashCode():X8}_ORIG3.png");
             }
         }
 
@@ -324,7 +324,7 @@ public static class TextureUtility
     {
         if (!xivTextureMap.TryGetValue(TextureUsage.SamplerNormal, out var normal)) return;
         var specular = new SKTexture(normal.Width, normal.Height);
-        var colorSetInfo = xivMaterial.ColorTable ?? throw new ArgumentException($"Expected color table for {xivMaterial.HandlePath}");
+        var colorSetInfo = new Half[256];
 
         for (int x = 0; x < normal.Width; x++)
         {
@@ -356,7 +356,7 @@ public static class TextureUtility
         if (!xivTextureMap.TryGetValue(TextureUsage.SamplerNormal, out var normal)) return;
 
         var specular = new SKTexture(normal.Width, normal.Height);
-        var colorSetInfo = xivMaterial.ColorTable ?? throw new ArgumentException($"Expected color table for {xivMaterial.HandlePath}");
+        var colorSetInfo = new Half[256];
 
         for (int x = 0; x < normal.Width; x++)
         {

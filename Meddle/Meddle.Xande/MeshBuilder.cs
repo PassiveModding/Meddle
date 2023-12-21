@@ -1,3 +1,5 @@
+using Dalamud.Logging;
+using Dalamud.Plugin;
 using SharpGLTF.Geometry;
 using SharpGLTF.Geometry.VertexTypes;
 using SharpGLTF.Materials;
@@ -15,7 +17,7 @@ public class MeshBuilder
     private List<(int, float)> SkinningParamCache { get; } = new();
     private object[] VertexBuilderParams { get; } = new object[3];
 
-    private IReadOnlyDictionary<int, int> JointMap { get; }
+    private int[]? JointLut { get; }
     private MaterialBuilder MaterialBuilder { get; }
     private RaceDeformer? RaceDeformer { get; }
 
@@ -32,13 +34,13 @@ public class MeshBuilder
     public MeshBuilder(
         NewMesh mesh,
         bool useSkinning,
-        IReadOnlyDictionary<int, int> jointMap,
+        int[]? jointLut,
         MaterialBuilder materialBuilder,
         RaceDeformer? raceDeformer
     )
     {
         Mesh = mesh;
-        JointMap = jointMap;
+        JointLut = jointLut;
         MaterialBuilder = materialBuilder;
         RaceDeformer = raceDeformer;
 
@@ -97,11 +99,17 @@ public class MeshBuilder
         var ret = (IMeshBuilder<MaterialBuilder>)Activator.CreateInstance(MeshBuilderT, string.Empty)!;
         var primitive = ret.UsePrimitive(MaterialBuilder);
 
+        if (submesh.IndexCount + submesh.IndexOffset > Mesh.Indices.Count)
+            throw new InvalidOperationException("Submesh index count is out of bounds.");
         for (var triIdx = 0; triIdx < submesh.IndexCount; triIdx += 3)
         {
-            var triA = Vertices[Mesh.Indices[triIdx + (int)submesh.IndexOffset + 0]];
-            var triB = Vertices[Mesh.Indices[triIdx + (int)submesh.IndexOffset + 1]];
-            var triC = Vertices[Mesh.Indices[triIdx + (int)submesh.IndexOffset + 2]];
+            var o = triIdx + (int)submesh.IndexOffset;
+            var indA = Mesh.Indices[o + 0];
+            var indB = Mesh.Indices[o + 1];
+            var indC = Mesh.Indices[o + 2];
+            var triA = Vertices[indA];
+            var triB = Vertices[indB];
+            var triC = Vertices[indC];
             primitive.AddTriangle(triA, triB, triC);
         }
 
@@ -170,14 +178,19 @@ public class MeshBuilder
         ClearCaches();
 
         var skinningIsEmpty = SkinningT == typeof(VertexEmpty);
-        if (!skinningIsEmpty)
+        if (!skinningIsEmpty && JointLut != null)
         {
             for (var k = 0; k < 4; k++)
             {
                 var boneIndex = vertex.BlendIndices[k];
-                if (JointMap == null || !JointMap.ContainsKey(boneIndex)) continue;
-                var mappedBoneIndex = JointMap[boneIndex];
                 var boneWeight = vertex.BlendWeights != null ? vertex.BlendWeights.Value[k] : 0;
+                if (boneIndex >= JointLut.Length)
+                {
+                    if (boneWeight == 0)
+                        continue;
+                    throw new InvalidOperationException($"Bone index {boneIndex} is out of bounds! ({vertex.BlendWeights!.Value[k]})");
+                }
+                var mappedBoneIndex = JointLut[boneIndex];
 
                 var binding = (mappedBoneIndex, boneWeight);
                 SkinningParamCache.Add(binding);
@@ -217,12 +230,17 @@ public class MeshBuilder
             GeometryParamCache.Add(vertex.Tangent1!.Value with { W = vertex.Tangent1.Value.W == 1 ? 1 : -1 });
         }
 
-        // AKA: Has "TextureN" component
-        if (MaterialT != typeof(VertexColor1)) MaterialParamCache.Add(ToVec2(vertex.UV!.Value));
-
         // AKA: Has "Color1" component
-        //if( _materialT != typeof( VertexTexture1 ) ) _materialParamCache.Insert( 0, vertex.Color!.Value );
-        if (MaterialT != typeof(VertexTexture1)) MaterialParamCache.Insert(0, new Vector4(255, 255, 255, 255));
+        //if( _materialT != typeof( VertexTexture2 ) ) _materialParamCache.Insert( 0, vertex.Color!.Value );
+        if (MaterialT != typeof(VertexTexture2)) MaterialParamCache.Insert(0, new Vector4(255, 255, 255, 255));
+
+        // AKA: Has "TextureN" component
+        if (MaterialT != typeof(VertexColor1))
+        {
+            var (xy, zw) = ToVec2(vertex.UV!.Value);
+            MaterialParamCache.Add(xy);
+            MaterialParamCache.Add(zw);
+        }
 
 
         VertexBuilderParams[0] = Activator.CreateInstance(GeometryT, GeometryParamCache.ToArray())!;
@@ -275,12 +293,12 @@ public class MeshBuilder
 
         return hasColor switch
         {
-            true when hasUv => typeof(VertexColor1Texture1),
-            false when hasUv => typeof(VertexTexture1),
+            true when hasUv => typeof(VertexColor1Texture2),
+            false when hasUv => typeof(VertexTexture2),
             _ => typeof(VertexColor1),
         };
     }
 
     private static Vector3 ToVec3(Vector4 v) => new(v.X, v.Y, v.Z);
-    private static Vector2 ToVec2(Vector4 v) => new(v.X, v.Y);
+    private static (Vector2 XY, Vector2 ZW) ToVec2(Vector4 v) => (new(v.X, v.Y), new(v.Z, v.W));
 }

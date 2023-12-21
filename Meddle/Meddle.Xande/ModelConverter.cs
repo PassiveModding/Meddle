@@ -1,3 +1,4 @@
+using Dalamud.Logging;
 using Dalamud.Plugin.Services;
 using Lumina.Data.Parsing;
 using Meddle.Xande.Utility;
@@ -61,18 +62,13 @@ public class ModelConverter
         return Log.LastMessage;
     }
 
-    private HavokConverter Converter { get; }
     private LuminaManager LuminaManager { get; }
-    private IFramework Framework { get; }
     private PbdFile Pbd { get; }
 
-    public ModelConverter(HavokConverter converter, LuminaManager luminaManager, IPluginLog log,
-        IFramework framework)
+    public ModelConverter(LuminaManager luminaManager, IPluginLog log)
     {
-        Converter = converter;
         LuminaManager = luminaManager;
         Log = new ModelConverterLogger(log);
-        Framework = framework;
         Pbd = LuminaManager.GetPbdFile();
     }
 
@@ -116,12 +112,12 @@ public class ModelConverter
             var glTfScene = new SceneBuilder(string.IsNullOrWhiteSpace(tree.Name) ? "scene" : tree.Name);
             var modelTasks = new List<Task>();
 
-            NodeBuilder? rootBone = null;
-            List<NodeBuilder>? boneMap = null;
+            BoneNodeBuilder? rootBone = null;
+            List<BoneNodeBuilder>? boneMap = null;
 
             if (tree.Skeleton.PartialSkeletons.Count > 0)
             {
-                boneMap = ModelUtility.GetBoneMap(tree.Skeleton, -1, out rootBone);
+                boneMap = ModelUtility.GetBoneMap(tree.Skeleton, out rootBone);
                 var raceDeformer = new RaceDeformer(Pbd, boneMap);
                 if (rootBone != null)
                     glTfScene.AddNode(rootBone);
@@ -131,7 +127,7 @@ public class ModelConverter
                     var t = HandleModel(model, raceDeformer, tree.RaceCode, exportPath, boneMap, glTfScene,
                         copyNormalAlphaToDiffuse, Matrix4x4.Identity,
                         cancellationToken);
-                    t.Wait(cancellationToken);
+                    //t.Wait(cancellationToken);
                     modelTasks.Add(t);
                 }
             }
@@ -157,7 +153,7 @@ public class ModelConverter
                             {
                                 var meshbuilder = new MeshBuilder(mesh,
                                     false,
-                                    new Dictionary<int, int>(),
+                                    null,
                                     material,
                                     new RaceDeformer(Pbd, new()));
 
@@ -172,7 +168,7 @@ public class ModelConverter
                             }
                         }
                     }, cancellationToken);
-                    t.Wait(cancellationToken);
+                    //t.Wait(cancellationToken);
                     modelTasks.Add(t);
                 }
             }
@@ -182,30 +178,31 @@ public class ModelConverter
                 var i = 0;
                 foreach (var child in tree.AttachedChildren)
                 {
-                    var childBoneMap = ModelUtility.GetBoneMap(child.Skeleton, i++, out var root);
+                    var childBoneMap = ModelUtility.GetBoneMap(child.Skeleton, out var childRoot);
+                    childRoot!.SetSuffixRecursively(i++);
                     var attachName = tree.Skeleton.PartialSkeletons[child.Attach.PartialSkeletonIdx].HkSkeleton!.BoneNames[child.Attach.BoneIdx];
 
                     if (rootBone == null || boneMap == null)
-                        glTfScene.AddNode(root);
+                        glTfScene.AddNode(childRoot);
                     else
-                        boneMap.First(b => b.Name.Equals(attachName, StringComparison.Ordinal)).AddNode(root);
+                        boneMap.First(b => b.BoneName.Equals(attachName, StringComparison.Ordinal)).AddNode(childRoot);
 
                     var transform = Matrix4x4.Identity;
-                    var c = root;
+                    NodeBuilder c = childRoot!;
                     while (c != null)
                     {
                         transform *= c.LocalMatrix;
                         c = c.Parent;
                     }
 
-                    foreach (var model in tree.Models)
+                    foreach (var model in child.Models)
                     {
                         Log.Debug($"Handling child model {model.HandlePath}");
 
-                        var t = HandleModel(model, null, tree.RaceCode, exportPath, childBoneMap, glTfScene,
+                        var t = HandleModel(model, null, child.RaceCode, exportPath, childBoneMap, glTfScene,
                             copyNormalAlphaToDiffuse, transform,
                             cancellationToken);
-                        t.Wait(cancellationToken);
+                        //t.Wait(cancellationToken);
                         modelTasks.Add(t);
                     }
                 }
@@ -243,9 +240,14 @@ public class ModelConverter
     }
 
     private async Task HandleModel(NewModel model, RaceDeformer? raceDeformer, ushort? deform, string exportPath,
-        List<NodeBuilder> joints,
+        List<BoneNodeBuilder> joints,
         SceneBuilder glTfScene, bool copyNormalAlphaToDiffuse, Matrix4x4 worldLocation, CancellationToken cancellationToken)
     {
+        // chara/human/c1101/obj/body/b0003/model/c1101b0003_top.mdl
+        var stupidLowPolyModelRegex = new Regex(@"chara/human/c\d+/obj/body/b0003/model/c\d+b0003_top.mdl");
+        if (stupidLowPolyModelRegex.IsMatch(model.HandlePath))
+            return;
+
         Log.Info($"Handling model {model.HandlePath}");
 
         var materials = await GetMaterialsFromModelNode(model, exportPath, copyNormalAlphaToDiffuse, cancellationToken);
@@ -300,7 +302,7 @@ public class ModelConverter
                     Log.Error(e, $"Failed to compose textures for material {material.HandlePath}");
                 }
             }, cancellationToken);
-            t.Wait(cancellationToken);
+            //t.Wait(cancellationToken);
             textureTasks.Add(t);
         }
 
@@ -323,7 +325,7 @@ public class ModelConverter
         }
     }
 
-    private void BuildSubmeshes(MeshBuilder meshBuilder, string name, NewMesh xivMesh, NewModel xivModel, SceneBuilder glTfScene, Matrix4x4 worldLocation, List<NodeBuilder>? joints, bool useSkinning)
+    private void BuildSubmeshes(MeshBuilder meshBuilder, string name, NewMesh xivMesh, NewModel xivModel, SceneBuilder glTfScene, Matrix4x4 worldLocation, List<BoneNodeBuilder>? joints, bool useSkinning)
     {
         for (var i = 0; i < xivMesh.Submeshes.Count; i++)
         {
@@ -337,18 +339,15 @@ public class ModelConverter
                 meshBuilder.BuildShapes(xivModel.Shapes, subMesh, (int)xivSubmesh.IndexOffset,
                     (int)(xivSubmesh.IndexOffset + xivSubmesh.IndexCount));
                 InstanceBuilder? instance;
-                if (joints != null)
+                if (joints != null && useSkinning)
                 {
                     if (!NodeBuilder.IsValidArmature(joints))
                     {
                         Log.Warning(
-                            $"Joints are not valid, skipping submesh {i} for {name}, {string.Join(", ", joints.Select(x => x.Name))}");
+                            $"Joints are not valid, skipping submesh {i} for {name}, {string.Join(", ", joints.Select(x => x.BoneName))}");
                         continue;
                     }
-                    instance =
-                        useSkinning ?
-                            glTfScene.AddSkinnedMesh(subMesh, worldLocation, joints.ToArray()) :
-                            glTfScene.AddRigidMesh(subMesh, worldLocation);
+                    instance = glTfScene.AddSkinnedMesh(subMesh, worldLocation, joints.ToArray());
                 }
                 else
                     instance = glTfScene.AddRigidMesh(subMesh, worldLocation);
@@ -360,29 +359,24 @@ public class ModelConverter
             }
         }
     }
-        
-    private void ApplyMeshModifiers(InstanceBuilder builder, NewSubMesh subMesh, NewModel model)
+
+    private static void ApplyMeshModifiers(InstanceBuilder builder, NewSubMesh subMesh, NewModel model)
     {
-        if (model.Shapes.Count != 0)
-            builder.Content.UseMorphing().SetValue(model.Shapes.Select(s => model.EnabledShapes.Any(n => s.Name.Equals(n, StringComparison.Ordinal)) ? 1f : 0).ToArray());
+        ApplyMeshShapes(builder, model);
 
         if (subMesh.Attributes != null)
         {
-            if (!subMesh.Attributes.All(model.EnabledAttributes.Contains))
+            if (subMesh.Attributes.Contains("atr_eye_a"))
+                builder.Remove();
+            else if (!subMesh.Attributes.All(model.EnabledAttributes.Contains))
                 builder.Remove();
         }
     }
 
-    private void ApplyMeshModifiers(InstanceBuilder builder, NewMesh mesh, NewModel model)
+    private static void ApplyMeshShapes(InstanceBuilder builder, NewModel model)
     {
         if (model.Shapes.Count != 0)
             builder.Content.UseMorphing().SetValue(model.Shapes.Select(s => model.EnabledShapes.Any(n => s.Name.Equals(n, StringComparison.Ordinal)) ? 1f : 0).ToArray());
-
-        if (mesh.Attributes != null)
-        {
-            if (!mesh.Attributes.All(model.EnabledAttributes.Contains))
-                builder.Remove();
-        }
     }
 
     /// <summary>
@@ -407,25 +401,25 @@ public class ModelConverter
         ushort? raceCode,
         ushort? deform,
         string name,
-        List<NodeBuilder> joints,
+        List<BoneNodeBuilder> joints,
         Matrix4x4 worldLocation)
     {
         var useSkinning = xivMesh.BoneTable != null;
 
         // Mapping between ID referenced in the mesh and in Havok
-        Dictionary<int, int> jointIdMapping = new();
+        var jointIdMapping = new List<int>();
         if (xivMesh.BoneTable != null)
         {
-            var jointLut = joints.Select((joint, i) => (joint.Name, i));
-            for (var i = 0; i < xivMesh.BoneTable.Count; ++i)
-                jointIdMapping[i] = jointLut.First(x => x.Name.Equals(xivMesh.BoneTable[i], StringComparison.Ordinal)).i;
+            var jointLut = joints.Select((joint, i) => (joint.BoneName, i));
+            foreach (var boneName in xivMesh.BoneTable)
+                jointIdMapping.Add(jointLut.First(x => x.BoneName.Equals(boneName, StringComparison.Ordinal)).i);
         }
 
         // Handle submeshes and the main mesh
         var meshBuilder = new MeshBuilder(
             xivMesh,
             useSkinning,
-            jointIdMapping,
+            jointIdMapping.ToArray(),
             glTfMaterial,
             raceDeformer
         );
@@ -453,7 +447,7 @@ public class ModelConverter
                 useSkinning ?
                     glTfScene.AddSkinnedMesh(mesh, worldLocation, joints.ToArray()) :
                     glTfScene.AddRigidMesh(mesh, worldLocation);
-            ApplyMeshModifiers(instance, xivMesh, xivModel);
+            ApplyMeshShapes(instance, xivModel);
         }
     }
 

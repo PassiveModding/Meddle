@@ -1,4 +1,5 @@
 using Dalamud.Logging;
+using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
 using FFXIVClientStructs.Havok;
 using Lumina.Data.Parsing.Tex;
 using SkiaSharp;
@@ -7,13 +8,62 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text.Json.Serialization;
 using Vortice.DXGI;
+using LuminaFormat = Lumina.Data.Files.TexFile.TextureFormat;
 
 namespace Meddle.Xande;
 
 public static class TextureHelper
 {
     public readonly record struct TextureResource(Format Format, int Width, int Height, int Stride, byte[] Data);
+
+    public static TextureResource FromTexFile(Lumina.Data.Files.TexFile file)
+    {
+        var format = file.Header.Format switch
+        {
+            LuminaFormat.L8 => Format.R8_UNorm,
+            LuminaFormat.A8 => Format.A8_UNorm,
+            LuminaFormat.B4G4R4A4 => Format.B4G4R4A4_UNorm,
+            LuminaFormat.B5G5R5A1 => Format.B5G5R5A1_UNorm,
+            LuminaFormat.B8G8R8A8 => Format.B8G8R8A8_UNorm,
+            LuminaFormat.B8G8R8X8 => Format.B8G8R8X8_UNorm,
+            LuminaFormat.R16G16B16A16F => Format.R16G16B16A16_Float,
+            LuminaFormat.R32G32B32A32F => Format.R32G32B32A32_Float,
+            LuminaFormat.BC1 => Format.BC1_UNorm,
+            LuminaFormat.BC2 => Format.BC2_UNorm,
+            LuminaFormat.BC3 => Format.BC3_UNorm,
+            LuminaFormat.BC5 => Format.BC5_UNorm,
+            LuminaFormat.BC7 => Format.BC7_UNorm,
+            _ => throw new NotSupportedException($"Unsupported format {file.Header.Format}")
+        };
+
+        var bpp = file.Header.Format switch
+        {
+            LuminaFormat.L8 => 1,
+            LuminaFormat.A8 => 1,
+            LuminaFormat.B4G4R4A4 => 2,
+            LuminaFormat.B5G5R5A1 => 2,
+            LuminaFormat.B8G8R8A8 => 4,
+            LuminaFormat.B8G8R8X8 => 4,
+            LuminaFormat.R16G16B16A16F => 8,
+            LuminaFormat.R32G32B32A32F => 16,
+            LuminaFormat.BC1 => 8,
+            LuminaFormat.BC2 => 16,
+            LuminaFormat.BC3 => 16,
+            LuminaFormat.BC5 => 16,
+            LuminaFormat.BC7 => 16,
+            _ => throw new NotSupportedException($"Unsupported format {file.Header.Format}")
+        };
+
+        int stride;
+        if (file.Header.Format is LuminaFormat.BC1 or LuminaFormat.BC2 or LuminaFormat.BC3 or LuminaFormat.BC5 or LuminaFormat.BC7)
+            stride = bpp * Math.Max(1, (file.Header.Width + 3) / 4);
+        else
+            stride = bpp * file.Header.Width;
+
+        return new TextureResource(format, file.Header.Width, file.Header.Height, stride, file.Data);
+    }
 
     public static byte[] AdjustStride(int oldStride, int newStride, int height, byte[] data)
     {
@@ -102,7 +152,7 @@ public static class TextureHelper
                 bitmap.InstallPixels(format.WithSize(resource.Width, resource.Height), (nint)data,  resource.Width * 4);
         }
         s.Stop();
-        PluginLog.Log($"ToBitmap ({(direct ? "DIRECT" : "indirect")}) took {s.Elapsed.TotalMilliseconds}ms");
+        PluginLog.Log($"ToBitmap ({(direct ? "SkiaSharp" : "Software")}) took {s.Elapsed.TotalMilliseconds}ms");
         return bitmap;
     }
 
