@@ -72,6 +72,12 @@ public unsafe class CharacterTab : ITab
                 objects = Array.Empty<Character>();
         }
 
+        if (ClientState.IsGPosing)
+        {
+            // Within gpose, only show characters that are gpose actors
+            objects = objects.Where(x => x.ObjectIndex is >= 201 and < 239);
+        }
+
         if (SelectedCharacter != null && !SelectedCharacter.IsValid())
             SelectedCharacter = null;
 
