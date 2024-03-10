@@ -14,6 +14,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using Meddle.Plugin.Xande;
+using Meddle.Plugin.Xande.Models;
 using Xande;
 using Xande.Enums;
 using Xande.Files;
@@ -21,6 +22,8 @@ using Xande.Havok;
 using Character = Dalamud.Game.ClientState.Objects.Types.Character;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
 using CSTransform = FFXIVClientStructs.FFXIV.Client.Graphics.Transform;
+using Model = Meddle.Plugin.Xande.Models.Model;
+using Skeleton = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Skeleton;
 
 namespace Meddle.Plugin.UI;
 
@@ -204,12 +207,12 @@ public unsafe class CharacterTab : ITab
             DrawWeaponData(weaponData[2]);
 
         if (ImGui.Button("Copy"))
-            ImGui.SetClipboardText(JsonSerializer.Serialize(new NewTree(charPtr), new JsonSerializerOptions() { WriteIndented = true, IncludeFields = true }));
+            ImGui.SetClipboardText(JsonSerializer.Serialize(new CharacterTree(charPtr), new JsonSerializerOptions() { WriteIndented = true, IncludeFields = true }));
 
         if (ImGui.Button("Copy Model"))
         {
             var model = LuminaManager.GetModel("chara/equipment/e5037/model/c0101e5037_met.mdl");
-            var newModel = new NewModel(model, LuminaManager.GameData);
+            var newModel = new Model(model, LuminaManager.GameData);
             ImGui.SetClipboardText(JsonSerializer.Serialize(newModel, new JsonSerializerOptions() { WriteIndented = true, IncludeFields = true }));
         }
 
@@ -217,7 +220,7 @@ public unsafe class CharacterTab : ITab
             DrawNewTree(new(charPtr));
     }
     
-    private void DrawNewTree(NewTree tree)
+    private void DrawNewTree(CharacterTree tree)
     {
         var l = JsonSerializer.Serialize(tree, new JsonSerializerOptions() { WriteIndented = true, IncludeFields = true });
         ImGui.TextUnformatted(l);

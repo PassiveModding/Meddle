@@ -1,4 +1,5 @@
 using System.Numerics;
+using Meddle.Plugin.Xande.Models;
 using SharpGLTF.Geometry;
 using SharpGLTF.Geometry.VertexTypes;
 using SharpGLTF.Materials;
@@ -10,7 +11,7 @@ namespace Meddle.Plugin.Xande;
 
 public class MeshBuilder
 {
-    private NewMesh Mesh { get; }
+    private Mesh Mesh { get; }
     private List<object> GeometryParamCache { get; } = new();
     private List<object> MaterialParamCache { get; } = new();
     private List<(int, float)> SkinningParamCache { get; } = new();
@@ -31,7 +32,7 @@ public class MeshBuilder
     private List<IVertexBuilder> Vertices { get; }
 
     public MeshBuilder(
-        NewMesh mesh,
+        Mesh mesh,
         bool useSkinning,
         int[]? jointLut,
         MaterialBuilder materialBuilder,
@@ -93,7 +94,7 @@ public class MeshBuilder
     }
 
     /// <summary>Creates a mesh from the given submesh.</summary>
-    public IMeshBuilder<MaterialBuilder> BuildSubmesh(NewSubMesh submesh)
+    public IMeshBuilder<MaterialBuilder> BuildSubmesh(SubMesh submesh)
     {
         var ret = (IMeshBuilder<MaterialBuilder>)Activator.CreateInstance(MeshBuilderT, string.Empty)!;
         var primitive = ret.UsePrimitive(MaterialBuilder);
@@ -133,7 +134,7 @@ public class MeshBuilder
     }
 
     /// <summary>Builds shape keys (known as morph targets in glTF).</summary>
-    public void BuildShapes(IReadOnlyList<NewModelShape> shapes, IMeshBuilder<MaterialBuilder> builder, int subMeshStart, int subMeshEnd)
+    public void BuildShapes(IReadOnlyList<ModelShape> shapes, IMeshBuilder<MaterialBuilder> builder, int subMeshStart, int subMeshEnd)
     {
         var primitive = builder.Primitives.First();
         var triangles = primitive.Triangles;
@@ -172,7 +173,7 @@ public class MeshBuilder
         builder.Extras = data.Serialize();
     }
 
-    private IVertexBuilder BuildVertex(NewVertex vertex)
+    private IVertexBuilder BuildVertex(Vertex vertex)
     {
         ClearCaches();
 
@@ -259,7 +260,7 @@ public class MeshBuilder
     }
 
     /// <summary>Obtain the correct geometry type for a given set of vertices.</summary>
-    private static Type GetVertexGeometryType(List<NewVertex> vertex)
+    private static Type GetVertexGeometryType(List<Vertex> vertex)
     {
         if (vertex.Count == 0)
         {
@@ -280,7 +281,7 @@ public class MeshBuilder
     }
 
     /// <summary>Obtain the correct material type for a set of vertices.</summary>
-    private static Type GetVertexMaterialType(List<NewVertex> vertex)
+    private static Type GetVertexMaterialType(List<Vertex> vertex)
     {
         if (vertex.Count == 0)
         {

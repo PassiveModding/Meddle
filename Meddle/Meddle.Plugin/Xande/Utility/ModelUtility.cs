@@ -1,11 +1,12 @@
-﻿using SharpGLTF.Scenes;
+﻿using Meddle.Plugin.Xande.Models;
+using SharpGLTF.Scenes;
 using Xande.Models.Export;
 
 namespace Meddle.Plugin.Xande.Utility;
 
 public static class ModelUtility
 {
-    public static List<BoneNodeBuilder> GetBoneMap(NewSkeleton skeleton, out BoneNodeBuilder? root)
+    public static List<BoneNodeBuilder> GetBoneMap(Skeleton skeleton, out BoneNodeBuilder? root)
     {
         List<BoneNodeBuilder> boneMap = new();
         root = null;

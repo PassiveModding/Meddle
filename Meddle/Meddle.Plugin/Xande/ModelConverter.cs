@@ -3,6 +3,7 @@ using System.Numerics;
 using System.Text.RegularExpressions;
 using Dalamud.Plugin.Services;
 using Lumina.Data.Parsing;
+using Meddle.Plugin.Xande.Models;
 using Meddle.Plugin.Xande.Utility;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
@@ -68,7 +69,7 @@ public class ModelConverter
         Pbd = LuminaManager.GetPbdFile();
     }
 
-    public Task ExportResourceTree(NewTree character, bool openFolderWhenComplete,
+    public Task ExportResourceTree(CharacterTree character, bool openFolderWhenComplete,
         ExportType exportType,
         string exportPath,
         bool copyNormalAlphaToDiffuse,
@@ -98,7 +99,7 @@ public class ModelConverter
 
     public async Task ExportResourceTreeEx(
         string exportPath,
-        NewTree tree,
+        CharacterTree tree,
         ExportType exportType,
         bool copyNormalAlphaToDiffuse,
         CancellationToken cancellationToken = default)
@@ -235,7 +236,7 @@ public class ModelConverter
         }
     }
 
-    private async Task HandleModel(NewModel model, RaceDeformer? raceDeformer, ushort? deform, string exportPath,
+    private async Task HandleModel(Model model, RaceDeformer? raceDeformer, ushort? deform, string exportPath,
         List<BoneNodeBuilder> joints,
         SceneBuilder glTfScene, bool copyNormalAlphaToDiffuse, Matrix4x4 worldLocation, CancellationToken cancellationToken)
     {
@@ -273,7 +274,7 @@ public class ModelConverter
         }
     }
 
-    private async Task<List<MaterialBuilder?>> GetMaterialsFromModelNode(NewModel node, string exportPath, bool copyNormalAlphaToDiffuse, CancellationToken cancellationToken)
+    private async Task<List<MaterialBuilder?>> GetMaterialsFromModelNode(Model node, string exportPath, bool copyNormalAlphaToDiffuse, CancellationToken cancellationToken)
     {
         var materials = new MaterialBuilder?[node.Materials.Count];
         var textureTasks = new List<Task>();
@@ -321,7 +322,7 @@ public class ModelConverter
         }
     }
 
-    private void BuildSubmeshes(MeshBuilder meshBuilder, string name, NewMesh xivMesh, NewModel xivModel, SceneBuilder glTfScene, Matrix4x4 worldLocation, List<BoneNodeBuilder>? joints, bool useSkinning)
+    private void BuildSubmeshes(MeshBuilder meshBuilder, string name, Mesh xivMesh, Model xivModel, SceneBuilder glTfScene, Matrix4x4 worldLocation, List<BoneNodeBuilder>? joints, bool useSkinning)
     {
         for (var i = 0; i < xivMesh.Submeshes.Count; i++)
         {
@@ -356,7 +357,7 @@ public class ModelConverter
         }
     }
 
-    private static void ApplyMeshModifiers(InstanceBuilder builder, NewSubMesh subMesh, NewModel model)
+    private static void ApplyMeshModifiers(InstanceBuilder builder, SubMesh subMesh, Model model)
     {
         ApplyMeshShapes(builder, model);
 
@@ -369,7 +370,7 @@ public class ModelConverter
         }
     }
 
-    private static void ApplyMeshShapes(InstanceBuilder builder, NewModel model)
+    private static void ApplyMeshShapes(InstanceBuilder builder, Model model)
     {
         if (model.Shapes.Count != 0)
             builder.Content.UseMorphing().SetValue(model.Shapes.Select(s => model.EnabledShapes.Any(n => s.Name.Equals(n, StringComparison.Ordinal)) ? 1f : 0).ToArray());
@@ -392,8 +393,8 @@ public class ModelConverter
     private void HandleMeshCreation(MaterialBuilder glTfMaterial,
         RaceDeformer? raceDeformer,
         SceneBuilder glTfScene,
-        NewMesh xivMesh,
-        NewModel xivModel,
+        Mesh xivMesh,
+        Model xivModel,
         ushort? raceCode,
         ushort? deform,
         string name,
@@ -447,7 +448,7 @@ public class ModelConverter
         }
     }
 
-    private MaterialBuilder? ComposeTextures(NewMaterial xivMaterial, string outputDir,
+    private MaterialBuilder? ComposeTextures(Material xivMaterial, string outputDir,
         bool copyNormalAlphaToDiffuse,
         CancellationToken cancellationToken)
     {

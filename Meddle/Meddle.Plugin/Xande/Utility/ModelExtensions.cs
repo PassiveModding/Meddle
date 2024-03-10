@@ -4,7 +4,7 @@ namespace Meddle.Plugin.Xande.Utility;
 
 public static class ModelExtensions
 {
-    public static string[]? BoneTable(this Mesh mesh)
+    public static string[]? BoneTable(this Lumina.Models.Models.Mesh mesh)
     {
         var rawMesh = mesh.Parent.File!.Meshes[mesh.MeshIndex];
         if (rawMesh.BoneTableIndex == 255) { return null; }

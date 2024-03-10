@@ -2,6 +2,7 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using Dalamud.Plugin.Services;
 using Lumina.Data.Parsing;
+using Meddle.Plugin.Xande.Models;
 using SharpGLTF.Materials;
 using SkiaSharp;
 using Xande;
@@ -136,7 +137,7 @@ public static class TextureUtility
         }
     }
 
-    public static IEnumerable<(TextureUsage, SKTexture)> ComputeCharacterModelTextures(NewMaterial xivMaterial,
+    public static IEnumerable<(TextureUsage, SKTexture)> ComputeCharacterModelTextures(Material xivMaterial,
         SKTexture normal, SKTexture? initDiffuse, bool copyNormalAlphaToDiffuse = true)
     {
         var diffuse = new SKTexture(normal.Width, normal.Height);
@@ -319,7 +320,7 @@ public static class TextureUtility
         }
     }
 
-    public static void ParseIrisTextures(Dictionary<TextureUsage, SKTexture> xivTextureMap, NewMaterial xivMaterial,
+    public static void ParseIrisTextures(Dictionary<TextureUsage, SKTexture> xivTextureMap, Material xivMaterial,
         IPluginLog log)
     {
         if (!xivTextureMap.TryGetValue(TextureUsage.SamplerNormal, out var normal)) return;
@@ -350,7 +351,7 @@ public static class TextureUtility
         xivTextureMap.Add(TextureUsage.SamplerSpecular, specular);
     }
 
-    public static void ParseHairTextures(Dictionary<TextureUsage, SKTexture> xivTextureMap, NewMaterial xivMaterial,
+    public static void ParseHairTextures(Dictionary<TextureUsage, SKTexture> xivTextureMap, Material xivMaterial,
         IPluginLog log)
     {
         if (!xivTextureMap.TryGetValue(TextureUsage.SamplerNormal, out var normal)) return;
@@ -423,7 +424,7 @@ public static class TextureUtility
         xivTextureMap.Add(TextureUsage.SamplerDiffuse, diffuse);
     }
 
-    public static void ParseSkinTextures(Dictionary<TextureUsage, SKTexture> xivTextureMap, NewMaterial xivMaterial,
+    public static void ParseSkinTextures(Dictionary<TextureUsage, SKTexture> xivTextureMap, Material xivMaterial,
         IPluginLog log)
     {
         if (!xivTextureMap.TryGetValue(TextureUsage.SamplerNormal, out var normal)) return;
@@ -446,7 +447,7 @@ public static class TextureUtility
         normal.Flush();
     }
 
-    public static void ParseCharacterTextures(Dictionary<TextureUsage, SKTexture> xivTextureMap, NewMaterial xivMaterial,
+    public static void ParseCharacterTextures(Dictionary<TextureUsage, SKTexture> xivTextureMap, Material xivMaterial,
         IPluginLog log, bool copyNormalAlphaToDiffuse = true)
     {
         if (xivTextureMap.TryGetValue(TextureUsage.SamplerNormal, out var normal))

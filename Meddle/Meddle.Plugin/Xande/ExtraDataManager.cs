@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Meddle.Plugin.Xande.Models;
 using SharpGLTF.IO;
 
 namespace Meddle.Plugin.Xande;
@@ -8,7 +9,7 @@ public class ExtraDataManager
 {
     private Dictionary<string, object> ExtraData { get; } = new();
 
-    public void AddShapeNames(IEnumerable<NewModelShape> shapes)
+    public void AddShapeNames(IEnumerable<ModelShape> shapes)
     {
         ExtraData.Add("targetNames", shapes.Select(s => s.Name).ToArray());
     }
