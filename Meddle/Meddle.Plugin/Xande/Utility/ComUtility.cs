@@ -1,11 +1,11 @@
-using SharpGen.Runtime;
 using System.Collections.ObjectModel;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using SharpGen.Runtime;
 using Vortice.Direct3D11;
 using Vortice.DXGI;
 
-namespace Meddle.Xande.Utility;
+namespace Meddle.Plugin.Xande.Utility;
 
 internal static class ComUtility
 {

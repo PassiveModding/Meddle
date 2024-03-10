@@ -1,10 +1,10 @@
-using FFXIVClientStructs.Havok;
-using SharpGLTF.Transforms;
 using System.Numerics;
 using System.Text.Json.Serialization;
+using FFXIVClientStructs.Havok;
+using SharpGLTF.Transforms;
 using CSTransform = FFXIVClientStructs.FFXIV.Client.Graphics.Transform;
 
-namespace Meddle.Xande;
+namespace Meddle.Plugin.Xande;
 
 public readonly record struct Transform
 {

@@ -29,6 +29,7 @@
     <ItemGroup>
         <PackageReference Include="DalamudPackager" Version="2.1.12" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="7.0.0" />
+        <PackageReference Include="Vortice.Direct3D11" Version="3.4.4-beta" />
         <Reference Include="Dalamud">
             <HintPath>$(DalamudLibPath)Dalamud.dll</HintPath>
             <Private>false</Private>
@@ -48,6 +49,5 @@
       <ProjectReference Include="..\..\Lumina\src\Lumina\Lumina.csproj" />
       <ProjectReference Include="..\..\Xande\Xande.GltfImporter\Xande.GltfImporter.csproj" />
       <ProjectReference Include="..\..\Xande\Xande\Xande.csproj" />
-      <ProjectReference Include="..\Meddle.Xande\Meddle.Xande.csproj" />
     </ItemGroup>
 </Project>

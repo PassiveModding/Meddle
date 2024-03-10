@@ -17,6 +17,16 @@
           "Microsoft.Extensions.DependencyInjection.Abstractions": "7.0.0"
         }
       },
+      "Vortice.Direct3D11": {
+        "type": "Direct",
+        "requested": "[3.4.4-beta, )",
+        "resolved": "3.4.4-beta",
+        "contentHash": "GW4RFxXcEwb2QwHGkDuHuAELPX8zG//C1AsCEL7kPrQaqS2ytGGgPfoSYc3GARGDEudJvlMryStvL6diRPb5Sw==",
+        "dependencies": {
+          "SharpGen.Runtime": "2.1.2-beta",
+          "Vortice.DXGI": "3.4.4-beta"
+        }
+      },
       "Microsoft.Extensions.DependencyInjection.Abstractions": {
         "type": "Transitive",
         "resolved": "7.0.0",
@@ -80,42 +90,29 @@
         "resolved": "2.88.6",
         "contentHash": "7TzFO0u/g2MpQsTty4fyCDdMcfcWI+aLswwfnYXr3gtNS6VLKdMXPMeKpJa3pJSLnUBN6wD0JjuCe8OoLBQ6cQ=="
       },
-      "Vortice.Direct3D11": {
-        "type": "Transitive",
-        "resolved": "3.4.1-beta",
-        "contentHash": "L9t5BmKoRaTUym+j/aaLvUpH1qk194632t+8HPHHSqkWD7I8MtXfMZ7MQkAduxM2/5ePSMQeUAWsqawKMW/3DA==",
-        "dependencies": {
-          "SharpGen.Runtime": "2.1.2-beta",
-          "SharpGen.Runtime.COM": "2.1.2-beta",
-          "Vortice.DXGI": "3.4.1-beta",
-          "Vortice.Mathematics": "1.7.2"
-        }
-      },
       "Vortice.DirectX": {
         "type": "Transitive",
-        "resolved": "3.4.1-beta",
-        "contentHash": "Nj+/GfMG7GwVwSZhVe/Nh8ohWt9dc58gXy32FyWWvtuXzjl2Vt+mYedC8lFPB2nxpsFEFI86mZAP36VRMBiEBA==",
+        "resolved": "3.4.4-beta",
+        "contentHash": "arSM6/6bWk6r8eHNT1jeuDtHDmlktf9OMOUIy5H8DP9B73GJWFK2v9U/+NYaRGH9cbTAAbExypcB1UoiUBhJjA==",
         "dependencies": {
           "SharpGen.Runtime": "2.1.2-beta",
           "SharpGen.Runtime.COM": "2.1.2-beta",
-          "Vortice.Mathematics": "1.7.2"
+          "Vortice.Mathematics": "1.7.7"
         }
       },
       "Vortice.DXGI": {
         "type": "Transitive",
-        "resolved": "3.4.1-beta",
-        "contentHash": "umhExc5HMufrOJXf5G5eoRZ23RdLxwrcLQmZbemNi8gfexos1VMM3zrIeWUpzeJdh+O50nSBLyhJcsJSTiB9NA==",
+        "resolved": "3.4.4-beta",
+        "contentHash": "mrVWuj4iCWnO3U3vrXREpJbOyRtLuvoAtYdvm98535DskFAwcYHah9puN59UCRuelewfL4E4Gvji8D0IQE7WyQ==",
         "dependencies": {
           "SharpGen.Runtime": "2.1.2-beta",
-          "SharpGen.Runtime.COM": "2.1.2-beta",
-          "Vortice.DirectX": "3.4.1-beta",
-          "Vortice.Mathematics": "1.7.2"
+          "Vortice.DirectX": "3.4.4-beta"
         }
       },
       "Vortice.Mathematics": {
         "type": "Transitive",
-        "resolved": "1.7.2",
-        "contentHash": "WUUzB3MowHdOqNfSMAms5Ovra+SKgLC4ttH1w75ra3srDGctebSg+aywm7hLdvDn592ydgdbOJN11JKsyAcX+A=="
+        "resolved": "1.7.7",
+        "contentHash": "zRqtgTTR7HYRLs40/Ip0jyjXiOnn5WnucmLPBUsMItJPuB5t3TdwKkPcCbyDWicncR6W5ShEno6gH/PxalAXAg=="
       },
       "ffxivclientstructs": {
         "type": "Project",
@@ -124,19 +121,6 @@
         }
       },
       "Lumina2": {
-        "type": "Project"
-      },
-      "meddle.xande": {
-        "type": "Project",
-        "dependencies": {
-          "FFXIVClientStructs": "[1.0.0, )",
-          "Lumina2": "[2.4.2, )",
-          "Penumbra.Api": "[1.0.12, )",
-          "Vortice.Direct3D11": "[3.4.1-beta, )",
-          "Xande": "[1.0.0, )"
-        }
-      },
-      "penumbra.api": {
         "type": "Project"
       },
       "xande": {

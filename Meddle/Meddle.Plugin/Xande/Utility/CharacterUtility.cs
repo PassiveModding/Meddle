@@ -2,7 +2,7 @@
 using Character = Dalamud.Game.ClientState.Objects.Types.Character;
 using GameObject = FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject;
 
-namespace Meddle.Xande.Utility;
+namespace Meddle.Plugin.Xande.Utility;
 
 public static class CharacterUtility
 {

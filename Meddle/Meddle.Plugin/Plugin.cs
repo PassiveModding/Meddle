@@ -2,26 +2,20 @@ using Dalamud.Game;
 using Dalamud.Game.Command;
 using Dalamud.Hooking;
 using Dalamud.Interface.Windowing;
-using Dalamud.Logging;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Dalamud.Utility.Signatures;
-using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
-using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
-using Lumina.Data;
-using Lumina.Data.Files;
 using Meddle.Plugin.UI;
 //using Meddle.Plugin.UI.Shared;
 using Meddle.Plugin.Utility;
-using Meddle.Xande;
 using Microsoft.Extensions.DependencyInjection;
-using System.Text.Json;
+using Meddle.Plugin.Xande;
 using Xande;
 using Xande.Havok;
 
 namespace Meddle.Plugin;
 
-public unsafe sealed class Plugin : IDalamudPlugin
+public sealed class Plugin : IDalamudPlugin
 {
     private static readonly WindowSystem WindowSystem = new("Meddle");
     public static readonly string TempDirectory = Path.Combine(Path.GetTempPath(), "Meddle.Export");

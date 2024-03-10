@@ -1,8 +1,7 @@
-using Dalamud.Logging;
-using SharpGLTF.Scenes;
+﻿using SharpGLTF.Scenes;
 using Xande.Models.Export;
 
-namespace Meddle.Xande.Utility;
+namespace Meddle.Plugin.Xande.Utility;
 
 public static class ModelUtility
 {

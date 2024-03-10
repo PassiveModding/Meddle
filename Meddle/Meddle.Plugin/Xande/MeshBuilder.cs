@@ -1,13 +1,12 @@
-using Dalamud.Logging;
-using Dalamud.Plugin;
+using System.Numerics;
 using SharpGLTF.Geometry;
 using SharpGLTF.Geometry.VertexTypes;
 using SharpGLTF.Materials;
-using System.Numerics;
 using Xande.Files;
 using Xande.Models.Export;
+using ExtraDataManager = Meddle.Plugin.Xande.ExtraDataManager;
 
-namespace Meddle.Xande;
+namespace Meddle.Plugin.Xande;
 
 public class MeshBuilder
 {

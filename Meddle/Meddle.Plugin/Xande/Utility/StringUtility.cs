@@ -1,6 +1,4 @@
-using Penumbra.Api;
-
-namespace Meddle.Xande.Utility;
+﻿namespace Meddle.Plugin.Xande.Utility;
 
 public static class StringUtility
 {

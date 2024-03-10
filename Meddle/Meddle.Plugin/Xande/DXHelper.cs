@@ -1,11 +1,11 @@
+using System.Runtime.InteropServices;
 using Dalamud.Logging;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
 using SharpGen.Runtime;
-using System.Runtime.InteropServices;
 using Vortice.Direct3D11;
 using Format = Vortice.DXGI.Format;
 
-namespace Meddle.Xande;
+namespace Meddle.Plugin.Xande;
 
 public static unsafe class DXHelper
 {

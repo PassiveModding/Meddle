@@ -8,13 +8,12 @@ using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.Havok;
 using ImGuiNET;
 using Lumina.Data;
-using Meddle.Xande;
-using Penumbra.Api;
 using SharpGLTF.Transforms;
 using System.Numerics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using Meddle.Plugin.Xande;
 using Xande;
 using Xande.Enums;
 using Xande.Files;
@@ -340,12 +339,6 @@ public unsafe class CharacterTab : ITab
         }
 
         return ret;
-    }
-    
-    [Obsolete]
-    private Ipc.ResourceTree? GetCharacterResourceTree(Character obj)
-    {
-        return Ipc.GetGameObjectResourceTrees.Subscriber(PluginInterface).Invoke(true, obj.ObjectIndex)[0];
     }
 
     private Vector3 GetCharacterDistance(Character obj) {

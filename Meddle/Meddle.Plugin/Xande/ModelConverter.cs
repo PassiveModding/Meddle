@@ -1,23 +1,19 @@
-using Dalamud.Logging;
-using Dalamud.Plugin.Services;
-using Lumina.Data.Parsing;
-using Meddle.Xande.Utility;
-using SharpGLTF.Materials;
-using SharpGLTF.Scenes;
-using SkiaSharp;
-using System.Diagnostics;
-using System.Drawing;
+﻿using System.Diagnostics;
 using System.Numerics;
 using System.Text.RegularExpressions;
+using Dalamud.Plugin.Services;
+using Lumina.Data.Parsing;
+using Meddle.Plugin.Xande.Utility;
+using SharpGLTF.Materials;
+using SharpGLTF.Scenes;
 using Xande;
 using Xande.Enums;
 using Xande.Files;
-using Xande.Havok;
 using Xande.Models.Export;
-using static Meddle.Xande.Utility.TextureUtility;
+using static Meddle.Plugin.Xande.Utility.TextureUtility;
 using static SharpGLTF.Schema2.Toolkit;
 
-namespace Meddle.Xande;
+namespace Meddle.Plugin.Xande;
 
 public class ModelConverter
 {

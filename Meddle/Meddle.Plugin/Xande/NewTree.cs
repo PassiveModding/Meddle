@@ -1,17 +1,19 @@
+using System.Numerics;
+using System.Runtime.InteropServices;
+using System.Text.Json.Serialization;
 using Dalamud.Logging;
 using Dalamud.Memory;
+using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Render;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using FFXIVClientStructs.Havok;
 using FFXIVClientStructs.Interop;
-using System.Runtime.InteropServices;
-using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
-using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
 using Lumina.Data.Files;
-using System.Drawing;
 using Lumina.Data.Parsing;
-using System.Numerics;
+using Meddle.Plugin.Xande.Utility;
+using Serilog;
+using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
 using LuminaModel = Lumina.Models.Models.Model;
 using LuminaMesh = Lumina.Models.Models.Mesh;
 using LuminaSubmesh = Lumina.Models.Models.Submesh;
@@ -21,12 +23,8 @@ using LuminaVertex = Lumina.Models.Models.Vertex;
 using LuminaMaterial = Lumina.Models.Materials.Material;
 using LuminaTexture = Lumina.Models.Materials.Texture;
 using LuminaGameData = Lumina.GameData;
-using System.Text.Json.Serialization;
-using Meddle.Xande.Utility;
-using Serilog;
-using SkiaSharp;
 
-namespace Meddle.Xande;
+namespace Meddle.Plugin.Xande;
 
 public unsafe class NewTree
 {

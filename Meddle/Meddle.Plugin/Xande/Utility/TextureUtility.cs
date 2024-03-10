@@ -1,12 +1,12 @@
+using System.Numerics;
+using System.Runtime.InteropServices;
 using Dalamud.Plugin.Services;
 using Lumina.Data.Parsing;
 using SharpGLTF.Materials;
 using SkiaSharp;
-using System.Numerics;
-using System.Runtime.InteropServices;
 using Xande;
 
-namespace Meddle.Xande.Utility;
+namespace Meddle.Plugin.Xande.Utility;
 
 public static class TextureUtility
 {

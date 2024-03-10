@@ -1,6 +1,6 @@
 using SharpGLTF.IO;
 
-namespace Meddle.Xande;
+namespace Meddle.Plugin.Xande;
 
 public class ExtraDataManager
 {

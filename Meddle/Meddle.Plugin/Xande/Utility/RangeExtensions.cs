@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace Meddle.Xande.Utility;
+namespace Meddle.Plugin.Xande.Utility;
 
 public static class RangeExtensions
 {

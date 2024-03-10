@@ -1,18 +1,12 @@
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Dalamud.Logging;
-using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
-using FFXIVClientStructs.Havok;
 using Lumina.Data.Parsing.Tex;
 using SkiaSharp;
-using System.Diagnostics;
-using System.Drawing;
-using System.Drawing.Imaging;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Text.Json.Serialization;
 using Vortice.DXGI;
 using LuminaFormat = Lumina.Data.Files.TexFile.TextureFormat;
 
-namespace Meddle.Xande;
+namespace Meddle.Plugin.Xande;
 
 public static class TextureHelper
 {
