@@ -15,8 +15,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FFXIVClientStructs.InteropS
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Lumina", "Lumina\src\Lumina\Lumina.csproj", "{FE724766-CF66-42E5-B964-EEA42D1C2209}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Penumbra.Api", "Penumbra.Api\Penumbra.Api.csproj", "{84106829-3287-4FDD-8502-4FB5A80D8649}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -47,10 +45,6 @@ Global
 		{FE724766-CF66-42E5-B964-EEA42D1C2209}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FE724766-CF66-42E5-B964-EEA42D1C2209}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FE724766-CF66-42E5-B964-EEA42D1C2209}.Release|Any CPU.Build.0 = Release|Any CPU
-		{84106829-3287-4FDD-8502-4FB5A80D8649}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{84106829-3287-4FDD-8502-4FB5A80D8649}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{84106829-3287-4FDD-8502-4FB5A80D8649}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{84106829-3287-4FDD-8502-4FB5A80D8649}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
