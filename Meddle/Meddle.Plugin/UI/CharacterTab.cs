@@ -333,7 +333,9 @@ public unsafe class CharacterTab : ITab
                 if (string.IsNullOrEmpty(boneName))
                     continue;
 
-                ret[boneName] = pose->LocalPose[j];
+                //ret[boneName] = pose->LocalPose[j];
+                var model = pose->AccessBoneLocalSpace(j);
+                ret[boneName] = *model;
             }
         }
 
