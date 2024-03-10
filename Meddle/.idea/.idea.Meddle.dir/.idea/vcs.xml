@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="VcsDirectoryMappings">
+    <mapping directory="$PROJECT_DIR$/.." vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../External/OtterGui" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../External/OtterGui/OtterGuiInternal" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../External/Penumbra.Api" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../External/Penumbra.GameData" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../External/Penumbra.String" vcs="Git" />
+  </component>
+</project>

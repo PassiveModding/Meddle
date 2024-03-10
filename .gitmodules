@@ -1,0 +1,12 @@
+[submodule "External/Penumbra.GameData"]
+	path = External/Penumbra.GameData
+	url = https://github.com/Ottermandias/Penumbra.GameData.git
+[submodule "External/Penumbra.String"]
+	path = External/Penumbra.String
+	url = https://github.com/Ottermandias/Penumbra.String.git
+[submodule "External/Penumbra.Api"]
+	path = External/Penumbra.Api
+	url = https://github.com/Ottermandias/Penumbra.Api.git
+[submodule "External/OtterGui"]
+	path = External/OtterGui
+	url = https://github.com/Ottermandias/OtterGui.git
