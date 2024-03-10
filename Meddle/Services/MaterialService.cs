@@ -242,13 +242,14 @@ public class MaterialService
                         // Skin
                         if (material.PrimaryColor.HasValue)
                         {
-                            var intensity = maskSpan[x].R / 255f;
-                            // TODO: Confirm the cutoff. For AuRa face tex, the scales sit ~128 and skin sits at 255. We don't want to apply this to the scaled areas.
-                            if (intensity == 1)
+                            var intensity = maskSpan[x].R;
+                            if (intensity > 128)
                             {
+                                // ratio intensity 128-255
+                                var intensityRatio = (intensity - 128) / 127f;
                                 var baseColor = material.PrimaryColor.Value;
                                 var color = diffuseSpan[x].ToVector4();
-                                var lerpCol = Vector4.Lerp(color, baseColor, intensity);
+                                var lerpCol = Vector4.Lerp(color, baseColor, intensityRatio);
                                 diffuseSpan[x].FromVector4(lerpCol);
                             }
                         }
