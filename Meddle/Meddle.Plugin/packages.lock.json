@@ -52,23 +52,23 @@
       },
       "SharpGLTF.Core": {
         "type": "Transitive",
-        "resolved": "1.0.0-alpha0030",
-        "contentHash": "HVL6PcrM0H/uEk96nRZfhtPeYvSFGHnni3g1aIckot2IWVp0jLMH5KWgaWfsatEz4Yds3XcdSLUWmJZivDBUPA=="
+        "resolved": "1.0.0-alpha0031",
+        "contentHash": "lFJ/0UrYNVuKl4Cty0xvzAiAZd6GYZw57qi5es/EQbd1Ic+XpbVMV1566aXxxlJFQ0LkTvmI5PhKUjiHNdpmqA=="
       },
       "SharpGLTF.Runtime": {
         "type": "Transitive",
-        "resolved": "1.0.0-alpha0030",
-        "contentHash": "Ysn+fyj9EVXj6mfG0BmzSTBGNi/QvcnTrMd54dBMOlI/TsMRvnOY3JjTn0MpeH2CgHXX4qogzlDt4m+rb3n4Og==",
+        "resolved": "1.0.0-alpha0031",
+        "contentHash": "swop7opkvkw8EfLjL1R98jWYAyowf2L3hlHQZnLTFXRFaN2DIF6vkfi8qdik5pFEI6T/xAAeZjAvsmYktdk2Mg==",
         "dependencies": {
-          "SharpGLTF.Core": "1.0.0-alpha0030"
+          "SharpGLTF.Core": "1.0.0-alpha0031"
         }
       },
       "SharpGLTF.Toolkit": {
         "type": "Transitive",
-        "resolved": "1.0.0-alpha0030",
-        "contentHash": "nsoJWAFhXgEky9bVCY0zLeZVDx+S88u7VjvuebvMb6dJiNyFOGF6FrrMHiJe+x5pcVBxxlc3VoXliBF7r/EqYA==",
+        "resolved": "1.0.0-alpha0031",
+        "contentHash": "oLX3oHz3ybpEhkz/LSC2QToLhnGAAEucQSNyaac5UiZtlPwgPsDMvbJ0gE6TLOr0Ao1NUv1ZN1ZXHeJt1zeGfg==",
         "dependencies": {
-          "SharpGLTF.Runtime": "1.0.0-alpha0030"
+          "SharpGLTF.Runtime": "1.0.0-alpha0031"
         }
       },
       "SkiaSharp": {
@@ -128,16 +128,9 @@
         "dependencies": {
           "FFXIVClientStructs": "[1.0.0, )",
           "Lumina2": "[2.4.2, )",
-          "SkiaSharp": "[2.88.6, )",
-          "Xande.GltfImporter": "[1.0.0, )"
-        }
-      },
-      "xande.gltfimporter": {
-        "type": "Project",
-        "dependencies": {
-          "Lumina2": "[2.4.2, )",
-          "SharpGLTF.Core": "[1.0.0-alpha0030, )",
-          "SharpGLTF.Toolkit": "[1.0.0-alpha0030, )"
+          "SharpGLTF.Core": "[1.0.0-alpha0031, )",
+          "SharpGLTF.Toolkit": "[1.0.0-alpha0031, )",
+          "SkiaSharp": "[2.88.6, )"
         }
       }
     }

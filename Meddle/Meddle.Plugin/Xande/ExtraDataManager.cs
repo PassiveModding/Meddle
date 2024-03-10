@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using SharpGLTF.IO;
 
 namespace Meddle.Plugin.Xande;
@@ -11,5 +13,5 @@ public class ExtraDataManager
         ExtraData.Add("targetNames", shapes.Select(s => s.Name).ToArray());
     }
 
-    public JsonContent Serialize() => JsonContent.CreateFrom(ExtraData);
+    public JsonNode Serialize() => JsonNode.Parse(JsonSerializer.Serialize( ExtraData ))!;
 }
