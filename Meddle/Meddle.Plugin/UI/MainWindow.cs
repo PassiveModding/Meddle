@@ -2,6 +2,7 @@ using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
 using System.Numerics;
+using ImGuiNET;
 
 namespace Meddle.Plugin.UI;
 
@@ -23,7 +24,6 @@ public sealed class MainWindow : Window, IDisposable
         IsOpen = config.AutoOpen;
     }
 
-    private Dictionary<string, DateTime> ErrorLog { get; } = new();
     public override void Draw()
     {
         using var tabBar = ImRaii.TabBar("##meddleTabs");
@@ -37,13 +37,9 @@ public sealed class MainWindow : Window, IDisposable
             }
             catch (Exception e)
             {
-                var errorString = e.ToString();
-                // compare error string to last error
-                if (ErrorLog.TryGetValue(errorString, out var lastError) && (DateTime.Now - lastError < TimeSpan.FromSeconds(5)))
-                    return; // Don't spam the log
-
-                Log.Error(e, $"Error in {tab.Name}");
-                ErrorLog[errorString] = DateTime.Now;
+                ImGui.TextColored(new Vector4(1, 0, 0, 1), $"Failed to draw {tab.Name} tab");
+                ImGui.TextWrapped(e.ToString());
+                Log.Error(e, $"Failed to draw {tab.Name}");
             }
         }
     }

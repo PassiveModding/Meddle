@@ -3,12 +3,12 @@ using System.Numerics;
 using System.Text.RegularExpressions;
 using Dalamud.Plugin.Services;
 using Lumina.Data.Parsing;
+using Meddle.Plugin.Xande.Enums;
 using Meddle.Plugin.Xande.Models;
 using Meddle.Plugin.Xande.Utility;
+using Serilog;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
-using Xande;
-using Xande.Enums;
 using Xande.Files;
 using Xande.Models.Export;
 using static Meddle.Plugin.Xande.Utility.TextureUtility;
@@ -18,56 +18,17 @@ namespace Meddle.Plugin.Xande;
 
 public class ModelConverter
 {
-    private class ModelConverterLogger
-    {
-        public readonly IPluginLog PluginLog;
-        public string LastMessage = "";
-
-        public ModelConverterLogger(IPluginLog log)
-        {
-            PluginLog = log;
-        }
-
-        public void Debug(string message)
-        {
-            PluginLog.Debug(message);
-        }
-
-        public void Info(string message)
-        {
-            PluginLog.Info(message);
-            LastMessage = message;
-        }
-
-        public void Warning(string message)
-        {
-            PluginLog.Warning(message);
-            LastMessage = message;
-        }
-
-        public void Error(Exception e, string message)
-        {
-            PluginLog.Error(e, message);
-            LastMessage = message;
-        }
-    }
-
-    private ModelConverterLogger Log { get; }
-
-    public string GetLastMessage()
-    {
-        return Log.LastMessage;
-    }
-
-    private LuminaManager LuminaManager { get; }
     private PbdFile Pbd { get; }
+    public bool IsExporting { get; private set; }
 
-    public ModelConverter(LuminaManager luminaManager, IPluginLog log)
+    public ModelConverter(IDataManager gameData)
     {
-        LuminaManager = luminaManager;
-        Log = new ModelConverterLogger(log);
-        Pbd = LuminaManager.GetPbdFile();
+        var fileContent = 
+            gameData.GetFile("chara/xls/boneDeformer/human.pbd") ?? 
+            throw new InvalidOperationException("Failed to load PBD file");
+        Pbd = new PbdFile(fileContent.Data);
     }
+
 
     public Task ExportResourceTree(CharacterTree character, bool openFolderWhenComplete,
         ExportType exportType,
@@ -75,29 +36,42 @@ public class ModelConverter
         bool copyNormalAlphaToDiffuse,
         CancellationToken cancellationToken)
     {
-        var path = Path.Combine(exportPath, $"{character.GetHashCode():X8}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}");
-        Directory.CreateDirectory(path);
-
-        Log.Debug($"Exporting character to {path}");
-
-        return Task.Run(async () =>
+        try
         {
-            try
+            if (IsExporting)
             {
-                await ExportResourceTreeEx(path, character, exportType, copyNormalAlphaToDiffuse,
-                    cancellationToken);
-                // open path
-                if (openFolderWhenComplete)
-                    Process.Start("explorer.exe", path);
+                throw new InvalidOperationException("Already exporting");
             }
-            catch (Exception e)
+            
+            IsExporting = true;
+            var path = Path.Combine(exportPath, $"{character.GetHashCode():X8}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}");
+            Directory.CreateDirectory(path);
+
+            Log.Debug($"Exporting character to {path}");
+
+            return Task.Run(async () =>
             {
-                Log.Error(e, "Error while exporting character");
-            }
-        }, cancellationToken);
+                try
+                {
+                    await ExportResourceTreeEx(path, character, exportType, copyNormalAlphaToDiffuse,
+                                               cancellationToken);
+                    // open path
+                    if (openFolderWhenComplete)
+                        Process.Start("explorer.exe", path);
+                }
+                catch (Exception e)
+                {
+                    Log.Error(e, "Error while exporting character");
+                }
+            }, cancellationToken);
+        } 
+        finally
+        {
+            IsExporting = false;
+        }
     }
 
-    public async Task ExportResourceTreeEx(
+    private async Task ExportResourceTreeEx(
         string exportPath,
         CharacterTree tree,
         ExportType exportType,
@@ -228,7 +202,6 @@ public class ModelConverter
             }
 
             Log.Debug($"Exported model to {exportPath}");
-            Log.Info($"Exported model");
         }
         catch (Exception e)
         {
@@ -245,7 +218,7 @@ public class ModelConverter
         if (stupidLowPolyModelRegex.IsMatch(model.HandlePath))
             return;
 
-        Log.Info($"Handling model {model.HandlePath}");
+        Log.Debug($"Handling model {model.HandlePath}");
 
         var materials = await GetMaterialsFromModelNode(model, exportPath, copyNormalAlphaToDiffuse, cancellationToken);
 
@@ -306,20 +279,6 @@ public class ModelConverter
         await Task.WhenAll(textureTasks);
 
         return materials.ToList();
-    }
-
-    public static IEnumerable<NodeBuilder> Flatten(NodeBuilder container)
-    {
-        if (container == null) yield break;
-
-        yield return container;
-
-        foreach (var c in container.VisualChildren)
-        {
-            var cc = Flatten(c);
-
-            foreach (var ccc in cc) yield return ccc;
-        }
     }
 
     private void BuildSubmeshes(MeshBuilder meshBuilder, string name, Mesh xivMesh, Model xivModel, SceneBuilder glTfScene, Matrix4x4 worldLocation, List<BoneNodeBuilder>? joints, bool useSkinning)
@@ -483,26 +442,26 @@ public class ModelConverter
                 {
                     // not sure if backface culling should be done here, depends on model ugh
                     backfaceCulling = false;
-                    TextureUtility.ParseCharacterTextures(xivTextureMap, xivMaterial, Log.PluginLog,
+                    TextureUtility.ParseCharacterTextures(xivTextureMap, xivMaterial,
                         copyNormalAlphaToDiffuse);
                     break;
                 }
             case "skin.shpk":
                 {
                     alphaMode = AlphaMode.MASK;
-                    TextureUtility.ParseSkinTextures(xivTextureMap, xivMaterial, Log.PluginLog);
+                    TextureUtility.ParseSkinTextures(xivTextureMap, xivMaterial);
                     break;
                 }
             case "hair.shpk":
                 {
                     alphaMode = AlphaMode.MASK;
                     backfaceCulling = false;
-                    TextureUtility.ParseHairTextures(xivTextureMap, xivMaterial, Log.PluginLog);
+                    TextureUtility.ParseHairTextures(xivTextureMap, xivMaterial);
                     break;
                 }
             case "iris.shpk":
                 {
-                    TextureUtility.ParseIrisTextures(xivTextureMap!, xivMaterial, Log.PluginLog);
+                    TextureUtility.ParseIrisTextures(xivTextureMap!, xivMaterial);
                     break;
                 }
             default:
@@ -528,7 +487,7 @@ public class ModelConverter
             DoubleSided = !backfaceCulling
         };
 
-        TextureUtility.ExportTextures(glTfMaterial, xivTextureMap, outputDir);
+        ExportTextures(glTfMaterial, xivTextureMap, outputDir);
 
         return glTfMaterial;
     }

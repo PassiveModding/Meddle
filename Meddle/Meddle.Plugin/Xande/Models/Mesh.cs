@@ -33,7 +33,15 @@ public unsafe class Mesh
 
         // meshes don't have attributes. lumina is lying to you.
 
-        BoneTable = mesh.BoneTable?.ToList();
+        // Copy over the bone table
+        var currentMesh = mesh.Parent.File.Meshes[ MeshIdx ];
+        int boneTableIndex = currentMesh.BoneTableIndex;
+        if( boneTableIndex != 255 )
+        {
+            var boneTable = mesh.Parent.File.BoneTables[boneTableIndex];
+            var table = boneTable.BoneIndex.Take(boneTable.BoneCount);
+            BoneTable = table.Select( b => mesh.Parent.StringOffsetToStringMap[(int)mesh.Parent.File.BoneNameOffsets[b]] ).ToList();
+        }
     }
 
     public Mesh(ModelResourceHandle* hnd, int meshIdx, Vertex[] vertices, uint meshIndexOffset, ReadOnlySpan<ushort> indices)

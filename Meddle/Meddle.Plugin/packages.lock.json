@@ -127,7 +127,6 @@
         "type": "Project",
         "dependencies": {
           "FFXIVClientStructs": "[1.0.0, )",
-          "Lumina2": "[2.4.2, )",
           "SharpGLTF.Core": "[1.0.0-alpha0031, )",
           "SharpGLTF.Toolkit": "[1.0.0-alpha0031, )",
           "SkiaSharp": "[2.88.6, )"

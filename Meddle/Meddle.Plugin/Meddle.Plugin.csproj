@@ -38,6 +38,9 @@
             <HintPath>$(DalamudLibPath)ImGui.NET.dll</HintPath>
             <Private>false</Private>
         </Reference>
+        <Reference Include="Lumina">
+            <HintPath>$(DalamudLibPath)Lumina.dll</HintPath>
+        </Reference>
         <Reference Include="Newtonsoft.Json">
             <HintPath>$(DalamudLibPath)Newtonsoft.Json.dll</HintPath>
             <Private>False</Private>
@@ -46,7 +49,6 @@
 
     <ItemGroup>
       <ProjectReference Include="..\..\FFXIVClientStructs\FFXIVClientStructs\FFXIVClientStructs.csproj" />
-      <ProjectReference Include="..\..\Lumina\src\Lumina\Lumina.csproj" />
       <ProjectReference Include="..\..\Xande\Xande\Xande.csproj" />
     </ItemGroup>
 </Project>

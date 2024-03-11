@@ -10,8 +10,6 @@ using Meddle.Plugin.UI;
 using Meddle.Plugin.Utility;
 using Microsoft.Extensions.DependencyInjection;
 using Meddle.Plugin.Xande;
-using Xande;
-using Xande.Havok;
 
 namespace Meddle.Plugin;
 
@@ -39,10 +37,7 @@ public sealed class Plugin : IDalamudPlugin
             .AddUi()
             .AddSingleton(pluginInterface)
             .AddSingleton(config)
-            .AddSingleton<HavokConverter>()
             .AddSingleton<ModelConverter>()
-            .AddSingleton<LuminaManager>()
-            //.AddSingleton<ResourceTreeRenderer>()
             .BuildServiceProvider();
         
         _mainWindow = services.GetRequiredService<MainWindow>();

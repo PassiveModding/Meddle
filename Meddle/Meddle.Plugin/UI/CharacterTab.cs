@@ -14,9 +14,9 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using Meddle.Plugin.Xande;
+using Meddle.Plugin.Xande.Enums;
 using Meddle.Plugin.Xande.Models;
 using Xande;
-using Xande.Enums;
 using Xande.Files;
 using Xande.Havok;
 using Character = Dalamud.Game.ClientState.Objects.Types.Character;
@@ -37,22 +37,18 @@ public unsafe class CharacterTab : ITab
     private IObjectTable ObjectTable { get; }
     private IClientState ClientState { get; }
     private ModelConverter ModelConverter { get; }
-    private LuminaManager LuminaManager { get; }
-    public HavokConverter HavokConverter { get; }
     
     private Character? SelectedCharacter { get; set; }
 
     private Task? ExportTask { get; set; }
     private CancellationTokenSource? ExportCts { get; set; }
     
-    public CharacterTab(DalamudPluginInterface pluginInterface, IObjectTable objectTable, IClientState clientState, ModelConverter modelConverter, LuminaManager luminaManager, HavokConverter havokConverter)
+    public CharacterTab(DalamudPluginInterface pluginInterface, IObjectTable objectTable, IClientState clientState, ModelConverter modelConverter)
     {
         PluginInterface = pluginInterface;
         ObjectTable = objectTable;
         ClientState = clientState;
         ModelConverter = modelConverter;
-        LuminaManager = luminaManager;
-        HavokConverter = havokConverter;
     }
 
     public void Draw()
@@ -151,8 +147,6 @@ public unsafe class CharacterTab : ITab
                     false,
                     ExportCts.Token);
             }
-            ImGui.SameLine();
-            ImGui.TextUnformatted(ModelConverter.GetLastMessage().Split("\n").FirstOrDefault() ?? string.Empty);
         }
         var weaponData = charPtr->DrawData.WeaponDataSpan;
 
@@ -209,13 +203,6 @@ public unsafe class CharacterTab : ITab
         if (ImGui.Button("Copy"))
             ImGui.SetClipboardText(JsonSerializer.Serialize(new CharacterTree(charPtr), new JsonSerializerOptions() { WriteIndented = true, IncludeFields = true }));
 
-        if (ImGui.Button("Copy Model"))
-        {
-            var model = LuminaManager.GetModel("chara/equipment/e5037/model/c0101e5037_met.mdl");
-            var newModel = new Model(model, LuminaManager.GameData);
-            ImGui.SetClipboardText(JsonSerializer.Serialize(newModel, new JsonSerializerOptions() { WriteIndented = true, IncludeFields = true }));
-        }
-
         if (ImGui.CollapsingHeader("New Tree"))
             DrawNewTree(new(charPtr));
     }
@@ -224,18 +211,6 @@ public unsafe class CharacterTab : ITab
     {
         var l = JsonSerializer.Serialize(tree, new JsonSerializerOptions() { WriteIndented = true, IncludeFields = true });
         ImGui.TextUnformatted(l);
-    }
-
-    private HavokXml LoadSkeleton(string path)
-    {
-        var file = LuminaManager.GetFile<FileResource>(path)
-            ?? throw new Exception("GetFile returned null");
-
-        var sklb = SklbFile.FromStream(file.Reader.BaseStream);
-
-        var xml = HavokConverter.HkxToXml(sklb.HkxData);
-        var ret = new HavokXml(xml);
-        return ret;
     }
 
     private void DrawWeaponData(DrawObjectData data)
