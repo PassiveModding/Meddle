@@ -1,7 +1,11 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Dalamud.Logging;
+using Lumina.Data.Files;
 using Lumina.Data.Parsing.Tex;
+using Meddle.Plugin.Xande.Models;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 using SkiaSharp;
 using Vortice.DXGI;
 using LuminaFormat = Lumina.Data.Files.TexFile.TextureFormat;
@@ -10,8 +14,30 @@ namespace Meddle.Plugin.Xande;
 
 public static class TextureHelper
 {
-    public readonly record struct TextureResource(Format Format, int Width, int Height, int Stride, byte[] Data);
+    public readonly struct TextureResource
+    {
+        public TextureResource(Format format, int width, int height, int stride, byte[] data)
+        {
+            this.Format = format;
+            this.Width = width;
+            this.Height = height;
+            this.Stride = stride;
+            this.Data = data;
+        }
+        public Format Format { get; init; }
+        public int Width { get; init; }
+        public int Height { get; init; }
+        public int Stride { get; init; }
+        public byte[] Data { get; init; }
 
+    }
+    
+    public static Image<Rgba32> ConvertImage(TextureResource texture)
+    {
+        var skBitmap = ToBitmap(texture);
+        return Image.LoadPixelData<Rgba32>(skBitmap.Bytes, skBitmap.Width, skBitmap.Height);
+    }
+    
     public static TextureResource FromTexFile(Lumina.Data.Files.TexFile file)
     {
         var format = file.Header.Format switch

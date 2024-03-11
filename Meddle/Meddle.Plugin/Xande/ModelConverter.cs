@@ -20,15 +20,17 @@ public class ModelConverter
 {
     private PbdFile Pbd { get; }
     public bool IsExporting { get; private set; }
+    
+    public IPluginLog Log { get; }
 
-    public ModelConverter(IDataManager gameData)
+    public ModelConverter(IDataManager gameData, IPluginLog log)
     {
+        Log = log;
         var fileContent = 
             gameData.GetFile("chara/xls/boneDeformer/human.pbd") ?? 
             throw new InvalidOperationException("Failed to load PBD file");
         Pbd = new PbdFile(fileContent.Data);
     }
-
 
     public Task ExportResourceTree(CharacterTree character, bool openFolderWhenComplete,
         ExportType exportType,
@@ -182,25 +184,9 @@ public class ModelConverter
             await Task.WhenAll(modelTasks);
 
             var glTfModel = glTfScene.ToGltf2();
-
-            // check if exportType contains each type using flags
-            if (exportType.HasFlag(ExportType.Glb))
-                glTfModel.SaveGLB(Path.Combine(exportPath, "glb.glb"));
-
-            if (exportType.HasFlag(ExportType.Gltf))
-            {
-                var glTfFolder = Path.Combine(exportPath, "gltf");
-                Directory.CreateDirectory(glTfFolder);
-                glTfModel.SaveGLTF(Path.Combine(glTfFolder, "gltf.gltf"));
-            }
-            
-            if (exportType.HasFlag(ExportType.Wavefront))
-            {
-                var waveFrontFolder = Path.Combine(exportPath, "wavefront");
-                Directory.CreateDirectory(waveFrontFolder);
-                glTfModel.SaveAsWavefront(Path.Combine(waveFrontFolder, "wavefront.obj"));
-            }
-
+            var glTfFolder = Path.Combine(exportPath, "gltf");
+            Directory.CreateDirectory(glTfFolder);
+            glTfModel.SaveGLTF(Path.Combine(glTfFolder, "gltf.gltf"));
             Log.Debug($"Exported model to {exportPath}");
         }
         catch (Exception e)
@@ -260,12 +246,11 @@ public class ModelConverter
                 var material = node.Materials[idx];
                 try
                 {
-                    var glTfMaterial = ComposeTextures(material, exportPath, copyNormalAlphaToDiffuse, cancellationToken);
-
-                    if (glTfMaterial == null)
+                    var gltfMaterial = ComposeTextures(material, exportPath, copyNormalAlphaToDiffuse, cancellationToken);
+                    if (gltfMaterial == null)
                         return;
 
-                    materials[idx] = glTfMaterial;
+                    materials[idx] = gltfMaterial;
                 }
                 catch (Exception e)
                 {
@@ -411,6 +396,7 @@ public class ModelConverter
         bool copyNormalAlphaToDiffuse,
         CancellationToken cancellationToken)
     {
+        var outputPath = Path.Combine(outputDir, "textures");
         var xivTextureMap = new Dictionary<TextureUsage, SKTexture>();
 
         foreach (var xivTexture in xivMaterial.Textures)
@@ -426,7 +412,10 @@ public class ModelConverter
             if (dummyRegex.IsMatch(xivTexture.HandlePath))
                 continue;
 
-            xivTextureMap.Add(xivTexture.Usage ?? throw new ArgumentException($"Expected usage for {xivTexture.HandlePath}"), new(TextureHelper.ToBitmap(xivTexture.Resource)));
+            var texture = xivTexture.Resource;
+            var sktexture = TextureHelper.ToBitmap(texture);
+            
+            xivTextureMap.Add(xivTexture.Usage ?? throw new ArgumentException($"Expected usage for {xivTexture.HandlePath}"), new(sktexture));
         }
 
         // reference for this fuckery
@@ -458,7 +447,7 @@ public class ModelConverter
                     backfaceCulling = false;
                     TextureUtility.ParseHairTextures(xivTextureMap, xivMaterial);
                     break;
-                }
+                } 
             case "iris.shpk":
                 {
                     TextureUtility.ParseIrisTextures(xivTextureMap!, xivMaterial);

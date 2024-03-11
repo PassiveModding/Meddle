@@ -1,10 +1,14 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Text.Json.Serialization;
 using Dalamud.Memory;
 using FFXIVClientStructs.Interop;
 using Lumina;
 using Lumina.Data.Files;
+using Lumina.Data.Parsing;
 using Serilog;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 
 namespace Meddle.Plugin.Xande.Models;
 
@@ -14,8 +18,31 @@ public unsafe class Material
 
     public ShaderPackage ShaderPackage { get; set; }
     public List<Texture> Textures { get; set; }
+    public Vector4? PrimaryColor { get; set; }
+    public Vector4? SecondaryColor { get; set; }
+    
+    public bool TryGetTexture(TextureUsage usage, out Image<Rgba32>? image)
+    {
+        var match = Textures.FirstOrDefault(x => x.Usage == usage);
+        if (match == null)
+        {
+            image = null;
+            return false;
+        }
+
+        image = TextureHelper.ConvertImage(match.Resource);
+        return true;
+    }
+    public Image<Rgba32> GetTexture(TextureUsage usage)
+    {
+        if (!TryGetTexture(usage, out var image))
+            throw new ArgumentException($"No texture for {usage}");
+        return image;
+    }
+    
     [JsonIgnore]
     public Half[]? ColorTable { get; set; }
+    // 16 rows, each row is 16halfs
 
     [JsonPropertyName("ColorTable")]
     public ushort[]? JsonColorTable => ColorTable?.Select(BitConverter.HalfToUInt16Bits).ToArray();

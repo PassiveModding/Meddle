@@ -5,7 +5,6 @@ using SharpGLTF.Geometry.VertexTypes;
 using SharpGLTF.Materials;
 using Xande.Files;
 using Xande.Models.Export;
-using ExtraDataManager = Meddle.Plugin.Xande.ExtraDataManager;
 
 namespace Meddle.Plugin.Xande;
 
