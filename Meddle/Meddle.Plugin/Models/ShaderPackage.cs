@@ -2,7 +2,7 @@
 using FFXIVClientStructs.Interop;
 using Lumina.Data.Parsing;
 
-namespace Meddle.Plugin.Xande.Models;
+namespace Meddle.Plugin.Models;
 
 public unsafe class ShaderPackage
 {

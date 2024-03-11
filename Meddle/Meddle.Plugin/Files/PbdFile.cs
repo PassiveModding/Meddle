@@ -1,6 +1,6 @@
 ﻿using Xande;
 
-namespace Meddle.Plugin.Xande.Files;
+namespace Meddle.Plugin.Files;
 
 /// <summary>Parses a human.pbd file to deform models. This file is located at <c>chara/xls/boneDeformer/human.pbd</c> in the game's data files.</summary>
 public class PbdFile

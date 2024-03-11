@@ -5,8 +5,10 @@ using FFXIVClientStructs.Interop;
 using Lumina;
 using Lumina.Data.Files;
 using Lumina.Data.Parsing;
+using Meddle.Plugin.Utility;
+using Meddle.Plugin.Xande;
 
-namespace Meddle.Plugin.Xande.Models;
+namespace Meddle.Plugin.Models;
 
 public unsafe class Texture
 {

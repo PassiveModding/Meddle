@@ -2,7 +2,7 @@
 using Dalamud.Memory;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 
-namespace Meddle.Plugin.Xande.Models;
+namespace Meddle.Plugin.Models;
 
 public unsafe class Mesh
 {

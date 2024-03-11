@@ -1,6 +1,6 @@
-﻿using Meddle.Plugin.Xande.Enums;
+﻿using Meddle.Plugin.Enums;
 
-namespace Meddle.Plugin.Xande.Models;
+namespace Meddle.Plugin.Models.Config;
 
 public class ExportConfig
 {

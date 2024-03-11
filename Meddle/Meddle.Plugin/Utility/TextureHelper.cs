@@ -6,7 +6,7 @@ using SkiaSharp;
 using Vortice.DXGI;
 using LuminaFormat = Lumina.Data.Files.TexFile.TextureFormat;
 
-namespace Meddle.Plugin.Xande;
+namespace Meddle.Plugin.Utility;
 
 public static class TextureHelper
 {

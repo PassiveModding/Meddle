@@ -1,8 +1,9 @@
 using Dalamud.Memory;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
+using Meddle.Plugin.Xande;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
 
-namespace Meddle.Plugin.Xande.Models;
+namespace Meddle.Plugin.Models;
 
 public unsafe class CharacterTree
 {

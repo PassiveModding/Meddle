@@ -6,10 +6,11 @@ using FFXIVClientStructs.Interop;
 using Lumina;
 using Lumina.Data.Files;
 using Lumina.Data.Parsing;
+using Meddle.Plugin.Utility;
+using Meddle.Plugin.Xande;
 using Serilog;
-using SkiaSharp;
 
-namespace Meddle.Plugin.Xande.Models;
+namespace Meddle.Plugin.Models;
 
 public unsafe class Material
 {
@@ -42,7 +43,6 @@ public unsafe class Material
     
     [JsonIgnore]
     public Half[]? ColorTable { get; set; }
-    // 16 rows, each row is 16halfs
 
     [JsonPropertyName("ColorTable")]
     public ushort[]? JsonColorTable => ColorTable?.Select(BitConverter.HalfToUInt16Bits).ToArray();

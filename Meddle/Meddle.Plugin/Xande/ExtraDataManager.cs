@@ -1,6 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Meddle.Plugin.Xande.Models;
+using Meddle.Plugin.Models;
 
 namespace Meddle.Plugin.Xande;
 

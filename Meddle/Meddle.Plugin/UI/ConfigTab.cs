@@ -1,4 +1,5 @@
 using ImGuiNET;
+using Meddle.Plugin.Models.Config;
 
 namespace Meddle.Plugin.UI;
 

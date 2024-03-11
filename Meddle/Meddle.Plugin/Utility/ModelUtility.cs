@@ -1,7 +1,8 @@
-﻿using Meddle.Plugin.Xande.Models;
+﻿using Meddle.Plugin.Models;
+using Meddle.Plugin.Xande;
 using SharpGLTF.Scenes;
 
-namespace Meddle.Plugin.Xande.Utility;
+namespace Meddle.Plugin.Utility;
 
 public static class ModelUtility
 {

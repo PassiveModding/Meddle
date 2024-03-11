@@ -4,7 +4,7 @@ using FFXIVClientStructs.Havok;
 using SharpGLTF.Transforms;
 using CSTransform = FFXIVClientStructs.FFXIV.Client.Graphics.Transform;
 
-namespace Meddle.Plugin.Xande;
+namespace Meddle.Plugin.Models;
 
 public readonly record struct Transform
 {

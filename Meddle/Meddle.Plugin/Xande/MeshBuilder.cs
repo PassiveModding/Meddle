@@ -1,6 +1,6 @@
 using System.Numerics;
-using Meddle.Plugin.Xande.Files;
-using Meddle.Plugin.Xande.Models;
+using Meddle.Plugin.Files;
+using Meddle.Plugin.Models;
 using SharpGLTF.Geometry;
 using SharpGLTF.Geometry.VertexTypes;
 using SharpGLTF.Materials;

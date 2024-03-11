@@ -2,7 +2,7 @@
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using Lumina.Models.Models;
 
-namespace Meddle.Plugin.Xande.Models;
+namespace Meddle.Plugin.Models;
 
 public unsafe class SubMesh
 {

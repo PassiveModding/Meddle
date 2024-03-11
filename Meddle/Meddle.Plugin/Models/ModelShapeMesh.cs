@@ -1,8 +1,8 @@
 ﻿using Lumina.Models.Models;
 
-namespace Meddle.Plugin.Xande.Models;
+namespace Meddle.Plugin.Models;
 
-public unsafe class ModelShapeMesh
+public class ModelShapeMesh
 {
     public Mesh AssociatedMesh { get; set; }
     public List<(ushort BaseIndicesIndex, ushort ReplacingVertexIndex)> Values { get; set; }

@@ -1,7 +1,7 @@
 using System.Numerics;
 using System.Text.RegularExpressions;
-using Meddle.Plugin.Xande.Enums;
-using Meddle.Plugin.Xande.Files;
+using Meddle.Plugin.Enums;
+using Meddle.Plugin.Files;
 using SharpGLTF.Scenes;
 
 namespace Meddle.Plugin.Xande;

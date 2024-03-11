@@ -3,6 +3,7 @@ using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
 using System.Numerics;
 using ImGuiNET;
+using Meddle.Plugin.Models.Config;
 
 namespace Meddle.Plugin.UI;
 

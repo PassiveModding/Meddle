@@ -2,12 +2,12 @@
 using System.Numerics;
 using System.Text.RegularExpressions;
 using Dalamud.Plugin.Services;
+using Meddle.Plugin.Enums;
+using Meddle.Plugin.Files;
+using Meddle.Plugin.Models;
+using Meddle.Plugin.Models.Config;
 using Meddle.Plugin.Utility;
 using Meddle.Plugin.Xande;
-using Meddle.Plugin.Xande.Enums;
-using Meddle.Plugin.Xande.Files;
-using Meddle.Plugin.Xande.Models;
-using Meddle.Plugin.Xande.Utility;
 using SharpGLTF.Geometry;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;

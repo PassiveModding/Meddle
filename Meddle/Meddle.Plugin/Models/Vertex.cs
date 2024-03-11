@@ -2,7 +2,7 @@
 using System.Text.Json.Serialization;
 using Dalamud.Logging;
 
-namespace Meddle.Plugin.Xande.Models;
+namespace Meddle.Plugin.Models;
 
 public unsafe struct Vertex
 {

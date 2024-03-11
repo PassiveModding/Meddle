@@ -5,7 +5,7 @@ using SharpGen.Runtime;
 using Vortice.Direct3D11;
 using Format = Vortice.DXGI.Format;
 
-namespace Meddle.Plugin.Xande;
+namespace Meddle.Plugin.Utility;
 
 public static unsafe class DXHelper
 {

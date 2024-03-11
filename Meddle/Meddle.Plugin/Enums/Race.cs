@@ -1,4 +1,4 @@
-﻿namespace Meddle.Plugin.Xande.Enums;
+﻿namespace Meddle.Plugin.Enums;
 
 public enum BodyType : byte {
     Unknown = 0,

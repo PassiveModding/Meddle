@@ -1,9 +1,9 @@
 ﻿using System.Text.Json.Serialization;
 using Lumina.Models.Models;
 
-namespace Meddle.Plugin.Xande.Models;
+namespace Meddle.Plugin.Models;
 
-public unsafe class ModelShape
+public class ModelShape
 {
     public string Name { get; set; }
     [JsonIgnore]

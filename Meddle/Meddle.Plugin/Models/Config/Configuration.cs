@@ -1,7 +1,7 @@
 using Dalamud.Configuration;
 using Dalamud.Plugin;
 
-namespace Meddle.Plugin;
+namespace Meddle.Plugin.Models.Config;
 
 [Serializable]
 public class Configuration : IPluginConfiguration

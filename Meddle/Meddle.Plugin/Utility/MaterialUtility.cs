@@ -1,6 +1,6 @@
 ﻿using System.Numerics;
 using Lumina.Data.Parsing;
-using Meddle.Plugin.Xande.Models;
+using Meddle.Plugin.Models;
 using SharpGLTF.Materials;
 using SkiaSharp;
 

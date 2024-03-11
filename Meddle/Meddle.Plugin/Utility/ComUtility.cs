@@ -5,7 +5,7 @@ using SharpGen.Runtime;
 using Vortice.Direct3D11;
 using Vortice.DXGI;
 
-namespace Meddle.Plugin.Xande.Utility;
+namespace Meddle.Plugin.Utility;
 
 internal static class ComUtility
 {

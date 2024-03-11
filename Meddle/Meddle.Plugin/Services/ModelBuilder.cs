@@ -1,6 +1,6 @@
 ﻿using Dalamud.Plugin.Services;
+using Meddle.Plugin.Models;
 using Meddle.Plugin.Xande;
-using Meddle.Plugin.Xande.Models;
 using SharpGLTF.Geometry;
 using SharpGLTF.Materials;
 using RaceDeformer = Meddle.Plugin.Xande.RaceDeformer;

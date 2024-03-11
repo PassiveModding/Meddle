@@ -1,4 +1,4 @@
-namespace Meddle.Plugin.Xande.Enums;
+namespace Meddle.Plugin.Enums;
 
 [Flags]
 public enum ExportType {

@@ -3,9 +3,10 @@ using Dalamud.Memory;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using FFXIVClientStructs.Interop;
 using Lumina;
-using Meddle.Plugin.Xande.Utility;
+using Meddle.Plugin.Utility;
+using Meddle.Plugin.Xande;
 
-namespace Meddle.Plugin.Xande.Models;
+namespace Meddle.Plugin.Models;
 
 public unsafe class Model
 {

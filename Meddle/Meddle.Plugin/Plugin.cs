@@ -5,6 +5,7 @@ using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Dalamud.Utility.Signatures;
+using Meddle.Plugin.Models.Config;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.UI;
 //using Meddle.Plugin.UI.Shared;
