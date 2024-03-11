@@ -30,6 +30,9 @@
     <ItemGroup>
         <PackageReference Include="DalamudPackager" Version="2.1.12" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="7.0.0" />
+        <PackageReference Include="SharpGLTF.Core" Version="1.0.0-alpha0031" />
+        <PackageReference Include="SharpGLTF.Toolkit" Version="1.0.0-alpha0031" />
+        <PackageReference Include="SkiaSharp" Version="2.88.7" />
         <PackageReference Include="Vortice.Direct3D11" Version="3.4.4-beta" />
         <Reference Include="Dalamud">
             <HintPath>$(DalamudLibPath)Dalamud.dll</HintPath>
@@ -50,6 +53,5 @@
 
     <ItemGroup>
       <ProjectReference Include="..\..\FFXIVClientStructs\FFXIVClientStructs\FFXIVClientStructs.csproj" />
-      <ProjectReference Include="..\..\Xande\Xande\Xande.csproj" />
     </ItemGroup>
 </Project>

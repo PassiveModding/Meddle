@@ -1,6 +1,4 @@
 ﻿using System.Numerics;
-using System.Text.Json;
-using Dalamud.Interface;
 using Lumina.Data.Parsing;
 using Meddle.Plugin.Xande.Models;
 using SharpGLTF.Materials;

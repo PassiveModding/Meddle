@@ -4,7 +4,6 @@ using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using FFXIVClientStructs.Interop;
 using Lumina;
 using Meddle.Plugin.Xande.Utility;
-using Xande.Models.Export;
 
 namespace Meddle.Plugin.Xande.Models;
 

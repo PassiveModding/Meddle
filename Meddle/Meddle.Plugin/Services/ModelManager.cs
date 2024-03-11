@@ -3,14 +3,15 @@ using System.Numerics;
 using System.Text.RegularExpressions;
 using Dalamud.Plugin.Services;
 using Meddle.Plugin.Utility;
+using Meddle.Plugin.Xande;
+using Meddle.Plugin.Xande.Enums;
+using Meddle.Plugin.Xande.Files;
 using Meddle.Plugin.Xande.Models;
 using Meddle.Plugin.Xande.Utility;
 using SharpGLTF.Geometry;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
-using Xande.Enums;
-using Xande.Files;
-using Xande.Models.Export;
+using RaceDeformer = Meddle.Plugin.Xande.RaceDeformer;
 
 namespace Meddle.Plugin.Services;
 

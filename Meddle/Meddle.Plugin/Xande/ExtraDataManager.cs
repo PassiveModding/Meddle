@@ -1,7 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Meddle.Plugin.Xande.Models;
-using SharpGLTF.IO;
 
 namespace Meddle.Plugin.Xande;
 

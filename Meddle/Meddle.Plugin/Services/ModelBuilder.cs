@@ -3,7 +3,7 @@ using Meddle.Plugin.Xande;
 using Meddle.Plugin.Xande.Models;
 using SharpGLTF.Geometry;
 using SharpGLTF.Materials;
-using Xande.Models.Export;
+using RaceDeformer = Meddle.Plugin.Xande.RaceDeformer;
 
 namespace Meddle.Plugin.Services;
 

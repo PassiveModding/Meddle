@@ -17,6 +17,31 @@
           "Microsoft.Extensions.DependencyInjection.Abstractions": "7.0.0"
         }
       },
+      "SharpGLTF.Core": {
+        "type": "Direct",
+        "requested": "[1.0.0-alpha0031, )",
+        "resolved": "1.0.0-alpha0031",
+        "contentHash": "lFJ/0UrYNVuKl4Cty0xvzAiAZd6GYZw57qi5es/EQbd1Ic+XpbVMV1566aXxxlJFQ0LkTvmI5PhKUjiHNdpmqA=="
+      },
+      "SharpGLTF.Toolkit": {
+        "type": "Direct",
+        "requested": "[1.0.0-alpha0031, )",
+        "resolved": "1.0.0-alpha0031",
+        "contentHash": "oLX3oHz3ybpEhkz/LSC2QToLhnGAAEucQSNyaac5UiZtlPwgPsDMvbJ0gE6TLOr0Ao1NUv1ZN1ZXHeJt1zeGfg==",
+        "dependencies": {
+          "SharpGLTF.Runtime": "1.0.0-alpha0031"
+        }
+      },
+      "SkiaSharp": {
+        "type": "Direct",
+        "requested": "[2.88.7, )",
+        "resolved": "2.88.7",
+        "contentHash": "LJHAMrbWO00J7jXWLWehyjqFo29T4VzABimfJb4nICqpEe3c/KvQGWL4ItON8ymzhxYOeFgyxeRzuNzO4GHSug==",
+        "dependencies": {
+          "SkiaSharp.NativeAssets.Win32": "2.88.7",
+          "SkiaSharp.NativeAssets.macOS": "2.88.7"
+        }
+      },
       "Vortice.Direct3D11": {
         "type": "Direct",
         "requested": "[3.4.4-beta, )",
@@ -50,11 +75,6 @@
           "SharpGen.Runtime": "2.1.2-beta"
         }
       },
-      "SharpGLTF.Core": {
-        "type": "Transitive",
-        "resolved": "1.0.0-alpha0031",
-        "contentHash": "lFJ/0UrYNVuKl4Cty0xvzAiAZd6GYZw57qi5es/EQbd1Ic+XpbVMV1566aXxxlJFQ0LkTvmI5PhKUjiHNdpmqA=="
-      },
       "SharpGLTF.Runtime": {
         "type": "Transitive",
         "resolved": "1.0.0-alpha0031",
@@ -63,32 +83,15 @@
           "SharpGLTF.Core": "1.0.0-alpha0031"
         }
       },
-      "SharpGLTF.Toolkit": {
-        "type": "Transitive",
-        "resolved": "1.0.0-alpha0031",
-        "contentHash": "oLX3oHz3ybpEhkz/LSC2QToLhnGAAEucQSNyaac5UiZtlPwgPsDMvbJ0gE6TLOr0Ao1NUv1ZN1ZXHeJt1zeGfg==",
-        "dependencies": {
-          "SharpGLTF.Runtime": "1.0.0-alpha0031"
-        }
-      },
-      "SkiaSharp": {
-        "type": "Transitive",
-        "resolved": "2.88.6",
-        "contentHash": "wdfeBAQrEQCbJIRgAiargzP1Uy+0grZiG4CSgBnhAgcJTsPzlifIaO73JRdwIlT3TyBoeU9jEqzwFUhl4hTYnQ==",
-        "dependencies": {
-          "SkiaSharp.NativeAssets.Win32": "2.88.6",
-          "SkiaSharp.NativeAssets.macOS": "2.88.6"
-        }
-      },
       "SkiaSharp.NativeAssets.macOS": {
         "type": "Transitive",
-        "resolved": "2.88.6",
-        "contentHash": "Sko9LFxRXSjb3OGh5/RxrVRXxYo48tr5NKuuSy6jB85GrYt8WRqVY1iLOLwtjPiVAt4cp+pyD4i30azanS64dw=="
+        "resolved": "2.88.7",
+        "contentHash": "3jNzco4VjcYPFNxR9aNWcgweFXbTSdM1VpNRzCS4X0i1A1OuNqcaulrAvmntNpujeWxHo9e6WGh6FN8Jf5+XhA=="
       },
       "SkiaSharp.NativeAssets.Win32": {
         "type": "Transitive",
-        "resolved": "2.88.6",
-        "contentHash": "7TzFO0u/g2MpQsTty4fyCDdMcfcWI+aLswwfnYXr3gtNS6VLKdMXPMeKpJa3pJSLnUBN6wD0JjuCe8OoLBQ6cQ=="
+        "resolved": "2.88.7",
+        "contentHash": "BCXmWdQ0oVck9vRwC8U3ocSaTHEx28VB+6qw9OxGIMQ86iO5bp4Flqk3IXH0l9Pbr7vWAUOpI212iaL9mTaUZQ=="
       },
       "Vortice.DirectX": {
         "type": "Transitive",
@@ -118,15 +121,6 @@
         "type": "Project",
         "dependencies": {
           "Serilog": "[2.11.0, )"
-        }
-      },
-      "xande": {
-        "type": "Project",
-        "dependencies": {
-          "FFXIVClientStructs": "[1.0.0, )",
-          "SharpGLTF.Core": "[1.0.0-alpha0031, )",
-          "SharpGLTF.Toolkit": "[1.0.0-alpha0031, )",
-          "SkiaSharp": "[2.88.6, )"
         }
       }
     }

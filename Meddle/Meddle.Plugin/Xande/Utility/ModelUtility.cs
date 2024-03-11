@@ -1,6 +1,5 @@
 ﻿using Meddle.Plugin.Xande.Models;
 using SharpGLTF.Scenes;
-using Xande.Models.Export;
 
 namespace Meddle.Plugin.Xande.Utility;
 
