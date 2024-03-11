@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+﻿/*using System.Diagnostics;
 using System.Numerics;
 using System.Text.RegularExpressions;
 using Dalamud.Plugin.Services;
@@ -6,13 +6,11 @@ using Lumina.Data.Parsing;
 using Meddle.Plugin.Xande.Enums;
 using Meddle.Plugin.Xande.Models;
 using Meddle.Plugin.Xande.Utility;
-using Serilog;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
 using Xande.Files;
 using Xande.Models.Export;
 using static Meddle.Plugin.Xande.Utility.TextureUtility;
-using static SharpGLTF.Schema2.Toolkit;
 
 namespace Meddle.Plugin.Xande;
 
@@ -480,4 +478,4 @@ public class ModelConverter
 
         return glTfMaterial;
     }
-}
+}*/

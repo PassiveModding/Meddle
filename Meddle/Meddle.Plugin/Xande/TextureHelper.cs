@@ -1,11 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Dalamud.Logging;
-using Lumina.Data.Files;
 using Lumina.Data.Parsing.Tex;
-using Meddle.Plugin.Xande.Models;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
 using SkiaSharp;
 using Vortice.DXGI;
 using LuminaFormat = Lumina.Data.Files.TexFile.TextureFormat;
@@ -29,13 +25,8 @@ public static class TextureHelper
         public int Height { get; init; }
         public int Stride { get; init; }
         public byte[] Data { get; init; }
-
-    }
-    
-    public static Image<Rgba32> ConvertImage(TextureResource texture)
-    {
-        var skBitmap = ToBitmap(texture);
-        return Image.LoadPixelData<Rgba32>(skBitmap.Bytes, skBitmap.Width, skBitmap.Height);
+        
+        public SKBitmap ToBitmap() => TextureHelper.ToBitmap(this);
     }
     
     public static TextureResource FromTexFile(Lumina.Data.Files.TexFile file)
@@ -173,7 +164,12 @@ public static class TextureHelper
         }
         s.Stop();
         PluginLog.Log($"ToBitmap ({(direct ? "SkiaSharp" : "Software")}) took {s.Elapsed.TotalMilliseconds}ms");
-        return bitmap;
+        
+        // make copy so we can dispose the original
+        var copy = new SKBitmap(bitmap.Info);
+        bitmap.CopyTo(copy, bitmap.Info.ColorType);
+        
+        return copy;
     }
 
     private static SKImageInfo? GetImageInfo(Format format) =>

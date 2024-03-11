@@ -2,27 +2,22 @@ using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
-using FFXIVClientStructs.FFXIV.Client.Graphics.Render;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.Havok;
 using ImGuiNET;
-using Lumina.Data;
 using SharpGLTF.Transforms;
 using System.Numerics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using Meddle.Plugin.Services;
 using Meddle.Plugin.Xande;
 using Meddle.Plugin.Xande.Enums;
 using Meddle.Plugin.Xande.Models;
-using Xande;
-using Xande.Files;
-using Xande.Havok;
 using Character = Dalamud.Game.ClientState.Objects.Types.Character;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
 using CSTransform = FFXIVClientStructs.FFXIV.Client.Graphics.Transform;
-using Model = Meddle.Plugin.Xande.Models.Model;
 using Skeleton = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Skeleton;
 
 namespace Meddle.Plugin.UI;
@@ -36,14 +31,14 @@ public unsafe class CharacterTab : ITab
     private DalamudPluginInterface PluginInterface { get; }
     private IObjectTable ObjectTable { get; }
     private IClientState ClientState { get; }
-    private ModelConverter ModelConverter { get; }
+    private ModelManager ModelConverter { get; }
     
     private Character? SelectedCharacter { get; set; }
 
     private Task? ExportTask { get; set; }
     private CancellationTokenSource? ExportCts { get; set; }
     
-    public CharacterTab(DalamudPluginInterface pluginInterface, IObjectTable objectTable, IClientState clientState, ModelConverter modelConverter)
+    public CharacterTab(DalamudPluginInterface pluginInterface, IObjectTable objectTable, IClientState clientState, ModelManager modelConverter)
     {
         PluginInterface = pluginInterface;
         ObjectTable = objectTable;
@@ -63,11 +58,21 @@ public unsafe class CharacterTab : ITab
             objects = ObjectTable.OfType<Character>().Where(obj => obj.IsValid() && IsHuman(obj)).OrderBy(c => GetCharacterDistance(c).LengthSquared());
         else
         {
-            var chara = CharaSelectCharacterList.GetCurrentCharacter();
-            if (chara != null)
-                objects = new[] { (Character)Activator.CreateInstance(typeof(Character), BindingFlags.NonPublic | BindingFlags.Instance, null, new[] { (object?)(nint)chara }, null)! };
-            else
-                objects = Array.Empty<Character>();
+            try
+            {
+                // Lobby :)
+                // TODO: Maybe don't call this until post tick is done
+                var chara = CharaSelectCharacterList.GetCurrentCharacter();
+                if (chara != null)
+                    objects = new[] { (Character)Activator.CreateInstance(typeof(Character), BindingFlags.NonPublic | BindingFlags.Instance, null, new[] { (object?)(nint)chara }, null)! };
+                else
+                    objects = Array.Empty<Character>();
+            }
+            catch
+            {
+                return;
+            }
+
         }
 
         if (ClientState.IsGPosing)
@@ -139,12 +144,14 @@ public unsafe class CharacterTab : ITab
                 
                 ExportCts?.Cancel();
                 ExportCts = new();
-                ExportTask = ModelConverter.ExportResourceTree(
+                ExportTask = ModelConverter.Export(
+                    new ExportConfig
+                    {
+                        ExportType = ExportType.Gltf,
+                        IncludeReaperEye = false,
+                        OpenFolderWhenComplete = true
+                    },
                     new(charPtr),
-                    true,
-                    ExportType.Glb,
-                    Plugin.TempDirectory,
-                    false,
                     ExportCts.Token);
             }
         }
@@ -285,7 +292,7 @@ public unsafe class CharacterTab : ITab
         return new(GetMatrix(hkTransform));
     }
 
-    private static Dictionary<string, hkQsTransformf>? GetPose(Skeleton* skeleton)
+    private Dictionary<string, hkQsTransformf>? GetPose(Skeleton* skeleton)
     {
         if (skeleton == null)
             return null;
@@ -308,11 +315,17 @@ public unsafe class CharacterTab : ITab
 
                 var boneName = pose->Skeleton->Bones[j].Name.String;
                 if (string.IsNullOrEmpty(boneName))
-                    continue;
-
-                //ret[boneName] = pose->LocalPose[j];
-                var model = pose->AccessBoneLocalSpace(j);
-                ret[boneName] = *model;
+                   continue;
+                
+                if (ClientState.IsGPosing)
+                {
+                    var model = pose->AccessBoneLocalSpace(j);
+                    ret[boneName] = *model;
+                }
+                else
+                {
+                    ret[boneName] = pose->LocalPose[j];
+                }
             }
         }
 

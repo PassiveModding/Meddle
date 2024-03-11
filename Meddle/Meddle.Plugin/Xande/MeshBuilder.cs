@@ -26,7 +26,7 @@ public class MeshBuilder
     private Type VertexBuilderT { get; }
     private Type MeshBuilderT { get; }
 
-    private List<PbdFile.Deformer> Deformers { get; set; } = new();
+    private IReadOnlyList<PbdFile.Deformer> Deformers { get; set; }
 
     private List<IVertexBuilder> Vertices { get; }
 
@@ -35,61 +35,37 @@ public class MeshBuilder
         bool useSkinning,
         int[]? jointLut,
         MaterialBuilder materialBuilder,
-        RaceDeformer? raceDeformer
+        (RaceDeformer deformer, ushort from, ushort to)? raceDeformer
     )
     {
         Mesh = mesh;
         JointLut = jointLut;
         MaterialBuilder = materialBuilder;
-        RaceDeformer = raceDeformer;
 
         GeometryT = GetVertexGeometryType(Mesh.Vertices);
         MaterialT = GetVertexMaterialType(Mesh.Vertices);
         SkinningT = useSkinning ? typeof(VertexJoints4) : typeof(VertexEmpty);
         VertexBuilderT = typeof(VertexBuilder<,,>).MakeGenericType(GeometryT, MaterialT, SkinningT);
-        MeshBuilderT = typeof(MeshBuilder<,,,>).MakeGenericType(typeof(MaterialBuilder), GeometryT, MaterialT, SkinningT);
-        Vertices = new List<IVertexBuilder>(Mesh.Vertices.Count);
-    }
+        MeshBuilderT =
+            typeof(MeshBuilder<,,,>).MakeGenericType(typeof(MaterialBuilder), GeometryT, MaterialT, SkinningT);
 
-    /// <summary>Calculates the deformation steps from two given races.</summary>
-    /// <param name="from">The current race of the mesh.</param>
-    /// <param name="to">The target race of the mesh.</param>
-    public void SetupDeformSteps(ushort from, ushort to)
-    {
-        // Nothing to do
-        if (from == to || RaceDeformer == null) return;
-
-        var deformSteps = new List<ushort>();
-        ushort? current = to;
-
-        while (current != null)
+        if (raceDeformer != null)
         {
-            deformSteps.Add(current.Value);
-            current = RaceDeformer.GetParent(current.Value);
-            if (current == from) break;
+            var (deformer, from, to) = raceDeformer.Value;
+            RaceDeformer = deformer;
+            Deformers = deformer.PbdFile.GetDeformers(from, to).ToList();
+        }
+        else
+        {
+            Deformers = Array.Empty<PbdFile.Deformer>();
         }
 
-        // Reverse it to the right order
-        deformSteps.Reverse();
-
-        // Turn these into deformers
-        var pbd = RaceDeformer.PbdFile;
-        var deformers = new PbdFile.Deformer[deformSteps.Count];
-        for (var i = 0; i < deformSteps.Count; i++)
-        {
-            var raceCode = deformSteps[i];
-            var deformer = pbd.GetDeformerFromRaceCode(raceCode);
-            deformers[i] = deformer;
-        }
-
-        Deformers = deformers.ToList();
+        Vertices = BuildVertices();
     }
 
-    /// <summary>Builds the vertices. This must be called before building meshes.</summary>
-    public void BuildVertices()
+    public List<IVertexBuilder> BuildVertices()
     {
-        Vertices.Clear();
-        Vertices.AddRange(Mesh.Vertices.Select(BuildVertex));
+        return Mesh.Vertices.Select(BuildVertex).ToList();
     }
 
     /// <summary>Creates a mesh from the given submesh.</summary>
@@ -164,7 +140,10 @@ public class MeshBuilder
             }
 
             var morph = builder.UseMorphTarget(i);
-            foreach (var (a, b) in vertexList) { morph.SetVertex(a, b); }
+            foreach (var (a, b) in vertexList)
+            {
+                morph.SetVertex(a, b);
+            }
         }
 
         var data = new ExtraDataManager();
@@ -199,7 +178,7 @@ public class MeshBuilder
         var origPos = ToVec3(vertex.Position!.Value);
         var currentPos = origPos;
 
-        if (Deformers.Count > 0)
+        if (Deformers.Count > 0 && RaceDeformer != null)
         {
             foreach (var deformer in Deformers)
             {
@@ -209,7 +188,7 @@ public class MeshBuilder
                 {
                     if (weight == 0) continue;
 
-                    var deformPos = RaceDeformer!.DeformVertex(deformer, idx, currentPos);
+                    var deformPos = RaceDeformer.DeformVertex(deformer, idx, currentPos);
                     if (deformPos != null) deformedPos += deformPos.Value * weight;
                 }
 

@@ -7,8 +7,7 @@ using Lumina;
 using Lumina.Data.Files;
 using Lumina.Data.Parsing;
 using Serilog;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using SkiaSharp;
 
 namespace Meddle.Plugin.Xande.Models;
 
@@ -21,23 +20,24 @@ public unsafe class Material
     public Vector4? PrimaryColor { get; set; }
     public Vector4? SecondaryColor { get; set; }
     
-    public bool TryGetTexture(TextureUsage usage, out Image<Rgba32>? image)
+    public bool TryGetTexture(TextureUsage usage, out Texture texture)
     {
         var match = Textures.FirstOrDefault(x => x.Usage == usage);
         if (match == null)
         {
-            image = null;
+            texture = null!;
             return false;
         }
 
-        image = TextureHelper.ConvertImage(match.Resource);
+        texture = match;
         return true;
     }
-    public Image<Rgba32> GetTexture(TextureUsage usage)
+    
+    public Texture GetTexture(TextureUsage usage)
     {
-        if (!TryGetTexture(usage, out var image))
+        if (!TryGetTexture(usage, out var texture))
             throw new ArgumentException($"No texture for {usage}");
-        return image;
+        return texture!;
     }
     
     [JsonIgnore]

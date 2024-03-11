@@ -4,6 +4,7 @@ using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using FFXIVClientStructs.Interop;
 using Lumina;
 using Meddle.Plugin.Xande.Utility;
+using Xande.Models.Export;
 
 namespace Meddle.Plugin.Xande.Models;
 
@@ -27,7 +28,7 @@ public unsafe class Model
         model.Update(gameData);
 
         HandlePath = model.File?.FilePath.Path ?? "Lumina Model";
-        RaceCode = GetRaceCodeFromPath(HandlePath);
+        RaceCode = (ushort)RaceDeformer.ParseRaceCode(HandlePath);
 
         Materials = new();
         foreach (var material in model.Materials)
@@ -56,7 +57,7 @@ public unsafe class Model
     public Model(FFXIVClientStructs.FFXIV.Client.Graphics.Render.Model* model, FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Texture** colorTable)
     {
         HandlePath = model->ModelResourceHandle->ResourceHandle.FileName.ToString();
-        RaceCode = GetRaceCodeFromPath(HandlePath);
+        RaceCode = (ushort)RaceDeformer.ParseRaceCode(HandlePath);
 
         Materials = new();
         for (var i = 0; i < model->MaterialCount; ++i)
@@ -77,14 +78,6 @@ public unsafe class Model
                             .Where(kv => ((1 << kv.Item2) & AttributesMask) != 0)
                             .Select(kv => MemoryHelper.ReadStringNullTerminated((nint)kv.Item1.Value))
                             .ToArray();
-    }
-
-    private static ushort? GetRaceCodeFromPath(string path)
-    {
-        var fileName = Path.GetFileNameWithoutExtension(path);
-        if (fileName[0] != 'c') return null;
-
-        return ushort.Parse(fileName[1..5]);
     }
 
     private void LoadMeshesAndShapes(ModelResourceHandle* hnd)
