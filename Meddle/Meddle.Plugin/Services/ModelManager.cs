@@ -71,38 +71,35 @@ public partial class ModelManager
         {
             if (LowPolyModelRegex().IsMatch(model.HandlePath)) continue;
             
-            Log.Debug("Exporting model {Model}", model.HandlePath);
+            HandleModel(config, model, character, scene, boneMap);
+        }
 
-            var materials = CreateMaterials(model).ToArray();
-            
-            IEnumerable<(IMeshBuilder<MaterialBuilder> mesh, bool useSkinning, SubMesh? submesh)> meshes;
-            if (model.RaceCode.HasValue && model.RaceCode.Value != (ushort)GenderRace.Unknown)
+        if (character.AttachedChildren != null)
+        {
+            var i = 0;
+            foreach (var child in character.AttachedChildren)
             {
-                Log.Debug($"Setup deform for {model.HandlePath} from {model.RaceCode} to {character.RaceCode}");
-                var raceDeformer = new RaceDeformer(Pbd, boneMap.ToArray());
-                meshes = ModelBuilder.BuildMeshes(model,
-                                                  materials,
-                                                  boneMap,
-                                                  (character.RaceCode!.Value, raceDeformer!));
-            }
-            else
-            {
-                meshes = ModelBuilder.BuildMeshes(model, materials, boneMap, null);
-            }
+                var childBoneMap = ModelUtility.GetBoneMap(child.Skeleton, out var childRoot);
+                childRoot!.SetSuffixRecursively(i++);
+                var attachName = character.Skeleton.PartialSkeletons[child.Attach.PartialSkeletonIdx].HkSkeleton!.BoneNames[child.Attach.BoneIdx];
 
-            foreach (var (mesh, useSkinning, submesh) in meshes)
-            {
-                var instance = useSkinning ? 
-                               scene.AddSkinnedMesh(mesh, Matrix4x4.Identity, boneMap) : 
-                               scene.AddRigidMesh(mesh, Matrix4x4.Identity);
-
-                if (submesh != null)
-                {
-                    ApplyMeshModifiers(config, instance, submesh, model);
-                }
+                if (rootBone == null || boneMap == null)
+                    scene.AddNode(childRoot);
                 else
+                    boneMap.First(b => b.BoneName.Equals(attachName, StringComparison.Ordinal)).AddNode(childRoot);
+
+                var transform = Matrix4x4.Identity;
+                NodeBuilder c = childRoot!;
+                while (c != null)
                 {
-                    ApplyMeshShapes(instance, model);
+                    transform *= c.LocalMatrix;
+                    c = c.Parent;
+                }
+
+                foreach (var model in child.Models)
+                {
+                    Log.Debug($"Handling child model {model.HandlePath}");
+                    HandleModel(config, model, child, scene, childBoneMap.ToArray());
                 }
             }
         }
@@ -114,6 +111,44 @@ public partial class ModelManager
         Log.Debug($"Exported model to {gltfPath}");
         if (config.OpenFolderWhenComplete)
             Process.Start("explorer.exe", path);
+    }
+    
+    private void HandleModel(ExportConfig config, Model model, CharacterTree character, SceneBuilder scene, BoneNodeBuilder[] boneMap)
+    {
+        Log.Debug("Exporting model {Model}", model.HandlePath);
+
+        var materials = CreateMaterials(model).ToArray();
+            
+        IEnumerable<(IMeshBuilder<MaterialBuilder> mesh, bool useSkinning, SubMesh? submesh)> meshes;
+        if (model.RaceCode.HasValue && model.RaceCode.Value != (ushort)GenderRace.Unknown)
+        {
+            Log.Debug($"Setup deform for {model.HandlePath} from {model.RaceCode} to {character.RaceCode}");
+            var raceDeformer = new RaceDeformer(Pbd, boneMap.ToArray());
+            meshes = ModelBuilder.BuildMeshes(model,
+                                              materials,
+                                              boneMap,
+                                              (character.RaceCode!.Value, raceDeformer!));
+        }
+        else
+        {
+            meshes = ModelBuilder.BuildMeshes(model, materials, boneMap, null);
+        }
+
+        foreach (var (mesh, useSkinning, submesh) in meshes)
+        {
+            var instance = useSkinning ? 
+                               scene.AddSkinnedMesh(mesh, Matrix4x4.Identity, boneMap) : 
+                               scene.AddRigidMesh(mesh, Matrix4x4.Identity);
+
+            if (submesh != null)
+            {
+                ApplyMeshModifiers(config, instance, submesh, model);
+            }
+            else
+            {
+                ApplyMeshShapes(instance, model);
+            }
+        }
     }
     
     private static void ApplyMeshModifiers(ExportConfig config, InstanceBuilder builder, SubMesh subMesh, Model model)
