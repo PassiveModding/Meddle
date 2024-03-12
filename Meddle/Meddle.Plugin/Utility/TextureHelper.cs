@@ -173,7 +173,7 @@ public static class TextureHelper
                 bitmap.InstallPixels(format.WithSize(resource.Width, resource.Height), (nint)data,  resource.Width * 4);
         }
         s.Stop();
-        PluginLog.Log($"ToBitmap ({(direct ? "SkiaSharp" : "Software")}) took {s.Elapsed.TotalMilliseconds}ms");
+        PluginLog.Log($"ToBitmap ({(direct ? "SkiaSharp" : "Software")}) took {s.Elapsed.TotalMilliseconds}ms for {resource.Width}x{resource.Height} {resource.Format}");
         
         // make copy so we can dispose the original
         var copy = new SKBitmap(bitmap.Info);

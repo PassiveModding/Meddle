@@ -55,6 +55,41 @@ public partial class ModelManager
         }, cancellationToken);
     }
     
+    public async Task Export(ExportConfig config, Model model, Skeleton skeleton, ushort targetRace, CancellationToken cancellationToken)
+    {
+        if (IsExporting)
+            throw new InvalidOperationException("Already exporting.");
+        
+        IsExporting = true;
+        await Task.Run(async () =>
+        {
+            try
+            {
+                var path = Path.Combine(Plugin.TempDirectory, $"{model.GetHashCode():X8}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}");
+                Log.Debug("Exporting to {Path}", path);
+        
+                var scene = new SceneBuilder("scene");
+                var boneMap = ModelUtility.GetBoneMap(skeleton, out var rootBone).ToArray();
+                scene.AddNode(rootBone);
+                HandleModel(config, model, targetRace, scene, boneMap);
+                
+                Directory.CreateDirectory(path);
+                var gltfPath = Path.Combine(path, "model.gltf");
+                var output = scene.ToGltf2();
+                output.SaveGLTF(gltfPath);
+                Log.Debug($"Exported model to {gltfPath}");
+                if (config.OpenFolderWhenComplete)
+                    Process.Start("explorer.exe", path);
+            }
+            catch (Exception e)
+            {
+                Log.Error(e, "Failed to export model");
+            } finally
+            {
+                IsExporting = false;
+            }
+        }, cancellationToken);
+    }
     
     [GeneratedRegex("^chara/human/c\\d+/obj/body/b0003/model/c\\d+b0003_top.mdl$")]
     private static partial Regex LowPolyModelRegex();
@@ -72,7 +107,7 @@ public partial class ModelManager
         {
             if (LowPolyModelRegex().IsMatch(model.HandlePath)) continue;
             
-            HandleModel(config, model, character, scene, boneMap);
+            HandleModel(config, model, character.RaceCode!.Value, scene, boneMap);
         }
 
         if (character.AttachedChildren != null)
@@ -100,7 +135,7 @@ public partial class ModelManager
                 foreach (var model in child.Models)
                 {
                     Log.Debug($"Handling child model {model.HandlePath}");
-                    HandleModel(config, model, child, scene, childBoneMap.ToArray());
+                    HandleModel(config, model, character.RaceCode!.Value, scene, childBoneMap.ToArray());
                 }
             }
         }
@@ -114,7 +149,7 @@ public partial class ModelManager
             Process.Start("explorer.exe", path);
     }
     
-    private void HandleModel(ExportConfig config, Model model, CharacterTree character, SceneBuilder scene, BoneNodeBuilder[] boneMap)
+    private void HandleModel(ExportConfig config, Model model, ushort targetRace, SceneBuilder scene, BoneNodeBuilder[] boneMap)
     {
         Log.Debug("Exporting model {Model}", model.HandlePath);
 
@@ -123,12 +158,12 @@ public partial class ModelManager
         IEnumerable<(IMeshBuilder<MaterialBuilder> mesh, bool useSkinning, SubMesh? submesh)> meshes;
         if (model.RaceCode.HasValue && model.RaceCode.Value != (ushort)GenderRace.Unknown)
         {
-            Log.Debug($"Setup deform for {model.HandlePath} from {model.RaceCode} to {character.RaceCode}");
+            Log.Debug($"Setup deform for {model.HandlePath} from {model.RaceCode} to {targetRace}");
             var raceDeformer = new RaceDeformer(Pbd, boneMap.ToArray());
             meshes = ModelBuilder.BuildMeshes(model,
                                               materials,
                                               boneMap,
-                                              (character.RaceCode!.Value, raceDeformer!));
+                                              (targetRace, raceDeformer!));
         }
         else
         {

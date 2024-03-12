@@ -11,11 +11,15 @@ using System.Numerics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using Dalamud.Interface;
 using Meddle.Plugin.Enums;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Config;
 using Meddle.Plugin.Services;
+using Meddle.Plugin.Utility;
 using Meddle.Plugin.Xande;
+using SharpGLTF.Materials;
+using SharpGLTF.Scenes;
 using Character = Dalamud.Game.ClientState.Objects.Types.Character;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
 using CSTransform = FFXIVClientStructs.FFXIV.Client.Graphics.Transform;
@@ -33,7 +37,8 @@ public unsafe class CharacterTab : ITab
     private IObjectTable ObjectTable { get; }
     private IClientState ClientState { get; }
     private ModelManager ModelConverter { get; }
-    
+
+    private (IntPtr, CharacterTree)? CharacterTreeCache { get; set; }
     private Character? SelectedCharacter { get; set; }
 
     private Task? ExportTask { get; set; }
@@ -83,10 +88,14 @@ public unsafe class CharacterTab : ITab
         }
 
         if (SelectedCharacter != null && !SelectedCharacter.IsValid())
+        {
             SelectedCharacter = null;
+        }
 
         if (SelectedCharacter == null)
+        {
             SelectedCharacter = ClientState.LocalPlayer ?? objects.FirstOrDefault();
+        }
 
         ImGui.Text("Select Character");
         using (var combo = ImRaii.Combo("##Character", SelectedCharacter != null ? GetCharacterDisplayText(SelectedCharacter) : "None"))
@@ -96,15 +105,32 @@ public unsafe class CharacterTab : ITab
                 foreach (var character in objects)
                 {
                     if (ImGui.Selectable(GetCharacterDisplayText(character)))
+                    {
                         SelectedCharacter = character;
+                    }
                 }
             }
         }
 
         if (SelectedCharacter != null)
+        {
+            var address = (CSCharacter*)SelectedCharacter.Address;
+            if (CharacterTreeCache == null)
+            {
+                CharacterTreeCache = new ValueTuple<IntPtr, CharacterTree>((IntPtr)address, new(address));
+            }
+            else if (CharacterTreeCache!.Value.Item1 != (IntPtr)address)
+            {
+                CharacterTreeCache = new ValueTuple<IntPtr, CharacterTree>((IntPtr)address, new(address));
+            }
+            
             DrawCharacterInfo(SelectedCharacter);
+        }
         else
+        {
             ImGui.Text("No character selected");
+            CharacterTreeCache = null;
+        }
     }
 
     private void DrawCharacterInfo(Character character)
@@ -112,37 +138,11 @@ public unsafe class CharacterTab : ITab
         var charPtr = (CSCharacter*)character.Address;
         var human = (Human*)charPtr->GameObject.DrawObject;
         var mainPose = GetPose(human->CharacterBase.Skeleton)!;
-
-        //var modelMetas = new List<ModelMeta>();
-        //foreach(var modelPtr in human->CharacterBase.ModelsSpan)
-        //{
-        //    var model = modelPtr.Value;
-        //    if (model == null)
-        //        continue;
-        //    if (model->ModelResourceHandle == null)
-        //        continue;
-        //    var shapes = model->ModelResourceHandle->Shapes.ToDictionary(kv => MemoryHelper.ReadStringNullTerminated((nint)kv.Item1.Value), kv => kv.Item2);
-        //    var attributes = model->ModelResourceHandle->Attributes.ToDictionary(kv => MemoryHelper.ReadStringNullTerminated((nint)kv.Item1.Value), kv => kv.Item2);
-        //    modelMetas.Add(new()
-        //    {
-        //        ModelPath = model->ModelResourceHandle->ResourceHandle.FileName.ToString(),
-        //        EnabledShapes = shapes.Where(kv => ((1 << kv.Value) & model->EnabledShapeKeyIndexMask) != 0).Select(kv => kv.Key).ToArray(),
-        //        EnabledAttributes = attributes.Where(kv => ((1 << kv.Value) & model->EnabledAttributeIndexMask) != 0).Select(kv => kv.Key).ToArray(),
-        //        ShapesMask = model->EnabledShapeKeyIndexMask,
-        //        AttributesMask = model->EnabledAttributeIndexMask,
-        //    });
-        //}
-        
-        //var weaponInfos = GetWeaponData(character);
         
         using (var d = ImRaii.Disabled(!(ExportTask?.IsCompleted ?? true)))
         {
             if (ImGui.Button("Export"))
             {
-                //var tree = GetCharacterResourceTree(character);
-                //if (tree == null)
-                //    throw new InvalidOperationException("No resource tree found");
-                
                 ExportCts?.Cancel();
                 ExportCts = new();
                 ExportTask = ModelConverter.Export(
@@ -162,17 +162,6 @@ public unsafe class CharacterTab : ITab
         ImGui.TextUnformatted($"Position: {t.Position:0.00}");
         ImGui.TextUnformatted($"Rotation: {t.Rotation.EulerAngles:0.00}");
         ImGui.TextUnformatted($"Scale: {t.Scale:0.00}");
-
-        //if (ImGui.CollapsingHeader("Model Metas"))
-        //{
-        //    foreach (var meta in modelMetas)
-        //    {
-        //        ImGui.TextUnformatted($"{meta.ModelPath}");
-        //        ImGui.TextUnformatted($"Shapes ({meta.ShapesMask:X8}): {string.Join(", ", meta.EnabledShapes)}");
-        //        ImGui.TextUnformatted($"Attributes ({meta.AttributesMask:X8}): {string.Join(", ", meta.EnabledAttributes)}");
-        //        ImGui.Separator();
-        //    }
-        //}
 
         if (ImGui.CollapsingHeader("Main Pose"))
         {
@@ -211,14 +200,114 @@ public unsafe class CharacterTab : ITab
         if (ImGui.Button("Copy"))
             ImGui.SetClipboardText(JsonSerializer.Serialize(new CharacterTree(charPtr), new JsonSerializerOptions() { WriteIndented = true, IncludeFields = true }));
 
-        if (ImGui.CollapsingHeader("New Tree"))
-            DrawNewTree(new(charPtr));
+        if (ImGui.CollapsingHeader("Models") && CharacterTreeCache != null)
+        {
+            DrawCharacterTree(CharacterTreeCache.Value.Item2!);
+        }
     }
+
+    private void DrawCharacterTree(CharacterTree tree)
+{
     
-    private void DrawNewTree(CharacterTree tree)
-    {
-        var l = JsonSerializer.Serialize(tree, new JsonSerializerOptions() { WriteIndented = true, IncludeFields = true });
-        ImGui.TextUnformatted(l);
+        using var mainTable = ImRaii.Table("Models", 1, ImGuiTableFlags.Borders);
+        foreach (var model in tree.Models)
+        {
+
+            ImGui.TableNextColumn();
+            using var modelNode = ImRaii.TreeNode($"{model.HandlePath}##{model.GetHashCode()}", ImGuiTreeNodeFlags.CollapsingHeader);
+            if (modelNode.Success)
+            {
+                // Export icon
+                if (ImGui.SmallButton($"Export##{model.GetHashCode()}"))
+                {
+                    ExportCts?.Cancel();
+                    ExportCts = new();
+                    ExportTask = ModelConverter.Export(new ExportConfig
+                    {
+                        ExportType = ExportType.Gltf,
+                        IncludeReaperEye = false,
+                        OpenFolderWhenComplete = true
+                    }, model, tree.Skeleton, tree.RaceCode!.Value, ExportCts.Token);
+                }
+                
+                if (model.Shapes.Count > 0)
+                {
+                    ImGui.Text($"Shapes: {string.Join(", ", model.Shapes.Select(x => x.Name))}");
+                    ImGui.Text($"Enabled Shapes: {string.Join(", ", model.EnabledShapes)}");
+                }
+
+                if (model.EnabledAttributes.Length > 0)
+                {
+                    ImGui.Text($"Enabled Attributes: {string.Join(", ", model.EnabledAttributes)}");
+                }
+
+                // Display Materials
+                using (var table = ImRaii.Table("MaterialsTable", 2,
+                                                ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable))
+                {
+                    ImGui.TableSetupColumn("Path", ImGuiTableColumnFlags.WidthFixed,
+                                           0.75f * ImGui.GetWindowWidth());
+                    ImGui.TableSetupColumn("Info", ImGuiTableColumnFlags.WidthStretch);
+
+                    foreach (var material in model.Materials)
+                    {
+                        ImGui.TableNextRow();
+                        ImGui.TableNextColumn();
+                        ImGui.Text($"{material.HandlePath}");
+                        if (ImGui.IsItemHovered())
+                        {
+                            ImGui.SetTooltip(material.HandlePath);
+                        }
+                        ImGui.TableNextColumn();
+                        ImGui.Text($"Shader: {material.ShaderPackage.Name} Textures: {material.Textures.Count}");
+                        ImGui.Indent();
+                        // Display Material Textures in the same table
+                        foreach (var texture in material.Textures)
+                        {
+                            ImGui.TableNextRow();
+                            ImGui.TableNextColumn();
+                            ImGui.Text($"{texture.HandlePath}");
+                            ImGui.TableNextColumn();
+                            ImGui.Text($"{texture.Usage}");
+                        }
+
+                        ImGui.Unindent();
+                    }
+                }
+
+
+                ImGui.Spacing();
+
+                // Display Meshes in a single table
+                using var tableMeshes = ImRaii.Table("MeshesTable", 3,
+                                                     ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable);
+                ImGui.TableSetupColumn("Mesh", ImGuiTableColumnFlags.WidthFixed, 0.5f * ImGui.GetWindowWidth());
+                ImGui.TableSetupColumn("Vertices", ImGuiTableColumnFlags.WidthStretch);
+                ImGui.TableSetupColumn("Indices", ImGuiTableColumnFlags.WidthStretch);
+
+                for (var i = 0; i < model.Meshes.Count; ++i)
+                {
+                    ImGui.TableNextRow();
+                    ImGui.TableNextColumn();
+
+                    ImGui.Text($"Mesh {i}");
+                    var mesh = model.Meshes[i];
+                    ImGui.TableNextColumn();
+                    ImGui.Text($"Vertices: {mesh.Vertices.Count}");
+                    ImGui.TableNextColumn();
+                    ImGui.Text($"Indices: {mesh.Indices.Count}");
+                    for (var j = 0; j < mesh.Submeshes.Count; j++)
+                    {
+                        var submesh = mesh.Submeshes[j];
+                        ImGui.TableNextRow();
+                        ImGui.TableNextColumn();
+                        ImGui.Text($"[{j}] Submesh attributes: {string.Join(", ", submesh.Attributes)}");
+                        ImGui.TableNextColumn();
+                        ImGui.TableNextColumn(); // Leave an empty column for spacing
+                    }
+                }
+            }
+        }
     }
 
     private void DrawWeaponData(DrawObjectData data)
@@ -356,5 +445,7 @@ public unsafe class CharacterTab : ITab
 
     public void Dispose()
     {
+        ExportCts?.Cancel();
+        ExportCts?.Dispose();
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using Dalamud.Utility.Numerics;
 using Lumina.Data.Parsing;
 using Meddle.Plugin.Models;
 using SharpGLTF.Materials;
@@ -17,6 +18,7 @@ public class MaterialUtility
     private static readonly Vector4 DefaultEyeColor = new Vector4(21, 176, 172, 255) / new Vector4(255);
     private static readonly Vector4 DefaultHairColor      = new Vector4(130, 64,  13,  255) / new Vector4(255);
     private static readonly Vector4 DefaultHighlightColor = new Vector4(77,  126, 240, 255) / new Vector4(255);
+    private static readonly Vector4 DefaultSkinColor      = new Vector4(234, 183, 161, 255) / new Vector4(255);
     public static MaterialBuilder ParseMaterial(Material material, string name)
     {
         name = $"{name}_{material.ShaderPackage.Name.Replace(".shpk", "")}";
@@ -106,7 +108,7 @@ public class MaterialUtility
         var highlightCol = material.SecondaryColor ?? DefaultHighlightColor;
 
         // TODO: ShaderKeys 
-        var isFace = false;
+        var isFace = true;
         
         var normalTexture = material.GetTexture(TextureUsage.SamplerNormal);
         var maskTexture   = material.GetTexture(TextureUsage.SamplerMask);
@@ -121,11 +123,17 @@ public class MaterialUtility
             var normalPixel = normal[x, y];
             var maskPixel = mask[x, y];
             var color = Vector4.Lerp(hairCol, highlightCol, maskPixel.Alpha / 255f);
-            color *= new Vector4(maskPixel.Red / 255f);
-            color.W = normalPixel.Alpha / 255f;
+            // TODO: Think there is some blending with the mask red channel but can't seem to get it right
+            baseColor[x, y] = ToSkColor(color).WithAlpha(normalPixel.Alpha);
 
-            baseColor[x, y] = ToSkColor(color);
-            normal[x, y] = normalPixel.WithAlpha(byte.MaxValue);
+            if (normalPixel is {Red: 0, Green: 0, Blue: 0})
+            {
+                normal[x, y] = new SKColor(byte.MaxValue/2, byte.MaxValue/2, byte.MaxValue, byte.MaxValue);
+            }
+            else
+            {
+                normal[x, y] = normalPixel.WithAlpha(byte.MaxValue);
+            }
         }
 
         return BuildSharedBase(material, name)
@@ -200,7 +208,7 @@ public class MaterialUtility
         }
 
         var resizedMask = new SKTexture(mask.Bitmap.Resize(new SKImageInfo(diffuse.Width, diffuse.Height), SKFilterQuality.High));
-        if (material.PrimaryColor.HasValue || material.SecondaryColor.HasValue)
+        if (material.PrimaryColor.HasValue || material.SecondaryColor.HasValue || true)
         {
             for (var x = 0; x < diffuse.Width; x++)
             for (int y = 0; y < diffuse.Height; y++)
@@ -208,13 +216,13 @@ public class MaterialUtility
                 var maskPixel = resizedMask[x, y];
                 var diffusePixel = diffuse[x, y];
 
-                if (material.PrimaryColor.HasValue)
+                if (material.PrimaryColor.HasValue || true)
                 {
                     var intensity = maskPixel.Red;
                     if (intensity > 128)
                     {
                         var ratio = (intensity - 128) / 127f;
-                        var color = material.PrimaryColor.Value;
+                        var color = material.PrimaryColor ?? DefaultSkinColor;
                         var diffuseVec = new Vector4(diffusePixel.Red, diffusePixel.Green, diffusePixel.Blue,
                                                      diffusePixel.Alpha) / 255f;
                         var lerpCol = Vector4.Lerp(diffuseVec, color, ratio);
@@ -303,7 +311,7 @@ public class MaterialUtility
         public SKTexture Normal    { get; } = normal.Copy();
         public SKTexture BaseColor { get; } = new(normal.Width, normal.Height);
         public SKTexture Specular  { get; } = new(normal.Width, normal.Height);
-        public SKTexture  Emissive  { get; } = new(normal.Width, normal.Height);
+        public SKTexture Emissive  { get; } = new(normal.Width, normal.Height);
 
         private static TableRow GetTableRowIndices(float input)
         {
@@ -395,30 +403,40 @@ public class MaterialUtility
         {
             for (var x = 0; x < normal.Width; x++)
             {
-                var pixel = Normal[x, y];
+                var normalPixel = Normal[x, y];
                 
                 // Table row data (.a)
-                var tableRow = GetTableRowIndices(pixel.Alpha / 255f);
+                var tableRow = GetTableRowIndices(normalPixel.Alpha / 255f);
                 var prevRow  = colorTable[tableRow.Previous];
                 var nextRow  = colorTable[tableRow.Next];
                 
                 // Base colour (table, .b)
                 var lerpedDiffuse = Vector3.Lerp(prevRow.Diffuse, nextRow.Diffuse, tableRow.Weight);
-                BaseColor[x, y] = new SKColor((byte)(lerpedDiffuse.X * 255), (byte)(lerpedDiffuse.Y * 255), (byte)(lerpedDiffuse.Z * 255), pixel.Blue);
+                var diff = new Vector4(lerpedDiffuse, 1);
+                BaseColor[x, y] = ToSkColor(diff).WithAlpha(normalPixel.Blue);
                 
                 // Specular (table)
                 var lerpedSpecularColor = Vector3.Lerp(prevRow.Specular, nextRow.Specular, tableRow.Weight);
                 // float.Lerp is .NET8 ;-; #TODO
                 var lerpedSpecularFactor = (prevRow.SpecularStrength * (1.0f - tableRow.Weight)) + (nextRow.SpecularStrength * tableRow.Weight);
-                Specular[x, y] = new SKColor((byte)(lerpedSpecularColor.X * 255), (byte)(lerpedSpecularColor.Y * 255), (byte)(lerpedSpecularColor.Z * 255), (byte)(lerpedSpecularFactor * 255));
+                var spec = new Vector4(lerpedSpecularColor, lerpedSpecularFactor);
+                Specular[x, y] = ToSkColor(spec);
                 
                 // Emissive (table)
                 var lerpedEmissive = Vector3.Lerp(prevRow.Emissive, nextRow.Emissive, tableRow.Weight);
-                Emissive[x, y] = new SKColor((byte)(lerpedEmissive.X * 255), (byte)(lerpedEmissive.Y * 255), (byte)(lerpedEmissive.Z * 255), 255);
+                var emis = new Vector4(lerpedEmissive, 1);
+                Emissive[x, y] = ToSkColor(emis);
                 
                 // Normal (.rg)
                 // TODO: we don't actually need alpha at all for normal, but _not_ using the existing rgba texture means I'll need a new one, with a new accessor. Think about it.
-                Normal[x, y] = new SKColor(pixel.Red, pixel.Green, byte.MaxValue, byte.MaxValue);
+                if (normalPixel is {Red: 0, Green: 0})
+                {
+                    Normal[x, y] = new SKColor(byte.MaxValue/2, byte.MaxValue/2, byte.MaxValue, byte.MaxValue);
+                }
+                else
+                {
+                    Normal[x, y] = new SKColor(normalPixel.Red, normalPixel.Green, byte.MaxValue, byte.MaxValue);
+                }
             }
         }
     }
