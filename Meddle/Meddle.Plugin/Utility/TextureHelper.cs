@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Dalamud.Logging;
 using Lumina.Data.Parsing.Tex;
+using Meddle.Plugin.Models;
 using SkiaSharp;
 using Vortice.DXGI;
 using LuminaFormat = Lumina.Data.Files.TexFile.TextureFormat;
@@ -26,7 +27,16 @@ public static class TextureHelper
         public int Stride { get; init; }
         public byte[] Data { get; init; }
         
-        public SKBitmap ToBitmap() => TextureHelper.ToBitmap(this);
+        public SKTexture ToTexture((int width, int height)? resize = null)
+        {
+            var bitmap = ToBitmap(this);
+            if (resize != null)
+            {
+                bitmap = bitmap.Resize(new SKImageInfo(resize.Value.width, resize.Value.height), SKFilterQuality.High);
+            }
+            
+            return new SKTexture(bitmap);
+        }
     }
     
     public static TextureResource FromTexFile(Lumina.Data.Files.TexFile file)

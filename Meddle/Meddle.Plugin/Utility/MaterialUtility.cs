@@ -36,32 +36,42 @@ public class MaterialUtility
     {
         var normal = material.GetTexture(TextureUsage.SamplerNormal);
         
-        var operation = new ProcessCharacterNormalOperation(normal.Resource.ToBitmap(), material.ColorTable).Run();
+        var operation = new ProcessCharacterNormalOperation(normal.Resource.ToTexture(), material.ColorTable).Run();
         
         var baseColor = operation.BaseColor;
         if (material.TryGetTexture(TextureUsage.SamplerDiffuse, out var diffuseTexture))
         {
-            var diffuse = diffuseTexture.Resource.ToBitmap();
-            baseColor = MultiplyBitmaps(diffuse, operation.BaseColor);
+            var diffuse = diffuseTexture.Resource.ToTexture();
+            // ensure same size
+            if (diffuse.Width < baseColor.Width || diffuse.Height < baseColor.Height)
+                diffuse = new SKTexture(diffuse.Bitmap.Resize(new SKImageInfo(baseColor.Width, baseColor.Height), SKFilterQuality.High));
+            if (diffuse.Width > baseColor.Width || diffuse.Height > baseColor.Height)
+                baseColor = new SKTexture(baseColor.Bitmap.Resize(new SKImageInfo(diffuse.Width, diffuse.Height), SKFilterQuality.High));
+            
+            baseColor = MultiplyBitmaps(diffuse, baseColor);
         }
         
         var specular = operation.Specular;
         if (material.TryGetTexture(TextureUsage.SamplerSpecular, out var specularTexture))
         {
-            var spec = specularTexture.Resource.ToBitmap();
-            specular = MultiplyBitmaps(spec, operation.Specular);
+            var spec = specularTexture.Resource.ToTexture();
+            // ensure same size
+            if (spec.Width < specular.Width || spec.Height < specular.Height)
+                spec = new SKTexture(spec.Bitmap.Resize(new SKImageInfo(specular.Width, specular.Height), SKFilterQuality.High));
+            if (spec.Width > specular.Width || spec.Height > specular.Height)
+                specular = new SKTexture(specular.Bitmap.Resize(new SKImageInfo(spec.Width, spec.Height), SKFilterQuality.High));
+            specular = MultiplyBitmaps(spec, specular);
         }
         
         if (material.TryGetTexture(TextureUsage.SamplerMask, out var mask))
         {
-            var maskImage = mask.Resource.ToBitmap();
-            maskImage.Resize(new SKImageInfo(baseColor.Width, baseColor.Height), SKFilterQuality.High);
+            var maskImage = mask.Resource.ToTexture((baseColor.Width, baseColor.Height));
 
             for (var x = 0; x < baseColor.Width; x++)
             for (int y = 0; y < baseColor.Height; y++)
             {
-                var maskPixel = maskImage.GetPixel(x, y);
-                var baseColorPixel = baseColor.GetPixel(x, y);
+                var maskPixel = maskImage[x,y];
+                var baseColorPixel = baseColor[x, y];
                 // multiply base by mask red channel
                 var r = maskPixel.Red / 255f;
 
@@ -71,7 +81,7 @@ public class MaterialUtility
                     (byte)(baseColorPixel.Blue * r),
                     baseColorPixel.Alpha
                 );
-                baseColor.SetPixel(x, y, result);
+                baseColor[x, y] = result;
             }
         }
         
@@ -101,22 +111,21 @@ public class MaterialUtility
         var normalTexture = material.GetTexture(TextureUsage.SamplerNormal);
         var maskTexture   = material.GetTexture(TextureUsage.SamplerMask);
         
-        var normal = normalTexture.Resource.ToBitmap();
-        var mask   = maskTexture.Resource.ToBitmap();
-        mask.Resize(new SKImageInfo(normal.Width, normal.Height), SKFilterQuality.High);
+        var normal = normalTexture.Resource.ToTexture();
+        var mask   = maskTexture.Resource.ToTexture((normal.Width, normal.Height));
         
-        var baseColor = new SKBitmap(normal.Width, normal.Height);
+        var baseColor = new SKTexture(normal.Width, normal.Height);
         for (var x = 0; x < normal.Width; x++)
         for (var y = 0; y < normal.Height; y++)
         {
-            var normalPixel = normal.GetPixel(x, y);
-            var maskPixel = mask.GetPixel(x, y);
+            var normalPixel = normal[x, y];
+            var maskPixel = mask[x, y];
             var color = Vector4.Lerp(hairCol, highlightCol, maskPixel.Alpha / 255f);
             color *= new Vector4(maskPixel.Red / 255f);
             color.W = normalPixel.Alpha / 255f;
 
-            baseColor.SetPixel(x, y, ToSkColor(color));
-            normal.SetPixel(x, y, normalPixel.WithAlpha(byte.MaxValue));
+            baseColor[x, y] = ToSkColor(color);
+            normal[x, y] = normalPixel.WithAlpha(byte.MaxValue);
         }
 
         return BuildSharedBase(material, name)
@@ -130,23 +139,21 @@ public class MaterialUtility
         var normalTexture = material.GetTexture(TextureUsage.SamplerNormal);
         var maskTexture   = material.GetTexture(TextureUsage.SamplerMask);
         
-        var normal = normalTexture.Resource.ToBitmap();
-        var mask   = maskTexture.Resource.ToBitmap();
+        var normal = normalTexture.Resource.ToTexture();
+        var mask   = maskTexture.Resource.ToTexture((normal.Width, normal.Height));
         
-        mask.Resize(new SKImageInfo(normal.Width, normal.Height), SKFilterQuality.High);
-        
-        var baseColor = new SKBitmap(normal.Width, normal.Height);
+        var baseColor = new SKTexture(normal.Width, normal.Height);
         for (var x = 0; x < normal.Width; x++)
         for (int y = 0; y < normal.Height; y++)
         {
-            var normalPixel = normal.GetPixel(x, y);
-            var maskPixel = mask.GetPixel(x, y);
+            var normalPixel = normal[x, y];
+            var maskPixel = mask[x, y];
 
             var color = (material.PrimaryColor ?? DefaultEyeColor) * new Vector4(maskPixel.Red / 255f);
             color.W = normalPixel.Alpha / 255f;
 
-            baseColor.SetPixel(x, y, ToSkColor(color));
-            normal.SetPixel(x, y, normalPixel.WithAlpha(byte.MaxValue));
+            baseColor[x, y] = ToSkColor(color);
+            normal[x, y] = normalPixel.WithAlpha(byte.MaxValue);
         }
 
         return BuildSharedBase(material, name)
@@ -170,38 +177,36 @@ public class MaterialUtility
         var normalTexture  = material.GetTexture(TextureUsage.SamplerNormal);
         var maskTexture    = material.GetTexture(TextureUsage.SamplerMask);
         
-        var diffuse = diffuseTexture.Resource.ToBitmap();
-        var normal  = normalTexture.Resource.ToBitmap();
-        var mask    = maskTexture.Resource.ToBitmap();
+        var diffuse = diffuseTexture.Resource.ToTexture();
+        var normal  = normalTexture.Resource.ToTexture();
+        var mask    = maskTexture.Resource.ToTexture();
         
-        var resizedNormal = normal.Resize(new SKImageInfo(diffuse.Width, diffuse.Height), SKFilterQuality.High);
+        var resizedNormal = new SKTexture(normal.Bitmap.Resize(new SKImageInfo(diffuse.Width, diffuse.Height), SKFilterQuality.High));
 
         for (var x = 0; x < diffuse.Width; x++)
         for (int y = 0; y < diffuse.Height; y++)
         {
-            var diffusePixel = diffuse.GetPixel(x, y);
-            var normalPixel = resizedNormal.GetPixel(x, y);
-            diffuse.SetPixel(
-                x, y, new SKColor(diffusePixel.Red, diffusePixel.Green, diffusePixel.Blue, normalPixel.Blue));
+            var diffusePixel = diffuse[x, y];
+            var normalPixel = resizedNormal[x, y];
+            diffuse[x, y] = new SKColor(diffusePixel.Red, diffusePixel.Green, diffusePixel.Blue, normalPixel.Blue);
         }
         
         // Clear the blue channel out of the normal now that we're done with it.
         for (var x = 0; x < normal.Width; x++)
         for (int y = 0; y < normal.Height; y++)
         {
-            var normalPixel = normal.GetPixel(x, y);
-            normal.SetPixel(
-                x, y, new SKColor(normalPixel.Red, normalPixel.Green, byte.MaxValue, normalPixel.Alpha));
+            var normalPixel = normal[x, y];
+            normal[x, y] = new SKColor(normalPixel.Red, normalPixel.Green, byte.MaxValue, normalPixel.Alpha);
         }
 
-        var resizedMask = mask.Resize(new SKImageInfo(diffuse.Width, diffuse.Height), SKFilterQuality.High);
+        var resizedMask = new SKTexture(mask.Bitmap.Resize(new SKImageInfo(diffuse.Width, diffuse.Height), SKFilterQuality.High));
         if (material.PrimaryColor.HasValue || material.SecondaryColor.HasValue)
         {
             for (var x = 0; x < diffuse.Width; x++)
             for (int y = 0; y < diffuse.Height; y++)
             {
-                var maskPixel = resizedMask.GetPixel(x, y);
-                var diffusePixel = diffuse.GetPixel(x, y);
+                var maskPixel = resizedMask[x, y];
+                var diffusePixel = diffuse[x, y];
 
                 if (material.PrimaryColor.HasValue)
                 {
@@ -213,10 +218,10 @@ public class MaterialUtility
                         var diffuseVec = new Vector4(diffusePixel.Red, diffusePixel.Green, diffusePixel.Blue,
                                                      diffusePixel.Alpha) / 255f;
                         var lerpCol = Vector4.Lerp(diffuseVec, color, ratio);
-                        diffuse.SetPixel(
-                            x, y,
-                            new SKColor((byte)(lerpCol.X * 255), (byte)(lerpCol.Y * 255), (byte)(lerpCol.Z * 255),
-                                        diffusePixel.Alpha));
+                        diffuse[x, y] = new SKColor((byte)(lerpCol.X * 255), 
+                                                    (byte)(lerpCol.Y * 255), 
+                                                    (byte)(lerpCol.Z * 255),
+                                                 diffusePixel.Alpha);
                     }
                 }
 
@@ -227,10 +232,10 @@ public class MaterialUtility
                     var diffuseVec = new Vector4(diffusePixel.Red, diffusePixel.Green, diffusePixel.Blue,
                                                  diffusePixel.Alpha) / 255f;
                     var lerpCol = Vector4.Lerp(diffuseVec, highlight, lipIntensity);
-                    diffuse.SetPixel(
-                        x, y,
-                        new SKColor((byte)(lerpCol.X * 255), (byte)(lerpCol.Y * 255), (byte)(lerpCol.Z * 255),
-                                    diffusePixel.Alpha));
+                    diffuse[x, y] = new SKColor((byte)(lerpCol.X * 255), 
+                                                (byte)(lerpCol.Y * 255), 
+                                                (byte)(lerpCol.Z * 255),
+                                             diffusePixel.Alpha);
                 }
             }
         }
@@ -274,17 +279,17 @@ public class MaterialUtility
 
     private static ImageBuilder BuildImage(Texture texture, string materialName, string suffix)
     {
-        return BuildImage(texture.Resource.ToBitmap(), materialName, suffix);
+        return BuildImage(texture.Resource.ToTexture(), materialName, suffix);
     }
     
-    private static ImageBuilder BuildImage(SKBitmap texture, string materialName, string suffix)
+    private static ImageBuilder BuildImage(SKTexture texture, string materialName, string suffix)
     {
         var name = materialName.Replace("/", "").Replace(".mtrl", "") + $"_{suffix}";
         
         byte[] textureBytes;
         using (var memoryStream = new MemoryStream())
         {
-            texture.Encode(memoryStream, SKEncodedImageFormat.Png, 100);
+            texture.Bitmap.Encode(memoryStream, SKEncodedImageFormat.Png, 100);
             textureBytes = memoryStream.ToArray();
         }
 
@@ -293,12 +298,12 @@ public class MaterialUtility
         return imageBuilder;
     }
     
-    private class ProcessCharacterNormalOperation(SKBitmap normal, Half[] table)
+    private class ProcessCharacterNormalOperation(SKTexture normal, Half[] table)
     {
-        public SKBitmap Normal    { get; } = normal.Copy();
-        public SKBitmap BaseColor { get; } = new(normal.Width, normal.Height);
-        public SKBitmap Specular  { get; } = new(normal.Width, normal.Height);
-        public SKBitmap  Emissive  { get; } = new(normal.Width, normal.Height);
+        public SKTexture Normal    { get; } = normal.Copy();
+        public SKTexture BaseColor { get; } = new(normal.Width, normal.Height);
+        public SKTexture Specular  { get; } = new(normal.Width, normal.Height);
+        public SKTexture  Emissive  { get; } = new(normal.Width, normal.Height);
 
         private static TableRow GetTableRowIndices(float input)
         {
@@ -390,7 +395,7 @@ public class MaterialUtility
         {
             for (var x = 0; x < normal.Width; x++)
             {
-                var pixel = Normal.GetPixel(x, y);
+                var pixel = Normal[x, y];
                 
                 // Table row data (.a)
                 var tableRow = GetTableRowIndices(pixel.Alpha / 255f);
@@ -399,41 +404,44 @@ public class MaterialUtility
                 
                 // Base colour (table, .b)
                 var lerpedDiffuse = Vector3.Lerp(prevRow.Diffuse, nextRow.Diffuse, tableRow.Weight);
-                BaseColor.SetPixel(x, y, new SKColor((byte)(lerpedDiffuse.X * 255), (byte)(lerpedDiffuse.Y * 255), (byte)(lerpedDiffuse.Z * 255), pixel.Blue));
+                BaseColor[x, y] = new SKColor((byte)(lerpedDiffuse.X * 255), (byte)(lerpedDiffuse.Y * 255), (byte)(lerpedDiffuse.Z * 255), pixel.Blue);
                 
                 // Specular (table)
                 var lerpedSpecularColor = Vector3.Lerp(prevRow.Specular, nextRow.Specular, tableRow.Weight);
                 // float.Lerp is .NET8 ;-; #TODO
                 var lerpedSpecularFactor = (prevRow.SpecularStrength * (1.0f - tableRow.Weight)) + (nextRow.SpecularStrength * tableRow.Weight);
-                Specular.SetPixel(x, y, new SKColor((byte)(lerpedSpecularColor.X * 255), (byte)(lerpedSpecularColor.Y * 255), (byte)(lerpedSpecularColor.Z * 255), (byte)(lerpedSpecularFactor * 255)));
+                Specular[x, y] = new SKColor((byte)(lerpedSpecularColor.X * 255), (byte)(lerpedSpecularColor.Y * 255), (byte)(lerpedSpecularColor.Z * 255), (byte)(lerpedSpecularFactor * 255));
                 
                 // Emissive (table)
                 var lerpedEmissive = Vector3.Lerp(prevRow.Emissive, nextRow.Emissive, tableRow.Weight);
-                Emissive.SetPixel(x, y, new SKColor((byte)(lerpedEmissive.X * 255), (byte)(lerpedEmissive.Y * 255), (byte)(lerpedEmissive.Z * 255), 255));
+                Emissive[x, y] = new SKColor((byte)(lerpedEmissive.X * 255), (byte)(lerpedEmissive.Y * 255), (byte)(lerpedEmissive.Z * 255), 255);
                 
                 // Normal (.rg)
                 // TODO: we don't actually need alpha at all for normal, but _not_ using the existing rgba texture means I'll need a new one, with a new accessor. Think about it.
-                Normal.SetPixel(x, y, new SKColor(pixel.Red, pixel.Green, byte.MaxValue, byte.MaxValue));
+                Normal[x, y] = new SKColor(pixel.Red, pixel.Green, byte.MaxValue, byte.MaxValue);
             }
         }
     }
 
-    public static SKBitmap MultiplyBitmaps(SKBitmap target, SKBitmap multiplier)
+    public static SKTexture MultiplyBitmaps(SKTexture target, SKTexture multiplier)
     {
-        var (small, large) = target.Width < multiplier.Width && target.Height < multiplier.Height
-            ? (target, multiplier)
-            : (multiplier, target);
+        if (target.Width != multiplier.Width || target.Height != multiplier.Height)
+            throw new ArgumentException("Bitmaps must be the same size");
         
-        small = small.Resize(new SKImageInfo(large.Width, large.Height), SKFilterQuality.High);
-
-        var result = new SKBitmap(target.Width, target.Height);
-        using var canvas = new SKCanvas(result);
-        canvas.Clear();
-        canvas.DrawBitmap(target, 0, 0);
-        canvas.DrawBitmap(multiplier, 0, 0, new SKPaint
+        var result = new SKTexture(target.Width, target.Height);
+        for (var x = 0; x < target.Width; x++)
+        for (var y = 0; y < target.Height; y++)
         {
-            BlendMode = SKBlendMode.Multiply
-        });
+            var targetPixel = target[x, y];
+            var multPixel = multiplier[x, y];
+            var resultPixel = new SKColor(
+                (byte)(targetPixel.Red * multPixel.Red / 255f),
+                (byte)(targetPixel.Green * multPixel.Green / 255f),
+                (byte)(targetPixel.Blue * multPixel.Blue / 255f),
+                targetPixel.Alpha
+            );
+            result[x, y] = resultPixel;
+        }
 
         return result;
     }
