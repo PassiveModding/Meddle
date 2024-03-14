@@ -2,6 +2,7 @@
 using System.Numerics;
 using System.Text.RegularExpressions;
 using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Shader;
 using Meddle.Plugin.Enums;
 using Meddle.Plugin.Files;
 using Meddle.Plugin.Models;
@@ -55,7 +56,7 @@ public partial class ModelManager
         }, cancellationToken);
     }
     
-    public async Task Export(ExportConfig config, Model model, Skeleton skeleton, ushort targetRace, CancellationToken cancellationToken)
+    public async Task Export(ExportConfig config, Model model, Skeleton skeleton, ushort targetRace, CustomizeParameter? customizeParameter, CancellationToken cancellationToken)
     {
         if (IsExporting)
             throw new InvalidOperationException("Already exporting.");
@@ -71,7 +72,7 @@ public partial class ModelManager
                 var scene = new SceneBuilder("scene");
                 var boneMap = ModelUtility.GetBoneMap(skeleton, out var rootBone).ToArray();
                 scene.AddNode(rootBone);
-                HandleModel(config, model, targetRace, scene, boneMap);
+                HandleModel(config, model, targetRace, scene, boneMap, customizeParameter);
                 
                 Directory.CreateDirectory(path);
                 var gltfPath = Path.Combine(path, "model.gltf");
@@ -107,7 +108,7 @@ public partial class ModelManager
         {
             if (LowPolyModelRegex().IsMatch(model.HandlePath)) continue;
             
-            HandleModel(config, model, character.RaceCode!.Value, scene, boneMap);
+            HandleModel(config, model, character.RaceCode!.Value, scene, boneMap, character.CustomizeParameter);
         }
 
         if (character.AttachedChildren != null)
@@ -135,7 +136,7 @@ public partial class ModelManager
                 foreach (var model in child.Models)
                 {
                     Log.Debug($"Handling child model {model.HandlePath}");
-                    HandleModel(config, model, character.RaceCode!.Value, scene, childBoneMap.ToArray());
+                    HandleModel(config, model, character.RaceCode!.Value, scene, childBoneMap.ToArray(), character.CustomizeParameter);
                 }
             }
         }
@@ -149,11 +150,11 @@ public partial class ModelManager
             Process.Start("explorer.exe", path);
     }
     
-    private void HandleModel(ExportConfig config, Model model, ushort targetRace, SceneBuilder scene, BoneNodeBuilder[] boneMap)
+    private void HandleModel(ExportConfig config, Model model, ushort targetRace, SceneBuilder scene, BoneNodeBuilder[] boneMap, CustomizeParameter? customizeParameter)
     {
         Log.Debug("Exporting model {Model}", model.HandlePath);
 
-        var materials = CreateMaterials(model).ToArray();
+        var materials = CreateMaterials(model, customizeParameter).ToArray();
             
         IEnumerable<(IMeshBuilder<MaterialBuilder> mesh, bool useSkinning, SubMesh? submesh)> meshes;
         if (model.RaceCode.HasValue && model.RaceCode.Value != (ushort)GenderRace.Unknown)
@@ -204,7 +205,7 @@ public partial class ModelManager
                         model.EnabledShapes.Any(n => s.Name.Equals(n, StringComparison.Ordinal)) ? 1f : 0).ToArray());
     }
 
-    private IEnumerable<MaterialBuilder> CreateMaterials(Model model)
+    private IEnumerable<MaterialBuilder> CreateMaterials(Model model, CustomizeParameter? cp)
     {
         var materials = new MaterialBuilder[model.Materials.Count];
 
@@ -214,7 +215,7 @@ public partial class ModelManager
             Log.Debug("Exporting material {Material}", material.HandlePath);
             
             var name = Path.GetFileName(material.HandlePath);
-            materials[i] = MaterialUtility.ParseMaterial(material, name);
+            materials[i] = MaterialUtility.ParseMaterial(material, name, cp);
         }
 
         return materials;

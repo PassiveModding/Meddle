@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using Dalamud.Utility.Numerics;
+using FFXIVClientStructs.FFXIV.Shader;
 using Lumina.Data.Parsing;
 using Meddle.Plugin.Models;
 using SharpGLTF.Materials;
@@ -16,10 +17,10 @@ public class MaterialUtility
                                                      .WithBaseColor(Vector4.One);
     
     private static readonly Vector4 DefaultEyeColor = new Vector4(21, 176, 172, 255) / new Vector4(255);
-    private static readonly Vector4 DefaultHairColor      = new Vector4(130, 64,  13,  255) / new Vector4(255);
-    private static readonly Vector4 DefaultHighlightColor = new Vector4(77,  126, 240, 255) / new Vector4(255);
+    private static readonly Vector3 DefaultHairColor      = new Vector3(130, 64,  13) / new Vector3(255);
+    private static readonly Vector3 DefaultHighlightColor = new Vector3(77,  126, 240) / new Vector3(255);
     private static readonly Vector4 DefaultSkinColor      = new Vector4(234, 183, 161, 255) / new Vector4(255);
-    public static MaterialBuilder ParseMaterial(Material material, string name)
+    public static MaterialBuilder ParseMaterial(Material material, string name, CustomizeParameter? customizeParameter = null)
     {
         name = $"{name}_{material.ShaderPackage.Name.Replace(".shpk", "")}";
 
@@ -27,9 +28,9 @@ public class MaterialUtility
         {
             "character.shpk" => BuildCharacter(material, name).WithAlpha(AlphaMode.MASK, 0.5f),
             "characterglass.shpk" => BuildCharacter(material, name).WithAlpha(AlphaMode.BLEND),
-            "hair.shpk" => BuildHair(material, name),
-            "iris.shpk"           => BuildIris(material, name),
-            "skin.shpk"           => BuildSkin(material, name),
+            "hair.shpk" => BuildHair(material, name, customizeParameter),
+            "iris.shpk"           => BuildIris(material, name, customizeParameter),
+            "skin.shpk"           => BuildSkin(material, name, customizeParameter),
             _ => BuildFallback(material, name),
         };
     }
@@ -98,14 +99,14 @@ public class MaterialUtility
     }
     
     /// <summary> Build a material following the semantics of hair.shpk. </summary>
-    private static MaterialBuilder BuildHair(Material material, string name)
+    private static MaterialBuilder BuildHair(Material material, string name, CustomizeParameter? customizeParameter = null)
     {
         // Trust me bro.
         const uint categoryHairType = 0x24826489;
         const uint valueFace        = 0x6E5B8F10;
         
-        var hairCol      = material.PrimaryColor ?? DefaultHairColor;
-        var highlightCol = material.SecondaryColor ?? DefaultHighlightColor;
+        var hairCol      = customizeParameter?.MainColor ?? DefaultHairColor;
+        var highlightCol = customizeParameter?.MeshColor ?? DefaultHighlightColor;
 
         // TODO: ShaderKeys 
         var isFace = true;
@@ -122,7 +123,7 @@ public class MaterialUtility
         {
             var normalPixel = normal[x, y];
             var maskPixel = mask[x, y];
-            var color = Vector4.Lerp(hairCol, highlightCol, maskPixel.Alpha / 255f);
+            var color = Vector3.Lerp(hairCol, highlightCol, maskPixel.Alpha / 255f);
             // TODO: Think there is some blending with the mask red channel but can't seem to get it right
             baseColor[x, y] = ToSkColor(color).WithAlpha(normalPixel.Alpha);
 
@@ -142,7 +143,7 @@ public class MaterialUtility
                .WithAlpha(isFace ? AlphaMode.BLEND : AlphaMode.MASK, 0.5f);
     }
     
-    private static MaterialBuilder BuildIris(Material material, string name)
+    private static MaterialBuilder BuildIris(Material material, string name, CustomizeParameter? customizeParameter = null)
     {
         var normalTexture = material.GetTexture(TextureUsage.SamplerNormal);
         var maskTexture   = material.GetTexture(TextureUsage.SamplerMask);
@@ -157,7 +158,9 @@ public class MaterialUtility
             var normalPixel = normal[x, y];
             var maskPixel = mask[x, y];
 
-            var color = (material.PrimaryColor ?? DefaultEyeColor) * new Vector4(maskPixel.Red / 255f);
+            // Not sure if we can set it per eye since it's done by the shader
+            // NOTE: W = Face paint (UV2) U multiplier. since we set it using the alpha it gets ignored for iris either way
+            var color = (customizeParameter?.LeftColor ?? DefaultEyeColor) * new Vector4(maskPixel.Red / 255f);
             color.W = normalPixel.Alpha / 255f;
 
             baseColor[x, y] = ToSkColor(color);
@@ -170,7 +173,7 @@ public class MaterialUtility
     }
     
         /// <summary> Build a material following the semantics of skin.shpk. </summary>
-    private static MaterialBuilder BuildSkin(Material material, string name)
+    private static MaterialBuilder BuildSkin(Material material, string name, CustomizeParameter? customizeParameter = null)
     {
         // Trust me bro.
         const uint categorySkinType = 0x380CAED0;
@@ -208,7 +211,7 @@ public class MaterialUtility
         }
 
         var resizedMask = new SKTexture(mask.Bitmap.Resize(new SKImageInfo(diffuse.Width, diffuse.Height), SKFilterQuality.High));
-        if (material.PrimaryColor.HasValue || material.SecondaryColor.HasValue || true)
+        if (customizeParameter.HasValue)
         {
             for (var x = 0; x < diffuse.Width; x++)
             for (int y = 0; y < diffuse.Height; y++)
@@ -216,34 +219,31 @@ public class MaterialUtility
                 var maskPixel = resizedMask[x, y];
                 var diffusePixel = diffuse[x, y];
 
-                if (material.PrimaryColor.HasValue || true)
+                var intensity = maskPixel.Red;
+                if (intensity > 128)
                 {
-                    var intensity = maskPixel.Red;
-                    if (intensity > 128)
-                    {
-                        var ratio = (intensity - 128) / 127f;
-                        var color = material.PrimaryColor ?? DefaultSkinColor;
-                        var diffuseVec = new Vector4(diffusePixel.Red, diffusePixel.Green, diffusePixel.Blue,
-                                                     diffusePixel.Alpha) / 255f;
-                        var lerpCol = Vector4.Lerp(diffuseVec, color, ratio);
-                        diffuse[x, y] = new SKColor((byte)(lerpCol.X * 255), 
-                                                    (byte)(lerpCol.Y * 255), 
-                                                    (byte)(lerpCol.Z * 255),
-                                                 diffusePixel.Alpha);
-                    }
-                }
-
-                if (isFace && material.SecondaryColor.HasValue)
-                {
-                    var lipIntensity = maskPixel.Blue / 255f;
-                    var highlight = material.SecondaryColor.Value;
+                    var ratio = (intensity - 128) / 127f;
+                    // NOTE: W is Muscle tone, don't we set the alpha anyways so it doesn't matter during lerp
+                    var color = customizeParameter.Value.SkinColor;
                     var diffuseVec = new Vector4(diffusePixel.Red, diffusePixel.Green, diffusePixel.Blue,
                                                  diffusePixel.Alpha) / 255f;
-                    var lerpCol = Vector4.Lerp(diffuseVec, highlight, lipIntensity);
+                    var lerpCol = Vector4.Lerp(diffuseVec, color, ratio);
                     diffuse[x, y] = new SKColor((byte)(lerpCol.X * 255), 
                                                 (byte)(lerpCol.Y * 255), 
                                                 (byte)(lerpCol.Z * 255),
                                              diffusePixel.Alpha);
+                }
+
+                if (isFace)
+                {
+                    var lipIntensity = maskPixel.Blue / 255f;
+                    var diffuseVec = new Vector4(diffusePixel.Red, diffusePixel.Green, diffusePixel.Blue,
+                                                 diffusePixel.Alpha) / 255f;
+                    var lerpCol = Vector4.Lerp(diffuseVec, customizeParameter.Value.LipColor, lipIntensity);
+                    diffuse[x, y] = new SKColor((byte)(lerpCol.X * 255), 
+                                                (byte)(lerpCol.Y * 255), 
+                                                (byte)(lerpCol.Z * 255),
+                                                (byte)(customizeParameter.Value.LipColor.W * 255));
                 }
             }
         }
@@ -283,6 +283,11 @@ public class MaterialUtility
     private static SKColor ToSkColor(Vector4 color)
     {
         return new SKColor((byte)(color.X * 255), (byte)(color.Y * 255), (byte)(color.Z * 255), (byte)(color.W * 255));
+    }
+    
+    private static SKColor ToSkColor(Vector3 color)
+    {
+        return new SKColor((byte)(color.X * 255), (byte)(color.Y * 255), (byte)(color.Z * 255), byte.MaxValue);
     }
 
     private static ImageBuilder BuildImage(Texture texture, string materialName, string suffix)

@@ -18,8 +18,6 @@ public unsafe class Material
 
     public ShaderPackage ShaderPackage { get; set; }
     public List<Texture> Textures { get; set; }
-    public Vector4? PrimaryColor { get; set; }
-    public Vector4? SecondaryColor { get; set; }
     
     public bool TryGetTexture(TextureUsage usage, out Texture texture)
     {

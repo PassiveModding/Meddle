@@ -1,6 +1,8 @@
+using System.Runtime.InteropServices;
 using Dalamud.Memory;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
-using Meddle.Plugin.Xande;
+using FFXIVClientStructs.FFXIV.Shader;
+using Meddle.Plugin.Enums;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
 
 namespace Meddle.Plugin.Models;
@@ -15,12 +17,13 @@ public unsafe class CharacterTree
 
     public ushort? RaceCode { get; set; }
 
+    public CustomizeParameter? CustomizeParameter { get; set; }
+    
     public List<CharacterTree>? AttachedChildren { get; set; }
 
     public CharacterTree(CSCharacter* character) : this((CharacterBase*)character->GameObject.DrawObject)
     {
         Name = MemoryHelper.ReadStringNullTerminated((nint)character->GameObject.GetName());
-        RaceCode = ((Human*)character->GameObject.DrawObject)->RaceSexId;
 
         AttachedChildren = new();
         foreach (var weaponData in character->DrawData.WeaponDataSpan)
@@ -41,6 +44,19 @@ public unsafe class CharacterTree
         name = character->ResolveRootPath(name, 256);
         Name = name != null ? MemoryHelper.ReadString((nint)name, 256) : string.Empty;
 
+        var modelType = character->GetModelType();
+        var human = modelType == CharacterBase.ModelType.Human ? (Human*)character : null;
+        if (human != null && human->CustomizeParameterCBuffer != null)
+        {
+            var cp = human->CustomizeParameterCBuffer->LoadBuffer<CustomizeParameter>(0, 1);
+            if (cp != null && cp.Length > 0)
+            {
+                CustomizeParameter = cp[0];
+            }
+        
+            RaceCode = human->RaceSexId;
+        }
+        
         Transform = new(character->DrawObject.Object.Transform);
         Skeleton = new(character->Skeleton);
         Models = new();
@@ -48,6 +64,7 @@ public unsafe class CharacterTree
         {
             if (character->Models[i] == null)
                 continue;
+            
             Models.Add(new(character->Models[i], character->ColorTableTextures + (i * 4)));
         }
         Attach = new(&character->Attach);
