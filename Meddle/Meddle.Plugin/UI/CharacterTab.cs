@@ -8,6 +8,7 @@ using System.Numerics;
 using System.Reflection;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Services;
+using Meddle.Plugin.Utility;
 using Character = Dalamud.Game.ClientState.Objects.Types.Character;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
 
@@ -17,12 +18,15 @@ public unsafe partial class CharacterTab(
     DalamudPluginInterface pluginInterface,
     IObjectTable objectTable,
     IClientState clientState,
-    ModelManager modelConverter)
+    ModelManager modelConverter,
+    IPluginLog log)
     : ITab
 {
     public string Name => "Character";
 
     public int Order => 0;
+    
+    private ExportLogger Logger { get; } = new(log);
 
     private DalamudPluginInterface PluginInterface { get; } = pluginInterface;
     private IObjectTable ObjectTable { get; } = objectTable;

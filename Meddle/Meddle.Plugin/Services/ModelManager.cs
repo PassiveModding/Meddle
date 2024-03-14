@@ -2,7 +2,6 @@
 using System.Numerics;
 using System.Text.RegularExpressions;
 using Dalamud.Plugin.Services;
-using FFXIVClientStructs.FFXIV.Shader;
 using Meddle.Plugin.Enums;
 using Meddle.Plugin.Files;
 using Meddle.Plugin.Models;
@@ -34,7 +33,7 @@ public partial class ModelManager
     }
 
 
-    public async Task Export(ExportConfig config, CharacterTree characterTree, CancellationToken cancellationToken)
+    public async Task Export(ExportLogger logger, ExportConfig config, CharacterTree characterTree, CancellationToken cancellationToken)
     {
         if (IsExporting)
             throw new InvalidOperationException("Already exporting.");
@@ -44,11 +43,11 @@ public partial class ModelManager
         {
             try
             {
-                await ExportInternal(config, characterTree, cancellationToken);
+                await ExportInternal(logger, config, characterTree, cancellationToken);
             }
             catch (Exception e)
             {
-                Log.Error(e, "Failed to export model");
+                logger.Error(e, "Failed to export model");
             } finally
             {
                 IsExporting = false;
@@ -56,7 +55,7 @@ public partial class ModelManager
         }, cancellationToken);
     }
     
-    public async Task Export(ExportConfig config, Model model, Skeleton skeleton, ushort targetRace, CustomizeParameters? customizeParameter, CancellationToken cancellationToken)
+    public async Task Export(ExportLogger logger, ExportConfig config, Model model, Skeleton skeleton, ushort targetRace, CustomizeParameters? customizeParameter, CancellationToken cancellationToken)
     {
         if (IsExporting)
             throw new InvalidOperationException("Already exporting.");
@@ -67,24 +66,24 @@ public partial class ModelManager
             try
             {
                 var path = Path.Combine(Plugin.TempDirectory, $"{model.GetHashCode():X8}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}");
-                Log.Debug("Exporting to {Path}", path);
+                logger.Debug($"Exporting to {path}");
         
                 var scene = new SceneBuilder("scene");
                 var boneMap = ModelUtility.GetBoneMap(skeleton, out var rootBone).ToArray();
                 scene.AddNode(rootBone);
-                HandleModel(config, model, targetRace, scene, boneMap, customizeParameter);
+                HandleModel(logger, config, model, targetRace, scene, boneMap, customizeParameter);
                 
                 Directory.CreateDirectory(path);
                 var gltfPath = Path.Combine(path, "model.gltf");
                 var output = scene.ToGltf2();
                 output.SaveGLTF(gltfPath);
-                Log.Debug($"Exported model to {gltfPath}");
+                logger.Debug($"Exported model to {gltfPath}");
                 if (config.OpenFolderWhenComplete)
                     Process.Start("explorer.exe", path);
             }
             catch (Exception e)
             {
-                Log.Error(e, "Failed to export model");
+                logger.Error(e, "Failed to export model");
             } finally
             {
                 IsExporting = false;
@@ -95,10 +94,10 @@ public partial class ModelManager
     [GeneratedRegex("^chara/human/c\\d+/obj/body/b0003/model/c\\d+b0003_top.mdl$")]
     private static partial Regex LowPolyModelRegex();
     
-    private async Task ExportInternal(ExportConfig config, CharacterTree character, CancellationToken cancellationToken)
+    private async Task ExportInternal(ExportLogger logger, ExportConfig config, CharacterTree character, CancellationToken cancellationToken)
     {
         var path = Path.Combine(Plugin.TempDirectory, $"{character.GetHashCode():X8}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}");
-        Log.Debug("Exporting to {Path}", path);
+        logger.Debug($"Exporting to {path}");
         
         var scene = new SceneBuilder(string.IsNullOrWhiteSpace(character.Name) ? "scene" : character.Name);
         var boneMap = ModelUtility.GetBoneMap(character.Skeleton, out var rootBone).ToArray();
@@ -108,7 +107,7 @@ public partial class ModelManager
         {
             if (LowPolyModelRegex().IsMatch(model.HandlePath)) continue;
             
-            HandleModel(config, model, character.RaceCode!.Value, scene, boneMap, character.CustomizeParameter);
+            HandleModel(logger, config, model, character.RaceCode!.Value, scene, boneMap, character.CustomizeParameter);
         }
 
         if (character.AttachedChildren != null)
@@ -135,8 +134,8 @@ public partial class ModelManager
 
                 foreach (var model in child.Models)
                 {
-                    Log.Debug($"Handling child model {model.HandlePath}");
-                    HandleModel(config, model, character.RaceCode!.Value, scene, childBoneMap.ToArray(), character.CustomizeParameter);
+                    logger.Debug($"Handling child model {model.HandlePath}");
+                    HandleModel(logger, config, model, character.RaceCode!.Value, scene, childBoneMap.ToArray(), character.CustomizeParameter);
                 }
             }
         }
@@ -145,26 +144,23 @@ public partial class ModelManager
         var gltfPath = Path.Combine(path, "model.gltf");
         var output = scene.ToGltf2();
         output.SaveGLTF(gltfPath);
-        Log.Debug($"Exported model to {gltfPath}");
+        logger.Debug($"Exported model to {gltfPath}");
         if (config.OpenFolderWhenComplete)
             Process.Start("explorer.exe", path);
     }
     
-    private void HandleModel(ExportConfig config, Model model, ushort targetRace, SceneBuilder scene, BoneNodeBuilder[] boneMap, CustomizeParameters? customizeParameter)
+    private void HandleModel(ExportLogger logger, ExportConfig config, Model model, ushort targetRace, SceneBuilder scene, BoneNodeBuilder[] boneMap, CustomizeParameters? customizeParameter)
     {
-        Log.Debug("Exporting model {Model}", model.HandlePath);
+        logger.Debug($"Exporting model {model.HandlePath}");
 
-        var materials = CreateMaterials(model, customizeParameter).ToArray();
+        var materials = CreateMaterials(logger, model, customizeParameter).ToArray();
             
         IEnumerable<(IMeshBuilder<MaterialBuilder> mesh, bool useSkinning, SubMesh? submesh)> meshes;
         if (model.RaceCode.HasValue && model.RaceCode.Value != (ushort)GenderRace.Unknown)
         {
-            Log.Debug($"Setup deform for {model.HandlePath} from {model.RaceCode} to {targetRace}");
+            logger.Debug($"Setup deform for {model.HandlePath} from {model.RaceCode} to {targetRace}");
             var raceDeformer = new RaceDeformer(Pbd, boneMap.ToArray());
-            meshes = ModelBuilder.BuildMeshes(model,
-                                              materials,
-                                              boneMap,
-                                              (targetRace, raceDeformer!));
+            meshes = ModelBuilder.BuildMeshes(model, materials, boneMap, (targetRace, raceDeformer!));
         }
         else
         {
@@ -205,14 +201,14 @@ public partial class ModelManager
                         model.EnabledShapes.Any(n => s.Name.Equals(n, StringComparison.Ordinal)) ? 1f : 0).ToArray());
     }
 
-    private IEnumerable<MaterialBuilder> CreateMaterials(Model model, CustomizeParameters? cp)
+    private IEnumerable<MaterialBuilder> CreateMaterials(ExportLogger logger, Model model, CustomizeParameters? cp)
     {
         var materials = new MaterialBuilder[model.Materials.Count];
 
         for (var i = 0; i < model.Materials.Count; i++)
         {
             var material = model.Materials[i];
-            Log.Debug("Exporting material {Material}", material.HandlePath);
+            logger.Debug($"Exporting material {material.HandlePath}");
             
             var name = Path.GetFileName(material.HandlePath);
             materials[i] = MaterialUtility.ParseMaterial(material, name, cp);

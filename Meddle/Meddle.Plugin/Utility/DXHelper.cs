@@ -120,10 +120,10 @@ public static unsafe class DXHelper
         var code = stagingRes.Device.ImmediateContext.Map(stagingRes, 0, MapMode.Read, MapFlags.DoNotWait, out var mapInfo);
         if (code == WasStillDrawing)
         {
-            PluginLog.Debug($"Could not do a non-blocking map. Attempting a blocking map. {code.Description}");
+            //PluginLog.Debug($"Could not do a non-blocking map. Attempting a blocking map. {code.Description}");
             stagingRes.Device.ImmediateContext.Map(stagingRes, 0, MapMode.Read, MapFlags.None, out mapInfo).CheckError();
         }
-        using var _unmap = new DisposeRaii(() => stagingRes.Device.ImmediateContext.Unmap(stagingRes, 0));
+        using var unmap = new DisposeRaii(() => stagingRes.Device.ImmediateContext.Unmap(stagingRes, 0));
 
         return getData(stagingRes, mapInfo);
     }

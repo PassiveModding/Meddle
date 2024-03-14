@@ -1,7 +1,6 @@
 ﻿using Dalamud.Interface.Utility.Raii;
 using ImGuiNET;
 using System.Numerics;
-using FFXIVClientStructs.FFXIV.Shader;
 using Meddle.Plugin.Enums;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Config;
@@ -19,6 +18,7 @@ public partial class CharacterTab
                 ExportCts?.Cancel();
                 ExportCts = new();
                 ExportTask = ModelConverter.Export(
+                    Logger,
                     new ExportConfig
                     {
                         ExportType = ExportType.Gltf,
@@ -28,6 +28,13 @@ public partial class CharacterTab
                     tree,
                     ExportCts.Token);
             }
+        }
+        
+        var log = Logger.GetLastLog();
+        if (log != default)
+        {
+            ImGui.SameLine();
+            ImGui.Text($"{log.level}: {log.message}");
         }
         
         ImGui.Text("Customize");
@@ -116,12 +123,14 @@ public partial class CharacterTab
             {
                 ExportCts?.Cancel();
                 ExportCts = new();
-                ExportTask = ModelConverter.Export(new ExportConfig
-                {
-                    ExportType = ExportType.Gltf,
-                    IncludeReaperEye = false,
-                    OpenFolderWhenComplete = true
-                }, model, tree.Skeleton, tree.RaceCode!.Value, tree.CustomizeParameter, ExportCts.Token);
+                ExportTask = ModelConverter.Export(
+                    Logger,
+                    new ExportConfig
+                    {
+                        ExportType = ExportType.Gltf,
+                        IncludeReaperEye = false,
+                        OpenFolderWhenComplete = true
+                    }, model, tree.Skeleton, tree.RaceCode!.Value, tree.CustomizeParameter, ExportCts.Token);
             }
                 
             if (model.Shapes.Count > 0)
