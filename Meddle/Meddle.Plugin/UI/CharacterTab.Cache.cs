@@ -31,9 +31,9 @@ public partial class CharacterTab
         }
         
         ImGui.Text("Customize");
-        if (tree.CustomizeParameter.HasValue)
+        if (tree.CustomizeParameter != null)
         {
-            var c = tree.CustomizeParameter.Value;
+            var c = tree.CustomizeParameter;
             DrawCustomizeParameters(ref c);
             tree.CustomizeParameter = c;
         }
@@ -45,7 +45,7 @@ public partial class CharacterTab
         DrawModelView(tree);
     }
     
-    private static void DrawCustomizeParameters(ref CustomizeParameter c)
+    private static void DrawCustomizeParameters(ref CustomizeParameters c)
     {
         var skinCol = c.SkinColor;
         var sk3 = new Vector3(skinCol.X, skinCol.Y, skinCol.Z);
@@ -84,6 +84,20 @@ public partial class CharacterTab
         if (ImGui.ColorEdit3("Hair Highlight", ref hh3))
         {
             c.MeshColor = hh3;
+        }
+        
+        var irisCol = c.LeftColor;
+        var ic4 = new Vector4(irisCol.X, irisCol.Y, irisCol.Z, irisCol.W);
+        if (ImGui.ColorEdit4("Left Iris", ref ic4))
+        {
+            c.LeftColor = ic4;
+        }
+        
+        var irisCol2 = c.RightColor;
+        var ic42 = new Vector4(irisCol2.X, irisCol2.Y, irisCol2.Z, irisCol2.W);
+        if (ImGui.ColorEdit4("Right Iris", ref ic42))
+        {
+            c.RightColor = ic42;
         }
     }
 

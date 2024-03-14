@@ -20,7 +20,7 @@ public class MaterialUtility
     private static readonly Vector3 DefaultHairColor      = new Vector3(130, 64,  13) / new Vector3(255);
     private static readonly Vector3 DefaultHighlightColor = new Vector3(77,  126, 240) / new Vector3(255);
     
-    public static MaterialBuilder ParseMaterial(Material material, string name, CustomizeParameter? customizeParameter = null)
+    public static MaterialBuilder ParseMaterial(Material material, string name, CustomizeParameters? customizeParameter = null)
     {
         name = $"{name}_{material.ShaderPackage.Name.Replace(".shpk", "")}";
 
@@ -99,7 +99,7 @@ public class MaterialUtility
     }
     
     /// <summary> Build a material following the semantics of hair.shpk. </summary>
-    private static MaterialBuilder BuildHair(Material material, string name, CustomizeParameter? customizeParameter = null)
+    private static MaterialBuilder BuildHair(Material material, string name, CustomizeParameters? customizeParameter = null)
     {
         // Trust me bro.
         const uint categoryHairType = 0x24826489;
@@ -143,7 +143,7 @@ public class MaterialUtility
                .WithAlpha(isFace ? AlphaMode.BLEND : AlphaMode.MASK, 0.5f);
     }
     
-    private static MaterialBuilder BuildIris(Material material, string name, CustomizeParameter? customizeParameter = null)
+    private static MaterialBuilder BuildIris(Material material, string name, CustomizeParameters? customizeParameter = null)
     {
         var normalTexture = material.GetTexture(TextureUsage.SamplerNormal);
         var maskTexture   = material.GetTexture(TextureUsage.SamplerMask);
@@ -173,7 +173,7 @@ public class MaterialUtility
     }
     
         /// <summary> Build a material following the semantics of skin.shpk. </summary>
-    private static MaterialBuilder BuildSkin(Material material, string name, CustomizeParameter? customizeParameter = null)
+    private static MaterialBuilder BuildSkin(Material material, string name, CustomizeParameters? customizeParameter = null)
     {
         // Trust me bro.
         const uint categorySkinType = 0x380CAED0;
@@ -206,46 +206,40 @@ public class MaterialUtility
         for (int y = 0; y < normal.Height; y++)
         {
             var normalPixel = normal[x, y];
-            normal[x, y] = new SKColor(normalPixel.Red, normalPixel.Green, byte.MaxValue, normalPixel.Alpha);
+            normal[x, y] = new SKColor(normalPixel.Red, normalPixel.Green, byte.MaxValue, normalPixel.Blue);
         }
-
+        
         var resizedMask = new SKTexture(mask.Bitmap.Resize(new SKImageInfo(diffuse.Width, diffuse.Height), SKFilterQuality.High));
-        if (customizeParameter.HasValue)
+        if (customizeParameter != null)
         {
             for (var x = 0; x < diffuse.Width; x++)
             for (int y = 0; y < diffuse.Height; y++)
             {
+                // R: Skin color intensity
+                // G: Specular intensity - todo maybe
+                // B: Lip intensity
                 var maskPixel = resizedMask[x, y];
+                var diffusePixel = diffuse[x, y];
+                var diffuseVec = new Vector4(diffusePixel.Red, diffusePixel.Green, diffusePixel.Blue,
+                                             diffusePixel.Alpha) / 255f;
 
-                var intensity = maskPixel.Red;
-                if (intensity > 128)
+                if (maskPixel.Red > 0)
                 {
-                    var diffusePixel = diffuse[x, y];
-                    var ratio = (intensity - 128) / 127f;
-                    // NOTE: W is Muscle tone, don't we set the alpha anyways so it doesn't matter during lerp
-                    var color = customizeParameter.Value.SkinColor;
-                    var diffuseVec = new Vector4(diffusePixel.Red, diffusePixel.Green, diffusePixel.Blue,
-                                                 diffusePixel.Alpha) / 255f;
-                    var lerpCol = Vector4.Lerp(diffuseVec, color, ratio);
-                    diffuse[x, y] = new SKColor((byte)(lerpCol.X * 255), 
-                                                (byte)(lerpCol.Y * 255), 
-                                                (byte)(lerpCol.Z * 255),
-                                             diffusePixel.Alpha);
+                    var skinColorIntensity = maskPixel.Red / 255f;
+                    // NOTE: SkinColor alpha channel is muscle tone
+                    diffuseVec = FloatLerp(diffuseVec, customizeParameter.SkinColor, skinColorIntensity * 0.5f);
                 }
 
                 if (isFace)
                 {
-                    var diffusePixel = diffuse[x, y];
                     // Lerp between base colour and lip colour based on the blue channel
                     var lipIntensity = maskPixel.Blue / 255f;
-                    var diffuseVec = new Vector4(diffusePixel.Red, diffusePixel.Green, diffusePixel.Blue,
-                                                 diffusePixel.Alpha) / 255f;
-                    var lerpCol = Vector4.Lerp(diffuseVec, customizeParameter.Value.LipColor, lipIntensity);
-                    diffuse[x, y] = new SKColor((byte)(lerpCol.X * 255), 
-                                                (byte)(lerpCol.Y * 255), 
-                                                (byte)(lerpCol.Z * 255),
-                        diffusePixel.Alpha);
+                    diffuseVec = FloatLerp(diffuseVec, customizeParameter.LipColor,
+                                           lipIntensity * customizeParameter.LipColor.W);
                 }
+                
+                // keep original alpha
+                diffuse[x, y] = ToSkColor(diffuseVec).WithAlpha(diffusePixel.Alpha);
             }
         }
         
@@ -254,6 +248,21 @@ public class MaterialUtility
                .WithNormal(BuildImage(normal,     name, "normal"))
                .WithOcclusion(BuildImage(mask, name, "mask"))
                .WithAlpha(isFace ? AlphaMode.MASK : AlphaMode.OPAQUE, 0.5f);
+    }
+        
+    private static Vector4 FloatLerp(Vector4 a, Vector4 b, float t)
+    {
+        return new(
+            Lerp(a.X, b.X, t),
+            Lerp(a.Y, b.Y, t),
+            Lerp(a.Z, b.Z, t),
+            Lerp(a.W, b.W, t)
+        );
+    }
+    
+    private static float Lerp(float a, float b, float t)
+    {
+        return a * (1 - t) + b * t;
     }
     
     private static MaterialBuilder BuildFallback(Material material, string name)

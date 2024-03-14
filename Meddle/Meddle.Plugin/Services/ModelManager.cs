@@ -56,7 +56,7 @@ public partial class ModelManager
         }, cancellationToken);
     }
     
-    public async Task Export(ExportConfig config, Model model, Skeleton skeleton, ushort targetRace, CustomizeParameter? customizeParameter, CancellationToken cancellationToken)
+    public async Task Export(ExportConfig config, Model model, Skeleton skeleton, ushort targetRace, CustomizeParameters? customizeParameter, CancellationToken cancellationToken)
     {
         if (IsExporting)
             throw new InvalidOperationException("Already exporting.");
@@ -150,7 +150,7 @@ public partial class ModelManager
             Process.Start("explorer.exe", path);
     }
     
-    private void HandleModel(ExportConfig config, Model model, ushort targetRace, SceneBuilder scene, BoneNodeBuilder[] boneMap, CustomizeParameter? customizeParameter)
+    private void HandleModel(ExportConfig config, Model model, ushort targetRace, SceneBuilder scene, BoneNodeBuilder[] boneMap, CustomizeParameters? customizeParameter)
     {
         Log.Debug("Exporting model {Model}", model.HandlePath);
 
@@ -205,7 +205,7 @@ public partial class ModelManager
                         model.EnabledShapes.Any(n => s.Name.Equals(n, StringComparison.Ordinal)) ? 1f : 0).ToArray());
     }
 
-    private IEnumerable<MaterialBuilder> CreateMaterials(Model model, CustomizeParameter? cp)
+    private IEnumerable<MaterialBuilder> CreateMaterials(Model model, CustomizeParameters? cp)
     {
         var materials = new MaterialBuilder[model.Materials.Count];
 

@@ -17,7 +17,7 @@ public unsafe class CharacterTree
 
     public ushort? RaceCode { get; set; }
 
-    public CustomizeParameter? CustomizeParameter { get; set; }
+    public CustomizeParameters? CustomizeParameter { get; set; }
     
     public List<CharacterTree>? AttachedChildren { get; set; }
 
@@ -51,7 +51,7 @@ public unsafe class CharacterTree
             var cp = human->CustomizeParameterCBuffer->LoadBuffer<CustomizeParameter>(0, 1);
             if (cp != null && cp.Length > 0)
             {
-                CustomizeParameter = cp[0];
+                CustomizeParameter = new CustomizeParameters(cp[0]);
             }
         
             RaceCode = human->RaceSexId;
