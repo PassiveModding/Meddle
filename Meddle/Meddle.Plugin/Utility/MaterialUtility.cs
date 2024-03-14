@@ -19,7 +19,7 @@ public class MaterialUtility
     private static readonly Vector4 DefaultEyeColor = new Vector4(21, 176, 172, 255) / new Vector4(255);
     private static readonly Vector3 DefaultHairColor      = new Vector3(130, 64,  13) / new Vector3(255);
     private static readonly Vector3 DefaultHighlightColor = new Vector3(77,  126, 240) / new Vector3(255);
-    private static readonly Vector4 DefaultSkinColor      = new Vector4(234, 183, 161, 255) / new Vector4(255);
+    
     public static MaterialBuilder ParseMaterial(Material material, string name, CustomizeParameter? customizeParameter = null)
     {
         name = $"{name}_{material.ShaderPackage.Name.Replace(".shpk", "")}";
@@ -107,9 +107,9 @@ public class MaterialUtility
         
         var hairCol      = customizeParameter?.MainColor ?? DefaultHairColor;
         var highlightCol = customizeParameter?.MeshColor ?? DefaultHighlightColor;
-
-        // TODO: ShaderKeys 
-        var isFace = true;
+        
+        var isFace = material.ShaderKeys
+            .Any(key => key is { Category: categoryHairType, Value: valueFace });
         
         var normalTexture = material.GetTexture(TextureUsage.SamplerNormal);
         var maskTexture   = material.GetTexture(TextureUsage.SamplerMask);
@@ -180,9 +180,8 @@ public class MaterialUtility
         const uint valueFace        = 0xF5673524;
 
         // Face is the default for the skin shader, so a lack of skin type category is also correct.
-        //var isFace = !material.Mtrl.ShaderPackage.ShaderKeys
-        //    .Any(key => key.Category == categorySkinType && key.Value != valueFace);
-        var isFace = true;
+        var isFace = !material.ShaderKeys
+               .Any(key => key.Category == categorySkinType && key.Value != valueFace);
         
         var diffuseTexture = material.GetTexture(TextureUsage.SamplerDiffuse);
         var normalTexture  = material.GetTexture(TextureUsage.SamplerNormal);
@@ -236,6 +235,7 @@ public class MaterialUtility
 
                 if (isFace)
                 {
+                    // Lerp between base colour and lip colour based on the blue channel
                     var lipIntensity = maskPixel.Blue / 255f;
                     var diffuseVec = new Vector4(diffusePixel.Red, diffusePixel.Green, diffusePixel.Blue,
                                                  diffusePixel.Alpha) / 255f;
@@ -243,7 +243,7 @@ public class MaterialUtility
                     diffuse[x, y] = new SKColor((byte)(lerpCol.X * 255), 
                                                 (byte)(lerpCol.Y * 255), 
                                                 (byte)(lerpCol.Z * 255),
-                                                (byte)(customizeParameter.Value.LipColor.W * 255));
+                        diffusePixel.Alpha);
                 }
             }
         }
@@ -272,12 +272,11 @@ public class MaterialUtility
     
     private static MaterialBuilder BuildSharedBase(Material material, string name)
     {
-        // TODO: Move this and potentially the other known stuff into MtrlFile?
-        //const uint backfaceMask  = 0x1;
-        //var        showBackfaces = (material.ShaderPackage.Flags & backfaceMask) == 0;
-
-        return new MaterialBuilder(name);
-        //.WithDoubleSide(showBackfaces);
+        const uint backfaceMask  = 0x1;
+        var        showBackfaces = (material.ShaderFlags & backfaceMask) == 0;
+        
+        return new MaterialBuilder(name)
+            .WithDoubleSide(showBackfaces);
     }
     
     private static SKColor ToSkColor(Vector4 color)

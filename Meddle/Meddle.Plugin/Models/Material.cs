@@ -7,7 +7,6 @@ using Lumina;
 using Lumina.Data.Files;
 using Lumina.Data.Parsing;
 using Meddle.Plugin.Utility;
-using Meddle.Plugin.Xande;
 using Serilog;
 
 namespace Meddle.Plugin.Models;
@@ -15,7 +14,8 @@ namespace Meddle.Plugin.Models;
 public unsafe class Material
 {
     public string HandlePath { get; set; }
-
+    public uint ShaderFlags { get; set; }
+    public ShaderKey[] ShaderKeys { get; set; }
     public ShaderPackage ShaderPackage { get; set; }
     public List<Texture> Textures { get; set; }
     
@@ -70,7 +70,21 @@ public unsafe class Material
     public Material(FFXIVClientStructs.FFXIV.Client.Graphics.Render.Material* material, FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Texture* colorTable)
     {
         HandlePath = material->MaterialResourceHandle->ResourceHandle.FileName.ToString();
+        ShaderFlags = material->ShaderFlags;
 
+        var shaderKeyCategories =
+            material->MaterialResourceHandle->ShaderPackageResourceHandle->ShaderPackage->MaterialKeysSpan;
+        var shaderKeyValues = material->ShaderKeyValuesSpan;
+        ShaderKeys = new ShaderKey[shaderKeyValues.Length];
+        for (var i = 0; i < shaderKeyValues.Length; ++i)
+        {
+            ShaderKeys[i] = new()
+            {
+                Category = shaderKeyCategories[i],
+                Value = shaderKeyValues[i]
+            };
+        }
+        
         ShaderPackage = new(material->MaterialResourceHandle->ShaderPackageResourceHandle, MemoryHelper.ReadStringNullTerminated((nint)material->MaterialResourceHandle->ShpkName));
         Textures = new();
         for (var i = 0; i < material->MaterialResourceHandle->TextureCount; ++i)
@@ -114,5 +128,11 @@ public unsafe class Material
         }
         else
             Log.Warning($"No color table for {HandlePath}");
+    }
+    
+    public struct ShaderKey
+    {
+        public uint Category;
+        public uint Value;
     }
 }

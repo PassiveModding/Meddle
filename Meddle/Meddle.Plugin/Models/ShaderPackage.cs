@@ -8,6 +8,7 @@ public unsafe class ShaderPackage
 {
     public string Name { get; set; }
     public Dictionary<uint, TextureUsage> TextureLookup { get; set; }
+    public FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.ShaderPackage* ShaderPackagePointer { get; set; }
 
     public ShaderPackage(string name)
     {
@@ -37,5 +38,7 @@ public unsafe class ShaderPackage
                 continue;
             TextureLookup[constant.Id] = (TextureUsage)constant.CRC;
         }
+        
+        ShaderPackagePointer = shaderPackage->ShaderPackage;
     }
 }
