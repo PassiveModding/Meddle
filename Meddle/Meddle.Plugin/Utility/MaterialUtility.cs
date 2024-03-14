@@ -216,11 +216,11 @@ public class MaterialUtility
             for (int y = 0; y < diffuse.Height; y++)
             {
                 var maskPixel = resizedMask[x, y];
-                var diffusePixel = diffuse[x, y];
 
                 var intensity = maskPixel.Red;
                 if (intensity > 128)
                 {
+                    var diffusePixel = diffuse[x, y];
                     var ratio = (intensity - 128) / 127f;
                     // NOTE: W is Muscle tone, don't we set the alpha anyways so it doesn't matter during lerp
                     var color = customizeParameter.Value.SkinColor;
@@ -235,6 +235,7 @@ public class MaterialUtility
 
                 if (isFace)
                 {
+                    var diffusePixel = diffuse[x, y];
                     // Lerp between base colour and lip colour based on the blue channel
                     var lipIntensity = maskPixel.Blue / 255f;
                     var diffuseVec = new Vector4(diffusePixel.Red, diffusePixel.Green, diffusePixel.Blue,
