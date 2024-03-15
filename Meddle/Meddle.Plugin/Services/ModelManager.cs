@@ -77,7 +77,7 @@ public partial class ModelManager
                 var gltfPath = Path.Combine(path, "model.gltf");
                 var output = scene.ToGltf2();
                 output.SaveGLTF(gltfPath);
-                logger.Debug($"Exported model to {gltfPath}");
+                logger.Debug($"Exported model");
                 if (config.OpenFolderWhenComplete)
                     Process.Start("explorer.exe", path);
             }

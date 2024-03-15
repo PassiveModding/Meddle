@@ -1,4 +1,5 @@
-﻿using Dalamud.Interface.Utility.Raii;
+﻿using System.Diagnostics;
+using Dalamud.Interface.Utility.Raii;
 using ImGuiNET;
 using System.Numerics;
 using Meddle.Plugin.Enums;
@@ -46,6 +47,9 @@ public partial class CharacterTab
     private void DrawCharacterTree(Character character)
     {
         var tree = InitTree(character, false);
+        
+        ImGui.Text($"Character: {tree.tree.Name}");
+        ImGui.Text($"At: {tree.time}");
 
         using (var d = ImRaii.Disabled(!(ExportTask?.IsCompleted ?? true)))
         {
@@ -64,6 +68,12 @@ public partial class CharacterTab
                     tree.tree,
                     ExportCts.Token);
             }
+        }
+        
+        ImGui.SameLine();
+        if (ImGui.Button("Open export folder"))
+        {
+            Process.Start("explorer.exe", Plugin.TempDirectory);
         }
         
         ImGui.SameLine();
@@ -157,12 +167,15 @@ public partial class CharacterTab
             c.LeftColor = ic4;
         }
         
+    
+        // Not sure about applying separate eye colours yet
+        /*
         var irisCol2 = c.RightColor;
         var ic42 = new Vector4(irisCol2.X, irisCol2.Y, irisCol2.Z, irisCol2.W);
         if (ImGui.ColorEdit4("Right Iris", ref ic42))
         {
             c.RightColor = ic42;
-        }
+        }*/
 
         tree.CustomizeParameter = c;
     }
