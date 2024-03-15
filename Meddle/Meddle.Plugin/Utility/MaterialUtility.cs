@@ -104,7 +104,6 @@ public class MaterialUtility
         const uint valueFace        = 0x6E5B8F10;
         
         var hairCol      = customizeParameter?.MainColor ?? DefaultHairColor;
-        var highlightCol = customizeParameter?.MeshColor ?? DefaultHighlightColor;
         
         var isFace = material.ShaderKeys
             .Any(key => key is { Category: categoryHairType, Value: valueFace });
@@ -121,17 +120,29 @@ public class MaterialUtility
         {
             var normalPixel = normal[x, y];
             var maskPixel = mask[x, y];
-            var color = Vector3.Lerp(hairCol, highlightCol, maskPixel.Alpha / 255f);
-            // TODO: Think there is some blending with the mask red channel but can't seem to get it right
-            baseColor[x, y] = ToSkColor(color).WithAlpha(normalPixel.Alpha);
+            if (isFace && customizeParameter?.OptionColor != null)
+            {
+                // Alpha = Tattoo/Limbal/Ear Clasp Color
+                var color = Vector3.Lerp(hairCol, customizeParameter.OptionColor, maskPixel.Alpha / 255f);
+                baseColor[x, y] = ToSkColor(color).WithAlpha(normalPixel.Alpha);
+            }
 
+            if (!isFace)
+            {
+                var color = Vector3.Lerp(hairCol, 
+                                         customizeParameter?.MeshColor ?? DefaultHighlightColor, 
+                                         maskPixel.Alpha / 255f);
+                baseColor[x, y] = ToSkColor(color).WithAlpha(normalPixel.Alpha);
+            }
+            
+            // meh
             if (normalPixel is {Red: 0, Green: 0, Blue: 0})
             {
-                normal[x, y] = new SKColor(byte.MaxValue/2, byte.MaxValue/2, byte.MaxValue, byte.MaxValue);
+                normal[x, y] = new SKColor(byte.MaxValue / 2, byte.MaxValue / 2, byte.MaxValue, byte.MinValue);
             }
             else
             {
-                normal[x, y] = normalPixel.WithAlpha(byte.MaxValue);
+                //normal[x, y] = normalPixel.WithAlpha(byte.MaxValue);
             }
         }
 
