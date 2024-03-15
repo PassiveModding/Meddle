@@ -135,7 +135,7 @@ public partial class ModelManager
                 foreach (var model in child.Models)
                 {
                     logger.Debug($"Handling child model {model.HandlePath}");
-                    HandleModel(logger, config, model, character.RaceCode!.Value, scene, childBoneMap.ToArray(), character.CustomizeParameter);
+                    HandleModel(logger, config, model, character.RaceCode ?? 0, scene, childBoneMap.ToArray(), character.CustomizeParameter);
                 }
             }
         }
