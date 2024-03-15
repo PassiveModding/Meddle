@@ -5,13 +5,8 @@ namespace Meddle.Plugin.Models;
 public unsafe class PartialSkeleton
 {
     public HkSkeleton? HkSkeleton { get; set; }
-    public List<SkeletonPose> Poses { get; set; }
+    public IReadOnlyList<SkeletonPose> Poses { get; set; }
     public int ConnectedBoneIndex { get; set; }
-
-    public PartialSkeleton(Pointer<FFXIVClientStructs.FFXIV.Client.Graphics.Render.PartialSkeleton> partialSkeleton) : this(partialSkeleton.Value)
-    {
-
-    }
 
     public PartialSkeleton(FFXIVClientStructs.FFXIV.Client.Graphics.Render.PartialSkeleton* partialSkeleton)
     {
@@ -20,8 +15,7 @@ public unsafe class PartialSkeleton
 
         ConnectedBoneIndex = partialSkeleton->ConnectedBoneIndex;
 
-        Poses = new();
-        //return;
+        var poses = new List<SkeletonPose>();
         for (var i = 0; i < 4; ++i)
         {
             var pose = partialSkeleton->GetHavokPose(i);
@@ -31,8 +25,10 @@ public unsafe class PartialSkeleton
                 {
                     throw new ArgumentException($"Pose is not the same as the skeleton");
                 }
-                Poses.Add(new(pose));
+                poses.Add(new(pose));
             }
         }
+        
+        Poses = poses;
     }
 }

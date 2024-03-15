@@ -55,16 +55,16 @@ public class ModelBuilder
             
             meshBuilder.BuildVertices();
             
-            if (mesh.Submeshes.Count == 0)
+            if (mesh.SubMeshes.Count == 0)
             {
                 var mb = meshBuilder.BuildMesh();
                 meshes.Add((mb, useSkinning, null, null));
                 continue;
             }
             
-            for (var i = 0; i < mesh.Submeshes.Count; i++)
+            for (var i = 0; i < mesh.SubMeshes.Count; i++)
             {
-                var modelSubMesh = mesh.Submeshes[i];
+                var modelSubMesh = mesh.SubMeshes[i];
                 var subMesh = meshBuilder.BuildSubmesh(modelSubMesh);
                 subMesh.Name = $"{model.HandlePath}_{mesh.MeshIdx}.{i}";
                 if (modelSubMesh.Attributes.Count > 0)

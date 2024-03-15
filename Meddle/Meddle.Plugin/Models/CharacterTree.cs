@@ -12,20 +12,20 @@ public unsafe class CharacterTree
     public string Name { get; set; }
     public Transform Transform { get; set; }
     public Skeleton Skeleton { get; set; }
-    public List<Model> Models { get; set; }
+    public IReadOnlyList<Model> Models { get; set; }
     public Attach Attach { get; set; }
 
     public ushort? RaceCode { get; set; }
 
     public CustomizeParameters? CustomizeParameter { get; set; }
     
-    public List<CharacterTree>? AttachedChildren { get; set; }
+    public IReadOnlyList<CharacterTree>? AttachedChildren { get; set; }
 
     public CharacterTree(CSCharacter* character) : this((CharacterBase*)character->GameObject.DrawObject)
     {
         Name = MemoryHelper.ReadStringNullTerminated((nint)character->GameObject.GetName());
 
-        AttachedChildren = new();
+        var attachedChildren = new List<CharacterTree>();
         foreach (var weaponData in character->DrawData.WeaponDataSpan)
         {
             if (weaponData.Model == null)
@@ -34,8 +34,10 @@ public unsafe class CharacterTree
             if (attach->ExecuteType == 0)
                 continue;
 
-            AttachedChildren.Add(new(&weaponData.Model->CharacterBase));
+            attachedChildren.Add(new CharacterTree(&weaponData.Model->CharacterBase));
         }
+        
+        AttachedChildren = attachedChildren;
     }
 
     public CharacterTree(CharacterBase* character)
@@ -57,16 +59,18 @@ public unsafe class CharacterTree
             RaceCode = human->RaceSexId;
         }
         
-        Transform = new(character->DrawObject.Object.Transform);
-        Skeleton = new(character->Skeleton);
-        Models = new();
+        Transform = new Transform(character->DrawObject.Object.Transform);
+        Skeleton = new Skeleton(character->Skeleton);
+        var models = new List<Model>();
         for (var i = 0; i < character->SlotCount; ++i)
         {
             if (character->Models[i] == null)
                 continue;
             
-            Models.Add(new(character->Models[i], character->ColorTableTextures + (i * 4)));
+            models.Add(new Model(character->Models[i], character->ColorTableTextures + (i * 4)));
         }
-        Attach = new(&character->Attach);
+        
+        Models = models;
+        Attach = new Attach(&character->Attach);
     }
 }

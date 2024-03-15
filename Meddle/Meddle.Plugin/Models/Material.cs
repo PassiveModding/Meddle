@@ -4,7 +4,6 @@ using Dalamud.Memory;
 using Lumina.Data.Files;
 using Lumina.Data.Parsing;
 using Meddle.Plugin.Utility;
-using Serilog;
 
 namespace Meddle.Plugin.Models;
 
@@ -12,9 +11,9 @@ public unsafe class Material
 {
     public string HandlePath { get; set; }
     public uint ShaderFlags { get; set; }
-    public ShaderKey[] ShaderKeys { get; set; }
+    public IReadOnlyList<ShaderKey> ShaderKeys { get; set; }
     public ShaderPackage ShaderPackage { get; set; }
-    public List<Texture> Textures { get; set; }
+    public IReadOnlyList<Texture> Textures { get; set; }
     
     public bool TryGetTexture(TextureUsage usage, out Texture texture)
     {
@@ -50,18 +49,21 @@ public unsafe class Material
         var shaderKeyCategories =
             material->MaterialResourceHandle->ShaderPackageResourceHandle->ShaderPackage->MaterialKeysSpan;
         var shaderKeyValues = material->ShaderKeyValuesSpan;
-        ShaderKeys = new ShaderKey[shaderKeyValues.Length];
+        var shaderKeys = new ShaderKey[shaderKeyValues.Length];
         for (var i = 0; i < shaderKeyValues.Length; ++i)
         {
-            ShaderKeys[i] = new()
+            shaderKeys[i] = new ShaderKey
             {
                 Category = shaderKeyCategories[i],
                 Value = shaderKeyValues[i]
             };
         }
         
-        ShaderPackage = new(material->MaterialResourceHandle->ShaderPackageResourceHandle, MemoryHelper.ReadStringNullTerminated((nint)material->MaterialResourceHandle->ShpkName));
-        Textures = new();
+        ShaderKeys = shaderKeys;
+        
+        ShaderPackage = new ShaderPackage(material->MaterialResourceHandle->ShaderPackageResourceHandle, 
+                        MemoryHelper.ReadStringNullTerminated((nint)material->MaterialResourceHandle->ShpkName));
+        var textures = new List<Texture>();
         for (var i = 0; i < material->MaterialResourceHandle->TextureCount; ++i)
         {
             var handleTexture = &material->MaterialResourceHandle->Textures[i];
@@ -83,8 +85,10 @@ public unsafe class Material
                     }
                 }
             }
-            Textures.Add(new(matEntry, material->MaterialResourceHandle->Strings, handleTexture, ShaderPackage));
+            textures.Add(new Texture(matEntry, material->MaterialResourceHandle->Strings, handleTexture, ShaderPackage));
         }
+        
+        Textures = textures;
 
         if (colorTable != null)
         {
@@ -101,8 +105,8 @@ public unsafe class Material
             if (ColorTable.Length != 4 * 16 * 4)
                 throw new ArgumentException($"Color table is not 4x16x4 ({ColorTable.Length})");
         }
-        else
-            Log.Warning($"No color table for {HandlePath}");
+        //else
+        //    Log.Warning($"No color table for {HandlePath}");
     }
     
     public struct ShaderKey

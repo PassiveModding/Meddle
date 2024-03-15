@@ -245,7 +245,7 @@ public class MeshBuilder
     }
 
     /// <summary>Obtain the correct geometry type for a given set of vertices.</summary>
-    private static Type GetVertexGeometryType(List<Vertex> vertex)
+    private static Type GetVertexGeometryType(IReadOnlyList<Vertex> vertex)
     {
         if (vertex.Count == 0)
         {
@@ -266,7 +266,7 @@ public class MeshBuilder
     }
 
     /// <summary>Obtain the correct material type for a set of vertices.</summary>
-    private static Type GetVertexMaterialType(List<Vertex> vertex)
+    private static Type GetVertexMaterialType(IReadOnlyList<Vertex> vertex)
     {
         if (vertex.Count == 0)
         {

@@ -6,19 +6,15 @@ namespace Meddle.Plugin.Models;
 
 public unsafe class SkeletonPose
 {
-    public List<Transform> Pose { get; set; }
-
-    public SkeletonPose(Pointer<hkaPose> pose) : this(pose.Value)
-    {
-
-    }
+    public IReadOnlyList<Transform> Pose { get; set; }
 
     public SkeletonPose(hkaPose* pose)
     {
-        Pose = new();
-
+        var transforms = new List<Transform>();
         var boneCount = pose->LocalPose.Length;
         for (var i = 0; i < boneCount; ++i)
-            Pose.Add(new(pose->LocalPose[i]));
+            transforms.Add(new Transform(pose->LocalPose[i]));
+        
+        Pose = transforms;
     }
 }

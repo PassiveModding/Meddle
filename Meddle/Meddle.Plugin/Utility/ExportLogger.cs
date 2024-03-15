@@ -1,5 +1,4 @@
 ﻿using Dalamud.Plugin.Services;
-using ImGuiNET;
 using Serilog.Events;
 
 namespace Meddle.Plugin.Utility;

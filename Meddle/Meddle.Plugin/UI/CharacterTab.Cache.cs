@@ -217,7 +217,7 @@ public partial class CharacterTab
                 ImGui.TextWrapped($"Enabled Shapes: {string.Join(", ", model.EnabledShapes)}");
             }
 
-            if (model.EnabledAttributes.Length > 0)
+            if (model.EnabledAttributes.Count > 0)
             {
                 ImGui.TextWrapped($"Enabled Attributes: {string.Join(", ", model.EnabledAttributes)}");
             }
@@ -276,9 +276,9 @@ public partial class CharacterTab
                 ImGui.Text($"Vertices: {mesh.Vertices.Count}");
                 ImGui.TableNextColumn();
                 ImGui.Text($"Indices: {mesh.Indices.Count}");
-                for (var j = 0; j < mesh.Submeshes.Count; j++)
+                for (var j = 0; j < mesh.SubMeshes.Count; j++)
                 {
-                    var submesh = mesh.Submeshes[j];
+                    var submesh = mesh.SubMeshes[j];
                     ImGui.TableNextRow();
                     ImGui.TableNextColumn();
                     ImGui.Text($"[{j}] Submesh attributes: {string.Join(", ", submesh.Attributes)}");

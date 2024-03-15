@@ -6,26 +6,25 @@ namespace Meddle.Plugin.Models;
 
 public unsafe class HkSkeleton
 {
-    public List<string?> BoneNames { get; set; }
-    public List<short> BoneParents { get; set; }
-    public List<Transform> ReferencePose { get; set; }
-
-    public HkSkeleton(Pointer<hkaSkeleton> skeleton) : this(skeleton.Value)
-    {
-
-    }
+    public IReadOnlyList<string?> BoneNames { get; set; }
+    public IReadOnlyList<short> BoneParents { get; set; }
+    public IReadOnlyList<Transform> ReferencePose { get; set; }
 
     public HkSkeleton(hkaSkeleton* skeleton)
     {
-        BoneNames = new();
-        BoneParents = new();
-        ReferencePose = new();
+        var boneNames = new List<string?>();
+        var boneParents = new List<short>();
+        var referencePose = new List<Transform>();
 
         for (var i = 0; i < skeleton->Bones.Length; ++i)
         {
-            BoneNames.Add(skeleton->Bones[i].Name.String);
-            BoneParents.Add(skeleton->ParentIndices[i]);
-            ReferencePose.Add(new(skeleton->ReferencePose[i]));
+            boneNames.Add(skeleton->Bones[i].Name.String);
+            boneParents.Add(skeleton->ParentIndices[i]);
+            referencePose.Add(new Transform(skeleton->ReferencePose[i]));
         }
+        
+        BoneNames = boneNames;
+        BoneParents = boneParents;
+        ReferencePose = referencePose;
     }
 }

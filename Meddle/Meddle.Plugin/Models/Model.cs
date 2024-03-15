@@ -8,29 +8,29 @@ namespace Meddle.Plugin.Models;
 
 public unsafe class Model
 {
-    public string HandlePath { get; set; }
-    public ushort? RaceCode { get; set; }
+    public string HandlePath { get; private set; }
+    public ushort? RaceCode { get; private set; }
 
-    public List<Material> Materials { get; set; }
-
-    public List<Mesh> Meshes { get; set; }
-    public List<ModelShape> Shapes { get; set; }
-    public uint ShapesMask { get; set; }
-    public uint AttributesMask { get; set; }
-    public string[] EnabledShapes { get; set; }
-    public string[] EnabledAttributes { get; set; }
+    public IReadOnlyList<Material> Materials { get; private set; }
+    public IReadOnlyList<Mesh> Meshes { get; private set; }
+    public IReadOnlyList<ModelShape> Shapes { get; private set; }
+    public uint ShapesMask { get; private set; }
+    public uint AttributesMask { get; private set; }
+    public IReadOnlyList<string> EnabledShapes { get; private set; }
+    public IReadOnlyList<string> EnabledAttributes { get; private set; }
 
     public Model(FFXIVClientStructs.FFXIV.Client.Graphics.Render.Model* model, FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Texture** colorTable)
     {
         HandlePath = model->ModelResourceHandle->ResourceHandle.FileName.ToString();
         RaceCode = (ushort)RaceDeformer.ParseRaceCode(HandlePath);
 
-        Materials = new();
+        var materials = new List<Material>();
         for (var i = 0; i < model->MaterialCount; ++i)
-            Materials.Add(new(model->Materials[i], colorTable == null ? null : colorTable[i]));
+            materials.Add(new Material(model->Materials[i], colorTable == null ? null : colorTable[i]));
 
-        Meshes = new();
-        Shapes = new();
+        Materials = materials;
+        Meshes = new List<Mesh>();
+        Shapes = new List<ModelShape>();
         LoadMeshesAndShapes(model->ModelResourceHandle);
 
         ShapesMask = model->EnabledShapeKeyIndexMask;
@@ -76,6 +76,7 @@ public unsafe class Model
             }).ToArray();
         }
 
+        var meshes = new List<Mesh>();
         foreach (var range in meshRanges.AsConsolidated())
         {
             foreach (var meshIdx in range.GetEnumerator())
@@ -109,9 +110,11 @@ public unsafe class Model
                 if (meshIndices.Length != mesh->IndexCount)
                     throw new ArgumentException($"Mesh {meshIdx} has {meshIndices.Length} indices, but {mesh->IndexCount} were expected");
 
-                Meshes.Add(new Mesh(hnd, meshIdx, meshVertices, mesh->StartIndex, meshIndices));
+                meshes.Add(new Mesh(hnd, meshIdx, meshVertices, mesh->StartIndex, meshIndices));
             }
         }
+        
+        Meshes = meshes;
         
         var shapeMeshes = new ShapeMesh[hnd->Header->ShapeMeshCount];
         var meshDict = Meshes.ToDictionary(x => hnd->Meshes[x.MeshIdx].StartIndex, x => x);
@@ -150,18 +153,6 @@ public unsafe class Model
             shapes[i] = new ModelShape(name, meshesForShape);
         }
         
-        Shapes = shapes.ToList();
+        Shapes = shapes;
     }
-}
-
-public class ModelShape(string name, IReadOnlyList<ShapeMesh> meshes)
-{
-    public string Name { get; } = name;
-    public IReadOnlyList<ShapeMesh> Meshes { get; } = meshes;
-}
-    
-public class ShapeMesh(Mesh mesh, IReadOnlyList<(ushort BaseIndicesIndex, ushort ReplacingVertexIndex)> values)
-{
-    public Mesh Mesh { get; } = mesh;
-    public IReadOnlyList<(ushort BaseIndicesIndex, ushort ReplacedVertexIndex)> Values { get; } = values;
 }

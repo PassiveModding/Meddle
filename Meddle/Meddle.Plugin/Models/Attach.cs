@@ -10,12 +10,7 @@ public unsafe class Attach
     public Transform Transform { get; set; }
     public byte PartialSkeletonIdx { get; set; }
     public ushort BoneIdx { get; set; }
-
-    public Attach()
-    {
-
-    }
-
+    
     public Attach(FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Attach* attach)
     {
         ExecuteType = attach->ExecuteType;
@@ -24,7 +19,7 @@ public unsafe class Attach
 
         if (attach->ExecuteType != 4)
         {
-            PluginLog.Error($"Unsupported ExecuteType {attach->ExecuteType}");
+            //PluginLog.Error($"Unsupported ExecuteType {attach->ExecuteType}");
             return;
         }
 
