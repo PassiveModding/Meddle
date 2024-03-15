@@ -115,6 +115,8 @@ public class MaterialUtility
         var mask   = maskTexture.Resource.ToTexture((normal.Width, normal.Height));
         
         var baseColor = new SKTexture(normal.Width, normal.Height);
+        var occlusion = new SKTexture(normal.Width, normal.Height);
+        var specular = new SKTexture(normal.Width, normal.Height);
         for (var x = 0; x < normal.Width; x++)
         for (var y = 0; y < normal.Height; y++)
         {
@@ -135,23 +137,29 @@ public class MaterialUtility
                                          customizeParameter?.MeshColor ?? DefaultHighlightColor, 
                                          maskPixel.Alpha / 255f);
                 baseColor[x, y] = ToSkColor(color).WithAlpha(normalPixel.Alpha);
+                
+                // Mask red channel is occlusion supposedly
+                occlusion[x, y] = new SKColor(maskPixel.Red, maskPixel.Red, maskPixel.Red, maskPixel.Red);
             }
+            
+            // mask green channel is specular
+            specular[x, y] = new SKColor(maskPixel.Green, maskPixel.Green, maskPixel.Green, maskPixel.Green);
             
             // meh
             if (normalPixel is {Red: 0, Green: 0, Blue: 0})
             {
                 normal[x, y] = new SKColor(byte.MaxValue / 2, byte.MaxValue / 2, byte.MaxValue, byte.MinValue);
             }
-            else
-            {
-                //normal[x, y] = normalPixel.WithAlpha(byte.MaxValue);
-            }
         }
-
+        
+        //if (!isFace)
+        //    builder.WithOcclusion(BuildImage(occlusion, name, "occlusion"));
         return BuildSharedBase(material, name)
                .WithBaseColor(BuildImage(baseColor, name, "basecolor"))
                .WithNormal(BuildImage(normal,       name, "normal"))
+               .WithSpecularFactor( BuildImage(specular, name, "specular"), 1)
                .WithAlpha(isFace ? AlphaMode.BLEND : AlphaMode.MASK, 0.5f);
+        
     }
     
     private static MaterialBuilder BuildIris(Material material, string name, CustomizeParameters? customizeParameter = null)
@@ -453,14 +461,13 @@ public class MaterialUtility
                 Emissive[x, y] = ToSkColor(emis);
                 
                 // Normal (.rg)
-                // TODO: we don't actually need alpha at all for normal, but _not_ using the existing rgba texture means I'll need a new one, with a new accessor. Think about it.
                 if (normalPixel is {Red: 0, Green: 0})
                 {
-                    Normal[x, y] = new SKColor(byte.MaxValue/2, byte.MaxValue/2, byte.MaxValue, byte.MaxValue);
+                    Normal[x, y] = new SKColor(byte.MaxValue/2, byte.MaxValue/2, byte.MaxValue, byte.MinValue);
                 }
                 else
                 {
-                    Normal[x, y] = new SKColor(normalPixel.Red, normalPixel.Green, byte.MaxValue, byte.MaxValue);
+                    Normal[x, y] = new SKColor(normalPixel.Red, normalPixel.Green, byte.MaxValue, normalPixel.Blue);
                 }
             }
         }
