@@ -151,7 +151,7 @@ public class MaterialUtility
         
         var baseColor = new SKTexture(normal.Width, normal.Height);
         for (var x = 0; x < normal.Width; x++)
-        for (int y = 0; y < normal.Height; y++)
+        for (var y = 0; y < normal.Height; y++)
         {
             var normalPixel = normal[x, y];
             var maskPixel = mask[x, y];
