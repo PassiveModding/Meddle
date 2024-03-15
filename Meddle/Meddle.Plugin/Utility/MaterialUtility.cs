@@ -122,9 +122,13 @@ public class MaterialUtility
             var maskPixel = mask[x, y];
             if (isFace && customizeParameter?.OptionColor != null)
             {
-                // Alpha = Tattoo/Limbal/Ear Clasp Color
-                var color = Vector3.Lerp(hairCol, customizeParameter.OptionColor, maskPixel.Alpha / 255f);
-                baseColor[x, y] = ToSkColor(color).WithAlpha(normalPixel.Alpha);
+                // Alpha = Tattoo/Limbal/Ear Clasp Color (OptionColor)
+                var alpha = maskPixel.Alpha / 255f;
+                // Red - brightness
+                var red = maskPixel.Red / 255f;
+                
+                var color = Vector3.Lerp(hairCol, customizeParameter.OptionColor, alpha);
+                baseColor[x, y] = ToSkColor(color * red).WithAlpha(normalPixel.Alpha);
             }
 
             if (!isFace)
