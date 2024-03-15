@@ -188,10 +188,17 @@ public partial class CharacterTab
             return;
         }
         
+        if (tree.AttachedChildren != null)
+        {
+            foreach (var child in tree.AttachedChildren)
+            {
+                DrawModelView(child, logger);
+            }
+        }
+        
         using var mainTable = ImRaii.Table("Models", 1, ImGuiTableFlags.Borders);
         foreach (var model in tree.Models)
         {
-
             ImGui.TableNextColumn();
             using var modelNode = ImRaii.TreeNode($"{model.HandlePath}##{model.GetHashCode()}", ImGuiTreeNodeFlags.CollapsingHeader);
             if (!modelNode.Success) continue;
@@ -208,7 +215,7 @@ public partial class CharacterTab
                         ExportType = ExportType.Gltf,
                         IncludeReaperEye = false,
                         OpenFolderWhenComplete = true
-                    }, model, tree.Skeleton, tree.RaceCode!.Value, tree.CustomizeParameter, ExportCts.Token);
+                    }, model, tree.Skeleton, tree.RaceCode ?? 0, tree.CustomizeParameter, ExportCts.Token);
             }
                 
             if (model.Shapes.Count > 0)
