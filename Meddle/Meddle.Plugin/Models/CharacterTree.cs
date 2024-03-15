@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using Dalamud.Memory;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Shader;
+using FFXIVClientStructs.Interop;
 using Meddle.Plugin.Enums;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
 
@@ -19,6 +20,10 @@ public unsafe class CharacterTree
     
     public IReadOnlyList<AttachedChild>? AttachedChildren { get; }
 
+    public CharacterTree(Pointer<CSCharacter> character) : this(character.Value)
+    {
+    }
+    
     public CharacterTree(CSCharacter* character) : this((CharacterBase*)character->GameObject.DrawObject)
     {
         Name = MemoryHelper.ReadStringNullTerminated((nint)character->GameObject.GetName());
@@ -37,28 +42,9 @@ public unsafe class CharacterTree
         
         AttachedChildren = attachedChildren;
     }
-
-    public unsafe class AttachedChild
+    
+    public CharacterTree(Pointer<CharacterBase> character) : this(character.Value)
     {
-        public Skeleton Skeleton { get; set; }
-        public IReadOnlyList<Model> Models { get; set; }
-        public Attach Attach { get; set; }
-        
-        public AttachedChild(CharacterBase* character)
-        {
-            Skeleton = new Skeleton(character->Skeleton);
-            var models = new List<Model>();
-            for (var i = 0; i < character->SlotCount; ++i)
-            {
-                if (character->Models[i] == null)
-                    continue;
-                
-                models.Add(new Model(character->Models[i], character->ColorTableTextures + (i * 4)));
-            }
-            
-            Models = models;
-            Attach = new Attach(&character->Attach);
-        }
     }
 
     public CharacterTree(CharacterBase* character)

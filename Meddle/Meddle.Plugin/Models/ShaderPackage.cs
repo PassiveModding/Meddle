@@ -1,4 +1,5 @@
 ﻿using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
+using FFXIVClientStructs.Interop;
 using Lumina.Data.Parsing;
 
 namespace Meddle.Plugin.Models;
@@ -7,8 +8,12 @@ public unsafe class ShaderPackage
 {
     public string Name { get; set; }
     public IReadOnlyDictionary<uint, TextureUsage> TextureLookup { get; set; }
-    public FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.ShaderPackage* ShaderPackagePointer { get; set; }
 
+    public ShaderPackage(Pointer<ShaderPackageResourceHandle> shaderPackage, string name) : this(shaderPackage.Value, name)
+    {
+
+    }
+    
     public ShaderPackage(ShaderPackageResourceHandle* shaderPackage, string name)
     {
         Name = name;
@@ -28,6 +33,5 @@ public unsafe class ShaderPackage
         }
         
         TextureLookup = textureUsages;
-        ShaderPackagePointer = shaderPackage->ShaderPackage;
     }
 }

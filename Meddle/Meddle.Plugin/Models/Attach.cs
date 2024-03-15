@@ -1,4 +1,7 @@
-﻿namespace Meddle.Plugin.Models;
+﻿using FFXIVClientStructs.Interop;
+using CSAttach = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Attach;
+
+namespace Meddle.Plugin.Models;
 
 public unsafe class Attach
 {
@@ -8,7 +11,11 @@ public unsafe class Attach
     public byte PartialSkeletonIdx { get; set; }
     public ushort BoneIdx { get; set; }
     
-    public Attach(FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Attach* attach)
+    public Attach(Pointer<CSAttach> attach) : this(attach.Value)
+    {
+    }
+    
+    public Attach(CSAttach* attach)
     {
         ExecuteType = attach->ExecuteType;
         if (ExecuteType == 0)

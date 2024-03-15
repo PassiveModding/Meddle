@@ -1,8 +1,11 @@
 ﻿using System.Runtime.InteropServices;
 using Dalamud.Memory;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
+using FFXIVClientStructs.Interop;
 using Meddle.Plugin.Utility;
 using Meddle.Plugin.Xande;
+using CSModel = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Model;
+using CSTexture = FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Texture;
 
 namespace Meddle.Plugin.Models;
 
@@ -19,7 +22,12 @@ public unsafe class Model
     public IReadOnlyList<string> EnabledShapes { get; private set; }
     public IReadOnlyList<string> EnabledAttributes { get; private set; }
 
-    public Model(FFXIVClientStructs.FFXIV.Client.Graphics.Render.Model* model, FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Texture** colorTable)
+    public Model(Pointer<CSModel> model, Pointer<Pointer<CSTexture>> colorTable) : this(model.Value, (CSTexture**)colorTable.Value)
+    {
+
+    }
+    
+    public Model(CSModel* model, CSTexture** colorTable)
     {
         HandlePath = model->ModelResourceHandle->ResourceHandle.FileName.ToString();
         RaceCode = (ushort)RaceDeformer.ParseRaceCode(HandlePath);

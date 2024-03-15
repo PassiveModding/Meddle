@@ -1,6 +1,7 @@
 ﻿using System.Text.Json.Serialization;
 using Dalamud.Memory;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
+using FFXIVClientStructs.Interop;
 
 namespace Meddle.Plugin.Models;
 
@@ -9,12 +10,18 @@ public unsafe class Mesh
     public int MeshIdx { get; }
     public ushort MaterialIdx { get; }
     
+    [JsonIgnore]
     public IReadOnlyList<Vertex> Vertices { get; }
     [JsonIgnore]
     public IReadOnlyList<ushort> Indices { get; }
     public IReadOnlyList<SubMesh> SubMeshes { get; }
     public IReadOnlyList<string>? BoneTable { get; }
 
+    public Mesh(Pointer<ModelResourceHandle> hnd, int meshIdx, Vertex[] vertices, uint meshIndexOffset, ReadOnlySpan<ushort> indices) : 
+        this(hnd.Value, meshIdx, vertices, meshIndexOffset, indices)
+    {
+    }
+    
     public Mesh(ModelResourceHandle* hnd, int meshIdx, Vertex[] vertices, uint meshIndexOffset, ReadOnlySpan<ushort> indices)
     {
         var mesh = &hnd->Meshes[meshIdx];

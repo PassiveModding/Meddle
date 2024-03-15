@@ -1,9 +1,12 @@
 ﻿using System.Runtime.InteropServices;
 using System.Text.Json.Serialization;
 using Dalamud.Memory;
+using FFXIVClientStructs.Interop;
 using Lumina.Data.Files;
 using Lumina.Data.Parsing;
 using Meddle.Plugin.Utility;
+using CSMaterial = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Material;
+using CSTexture = FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Texture;
 
 namespace Meddle.Plugin.Models;
 
@@ -41,7 +44,12 @@ public unsafe class Material
     [JsonPropertyName("ColorTable")]
     public ushort[]? JsonColorTable => ColorTable?.Select(BitConverter.HalfToUInt16Bits).ToArray();
     
-    public Material(FFXIVClientStructs.FFXIV.Client.Graphics.Render.Material* material, FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Texture* colorTable)
+    public Material(Pointer<CSMaterial> material, Pointer<CSTexture> colorTable) : this(material.Value, colorTable.Value)
+    {
+
+    }
+    
+    public Material(CSMaterial* material, CSTexture* colorTable)
     {
         HandlePath = material->MaterialResourceHandle->ResourceHandle.FileName.ToString();
         ShaderFlags = material->ShaderFlags;
@@ -67,7 +75,7 @@ public unsafe class Material
         for (var i = 0; i < material->MaterialResourceHandle->TextureCount; ++i)
         {
             var handleTexture = &material->MaterialResourceHandle->Textures[i];
-            FFXIVClientStructs.FFXIV.Client.Graphics.Render.Material.TextureEntry* matEntry = null;
+            CSMaterial.TextureEntry* matEntry = null;
             if (handleTexture->Index1 != 0x1F)
                 matEntry = &material->Textures[handleTexture->Index1];
             else if (handleTexture->Index2 != 0x1F)

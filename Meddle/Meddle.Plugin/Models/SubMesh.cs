@@ -1,6 +1,6 @@
 ﻿using Dalamud.Memory;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
-using Lumina.Models.Models;
+using FFXIVClientStructs.Interop;
 
 namespace Meddle.Plugin.Models;
 
@@ -9,6 +9,11 @@ public unsafe class SubMesh
     public uint IndexOffset { get; set; }
     public uint IndexCount { get; set; }
     public IReadOnlyList<string> Attributes { get; set; }
+    
+    public SubMesh(Pointer<ModelResourceHandle> handle, int idx) : this(handle.Value, idx)
+    {
+    }
+    
     public SubMesh(ModelResourceHandle* handle, int idx)
     {
         var subMesh = &handle->Submeshes[idx];

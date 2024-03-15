@@ -1,13 +1,18 @@
-﻿using FFXIVClientStructs.Havok;
+﻿using System.Text.Json.Serialization;
+using FFXIVClientStructs.Havok;
 using FFXIVClientStructs.Interop;
-using Meddle.Plugin.Xande;
 
 namespace Meddle.Plugin.Models;
 
 public unsafe class SkeletonPose
 {
+    [JsonIgnore]
     public IReadOnlyList<Transform> Pose { get; set; }
 
+    public SkeletonPose(Pointer<hkaPose> pose) : this(pose.Value)
+    {
+    }
+    
     public SkeletonPose(hkaPose* pose)
     {
         var transforms = new List<Transform>();

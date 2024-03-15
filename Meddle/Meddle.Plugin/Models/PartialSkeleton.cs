@@ -1,4 +1,5 @@
 ﻿using FFXIVClientStructs.Interop;
+using PartialCSSkeleton = FFXIVClientStructs.FFXIV.Client.Graphics.Render.PartialSkeleton;
 
 namespace Meddle.Plugin.Models;
 
@@ -8,7 +9,11 @@ public unsafe class PartialSkeleton
     public IReadOnlyList<SkeletonPose> Poses { get; set; }
     public int ConnectedBoneIndex { get; set; }
 
-    public PartialSkeleton(FFXIVClientStructs.FFXIV.Client.Graphics.Render.PartialSkeleton* partialSkeleton)
+    public PartialSkeleton(Pointer<PartialCSSkeleton> partialSkeleton) : this(partialSkeleton.Value)
+    {
+    }
+    
+    public PartialSkeleton(PartialCSSkeleton* partialSkeleton)
     {
         if (partialSkeleton->SkeletonResourceHandle != null)
             HkSkeleton = new(partialSkeleton->SkeletonResourceHandle->HavokSkeleton);

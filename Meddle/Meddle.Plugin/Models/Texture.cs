@@ -1,8 +1,11 @@
 ﻿using System.Text.Json.Serialization;
 using Dalamud.Memory;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
+using FFXIVClientStructs.Interop;
 using Lumina.Data.Parsing;
 using Meddle.Plugin.Utility;
+using CSTexture = FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Texture;
+using CSTextureEntry = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Material.TextureEntry;
 
 namespace Meddle.Plugin.Models;
 
@@ -10,7 +13,7 @@ public unsafe class Texture
 {
     public string HandlePath { get; set; }
     public TextureUsage? Usage { get; set; }
-    private FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Texture* KernelTexture { get; set; }
+    private CSTexture* KernelTexture { get; set; }
     private TextureResourceHandle* Handle { get; set; }
 
     public uint? Id { get; set; }
@@ -18,8 +21,15 @@ public unsafe class Texture
 
     [JsonIgnore]
     public TextureHelper.TextureResource Resource { get; }
+    
+    public Texture(Pointer<CSTextureEntry> matEntry, Pointer<byte> matHndStrings, 
+                   Pointer<MaterialResourceHandle.TextureEntry> hndEntry, ShaderPackage shader) : 
+        this(matEntry.Value, matHndStrings.Value, hndEntry.Value, shader)
+    {
 
-    public Texture(FFXIVClientStructs.FFXIV.Client.Graphics.Render.Material.TextureEntry* matEntry, byte* matHndStrings, MaterialResourceHandle.TextureEntry* hndEntry, ShaderPackage shader)
+    }
+
+    public Texture(CSTextureEntry* matEntry, byte* matHndStrings, MaterialResourceHandle.TextureEntry* hndEntry, ShaderPackage shader)
     {
         HandlePath = MemoryHelper.ReadStringNullTerminated((nint)matHndStrings + hndEntry->PathOffset);
         KernelTexture = hndEntry->TextureResourceHandle->Texture;
