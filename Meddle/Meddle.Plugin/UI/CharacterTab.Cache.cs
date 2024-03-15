@@ -189,9 +189,11 @@ public partial class CharacterTab
         if (tree.AttachedChildren != null)
         {
             ImGui.Text("Attached Children");
-            using var mainTable = ImRaii.Table("AttachedChildren", 1, ImGuiTableFlags.Borders);
             foreach (var child in tree.AttachedChildren)
             {
+                ImGui.Text($"Attached at: {child.Attach.Transform}");
+                
+                using var mainTable = ImRaii.Table("AttachedChildren", 1, ImGuiTableFlags.Borders);
                 foreach (var model in child.Models)
                 {
                     if (!DrawModel(model, logger)) continue;

@@ -25,13 +25,18 @@ public static class ModelUtility
                 var name = hkSkeleton.BoneNames[i];
                 if (string.IsNullOrEmpty(name))
                     continue;
+                
                 if (boneMap.FirstOrDefault(b => b.BoneName.Equals(name, StringComparison.OrdinalIgnoreCase)) is { } dupeBone)
                 {
                     skeleBones[i] = dupeBone;
                     continue;
                 }
+
                 if (partial.ConnectedBoneIndex == i)
-                    throw new InvalidOperationException($"Bone {name} on {i} is connected to a skeleton that should've already been declared");
+                {
+                    throw new InvalidOperationException(
+                        $"Bone {name} on {i} is connected to a skeleton that should've already been declared");
+                }
 
                 var bone = new BoneNodeBuilder(name);
                 if (pose != null)
@@ -41,6 +46,7 @@ public static class ModelUtility
                     bone.UseRotation().UseTrackBuilder("pose").WithPoint(0, transform.Rotation);
                     bone.UseTranslation().UseTrackBuilder("pose").WithPoint(0, transform.Translation);
                 }
+                
                 bone.SetLocalTransform(hkSkeleton.ReferencePose[i].AffineTransform, false);
 
                 var parentIdx = hkSkeleton.BoneParents[i];
@@ -59,7 +65,10 @@ public static class ModelUtility
         }
 
         if (!NodeBuilder.IsValidArmature(boneMap))
-            throw new InvalidOperationException($"Joints are not valid, {string.Join(", ", boneMap.Select(x => x.Name))}");
+        {
+            throw new InvalidOperationException(
+                $"Joints are not valid, {string.Join(", ", boneMap.Select(x => x.Name))}");
+        }
 
         return boneMap;
     }

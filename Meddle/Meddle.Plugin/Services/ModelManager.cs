@@ -112,12 +112,14 @@ public partial class ModelManager
 
         if (character.AttachedChildren != null)
         {
-            var i = 0;
-            foreach (var child in character.AttachedChildren)
+            for (var i = 0; i < character.AttachedChildren.Count; i++)
             {
+                var child = character.AttachedChildren[i];
                 var childBoneMap = ModelUtility.GetBoneMap(child.Skeleton, out var childRoot);
-                childRoot!.SetSuffixRecursively(i++);
-                var attachName = character.Skeleton.PartialSkeletons[child.Attach.PartialSkeletonIdx].HkSkeleton!.BoneNames[child.Attach.BoneIdx];
+                childRoot!.SetSuffixRecursively(i);
+                var attachName =
+                    character.Skeleton.PartialSkeletons[child.Attach.PartialSkeletonIdx].HkSkeleton!.BoneNames[
+                        child.Attach.BoneIdx];
 
                 if (rootBone == null || boneMap == null)
                     scene.AddNode(childRoot);
@@ -135,7 +137,8 @@ public partial class ModelManager
                 foreach (var model in child.Models)
                 {
                     logger.Debug($"Handling child model {model.HandlePath}");
-                    HandleModel(logger, config, model, character.RaceCode ?? 0, scene, childBoneMap.ToArray(), character.CustomizeParameter);
+                    HandleModel(logger, config, model, character.RaceCode ?? 0, scene, childBoneMap.ToArray(),
+                                character.CustomizeParameter);
                 }
             }
         }
