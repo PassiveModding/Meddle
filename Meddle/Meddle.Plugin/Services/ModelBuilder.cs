@@ -16,12 +16,12 @@ public class ModelBuilder
         Log = log;
     }
     
-    public IEnumerable<(IMeshBuilder<MaterialBuilder> mesh, bool useSkinning, SubMesh? submesh)> BuildMeshes(Model model, 
+    public IEnumerable<(IMeshBuilder<MaterialBuilder> mesh, bool useSkinning, SubMesh? submesh, IReadOnlyList<string>? shapes)> BuildMeshes(Model model, 
                                IReadOnlyList<MaterialBuilder> materials, 
                                IReadOnlyList<BoneNodeBuilder> boneMap, 
                                (ushort targetDeform, RaceDeformer deformer)? raceDeformer)
     {
-        var meshes = new List<(IMeshBuilder<MaterialBuilder> mesh, bool useSkinning, SubMesh? submesh)>();
+        var meshes = new List<(IMeshBuilder<MaterialBuilder> mesh, bool useSkinning, SubMesh? submesh, IReadOnlyList<string>? shapes)>();
         (RaceDeformer deformer, ushort from, ushort to)? deform = null;
         if (raceDeformer != null)
         {
@@ -58,7 +58,7 @@ public class ModelBuilder
             if (mesh.Submeshes.Count == 0)
             {
                 var mb = meshBuilder.BuildMesh();
-                meshes.Add((mb, useSkinning, null));
+                meshes.Add((mb, useSkinning, null, null));
                 continue;
             }
             
@@ -76,9 +76,10 @@ public class ModelBuilder
 
                 var subMeshStart = (int)modelSubMesh.IndexOffset;
                 var subMeshEnd = subMeshStart + (int)modelSubMesh.IndexCount;
-                meshBuilder.BuildShapes(model.Shapes, subMesh, subMeshStart, subMeshEnd);
 
-                meshes.Add((subMesh, useSkinning, modelSubMesh));
+                var shapeNames = meshBuilder.BuildShapes(model.Shapes, subMesh, subMeshStart, subMeshEnd);
+
+                meshes.Add((subMesh, useSkinning, modelSubMesh, shapeNames.ToArray()));
             }
         }
         

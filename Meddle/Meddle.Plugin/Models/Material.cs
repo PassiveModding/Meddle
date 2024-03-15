@@ -1,9 +1,6 @@
-﻿using System.Numerics;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Text.Json.Serialization;
 using Dalamud.Memory;
-using FFXIVClientStructs.Interop;
-using Lumina;
 using Lumina.Data.Files;
 using Lumina.Data.Parsing;
 using Meddle.Plugin.Utility;
@@ -44,29 +41,7 @@ public unsafe class Material
 
     [JsonPropertyName("ColorTable")]
     public ushort[]? JsonColorTable => ColorTable?.Select(BitConverter.HalfToUInt16Bits).ToArray();
-
-    public Material(Lumina.Models.Materials.Material material, GameData gameData)
-    {
-        material.Update(gameData);
-
-        HandlePath = material.File?.FilePath.Path ?? "Lumina Material";
-
-        ShaderPackage = new(material.ShaderPack);
-
-        Textures = new();
-        uint i = 0;
-        foreach(var texture in material.Textures)
-        {
-            ShaderPackage.TextureLookup[++i] = texture.TextureUsageRaw;
-            Textures.Add(new(texture, i, gameData));
-        }
-    }
-
-    public Material(Pointer<FFXIVClientStructs.FFXIV.Client.Graphics.Render.Material> material, Pointer<FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Texture> colorTable) : this(material.Value, colorTable.Value)
-    {
-
-    }
-
+    
     public Material(FFXIVClientStructs.FFXIV.Client.Graphics.Render.Material* material, FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Texture* colorTable)
     {
         HandlePath = material->MaterialResourceHandle->ResourceHandle.FileName.ToString();

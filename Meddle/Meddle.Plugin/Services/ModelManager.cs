@@ -155,7 +155,7 @@ public partial class ModelManager
 
         var materials = CreateMaterials(logger, model, customizeParameter).ToArray();
             
-        IEnumerable<(IMeshBuilder<MaterialBuilder> mesh, bool useSkinning, SubMesh? submesh)> meshes;
+        IEnumerable<(IMeshBuilder<MaterialBuilder> mesh, bool useSkinning, SubMesh? submesh, IReadOnlyList<string>? shapes)> meshes;
         if (model.RaceCode.HasValue && model.RaceCode.Value != (ushort)GenderRace.Unknown)
         {
             logger.Debug($"Setup deform for {model.HandlePath} from {model.RaceCode} to {targetRace}");
@@ -167,7 +167,7 @@ public partial class ModelManager
             meshes = ModelBuilder.BuildMeshes(model, materials, boneMap, null);
         }
 
-        foreach (var (mesh, useSkinning, submesh) in meshes)
+        foreach (var (mesh, useSkinning, submesh, shapes) in meshes)
         {
             var instance = useSkinning ? 
                                scene.AddSkinnedMesh(mesh, Matrix4x4.Identity, boneMap) : 
@@ -175,30 +175,28 @@ public partial class ModelManager
 
             if (submesh != null)
             {
-                ApplyMeshModifiers(config, instance, submesh, model);
+                ApplyMeshShapes(instance, model, shapes);
+                if (submesh.Attributes.Contains("atr_eye_a") && config.IncludeReaperEye == false)
+                    instance.Remove();
+                else if (!submesh.Attributes.All(model.EnabledAttributes.Contains))
+                    instance.Remove();
             }
             else
             {
-                ApplyMeshShapes(instance, model);
+                ApplyMeshShapes(instance, model, shapes);
             }
         }
     }
     
-    private static void ApplyMeshModifiers(ExportConfig config, InstanceBuilder builder, SubMesh subMesh, Model model)
+    private static void ApplyMeshShapes(InstanceBuilder builder, Model model, IReadOnlyList<string>? appliedShapes)
     {
-        ApplyMeshShapes(builder, model);
-        if (subMesh.Attributes.Contains("atr_eye_a") && config.IncludeReaperEye == false)
-            builder.Remove();
-        else if (!subMesh.Attributes.All(model.EnabledAttributes.Contains))
-            builder.Remove();
-    }
-    
-    private static void ApplyMeshShapes(InstanceBuilder builder, Model model)
-    {
-        if (model.Shapes.Count != 0)
-            builder.Content.UseMorphing().SetValue(
-                model.Shapes.Select(s => 
-                        model.EnabledShapes.Any(n => s.Name.Equals(n, StringComparison.Ordinal)) ? 1f : 0).ToArray());
+        if (model.Shapes.Count != 0 && appliedShapes != null)
+        {
+            var shapes = model.Shapes
+                              .Where(x => appliedShapes.Contains(x.Name))
+                              .Select(x => (x, model.EnabledShapes.Contains(x.Name)));
+            builder.Content.UseMorphing().SetValue(shapes.Select(x => x.Item2 ? 1f : 0).ToArray());
+        }
     }
 
     private IEnumerable<MaterialBuilder> CreateMaterials(ExportLogger logger, Model model, CustomizeParameters? cp)

@@ -1,6 +1,4 @@
 ﻿using System.Numerics;
-using Dalamud.Utility.Numerics;
-using FFXIVClientStructs.FFXIV.Shader;
 using Lumina.Data.Parsing;
 using Meddle.Plugin.Models;
 using SharpGLTF.Materials;

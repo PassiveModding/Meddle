@@ -25,19 +25,12 @@ public unsafe partial class CharacterTab(
     public string Name => "Character";
 
     public int Order => 0;
-    
-    private ExportLogger Logger { get; } = new(log);
 
     private DalamudPluginInterface PluginInterface { get; } = pluginInterface;
     private IObjectTable ObjectTable { get; } = objectTable;
     private IClientState ClientState { get; } = clientState;
     private ModelManager ModelConverter { get; } = modelConverter;
-
-    private (IntPtr pointer, CharacterTree tree, DateTime time)? CharacterTreeCache { get; set; }
     private Character? SelectedCharacter { get; set; }
-
-    private Task? ExportTask { get; set; }
-    private CancellationTokenSource? ExportCts { get; set; }
 
     public void Draw()
     {
@@ -46,9 +39,12 @@ public unsafe partial class CharacterTab(
 
     private void DrawObjectPicker()
     {
-        IEnumerable<Character> objects;
+        Character[] objects;
         if (ClientState.LocalPlayer != null)
-            objects = ObjectTable.OfType<Character>().Where(obj => obj.IsValid() && IsHuman(obj)).OrderBy(c => GetCharacterDistance(c).LengthSquared());
+            objects = ObjectTable.OfType<Character>()
+                                 .Where(obj => obj.IsValid() && IsHuman(obj))
+                                 .OrderBy(c => GetCharacterDistance(c).LengthSquared())
+                                 .ToArray();
         else
         {
             try
@@ -71,7 +67,7 @@ public unsafe partial class CharacterTab(
         if (ClientState.IsGPosing)
         {
             // Within gpose, only show characters that are gpose actors
-            objects = objects.Where(x => x.ObjectIndex is >= 201 and < 239);
+            objects = objects.Where(x => x.ObjectIndex is >= 201 and < 239).ToArray();
         }
 
         if (SelectedCharacter != null && !SelectedCharacter.IsValid())
@@ -101,31 +97,19 @@ public unsafe partial class CharacterTab(
 
         if (SelectedCharacter != null)
         {
-            var address = (CSCharacter*)SelectedCharacter.Address;
-            if (CharacterTreeCache == null || CharacterTreeCache!.Value.Item1 != (IntPtr)address)
-            {
-                CharacterTreeCache = ((IntPtr)address, new(address), DateTime.Now);
-            }
-
             if (ImGui.CollapsingHeader("Character Pose"))
             {
                 DrawPoseInfo(SelectedCharacter, ClientState);
             }
             
-            if (ImGui.CollapsingHeader($"Character Tree (snapshot from {CharacterTreeCache.Value.time})##characterTree", ImGuiTreeNodeFlags.DefaultOpen))
+            if (ImGui.CollapsingHeader($"Character Tree", ImGuiTreeNodeFlags.DefaultOpen))
             {
-                if (ImGui.Button("Refresh"))
-                {
-                    CharacterTreeCache = ((IntPtr)address, new(address), DateTime.Now);
-                }
-                
-                DrawCharacterTree(CharacterTreeCache.Value.tree);
+                DrawCharacterTree(SelectedCharacter);
             }
         }
         else
         {
             ImGui.Text("No character selected");
-            CharacterTreeCache = null;
         }
     }
 

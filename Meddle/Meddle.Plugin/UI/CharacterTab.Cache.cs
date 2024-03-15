@@ -4,13 +4,49 @@ using System.Numerics;
 using Meddle.Plugin.Enums;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Config;
+using Meddle.Plugin.Utility;
+using Serilog.Events;
+using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
+using Character = Dalamud.Game.ClientState.Objects.Types.Character;
 
 namespace Meddle.Plugin.UI;
 
 public partial class CharacterTab
 {
-    private void DrawCharacterTree(CharacterTree tree)
+    private Task? ExportTask { get; set; }
+    private CancellationTokenSource? ExportCts { get; set; }
+    private (Character character, CharacterTree tree, ExportLogger logger, DateTime time)? CharacterTreeCache { get; set; }
+
+    private unsafe (Character character, CharacterTree tree, ExportLogger logger, DateTime time) InitTree(Character character, bool refresh)
     {
+        var now = DateTime.Now;
+        if (CharacterTreeCache != null)
+        {
+            if (character != CharacterTreeCache.Value.character)
+            {
+                CharacterTreeCache = null;
+            }
+        }
+
+        if (refresh)
+        {
+            CharacterTreeCache = null;
+        }
+
+        if (CharacterTreeCache == null)
+        {
+            var address = (CSCharacter*)character.Address;
+            var tree = new CharacterTree(address);
+            CharacterTreeCache = (character, tree, new ExportLogger(log), now);
+        }
+        
+        return CharacterTreeCache.Value;
+    }
+    
+    private void DrawCharacterTree(Character character)
+    {
+        var tree = InitTree(character, false);
+
         using (var d = ImRaii.Disabled(!(ExportTask?.IsCompleted ?? true)))
         {
             if (ImGui.Button("Export"))
@@ -18,42 +54,63 @@ public partial class CharacterTab
                 ExportCts?.Cancel();
                 ExportCts = new();
                 ExportTask = ModelConverter.Export(
-                    Logger,
+                    tree.logger,
                     new ExportConfig
                     {
                         ExportType = ExportType.Gltf,
                         IncludeReaperEye = false,
                         OpenFolderWhenComplete = true
                     },
-                    tree,
+                    tree.tree,
                     ExportCts.Token);
             }
         }
         
-        var log = Logger.GetLastLog();
+        ImGui.SameLine();
+        if (ImGui.Button("Refresh"))
+        {
+            tree = InitTree(character, true);
+        }
+        
+        var log = tree.logger.GetLastLog();
         if (log != default)
         {
             ImGui.SameLine();
-            ImGui.Text($"{log.level}: {log.message}");
+            switch (log.level)
+            {
+                case LogEventLevel.Debug:
+                    ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1), log.message);
+                    break;
+                case LogEventLevel.Information:
+                    ImGui.TextColored(new Vector4(0, 0.5f, 0, 1), log.message);
+                    break;
+                case LogEventLevel.Warning:
+                    ImGui.TextColored(new Vector4(0.5f, 0.5f, 0, 1), log.message);
+                    break;
+                case LogEventLevel.Error:
+                    ImGui.TextColored(new Vector4(0.5f, 0, 0, 1), log.message);
+                    break;
+                default:
+                    ImGui.Text(log.message);
+                    break;
+            }
         }
         
-        ImGui.Text("Customize");
-        if (tree.CustomizeParameter != null)
-        {
-            var c = tree.CustomizeParameter;
-            DrawCustomizeParameters(ref c);
-            tree.CustomizeParameter = c;
-        }
-        else
-        {
-            ImGui.Text("No customize parameters");
-        }
-        
-        DrawModelView(tree);
+
+        DrawCustomizeParameters(tree.tree);
+        DrawModelView(tree.tree, tree.logger);
     }
     
-    private static void DrawCustomizeParameters(ref CustomizeParameters c)
+    private static void DrawCustomizeParameters(CharacterTree tree)
     {
+        ImGui.Text("Customize");
+        if (tree.CustomizeParameter == null)
+        {
+            ImGui.Text("No customize parameters");
+            return;
+        }
+
+        var c = tree.CustomizeParameter;
         var skinCol = c.SkinColor;
         var sk3 = new Vector3(skinCol.X, skinCol.Y, skinCol.Z);
         // set size
@@ -106,10 +163,18 @@ public partial class CharacterTab
         {
             c.RightColor = ic42;
         }
+
+        tree.CustomizeParameter = c;
     }
 
-    private void DrawModelView(CharacterTree tree)
+    private void DrawModelView(CharacterTree tree, ExportLogger logger)
     {
+        if (tree.Models.Count == 0)
+        {
+            ImGui.Text("No models found. Try refreshing.");
+            return;
+        }
+        
         using var mainTable = ImRaii.Table("Models", 1, ImGuiTableFlags.Borders);
         foreach (var model in tree.Models)
         {
@@ -124,7 +189,7 @@ public partial class CharacterTab
                 ExportCts?.Cancel();
                 ExportCts = new();
                 ExportTask = ModelConverter.Export(
-                    Logger,
+                    logger,
                     new ExportConfig
                     {
                         ExportType = ExportType.Gltf,
@@ -135,13 +200,13 @@ public partial class CharacterTab
                 
             if (model.Shapes.Count > 0)
             {
-                ImGui.Text($"Shapes: {string.Join(", ", model.Shapes.Select(x => x.Name))}");
-                ImGui.Text($"Enabled Shapes: {string.Join(", ", model.EnabledShapes)}");
+                ImGui.TextWrapped($"Shapes: {string.Join(", ", model.Shapes.Select(x => x.Name))}");
+                ImGui.TextWrapped($"Enabled Shapes: {string.Join(", ", model.EnabledShapes)}");
             }
 
             if (model.EnabledAttributes.Length > 0)
             {
-                ImGui.Text($"Enabled Attributes: {string.Join(", ", model.EnabledAttributes)}");
+                ImGui.TextWrapped($"Enabled Attributes: {string.Join(", ", model.EnabledAttributes)}");
             }
 
             // Display Materials

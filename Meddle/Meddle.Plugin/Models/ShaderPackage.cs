@@ -1,5 +1,4 @@
 ﻿using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
-using FFXIVClientStructs.Interop;
 using Lumina.Data.Parsing;
 
 namespace Meddle.Plugin.Models;
@@ -10,22 +9,11 @@ public unsafe class ShaderPackage
     public Dictionary<uint, TextureUsage> TextureLookup { get; set; }
     public FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.ShaderPackage* ShaderPackagePointer { get; set; }
 
-    public ShaderPackage(string name)
-    {
-        Name = name;
-        TextureLookup = new();
-    }
-
-    public ShaderPackage(Pointer<ShaderPackageResourceHandle> shaderPackage, string name) : this(shaderPackage.Value, name)
-    {
-
-    }
-
     public ShaderPackage(ShaderPackageResourceHandle* shaderPackage, string name)
     {
         Name = name;
 
-        TextureLookup = new();
+        TextureLookup = new Dictionary<uint, TextureUsage>();
         foreach (var sampler in shaderPackage->ShaderPackage->SamplersSpan)
         {
             if (sampler.Slot != 2)

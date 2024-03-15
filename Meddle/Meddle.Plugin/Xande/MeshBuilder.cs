@@ -1,4 +1,6 @@
 using System.Numerics;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Meddle.Plugin.Files;
 using Meddle.Plugin.Models;
 using SharpGLTF.Geometry;
@@ -108,17 +110,17 @@ public class MeshBuilder
     }
 
     /// <summary>Builds shape keys (known as morph targets in glTF).</summary>
-    public void BuildShapes(IReadOnlyList<ModelShape> shapes, IMeshBuilder<MaterialBuilder> builder, int subMeshStart, int subMeshEnd)
+    public IReadOnlyList<string> BuildShapes(IReadOnlyList<ModelShape> shapes, IMeshBuilder<MaterialBuilder> builder, int subMeshStart, int subMeshEnd)
     {
         var primitive = builder.Primitives.First();
         var triangles = primitive.Triangles;
         var vertices = primitive.Vertices;
-        var vertexList = new List<(IVertexGeometry, IVertexGeometry)>();
-        for (var i = 0; i < shapes.Count; ++i)
+        var shapeNames = new List<string>();
+        for (var i = 0; i < shapes.Count; i++)
         {
             var shape = shapes[i];
-            vertexList.Clear();
-            foreach (var shapeMesh in shape.Meshes.Where(m => m.AssociatedMesh == Mesh))
+            var vertexList = new List<(IVertexGeometry, IVertexGeometry)>();
+            foreach (var shapeMesh in shape.Meshes.Where(m => m.Mesh.MeshIdx == Mesh.MeshIdx))
             {
                 foreach (var (baseIdx, otherIdx) in shapeMesh.Values)
                 {
@@ -137,17 +139,23 @@ public class MeshBuilder
                     vertexList.Add((vertexA.GetGeometry(), Vertices[otherIdx].GetGeometry()));
                 }
             }
+            
+            if (vertexList.Count == 0) continue;
 
-            var morph = builder.UseMorphTarget(i);
+            var morph = builder.UseMorphTarget(shapeNames.Count);
+            shapeNames.Add(shape.Name);
             foreach (var (a, b) in vertexList)
             {
                 morph.SetVertex(a, b);
             }
         }
 
-        var data = new ExtraDataManager();
-        data.AddShapeNames(shapes);
-        builder.Extras = data.Serialize();
+        builder.Extras = JsonNode.Parse(JsonSerializer.Serialize(new Dictionary<string, string[]>
+        {
+            { "targetNames", shapeNames.ToArray() }
+        }));
+
+        return shapeNames;
     }
 
     private IVertexBuilder BuildVertex(Vertex vertex)
