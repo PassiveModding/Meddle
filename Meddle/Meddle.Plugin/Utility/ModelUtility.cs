@@ -58,7 +58,7 @@ public static class ModelUtility
             }
         }
 
-        if (!NodeBuilder.IsValidArmature(boneMap.Cast<NodeBuilder>()))
+        if (!NodeBuilder.IsValidArmature(boneMap))
             throw new InvalidOperationException($"Joints are not valid, {string.Join(", ", boneMap.Select(x => x.Name))}");
 
         return boneMap;

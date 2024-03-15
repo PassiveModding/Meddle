@@ -1,7 +1,4 @@
-﻿using Dalamud.Logging;
-using Meddle.Plugin.Xande;
-
-namespace Meddle.Plugin.Models;
+﻿namespace Meddle.Plugin.Models;
 
 public unsafe class Attach
 {

@@ -68,6 +68,13 @@ public unsafe partial class CharacterTab(
         {
             // Within gpose, only show characters that are gpose actors
             objects = objects.Where(x => x.ObjectIndex is >= 201 and < 239).ToArray();
+            if (SelectedCharacter?.ObjectIndex is < 201 or >= 239)
+                SelectedCharacter = null;
+        }
+        else
+        {
+            if (SelectedCharacter?.ObjectIndex is >= 201 and < 239)
+                SelectedCharacter = null;
         }
 
         if (SelectedCharacter != null && !SelectedCharacter.IsValid())
@@ -77,11 +84,12 @@ public unsafe partial class CharacterTab(
 
         if (SelectedCharacter == null)
         {
-            SelectedCharacter = ClientState.LocalPlayer ?? objects.FirstOrDefault();
+            SelectedCharacter = objects.FirstOrDefault() ?? ClientState.LocalPlayer;
         }
 
         ImGui.Text("Select Character");
-        using (var combo = ImRaii.Combo("##Character", SelectedCharacter != null ? GetCharacterDisplayText(SelectedCharacter) : "None"))
+        var preview = SelectedCharacter != null ? GetCharacterDisplayText(SelectedCharacter) : "None";
+        using (var combo = ImRaii.Combo("##Character", preview))
         {
             if (combo)
             {

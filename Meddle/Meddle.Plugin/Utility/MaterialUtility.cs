@@ -432,7 +432,7 @@ public class MaterialUtility
             return this;
         }
         
-        private void ProcessRow(int y, ColorTable[] colorTable)
+        private void ProcessRow(int y, IReadOnlyList<ColorTable> colorTable)
         {
             for (var x = 0; x < normal.Width; x++)
             {
@@ -450,8 +450,9 @@ public class MaterialUtility
                 
                 // Specular (table)
                 var lerpedSpecularColor = Vector3.Lerp(prevRow.Specular, nextRow.Specular, tableRow.Weight);
-                // float.Lerp is .NET8 ;-; #TODO
-                var lerpedSpecularFactor = (prevRow.SpecularStrength * (1.0f - tableRow.Weight)) + (nextRow.SpecularStrength * tableRow.Weight);
+                // float.Lerp is .NET8 ;-;
+                //var lerpedSpecularFactor = (prevRow.SpecularStrength * (1.0f - tableRow.Weight)) + (nextRow.SpecularStrength * tableRow.Weight);
+                var lerpedSpecularFactor = Lerp(prevRow.SpecularStrength, nextRow.SpecularStrength, tableRow.Weight);
                 var spec = new Vector4(lerpedSpecularColor, lerpedSpecularFactor);
                 Specular[x, y] = ToSkColor(spec);
                 

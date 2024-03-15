@@ -9,23 +9,21 @@ namespace Meddle.Plugin.Models;
 
 public unsafe class CharacterTree
 {
-    public string Name { get; set; }
-    public Transform Transform { get; set; }
-    public Skeleton Skeleton { get; set; }
-    public IReadOnlyList<Model> Models { get; set; }
-    public Attach Attach { get; set; }
-
-    public ushort? RaceCode { get; set; }
+    public string Name { get; }
+    public Transform Transform { get;}
+    public Skeleton Skeleton { get; }
+    public IReadOnlyList<Model> Models { get; }
+    public ushort? RaceCode { get; }
 
     public CustomizeParameters? CustomizeParameter { get; set; }
     
-    public IReadOnlyList<CharacterTree>? AttachedChildren { get; set; }
+    public IReadOnlyList<AttachedChild>? AttachedChildren { get; }
 
     public CharacterTree(CSCharacter* character) : this((CharacterBase*)character->GameObject.DrawObject)
     {
         Name = MemoryHelper.ReadStringNullTerminated((nint)character->GameObject.GetName());
 
-        var attachedChildren = new List<CharacterTree>();
+        var attachedChildren = new List<AttachedChild>();
         foreach (var weaponData in character->DrawData.WeaponDataSpan)
         {
             if (weaponData.Model == null)
@@ -34,10 +32,33 @@ public unsafe class CharacterTree
             if (attach->ExecuteType == 0)
                 continue;
 
-            attachedChildren.Add(new CharacterTree(&weaponData.Model->CharacterBase));
+            attachedChildren.Add(new AttachedChild(&weaponData.Model->CharacterBase));
         }
         
         AttachedChildren = attachedChildren;
+    }
+
+    public unsafe class AttachedChild
+    {
+        public Skeleton Skeleton { get; set; }
+        public IReadOnlyList<Model> Models { get; set; }
+        public Attach Attach { get; set; }
+        
+        public AttachedChild(CharacterBase* character)
+        {
+            Skeleton = new Skeleton(character->Skeleton);
+            var models = new List<Model>();
+            for (var i = 0; i < character->SlotCount; ++i)
+            {
+                if (character->Models[i] == null)
+                    continue;
+                
+                models.Add(new Model(character->Models[i], character->ColorTableTextures + (i * 4)));
+            }
+            
+            Models = models;
+            Attach = new Attach(&character->Attach);
+        }
     }
 
     public CharacterTree(CharacterBase* character)
@@ -69,8 +90,7 @@ public unsafe class CharacterTree
             
             models.Add(new Model(character->Models[i], character->ColorTableTextures + (i * 4)));
         }
-        
+
         Models = models;
-        Attach = new Attach(&character->Attach);
     }
 }

@@ -8,7 +8,7 @@ public class ExportLogger
     private readonly IPluginLog log;
     public List<(LogEventLevel level, string message)> LoggedMessages;
 
-    public (LogEventLevel level, string message) GetLastLog()
+    public (LogEventLevel level, string? message) GetLastLog()
     {
         return LoggedMessages.LastOrDefault();
     }

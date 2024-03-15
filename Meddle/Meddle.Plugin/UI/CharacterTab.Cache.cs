@@ -23,7 +23,7 @@ public partial class CharacterTab
         var now = DateTime.Now;
         if (CharacterTreeCache != null)
         {
-            if (character != CharacterTreeCache.Value.character)
+            if (character != CharacterTreeCache.Value.character || character.ObjectId != CharacterTreeCache.Value.character.ObjectId)
             {
                 CharacterTreeCache = null;
             }
@@ -53,7 +53,7 @@ public partial class CharacterTab
 
         using (var d = ImRaii.Disabled(!(ExportTask?.IsCompleted ?? true)))
         {
-            if (ImGui.Button("Export"))
+            if (ImGui.Button("Export") && (ExportTask?.IsCompleted ?? true))
             {
                 ExportCts?.Cancel();
                 ExportCts = new();
@@ -77,31 +77,34 @@ public partial class CharacterTab
         }
         
         ImGui.SameLine();
-        if (ImGui.Button("Refresh"))
+        using (var d = ImRaii.Disabled(!(ExportTask?.IsCompleted ?? true)))
         {
-            tree = InitTree(character, true);
+            if (ImGui.Button("Refresh") && (ExportTask?.IsCompleted ?? true))
+            {
+                tree = InitTree(character, true);
+            }
         }
-        
-        var log = tree.logger.GetLastLog();
-        if (log != default)
+
+        var (level, message) = tree.logger.GetLastLog();
+        if (message != null)
         {
             ImGui.SameLine();
-            switch (log.level)
+            switch (level)
             {
                 case LogEventLevel.Debug:
-                    ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1), log.message);
+                    ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1), message);
                     break;
                 case LogEventLevel.Information:
-                    ImGui.TextColored(new Vector4(0, 0.5f, 0, 1), log.message);
+                    ImGui.TextColored(new Vector4(0, 0.5f, 0, 1), message);
                     break;
                 case LogEventLevel.Warning:
-                    ImGui.TextColored(new Vector4(0.5f, 0.5f, 0, 1), log.message);
+                    ImGui.TextColored(new Vector4(0.5f, 0.5f, 0, 1), message);
                     break;
                 case LogEventLevel.Error:
-                    ImGui.TextColored(new Vector4(0.5f, 0, 0, 1), log.message);
+                    ImGui.TextColored(new Vector4(0.5f, 0, 0, 1), message);
                     break;
                 default:
-                    ImGui.Text(log.message);
+                    ImGui.Text(message);
                     break;
             }
         }
@@ -109,6 +112,7 @@ public partial class CharacterTab
 
         DrawCustomizeParameters(tree.tree);
         DrawModelView(tree.tree, tree.logger);
+        DrawAttachView(tree.tree, tree.logger);
     }
     
     private static void DrawCustomizeParameters(CharacterTree tree)
@@ -180,6 +184,32 @@ public partial class CharacterTab
         tree.CustomizeParameter = c;
     }
 
+    private void DrawAttachView(CharacterTree tree, ExportLogger logger)
+    {
+        if (tree.AttachedChildren != null)
+        {
+            ImGui.Text("Attached Children");
+            using var mainTable = ImRaii.Table("AttachedChildren", 1, ImGuiTableFlags.Borders);
+            foreach (var child in tree.AttachedChildren)
+            {
+                foreach (var model in child.Models)
+                {
+                    if (!DrawModel(model, logger)) continue;
+                    ExportCts?.Cancel();
+                    ExportCts = new();
+                    ExportTask = ModelConverter.Export(
+                        logger,
+                        new ExportConfig
+                        {
+                            ExportType = ExportType.Gltf,
+                            IncludeReaperEye = false,
+                            OpenFolderWhenComplete = true
+                        }, model, tree.Skeleton, tree.RaceCode ?? 0, tree.CustomizeParameter, ExportCts.Token);
+                }
+            }
+        }
+    }
+    
     private void DrawModelView(CharacterTree tree, ExportLogger logger)
     {
         if (tree.Models.Count == 0)
@@ -188,111 +218,115 @@ public partial class CharacterTab
             return;
         }
         
-        if (tree.AttachedChildren != null)
-        {
-            foreach (var child in tree.AttachedChildren)
-            {
-                DrawModelView(child, logger);
-            }
-        }
-        
+        ImGui.Text("Models");
         using var mainTable = ImRaii.Table("Models", 1, ImGuiTableFlags.Borders);
         foreach (var model in tree.Models)
         {
-            ImGui.TableNextColumn();
-            using var modelNode = ImRaii.TreeNode($"{model.HandlePath}##{model.GetHashCode()}", ImGuiTreeNodeFlags.CollapsingHeader);
-            if (!modelNode.Success) continue;
-            
-            // Export icon
-            if (ImGui.SmallButton($"Export##{model.GetHashCode()}"))
-            {
-                ExportCts?.Cancel();
-                ExportCts = new();
-                ExportTask = ModelConverter.Export(
-                    logger,
-                    new ExportConfig
-                    {
-                        ExportType = ExportType.Gltf,
-                        IncludeReaperEye = false,
-                        OpenFolderWhenComplete = true
-                    }, model, tree.Skeleton, tree.RaceCode ?? 0, tree.CustomizeParameter, ExportCts.Token);
-            }
-                
-            if (model.Shapes.Count > 0)
-            {
-                ImGui.TextWrapped($"Shapes: {string.Join(", ", model.Shapes.Select(x => x.Name))}");
-                ImGui.TextWrapped($"Enabled Shapes: {string.Join(", ", model.EnabledShapes)}");
-            }
-
-            if (model.EnabledAttributes.Count > 0)
-            {
-                ImGui.TextWrapped($"Enabled Attributes: {string.Join(", ", model.EnabledAttributes)}");
-            }
-
-            // Display Materials
-            using (var table = ImRaii.Table("MaterialsTable", 2,
-                                            ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable))
-            {
-                ImGui.TableSetupColumn("Path", ImGuiTableColumnFlags.WidthFixed,
-                                       0.75f * ImGui.GetWindowWidth());
-                ImGui.TableSetupColumn("Info", ImGuiTableColumnFlags.WidthStretch);
-
-                foreach (var material in model.Materials)
+            if (!DrawModel(model, logger)) continue;
+            ExportCts?.Cancel();
+            ExportCts = new();
+            ExportTask = ModelConverter.Export(
+                logger,
+                new ExportConfig
                 {
-                    ImGui.TableNextRow();
-                    ImGui.TableNextColumn();
-                    ImGui.Text($"{material.HandlePath}");
-                    if (ImGui.IsItemHovered())
-                    {
-                        ImGui.SetTooltip(material.HandlePath);
-                    }
-                    ImGui.TableNextColumn();
-                    ImGui.Text($"Shader: {material.ShaderPackage.Name} Textures: {material.Textures.Count}");
-                    ImGui.Indent();
-                    // Display Material Textures in the same table
-                    foreach (var texture in material.Textures)
-                    {
-                        ImGui.TableNextRow();
-                        ImGui.TableNextColumn();
-                        ImGui.Text($"{texture.HandlePath}");
-                        ImGui.TableNextColumn();
-                        ImGui.Text($"{texture.Usage}");
-                    }
+                    ExportType = ExportType.Gltf,
+                    IncludeReaperEye = false,
+                    OpenFolderWhenComplete = true
+                }, model, tree.Skeleton, tree.RaceCode ?? 0, tree.CustomizeParameter, ExportCts.Token);
+        }
+    }
 
-                    ImGui.Unindent();
-                }
+    private bool DrawModel(Model model, ExportLogger logger)
+    {
+        ImGui.TableNextColumn();
+        using var modelNode = ImRaii.TreeNode($"{model.HandlePath}##{model.GetHashCode()}", ImGuiTreeNodeFlags.CollapsingHeader);
+        if (!modelNode.Success) return false;
+        
+        // Export icon
+        using (var d = ImRaii.Disabled(!(ExportTask?.IsCompleted ?? true)))
+        {
+            if (ImGui.SmallButton($"Export##{model.GetHashCode()}") && (ExportTask?.IsCompleted ?? true))
+            {
+                return true;
             }
+        }
 
+        if (model.Shapes.Count > 0)
+        {
+            ImGui.TextWrapped($"Shapes: {string.Join(", ", model.Shapes.Select(x => x.Name))}");
+            ImGui.TextWrapped($"Enabled Shapes: {string.Join(", ", model.EnabledShapes)}");
+        }
 
-            ImGui.Spacing();
+        if (model.EnabledAttributes.Count > 0)
+        {
+            ImGui.TextWrapped($"Enabled Attributes: {string.Join(", ", model.EnabledAttributes)}");
+        }
 
-            using var tableMeshes = ImRaii.Table("MeshesTable", 3,
-                                                 ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable);
-            ImGui.TableSetupColumn("Mesh", ImGuiTableColumnFlags.WidthFixed, 0.5f * ImGui.GetWindowWidth());
-            ImGui.TableSetupColumn("Vertices", ImGuiTableColumnFlags.WidthStretch);
-            ImGui.TableSetupColumn("Indices", ImGuiTableColumnFlags.WidthStretch);
+        // Display Materials
+        using (var table = ImRaii.Table("MaterialsTable", 2,
+                                        ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable))
+        {
+            ImGui.TableSetupColumn("Path", ImGuiTableColumnFlags.WidthFixed,
+                                   0.75f * ImGui.GetWindowWidth());
+            ImGui.TableSetupColumn("Info", ImGuiTableColumnFlags.WidthStretch);
 
-            for (var i = 0; i < model.Meshes.Count; ++i)
+            foreach (var material in model.Materials)
             {
                 ImGui.TableNextRow();
                 ImGui.TableNextColumn();
-
-                ImGui.Text($"Mesh {i}");
-                var mesh = model.Meshes[i];
-                ImGui.TableNextColumn();
-                ImGui.Text($"Vertices: {mesh.Vertices.Count}");
-                ImGui.TableNextColumn();
-                ImGui.Text($"Indices: {mesh.Indices.Count}");
-                for (var j = 0; j < mesh.SubMeshes.Count; j++)
+                ImGui.Text($"{material.HandlePath}");
+                if (ImGui.IsItemHovered())
                 {
-                    var submesh = mesh.SubMeshes[j];
+                    ImGui.SetTooltip(material.HandlePath);
+                }
+                ImGui.TableNextColumn();
+                ImGui.Text($"Shader: {material.ShaderPackage.Name} Textures: {material.Textures.Count}");
+                ImGui.Indent();
+                // Display Material Textures in the same table
+                foreach (var texture in material.Textures)
+                {
                     ImGui.TableNextRow();
                     ImGui.TableNextColumn();
-                    ImGui.Text($"[{j}] Submesh attributes: {string.Join(", ", submesh.Attributes)}");
+                    ImGui.Text($"{texture.HandlePath}");
                     ImGui.TableNextColumn();
-                    ImGui.TableNextColumn(); // Leave an empty column for spacing
+                    ImGui.Text($"{texture.Usage}");
                 }
+
+                ImGui.Unindent();
             }
         }
+
+
+        ImGui.Spacing();
+
+        using var tableMeshes = ImRaii.Table("MeshesTable", 3,
+                                             ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable);
+        ImGui.TableSetupColumn("Mesh", ImGuiTableColumnFlags.WidthFixed, 0.5f * ImGui.GetWindowWidth());
+        ImGui.TableSetupColumn("Vertices", ImGuiTableColumnFlags.WidthStretch);
+        ImGui.TableSetupColumn("Indices", ImGuiTableColumnFlags.WidthStretch);
+
+        for (var i = 0; i < model.Meshes.Count; ++i)
+        {
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
+
+            ImGui.Text($"Mesh {i}");
+            var mesh = model.Meshes[i];
+            ImGui.TableNextColumn();
+            ImGui.Text($"Vertices: {mesh.Vertices.Count}");
+            ImGui.TableNextColumn();
+            ImGui.Text($"Indices: {mesh.Indices.Count}");
+            for (var j = 0; j < mesh.SubMeshes.Count; j++)
+            {
+                var submesh = mesh.SubMeshes[j];
+                ImGui.TableNextRow();
+                ImGui.TableNextColumn();
+                ImGui.Text($"[{j}] Submesh attributes: {string.Join(", ", submesh.Attributes)}");
+                ImGui.TableNextColumn();
+                ImGui.TableNextColumn(); // Leave an empty column for spacing
+            }
+        }
+
+        return false;
     }
 }
