@@ -7,7 +7,7 @@ namespace Meddle.Plugin.Models;
 public unsafe class SkeletonPose
 {
     [JsonIgnore]
-    public IReadOnlyList<Transform> Pose { get; set; }
+    public IReadOnlyList<Transform> Pose { get; }
 
     public SkeletonPose(Pointer<hkaPose> pose) : this(pose.Value)
     {

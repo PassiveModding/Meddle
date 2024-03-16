@@ -4,20 +4,22 @@ using FFXIVClientStructs.Interop;
 
 namespace Meddle.Plugin.Models;
 
-public unsafe class SubMesh
+public class SubMesh
 {
-    public uint IndexOffset { get; set; }
-    public uint IndexCount { get; set; }
-    public IReadOnlyList<string> Attributes { get; set; }
+    public uint IndexOffset { get; }
+    public uint IndexCount { get; }
+    public IReadOnlyList<string> Attributes { get; }
     
-    public SubMesh(Pointer<ModelResourceHandle> handle, int idx) : this(handle.Value, idx)
+    public unsafe SubMesh(Pointer<ModelResourceHandle> handle, int idx, uint meshIndexOffset) : 
+        this(handle.Value, idx, meshIndexOffset)
     {
     }
     
-    public SubMesh(ModelResourceHandle* handle, int idx)
+    public unsafe SubMesh(ModelResourceHandle* handle, int idx, uint meshIndexOffset)
     {
         var subMesh = &handle->Submeshes[idx];
-        IndexOffset = subMesh->IndexOffset;
+        // IndexOffset is relative to the model, not the mesh so we need to adjust it
+        IndexOffset = subMesh->IndexOffset - meshIndexOffset;
         IndexCount = subMesh->IndexCount;
 
         var attributes = new List<string>();

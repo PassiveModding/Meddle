@@ -374,10 +374,10 @@ public class MaterialUtility
         
         private class ColorTable
         {
-            public Vector3 Diffuse { get; set; }          // 0,1,2
-            public Vector3 Specular { get; set; }         // 4,5,6
-            public float   SpecularStrength { get; set; } // 3
-            public Vector3 Emissive { get; set; }         // 8,9,10
+            public Vector3 Diffuse { get; init; }          // 0,1,2
+            public Vector3 Specular { get; init; }         // 4,5,6
+            public float   SpecularStrength { get; init; } // 3
+            public Vector3 Emissive { get; init; }         // 8,9,10
 
             public object Serialize()
             {

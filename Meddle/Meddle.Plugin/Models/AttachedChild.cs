@@ -5,9 +5,9 @@ namespace Meddle.Plugin.Models;
 
 public unsafe class AttachedChild
 {
-    public Skeleton Skeleton { get; set; }
-    public IReadOnlyList<Model> Models { get; set; }
-    public Attach Attach { get; set; }
+    public Skeleton Skeleton { get; }
+    public IReadOnlyList<Model> Models { get;}
+    public Attach Attach { get; }
         
     public AttachedChild(Pointer<CharacterBase> character) : this(character.Value)
     {

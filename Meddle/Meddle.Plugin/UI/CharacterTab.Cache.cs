@@ -51,9 +51,9 @@ public partial class CharacterTab
         ImGui.Text($"Character: {tree.tree.Name}");
         ImGui.Text($"At: {tree.time}");
 
-        using (var d = ImRaii.Disabled(!(ExportTask?.IsCompleted ?? true)))
+        using (var d = ImRaii.Disabled(ModelConverter.IsExporting))
         {
-            if (ImGui.Button("Export") && (ExportTask?.IsCompleted ?? true))
+            if (ImGui.Button("Export") && !ModelConverter.IsExporting)
             {
                 ExportCts?.Cancel();
                 ExportCts = new();
@@ -77,9 +77,9 @@ public partial class CharacterTab
         }
         
         ImGui.SameLine();
-        using (var d = ImRaii.Disabled(!(ExportTask?.IsCompleted ?? true)))
+        using (var d = ImRaii.Disabled(ModelConverter.IsExporting))
         {
-            if (ImGui.Button("Refresh") && (ExportTask?.IsCompleted ?? true))
+            if (ImGui.Button("Refresh") && !ModelConverter.IsExporting)
             {
                 tree = InitTree(character, true);
             }
@@ -245,7 +245,7 @@ public partial class CharacterTab
         if (!modelNode.Success) return false;
         
         // Export icon
-        using (var d = ImRaii.Disabled(!(ExportTask?.IsCompleted ?? true)))
+        using (var d = ImRaii.Disabled(ModelConverter.IsExporting))
         {
             if (ImGui.SmallButton($"Export##{model.GetHashCode()}") && (ExportTask?.IsCompleted ?? true))
             {

@@ -6,11 +6,11 @@ namespace Meddle.Plugin.Models;
 
 public unsafe class HkSkeleton
 {
-    public IReadOnlyList<string?> BoneNames { get; set; }
-    public IReadOnlyList<short> BoneParents { get; set; }
+    public IReadOnlyList<string?> BoneNames { get; }
+    public IReadOnlyList<short> BoneParents { get; }
     
     [JsonIgnore]
-    public IReadOnlyList<Transform> ReferencePose { get; set; }
+    public IReadOnlyList<Transform> ReferencePose { get; }
 
     public HkSkeleton(Pointer<hkaSkeleton> skeleton) : this(skeleton.Value)
     {

@@ -5,11 +5,11 @@ namespace Meddle.Plugin.Models;
 
 public unsafe class Attach
 {
-    public int ExecuteType { get; set; }
+    public int ExecuteType { get;}
 
-    public Transform Transform { get; set; }
-    public byte PartialSkeletonIdx { get; set; }
-    public ushort BoneIdx { get; set; }
+    public Transform Transform { get;}
+    public byte PartialSkeletonIdx { get; }
+    public ushort BoneIdx { get; }
     
     public Attach(Pointer<CSAttach> attach) : this(attach.Value)
     {

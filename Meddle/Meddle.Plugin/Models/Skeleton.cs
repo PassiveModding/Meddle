@@ -5,8 +5,8 @@ namespace Meddle.Plugin.Models;
 
 public unsafe class Skeleton
 {
-    public Transform Transform { get; set; }
-    public IReadOnlyList<PartialSkeleton> PartialSkeletons { get; set; }
+    public Transform Transform { get; }
+    public IReadOnlyList<PartialSkeleton> PartialSkeletons { get; }
     
     public Skeleton(Pointer<CSSkeleton> skeleton) : this(skeleton.Value)
     {

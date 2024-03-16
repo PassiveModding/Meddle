@@ -7,7 +7,7 @@ using SharpGLTF.Scenes;
 namespace Meddle.Plugin.Xande;
 
 public class BoneNodeBuilder : NodeBuilder {
-    public string BoneName { get; set; }
+    public string BoneName { get; }
     private int? suffix;
     public int? Suffix {
         get => suffix;

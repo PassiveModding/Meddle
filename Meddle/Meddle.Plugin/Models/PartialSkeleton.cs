@@ -5,9 +5,9 @@ namespace Meddle.Plugin.Models;
 
 public unsafe class PartialSkeleton
 {
-    public HkSkeleton? HkSkeleton { get; set; }
-    public IReadOnlyList<SkeletonPose> Poses { get; set; }
-    public int ConnectedBoneIndex { get; set; }
+    public HkSkeleton? HkSkeleton { get; }
+    public IReadOnlyList<SkeletonPose> Poses { get;}
+    public int ConnectedBoneIndex { get; }
 
     public PartialSkeleton(Pointer<PartialCSSkeleton> partialSkeleton) : this(partialSkeleton.Value)
     {

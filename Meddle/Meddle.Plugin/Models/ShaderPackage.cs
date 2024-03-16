@@ -6,8 +6,8 @@ namespace Meddle.Plugin.Models;
 
 public unsafe class ShaderPackage
 {
-    public string Name { get; set; }
-    public IReadOnlyDictionary<uint, TextureUsage> TextureLookup { get; set; }
+    public string Name { get; }
+    public IReadOnlyDictionary<uint, TextureUsage> TextureLookup { get; }
 
     public ShaderPackage(Pointer<ShaderPackageResourceHandle> shaderPackage, string name) : this(shaderPackage.Value, name)
     {

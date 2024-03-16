@@ -27,7 +27,7 @@ public class MeshBuilder
     private Type VertexBuilderT { get; }
     private Type MeshBuilderT { get; }
 
-    private IReadOnlyList<PbdFile.Deformer> Deformers { get; set; }
+    private IReadOnlyList<PbdFile.Deformer> Deformers { get; }
 
     private List<IVertexBuilder> Vertices { get; }
 

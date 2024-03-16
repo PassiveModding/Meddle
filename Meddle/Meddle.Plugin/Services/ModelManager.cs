@@ -19,7 +19,7 @@ public partial class ModelManager
 {
     public IPluginLog Log { get; }
     public ModelBuilder ModelBuilder { get; }
-    public PbdFile Pbd { get; set; }
+    public PbdFile Pbd { get; }
     public bool IsExporting { get; private set; }
 
     public ModelManager(IPluginLog log, IDataManager gameData, ModelBuilder modelBuilder)

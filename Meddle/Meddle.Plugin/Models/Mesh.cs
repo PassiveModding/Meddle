@@ -36,9 +36,7 @@ public unsafe class Mesh
         for (var i = 0; i < mesh->SubMeshCount; ++i)
         {
             var submeshIdx = mesh->SubMeshIndex + i;
-            var sm = new SubMesh(hnd, submeshIdx);
-            // sm.IndexOffset is relative to the model, not the mesh
-            sm.IndexOffset -= meshIndexOffset;
+            var sm = new SubMesh(hnd, submeshIdx, meshIndexOffset);
             subMeshes.Add(sm);
         }
         

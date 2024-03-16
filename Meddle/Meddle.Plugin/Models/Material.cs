@@ -12,11 +12,11 @@ namespace Meddle.Plugin.Models;
 
 public unsafe class Material
 {
-    public string HandlePath { get; set; }
-    public uint ShaderFlags { get; set; }
-    public IReadOnlyList<ShaderKey> ShaderKeys { get; set; }
-    public ShaderPackage ShaderPackage { get; set; }
-    public IReadOnlyList<Texture> Textures { get; set; }
+    public string HandlePath { get; }
+    public uint ShaderFlags { get; }
+    public IReadOnlyList<ShaderKey> ShaderKeys { get; }
+    public ShaderPackage ShaderPackage { get; }
+    public IReadOnlyList<Texture> Textures { get; }
     
     public bool TryGetTexture(TextureUsage usage, out Texture texture)
     {
@@ -39,7 +39,7 @@ public unsafe class Material
     }
     
     [JsonIgnore]
-    public Half[]? ColorTable { get; set; }
+    public Half[]? ColorTable { get; }
 
     [JsonPropertyName("ColorTable")]
     public ushort[]? JsonColorTable => ColorTable?.Select(BitConverter.HalfToUInt16Bits).ToArray();

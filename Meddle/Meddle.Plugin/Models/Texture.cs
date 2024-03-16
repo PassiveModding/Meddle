@@ -11,14 +11,11 @@ namespace Meddle.Plugin.Models;
 
 public unsafe class Texture
 {
-    public string HandlePath { get; set; }
-    public TextureUsage? Usage { get; set; }
-    private CSTexture* KernelTexture { get; set; }
-    private TextureResourceHandle* Handle { get; set; }
-
-    public uint? Id { get; set; }
-    public uint? SamplerFlags { get; set; }
-
+    public string HandlePath { get; }
+    public TextureUsage? Usage { get; }
+    public uint? Id { get; }
+    public uint? SamplerFlags { get; }
+    
     [JsonIgnore]
     public TextureHelper.TextureResource Resource { get; }
     
@@ -32,8 +29,6 @@ public unsafe class Texture
     public Texture(CSTextureEntry* matEntry, byte* matHndStrings, MaterialResourceHandle.TextureEntry* hndEntry, ShaderPackage shader)
     {
         HandlePath = MemoryHelper.ReadStringNullTerminated((nint)matHndStrings + hndEntry->PathOffset);
-        KernelTexture = hndEntry->TextureResourceHandle->Texture;
-        Handle = hndEntry->TextureResourceHandle;
 
         if (matEntry != null)
         {
@@ -43,6 +38,6 @@ public unsafe class Texture
                 Usage = usage;
         }
 
-        Resource = DXHelper.ExportTextureResource(KernelTexture);
+        Resource = DXHelper.ExportTextureResource(hndEntry->TextureResourceHandle->Texture);
     }
 }
