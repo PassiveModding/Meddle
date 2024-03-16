@@ -46,10 +46,15 @@ public partial class ModelManager
             {
                 await ExportInternal(logger, config, characterTree, cancellationToken);
             }
+            catch (OperationCanceledException)
+            {
+                logger.Info("Export cancelled");
+            }
             catch (Exception e)
             {
                 logger.Error(e, "Failed to export model");
-            } finally
+            } 
+            finally
             {
                 IsExporting = false;
             }
@@ -64,7 +69,7 @@ public partial class ModelManager
             throw new InvalidOperationException("Already exporting.");
 
         IsExporting = true;
-        await Task.Run(async () =>
+        await Task.Run(() =>
         {
             try
             {
@@ -75,7 +80,7 @@ public partial class ModelManager
                 var scene = new SceneBuilder("scene");
                 var boneMap = ModelUtility.GetBoneMap(skeleton, out var rootBone).ToArray();
                 scene.AddNode(rootBone);
-                HandleModel(logger, config, model, targetRace, scene, boneMap, Matrix4x4.Identity, customizeParameter);
+                HandleModel(logger, config, model, targetRace, scene, boneMap, Matrix4x4.Identity, customizeParameter, cancellationToken);
 
                 Directory.CreateDirectory(path);
                 var gltfPath = Path.Combine(path, "model.gltf");
@@ -85,10 +90,15 @@ public partial class ModelManager
                 if (config.OpenFolderWhenComplete)
                     Process.Start("explorer.exe", path);
             }
+            catch (OperationCanceledException)
+            {
+                logger.Info("Export cancelled");
+            }
             catch (Exception e)
             {
                 logger.Error(e, "Failed to export model");
-            } finally
+            } 
+            finally
             {
                 IsExporting = false;
             }
@@ -113,7 +123,7 @@ public partial class ModelManager
         {
             if (LowPolyModelRegex().IsMatch(model.HandlePath)) continue;
 
-            HandleModel(logger, config, model, character.RaceCode!.Value, scene, boneMap, Matrix4x4.Identity, character.CustomizeParameter);
+            HandleModel(logger, config, model, character.RaceCode!.Value, scene, boneMap, Matrix4x4.Identity, character.CustomizeParameter, cancellationToken);
         }
 
         if (character.AttachedChildren != null)
@@ -169,11 +179,11 @@ public partial class ModelManager
 
     private void HandleModel(
         ExportLogger logger, ExportConfig config, Model model, GenderRace targetRace, SceneBuilder scene,
-        BoneNodeBuilder[] boneMap, Matrix4x4 worldPosition, CustomizeParameters? customizeParameter)
+        BoneNodeBuilder[] boneMap, Matrix4x4 worldPosition, CustomizeParameters? customizeParameter, CancellationToken cancellationToken = default)
     {
         logger.Debug($"Exporting model {model.HandlePath}");
 
-        var materials = CreateMaterials(logger, model, customizeParameter).ToArray();
+        var materials = CreateMaterials(logger, model, customizeParameter, cancellationToken).ToArray();
 
         IEnumerable<MeshExport> meshes;
         if (model.RaceCode != GenderRace.Unknown)
@@ -222,12 +232,14 @@ public partial class ModelManager
         builder.Content.UseMorphing().SetValue(shapes.Select(x => x.Item2 ? 1f : 0).ToArray());
     }
 
-    private IEnumerable<MaterialBuilder> CreateMaterials(ExportLogger logger, Model model, CustomizeParameters? cp)
+    private IEnumerable<MaterialBuilder> CreateMaterials(ExportLogger logger, Model model, CustomizeParameters? cp, CancellationToken cancellationToken)
     {
         var materials = new MaterialBuilder[model.Materials.Count];
 
         for (var i = 0; i < model.Materials.Count; i++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            
             var material = model.Materials[i];
             logger.Debug($"Exporting material {material.HandlePath}");
 

@@ -69,6 +69,16 @@ public partial class CharacterTab
                     ExportCts.Token);
             }
         }
+
+        if (ModelConverter.IsExporting)
+        {
+            ImGui.SameLine();
+            using var d = ImRaii.Disabled(ExportCts?.IsCancellationRequested ?? false);
+            if (ImGui.Button("Cancel"))
+            {
+                ExportCts?.Cancel();
+            }
+        }
         
         ImGui.SameLine();
         if (ImGui.Button("Open export folder"))
