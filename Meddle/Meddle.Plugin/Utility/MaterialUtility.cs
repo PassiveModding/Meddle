@@ -261,7 +261,7 @@ public class MaterialUtility
                     diffuseVec = new Vector4(highlightColor, diffuseVec.W);
                 }
 
-                if (!customizeParameter.IsHrothgar && isFace)
+                if (!customizeParameter.IsHrothgar && isFace && customizeParameter.ApplyLipColor)
                 {
                     // Lerp between base colour and lip colour based on the blue channel
                     var lipIntensity = maskPixel.Blue / 255f;

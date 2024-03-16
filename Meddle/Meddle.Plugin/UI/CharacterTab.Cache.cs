@@ -135,53 +135,57 @@ public partial class CharacterTab
         }
 
         var c = tree.CustomizeParameter;
-        var skinCol = c.SkinColor;
-        var sk3 = new Vector3(skinCol.X, skinCol.Y, skinCol.Z);
-        // set size
-        if (ImGui.ColorEdit3("Skin Color", ref sk3))
+        
+        var sk3 = new Vector3(c.SkinColor.X, c.SkinColor.Y, c.SkinColor.Z);
+        if (DrawColorEdit3("Skin Color", sk3, out var sc3))
         {
-            // W is muscle tone
-            c.SkinColor = new(sk3.X, sk3.Y, sk3.Z, skinCol.W);
+            c.SkinColor = new(sc3.X, sc3.Y, sc3.Z, c.SkinColor.W);
         }
-
-        /*
-        // Unused for now
-        var muscle = skinCol.W;
-        if (ImGui.SliderFloat("Muscle Tone", ref muscle, 0, 1))
+        
+        if (DrawColorEdit4("Lip Color", c.LipColor, out var lc4))
         {
-            c.SkinColor = new(skinCol.X, skinCol.Y, skinCol.Z, muscle);
+            c.LipColor = lc4;
         }
-        */
-            
-        var lipCol = c.LipColor;
-        var lp4 = new Vector4(lipCol.X, lipCol.Y, lipCol.Z, lipCol.W);
-        if (ImGui.ColorEdit4("Lip Color", ref lp4))
+        
+        ImGui.SameLine();
+        ImGui.Checkbox("Apply Lip Color", ref c.ApplyLipColor);
+        
+        // info hover for lip
+        ImGui.SameLine();
+        ImGui.TextDisabled("(?)");
+        if (ImGui.IsItemHovered())
         {
-            c.LipColor = lp4;
+            ImGui.SetTooltip("Lip color does not apply to Hrothgar");
         }
-            
-        var hairCol = c.MainColor;
-        var hc3 = new Vector3(hairCol.X, hairCol.Y, hairCol.Z);
-        if (ImGui.ColorEdit3("Hair Color", ref hc3))
+        
+        if (DrawColorEdit3("Hair Color", c.MainColor, out var hc3))
         {
             c.MainColor = hc3;
         }
-            
-        var hairHighlight = c.MeshColor;
-        var hh3 = new Vector3(hairHighlight.X, hairHighlight.Y, hairHighlight.Z);
-        if (ImGui.ColorEdit3("Hair Highlight", ref hh3))
+        
+        if (DrawColorEdit3("Hair Highlight", c.MeshColor, out var hh3))
         {
             c.MeshColor = hh3;
         }
         
-        var irisCol = c.LeftColor;
-        var ic4 = new Vector4(irisCol.X, irisCol.Y, irisCol.Z, irisCol.W);
-        if (ImGui.ColorEdit4("Left Iris", ref ic4))
+        if (DrawColorEdit4("Left Iris", c.LeftColor, out var ic4))
         {
             c.LeftColor = ic4;
         }
         
-    
+        if (DrawColorEdit3("Race Feature", c.OptionColor, out var oc3))
+        {
+            c.OptionColor = oc3;
+        }
+        
+        ImGui.SameLine();
+        ImGui.TextDisabled("(?)");
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip("Tattoo Color, Limbal Ring Color, Ear Clasp Color; Varies by race");
+        }
+
+
         // Not sure about applying separate eye colours yet
         /*
         var irisCol2 = c.RightColor;
@@ -192,6 +196,32 @@ public partial class CharacterTab
         }*/
 
         tree.CustomizeParameter = c;
+    }
+    
+    private static bool DrawColorEdit3(string label, Vector3 vec, out Vector3 result)
+    {
+        var v = new Vector3(vec.X, vec.Y, vec.Z);
+        if (ImGui.ColorEdit3(label, ref v))
+        {
+            result = new(v.X, v.Y, v.Z);
+            return true;
+        }
+
+        result = vec;
+        return false;
+    }
+    
+    private static bool DrawColorEdit4(string label, Vector4 vec, out Vector4 result)
+    {
+        var v = new Vector4(vec.X, vec.Y, vec.Z, vec.W);
+        if (ImGui.ColorEdit4(label, ref v))
+        {
+            result = new(v[0], v[1], v[2], v[3]);
+            return true;
+        }
+
+        result = vec;
+        return false;
     }
 
     private void DrawAttachView(CharacterTree tree, ExportLogger logger)

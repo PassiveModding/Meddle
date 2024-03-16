@@ -22,6 +22,7 @@ public class CustomizeParameters
     /// W : Lip opacity.
     /// </summary>
     public Vector4 LipColor;
+    public bool ApplyLipColor;
 
     /// <summary>
     /// XYZ : Hair primary color
@@ -64,6 +65,7 @@ public class CustomizeParameters
         RightColor = FromSquaredRgb(customizeParameter.RightColor);
         OptionColor = FromSquaredRgb(customizeParameter.OptionColor);
         IsHrothgar = isHrothgar;
+        ApplyLipColor = customizeParameter.LipColor.W > 0;
     }
     
     private static Vector4 FromSquaredRgb(Vector4 input)
