@@ -65,7 +65,9 @@ public unsafe class CharacterTree
                 var cp = human->CustomizeParameterCBuffer->LoadBuffer<CustomizeParameter>(0, 1);
                 if (cp != null && cp.Length > 0)
                 {
-                    CustomizeParameter = new CustomizeParameters(cp[0]);
+                    var isHrothgar = RaceCode == GenderRace.HrothgarFemale || RaceCode == GenderRace.HrothgarMale
+                                     || RaceCode == GenderRace.HrothgarFemaleNpc || RaceCode == GenderRace.HrothgarMaleNpc;
+                    CustomizeParameter = new CustomizeParameters(cp[0], isHrothgar);
                 }
             }
         }

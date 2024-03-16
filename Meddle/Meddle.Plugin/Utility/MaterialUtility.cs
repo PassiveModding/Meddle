@@ -249,7 +249,19 @@ public class MaterialUtility
                     diffuseVec = FloatLerp(diffuseVec, customizeParameter.SkinColor, skinColorIntensity * 0.5f);
                 }
 
-                if (isFace)
+                if (customizeParameter.IsHrothgar && !isFace)
+                {
+                    // Mask G is hair color intensity
+                    // Mask B is hair highlight intensity
+                    var hairColorIntensity = maskPixel.Green / 255f;
+                    var highlightIntensity = maskPixel.Blue / 255f;
+                    var diffuseCol = new Vector3(diffuseVec.X, diffuseVec.Y, diffuseVec.Z);
+                    var hairColor = Vector3.Lerp(diffuseCol, customizeParameter.MainColor, hairColorIntensity);
+                    var highlightColor = Vector3.Lerp(hairColor, customizeParameter.MeshColor, highlightIntensity);
+                    diffuseVec = new Vector4(highlightColor, diffuseVec.W);
+                }
+
+                if (!customizeParameter.IsHrothgar && isFace)
                 {
                     // Lerp between base colour and lip colour based on the blue channel
                     var lipIntensity = maskPixel.Blue / 255f;

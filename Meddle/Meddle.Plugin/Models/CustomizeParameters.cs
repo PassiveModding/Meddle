@@ -5,6 +5,8 @@ namespace Meddle.Plugin.Models;
 
 public class CustomizeParameters
 {
+    public bool IsHrothgar;
+    
     /// <summary>
     /// XYZ : Skin diffuse color
     /// W : Muscle tone.
@@ -50,10 +52,8 @@ public class CustomizeParameters
     /// </summary>
     public Vector3 OptionColor;
 
-    public CustomizeParameters(CustomizeParameter customizeParameter)
+    public CustomizeParameters(CustomizeParameter customizeParameter, bool isHrothgar)
     {
-        // reported: 245, 229, 220
-        // actual: 247, 187, 161
         SkinColor = FromSquaredRgb(customizeParameter.SkinColor);
         SkinFresnelValue0 = FromSquaredRgb(customizeParameter.SkinFresnelValue0);
         LipColor = FromSquaredRgb(customizeParameter.LipColor);
@@ -63,6 +63,7 @@ public class CustomizeParameters
         LeftColor = FromSquaredRgb(customizeParameter.LeftColor);
         RightColor = FromSquaredRgb(customizeParameter.RightColor);
         OptionColor = FromSquaredRgb(customizeParameter.OptionColor);
+        IsHrothgar = isHrothgar;
     }
     
     private static Vector4 FromSquaredRgb(Vector4 input)
