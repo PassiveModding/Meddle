@@ -130,17 +130,7 @@ public unsafe class Model
         {
             var shapeMesh = hnd->ShapeMeshes[i];
             if (!meshDict.TryGetValue(shapeMesh.MeshIndexOffset, out var meshMatch)) continue;
-            
-            var values = new List<(ushort BaseIndicesIndex, ushort ReplacingVertexIndex)>();
-            var range = Enumerable.Range((int)shapeMesh.ShapeValueOffset, (int)shapeMesh.ShapeValueCount);
-            foreach (var idx in range)
-            {
-                var baseIndicesIndex = hnd->ShapeValues[idx].BaseIndicesIndex;
-                var replacingVertexIndex = hnd->ShapeValues[idx].ReplacingVertexIndex;
-                values.Add((baseIndicesIndex, replacingVertexIndex));
-            }
-            
-            shapeMeshes[i] = new ShapeMesh(meshMatch, values.ToArray());
+            shapeMeshes[i] = new ShapeMesh(hnd->ShapeValues, shapeMesh, meshMatch, i);
         }
 
         var shapes = new ModelShape[hnd->Header->ShapeCount];
@@ -149,16 +139,7 @@ public unsafe class Model
             var shape = hnd->ShapesPtr[i];
             var nameIdx = hnd->StringTable + shape.StringOffset + 8;
             var name = MemoryHelper.ReadStringNullTerminated((nint)nameIdx);
-
-            var shapeMeshCount = shape.ShapeMeshCount[lodIdx];
-            var meshesForShape = new ShapeMesh[shapeMeshCount];
-            var offset = shape.ShapeMeshStartIndex[lodIdx];
-            for (var j = 0; j < shapeMeshCount; ++j)
-            {
-                meshesForShape[j] = shapeMeshes[j + offset];
-            }
-            
-            shapes[i] = new ModelShape(name, meshesForShape);
+            shapes[i] = new ModelShape(shape, name, lodIdx, shapeMeshes);
         }
         
         Shapes = shapes;
