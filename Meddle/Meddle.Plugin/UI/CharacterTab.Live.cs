@@ -161,15 +161,8 @@ public unsafe partial class CharacterTab
                 if (string.IsNullOrEmpty(boneName))
                    continue;
                 
-                if (clientState.IsGPosing)
-                {
-                    var model = pose->AccessBoneLocalSpace(j);
-                    ret[boneName] = *model;
-                }
-                else
-                {
-                    ret[boneName] = pose->LocalPose[j];
-                }
+                var model = pose->AccessBoneLocalSpace(j);
+                ret[boneName] = *model;
             }
         }
 

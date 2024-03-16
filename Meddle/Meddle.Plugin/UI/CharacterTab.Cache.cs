@@ -6,7 +6,6 @@ using Meddle.Plugin.Enums;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Config;
 using Meddle.Plugin.Utility;
-using Serilog.Events;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
 using Character = Dalamud.Game.ClientState.Objects.Types.Character;
 
@@ -23,7 +22,8 @@ public partial class CharacterTab
         var now = DateTime.Now;
         if (CharacterTreeCache != null)
         {
-            if (character != CharacterTreeCache.Value.character || character.ObjectId != CharacterTreeCache.Value.character.ObjectId)
+            if (character != CharacterTreeCache.Value.character || 
+                character.ObjectId != CharacterTreeCache.Value.character.ObjectId)
             {
                 CharacterTreeCache = null;
             }
@@ -38,7 +38,7 @@ public partial class CharacterTab
         {
             var address = (CSCharacter*)character.Address;
             var tree = new CharacterTree(address);
-            CharacterTreeCache = (character, tree, new ExportLogger(log), now);
+            CharacterTreeCache = (character, tree, new ExportLogger(Log), now);
         }
         
         return CharacterTreeCache.Value;
@@ -91,16 +91,16 @@ public partial class CharacterTab
             ImGui.SameLine();
             switch (level)
             {
-                case LogEventLevel.Debug:
+                case ExportLogger.LogEventLevel.Debug:
                     ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1), message);
                     break;
-                case LogEventLevel.Information:
+                case ExportLogger.LogEventLevel.Information:
                     ImGui.TextColored(new Vector4(0, 0.5f, 0, 1), message);
                     break;
-                case LogEventLevel.Warning:
+                case ExportLogger.LogEventLevel.Warning:
                     ImGui.TextColored(new Vector4(0.5f, 0.5f, 0, 1), message);
                     break;
-                case LogEventLevel.Error:
+                case ExportLogger.LogEventLevel.Error:
                     ImGui.TextColored(new Vector4(0.5f, 0, 0, 1), message);
                     break;
                 default:

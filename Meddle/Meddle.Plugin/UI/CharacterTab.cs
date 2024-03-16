@@ -14,22 +14,29 @@ using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
 
 namespace Meddle.Plugin.UI;
 
-public unsafe partial class CharacterTab(
-    DalamudPluginInterface pluginInterface,
-    IObjectTable objectTable,
-    IClientState clientState,
-    ModelManager modelConverter,
-    IPluginLog log)
-    : ITab
+public unsafe partial class CharacterTab : ITab
 {
+    public CharacterTab(DalamudPluginInterface pluginInterface,
+                        IObjectTable objectTable,
+                        IClientState clientState,
+                        ModelManager modelConverter,
+                        IPluginLog log)
+    {
+        Log = log;
+        PluginInterface = pluginInterface;
+        ObjectTable = objectTable;
+        ClientState = clientState;
+        ModelConverter = modelConverter;
+    }
     public string Name => "Character";
 
     public int Order => 0;
 
-    private DalamudPluginInterface PluginInterface { get; } = pluginInterface;
-    private IObjectTable ObjectTable { get; } = objectTable;
-    private IClientState ClientState { get; } = clientState;
-    private ModelManager ModelConverter { get; } = modelConverter;
+    private IPluginLog Log { get; }
+    private DalamudPluginInterface PluginInterface { get; }
+    private IObjectTable ObjectTable { get; }
+    private IClientState ClientState { get; }
+    private ModelManager ModelConverter { get; }
     private Character? SelectedCharacter { get; set; }
 
     public void Draw()

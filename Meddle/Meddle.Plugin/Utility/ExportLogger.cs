@@ -1,10 +1,17 @@
 ﻿using Dalamud.Plugin.Services;
-using Serilog.Events;
 
 namespace Meddle.Plugin.Utility;
 
 public class ExportLogger
 {
+    public enum LogEventLevel
+    {
+        Debug,
+        Information,
+        Warning,
+        Error
+    }
+    
     private readonly IPluginLog log;
     public List<(LogEventLevel level, string message)> LoggedMessages;
 
