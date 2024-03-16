@@ -29,7 +29,7 @@
 
     <ItemGroup>
         <PackageReference Include="DalamudPackager" Version="2.1.12" />
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="7.0.0" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
         <PackageReference Include="SharpGLTF.Core" Version="1.0.0-alpha0031" />
         <PackageReference Include="SharpGLTF.Toolkit" Version="1.0.0-alpha0031" />
         <PackageReference Include="SkiaSharp" Version="2.88.7" />
