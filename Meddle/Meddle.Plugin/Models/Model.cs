@@ -87,10 +87,10 @@ public unsafe class Model
         var meshes = new List<Mesh>();
         foreach (var range in meshRanges.AsConsolidated())
         {
-            foreach (var meshIdx in range.GetEnumerator())
+            for (var i = range.Start.Value; i < range.End.Value; i++)
             {
-                var mesh = &hnd->Meshes[meshIdx];
-                var meshVertexDecls = hnd->KernelVertexDeclarations[meshIdx];
+                var mesh = &hnd->Meshes[i];
+                var meshVertexDecls = hnd->KernelVertexDeclarations[i];
                 var meshVertices = new Vertex[mesh->VertexCount];
                 var meshIndices = indexBuffer.Slice((int)mesh->StartIndex, (int)mesh->IndexCount);
 
@@ -110,15 +110,15 @@ public unsafe class Model
                 foreach (var index in meshIndices)
                 {
                     if (index < 0)
-                        throw new ArgumentException($"Mesh {meshIdx} has index {index}, which is negative");
+                        throw new ArgumentException($"Mesh {i} has index {index}, which is negative");
                     if (index >= meshVertices.Length)
-                        throw new ArgumentException($"Mesh {meshIdx} has index {index}, but only {meshVertices.Length} vertices exist");
+                        throw new ArgumentException($"Mesh {i} has index {index}, but only {meshVertices.Length} vertices exist");
                 }
 
                 if (meshIndices.Length != mesh->IndexCount)
-                    throw new ArgumentException($"Mesh {meshIdx} has {meshIndices.Length} indices, but {mesh->IndexCount} were expected");
+                    throw new ArgumentException($"Mesh {i} has {meshIndices.Length} indices, but {mesh->IndexCount} were expected");
 
-                meshes.Add(new Mesh(hnd, meshIdx, meshVertices, mesh->StartIndex, meshIndices));
+                meshes.Add(new Mesh(hnd, i, meshVertices, mesh->StartIndex, meshIndices));
             }
         }
         
