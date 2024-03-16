@@ -126,6 +126,18 @@ public class PbdFile
             var deformer = GetDeformerFromRaceCode(raceCode);
             deformers[i] = deformer;
         }
+        
+        // since we're not really parsing the deformer for 0101, it doesn't have any bones
+        // remove it otherwise it'll mess up the deformations
+        if (deformers.Length > 1 && deformers[0].BoneCount == 0)
+        {
+            deformers = deformers[1..];
+            if (deformSteps[1] == to)
+            {
+                return Array.Empty<Deformer>();
+            }
+        }
+        
 
         return deformers;
     }
