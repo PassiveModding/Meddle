@@ -2,6 +2,7 @@
 using Dalamud.Memory;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using FFXIVClientStructs.Interop;
+using Meddle.Plugin.Enums;
 using Meddle.Plugin.Utility;
 using Meddle.Plugin.Xande;
 using CSModel = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Model;
@@ -12,7 +13,7 @@ namespace Meddle.Plugin.Models;
 public unsafe class Model
 {
     public string HandlePath { get; private set; }
-    public ushort? RaceCode { get; private set; }
+    public GenderRace RaceCode { get; private set; }
 
     public IReadOnlyList<Material> Materials { get; private set; }
     public IReadOnlyList<Mesh> Meshes { get; private set; }
@@ -30,7 +31,7 @@ public unsafe class Model
     public Model(CSModel* model, CSTexture** colorTable)
     {
         HandlePath = model->ModelResourceHandle->ResourceHandle.FileName.ToString();
-        RaceCode = (ushort)RaceDeformer.ParseRaceCode(HandlePath);
+        RaceCode = RaceDeformer.ParseRaceCode(HandlePath);
 
         var materials = new List<Material>();
         for (var i = 0; i < model->MaterialCount; ++i)

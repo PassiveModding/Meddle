@@ -175,7 +175,7 @@ public partial class ModelManager
 
         IEnumerable<(IMeshBuilder<MaterialBuilder> mesh, bool useSkinning, SubMesh? submesh, IReadOnlyList<string>?
             shapes)> meshes;
-        if (model.RaceCode.HasValue && model.RaceCode.Value != (ushort)GenderRace.Unknown)
+        if (model.RaceCode != GenderRace.Unknown)
         {
             logger.Debug($"Setup deform for {model.HandlePath} from {model.RaceCode} to {targetRace}");
             var raceDeformer = new RaceDeformer(Pbd, boneMap.ToArray());

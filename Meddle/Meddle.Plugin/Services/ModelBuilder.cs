@@ -1,4 +1,5 @@
 ﻿using Dalamud.Plugin.Services;
+using Meddle.Plugin.Enums;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Xande;
 using SharpGLTF.Geometry;
@@ -26,7 +27,7 @@ public class ModelBuilder
         if (raceDeformer != null)
         {
             var rd = raceDeformer.Value;
-            deform = (rd.deformer, model.RaceCode!.Value, rd.targetDeform);
+            deform = (rd.deformer, (ushort)model.RaceCode, rd.targetDeform);
         }
 
         foreach (var mesh in model.Meshes)
