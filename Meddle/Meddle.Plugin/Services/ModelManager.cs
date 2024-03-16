@@ -26,18 +26,19 @@ public partial class ModelManager
     {
         Log = log;
         ModelBuilder = modelBuilder;
-        var fileContent = 
-            gameData.GetFile("chara/xls/boneDeformer/human.pbd") ?? 
+        var fileContent =
+            gameData.GetFile("chara/xls/boneDeformer/human.pbd") ??
             throw new InvalidOperationException("Failed to load PBD file");
         Pbd = new PbdFile(fileContent.Data);
     }
 
 
-    public async Task Export(ExportLogger logger, ExportConfig config, CharacterTree characterTree, CancellationToken cancellationToken)
+    public async Task Export(
+        ExportLogger logger, ExportConfig config, CharacterTree characterTree, CancellationToken cancellationToken)
     {
         if (IsExporting)
             throw new InvalidOperationException("Already exporting.");
-        
+
         IsExporting = true;
         await Task.Run(async () =>
         {
@@ -54,25 +55,28 @@ public partial class ModelManager
             }
         }, cancellationToken);
     }
-    
-    public async Task Export(ExportLogger logger, ExportConfig config, Model model, Skeleton skeleton, ushort targetRace, CustomizeParameters? customizeParameter, CancellationToken cancellationToken)
+
+    public async Task Export(
+        ExportLogger logger, ExportConfig config, Model model, Skeleton skeleton, ushort targetRace,
+        CustomizeParameters? customizeParameter, CancellationToken cancellationToken)
     {
         if (IsExporting)
             throw new InvalidOperationException("Already exporting.");
-        
+
         IsExporting = true;
         await Task.Run(async () =>
         {
             try
             {
-                var path = Path.Combine(Plugin.TempDirectory, $"{model.GetHashCode():X8}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}");
+                var path = Path.Combine(Plugin.TempDirectory,
+                                        $"{model.GetHashCode():X8}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}");
                 logger.Debug($"Exporting to {path}");
-        
+
                 var scene = new SceneBuilder("scene");
                 var boneMap = ModelUtility.GetBoneMap(skeleton, out var rootBone).ToArray();
                 scene.AddNode(rootBone);
-                HandleModel(logger, config, model, targetRace, scene, boneMap, customizeParameter);
-                
+                HandleModel(logger, config, model, targetRace, scene, boneMap, Matrix4x4.Identity, customizeParameter);
+
                 Directory.CreateDirectory(path);
                 var gltfPath = Path.Combine(path, "model.gltf");
                 var output = scene.ToGltf2();
@@ -90,15 +94,17 @@ public partial class ModelManager
             }
         }, cancellationToken);
     }
-    
+
     [GeneratedRegex("^chara/human/c\\d+/obj/body/b0003/model/c\\d+b0003_top.mdl$")]
     private static partial Regex LowPolyModelRegex();
-    
-    private async Task ExportInternal(ExportLogger logger, ExportConfig config, CharacterTree character, CancellationToken cancellationToken)
+
+    private async Task ExportInternal(
+        ExportLogger logger, ExportConfig config, CharacterTree character, CancellationToken cancellationToken)
     {
-        var path = Path.Combine(Plugin.TempDirectory, $"{character.GetHashCode():X8}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}");
+        var path = Path.Combine(Plugin.TempDirectory,
+                                $"{character.GetHashCode():X8}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}");
         logger.Debug($"Exporting to {path}");
-        
+
         var scene = new SceneBuilder(string.IsNullOrWhiteSpace(character.Name) ? "scene" : character.Name);
         var boneMap = ModelUtility.GetBoneMap(character.Skeleton, out var rootBone).ToArray();
         scene.AddNode(rootBone);
@@ -106,8 +112,8 @@ public partial class ModelManager
         foreach (var model in character.Models)
         {
             if (LowPolyModelRegex().IsMatch(model.HandlePath)) continue;
-            
-            HandleModel(logger, config, model, character.RaceCode!.Value, scene, boneMap, character.CustomizeParameter);
+
+            HandleModel(logger, config, model, character.RaceCode!.Value, scene, boneMap, Matrix4x4.Identity, character.CustomizeParameter);
         }
 
         if (character.AttachedChildren != null)
@@ -117,14 +123,19 @@ public partial class ModelManager
                 var child = character.AttachedChildren[i];
                 var childBoneMap = ModelUtility.GetBoneMap(child.Skeleton, out var childRoot);
                 childRoot!.SetSuffixRecursively(i);
-                var attachName =
-                    character.Skeleton.PartialSkeletons[child.Attach.PartialSkeletonIdx].HkSkeleton!.BoneNames[
-                        child.Attach.BoneIdx];
+
+                // Name of the bone this model is attached to
+                var attachName = character.Skeleton.PartialSkeletons[child.Attach.PartialSkeletonIdx]
+                                          .HkSkeleton!.BoneNames[child.Attach.BoneIdx];
 
                 if (rootBone == null || boneMap == null)
                     scene.AddNode(childRoot);
                 else
-                    boneMap.First(b => b.BoneName.Equals(attachName, StringComparison.Ordinal)).AddNode(childRoot);
+                {
+                    // Make root bone of this child a child of the attach bone
+                    var boneTarget = boneMap.First(b => b.BoneName.Equals(attachName, StringComparison.Ordinal));
+                    boneTarget.AddNode(childRoot);
+                }
 
                 var transform = Matrix4x4.Identity;
                 NodeBuilder c = childRoot!;
@@ -137,12 +148,14 @@ public partial class ModelManager
                 foreach (var model in child.Models)
                 {
                     logger.Debug($"Handling child model {model.HandlePath}");
-                    HandleModel(logger, config, model, character.RaceCode ?? 0, scene, childBoneMap.ToArray(),
+                    HandleModel(logger, config, model, character.RaceCode ?? 0, scene, 
+                                childBoneMap.ToArray(),
+                                transform,
                                 character.CustomizeParameter);
                 }
             }
         }
-        
+
         Directory.CreateDirectory(path);
         var gltfPath = Path.Combine(path, "model.gltf");
         var output = scene.ToGltf2();
@@ -151,14 +164,17 @@ public partial class ModelManager
         if (config.OpenFolderWhenComplete)
             Process.Start("explorer.exe", path);
     }
-    
-    private void HandleModel(ExportLogger logger, ExportConfig config, Model model, ushort targetRace, SceneBuilder scene, BoneNodeBuilder[] boneMap, CustomizeParameters? customizeParameter)
+
+    private void HandleModel(
+        ExportLogger logger, ExportConfig config, Model model, ushort targetRace, SceneBuilder scene,
+        BoneNodeBuilder[] boneMap, Matrix4x4 worldPosition, CustomizeParameters? customizeParameter)
     {
         logger.Debug($"Exporting model {model.HandlePath}");
 
         var materials = CreateMaterials(logger, model, customizeParameter).ToArray();
-            
-        IEnumerable<(IMeshBuilder<MaterialBuilder> mesh, bool useSkinning, SubMesh? submesh, IReadOnlyList<string>? shapes)> meshes;
+
+        IEnumerable<(IMeshBuilder<MaterialBuilder> mesh, bool useSkinning, SubMesh? submesh, IReadOnlyList<string>?
+            shapes)> meshes;
         if (model.RaceCode.HasValue && model.RaceCode.Value != (ushort)GenderRace.Unknown)
         {
             logger.Debug($"Setup deform for {model.HandlePath} from {model.RaceCode} to {targetRace}");
@@ -172,34 +188,37 @@ public partial class ModelManager
 
         foreach (var (mesh, useSkinning, submesh, shapes) in meshes)
         {
-            var instance = useSkinning ? 
-                               scene.AddSkinnedMesh(mesh, Matrix4x4.Identity, boneMap) : 
-                               scene.AddRigidMesh(mesh, Matrix4x4.Identity);
+            var instance = useSkinning
+                               ? scene.AddSkinnedMesh(mesh, worldPosition, boneMap)
+                               : scene.AddRigidMesh(mesh, worldPosition);
 
+            ApplyMeshShapes(instance, model, shapes);
+            
+            // Remove subMeshes that are not enabled
             if (submesh != null)
             {
-                ApplyMeshShapes(instance, model, shapes);
+                // Reaper eye for whatever reason is always enabled
                 if (submesh.Attributes.Contains("atr_eye_a") && config.IncludeReaperEye == false)
+                {
                     instance.Remove();
+                }
                 else if (!submesh.Attributes.All(model.EnabledAttributes.Contains))
+                {
                     instance.Remove();
-            }
-            else
-            {
-                ApplyMeshShapes(instance, model, shapes);
+                }
             }
         }
     }
-    
+
     private static void ApplyMeshShapes(InstanceBuilder builder, Model model, IReadOnlyList<string>? appliedShapes)
     {
-        if (model.Shapes.Count != 0 && appliedShapes != null)
-        {
-            var shapes = model.Shapes
-                              .Where(x => appliedShapes.Contains(x.Name))
-                              .Select(x => (x, model.EnabledShapes.Contains(x.Name)));
-            builder.Content.UseMorphing().SetValue(shapes.Select(x => x.Item2 ? 1f : 0).ToArray());
-        }
+        if (model.Shapes.Count == 0 || appliedShapes == null) return;
+        
+        // This will set the morphing value to 1 if the shape is enabled, 0 if not
+        var shapes = model.Shapes
+                          .Where(x => appliedShapes.Contains(x.Name))
+                          .Select(x => (x, model.EnabledShapes.Contains(x.Name)));
+        builder.Content.UseMorphing().SetValue(shapes.Select(x => x.Item2 ? 1f : 0).ToArray());
     }
 
     private IEnumerable<MaterialBuilder> CreateMaterials(ExportLogger logger, Model model, CustomizeParameters? cp)
@@ -210,7 +229,7 @@ public partial class ModelManager
         {
             var material = model.Materials[i];
             logger.Debug($"Exporting material {material.HandlePath}");
-            
+
             var name = Path.GetFileName(material.HandlePath);
             materials[i] = MaterialUtility.ParseMaterial(material, name, cp);
         }

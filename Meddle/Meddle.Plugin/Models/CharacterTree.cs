@@ -55,15 +55,18 @@ public unsafe class CharacterTree
 
         var modelType = character->GetModelType();
         var human = modelType == CharacterBase.ModelType.Human ? (Human*)character : null;
-        if (human != null && human->CustomizeParameterCBuffer != null)
+        if (human != null)
         {
-            var cp = human->CustomizeParameterCBuffer->LoadBuffer<CustomizeParameter>(0, 1);
-            if (cp != null && cp.Length > 0)
-            {
-                CustomizeParameter = new CustomizeParameters(cp[0]);
-            }
-        
             RaceCode = human->RaceSexId;
+            
+            if (human->CustomizeParameterCBuffer != null)
+            {
+                var cp = human->CustomizeParameterCBuffer->LoadBuffer<CustomizeParameter>(0, 1);
+                if (cp != null && cp.Length > 0)
+                {
+                    CustomizeParameter = new CustomizeParameters(cp[0]);
+                }
+            }
         }
         
         Transform = new Transform(character->DrawObject.Object.Transform);
