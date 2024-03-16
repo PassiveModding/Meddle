@@ -17,17 +17,17 @@ public class ModelBuilder
         Log = log;
     }
     
-    public IEnumerable<(IMeshBuilder<MaterialBuilder> mesh, bool useSkinning, SubMesh? submesh, IReadOnlyList<string>? shapes)> BuildMeshes(Model model, 
+    public IReadOnlyList<MeshExport> BuildMeshes(Model model, 
                                IReadOnlyList<MaterialBuilder> materials, 
                                IReadOnlyList<BoneNodeBuilder> boneMap, 
-                               (ushort targetDeform, RaceDeformer deformer)? raceDeformer)
+                               (GenderRace targetDeform, RaceDeformer deformer)? raceDeformer)
     {
-        var meshes = new List<(IMeshBuilder<MaterialBuilder> mesh, bool useSkinning, SubMesh? submesh, IReadOnlyList<string>? shapes)>();
+        var meshes = new List<MeshExport>();
         (RaceDeformer deformer, ushort from, ushort to)? deform = null;
         if (raceDeformer != null)
         {
             var rd = raceDeformer.Value;
-            deform = (rd.deformer, (ushort)model.RaceCode, rd.targetDeform);
+            deform = (rd.deformer, (ushort)model.RaceCode, (ushort)rd.targetDeform);
         }
 
         foreach (var mesh in model.Meshes)
@@ -59,14 +59,14 @@ public class ModelBuilder
             if (mesh.SubMeshes.Count == 0)
             {
                 var mb = meshBuilder.BuildMesh();
-                meshes.Add((mb, useSkinning, null, null));
+                meshes.Add(new MeshExport(mb, useSkinning, null, null));
                 continue;
             }
             
             for (var i = 0; i < mesh.SubMeshes.Count; i++)
             {
                 var modelSubMesh = mesh.SubMeshes[i];
-                var subMesh = meshBuilder.BuildSubmesh(modelSubMesh);
+                var subMesh = meshBuilder.BuildSubMesh(modelSubMesh);
                 subMesh.Name = $"{model.HandlePath}_{mesh.MeshIdx}.{i}";
                 if (modelSubMesh.Attributes.Count > 0)
                 {
@@ -80,7 +80,7 @@ public class ModelBuilder
 
                 var shapeNames = meshBuilder.BuildShapes(model.Shapes, subMesh, subMeshStart, subMeshEnd);
 
-                meshes.Add((subMesh, useSkinning, modelSubMesh, shapeNames.ToArray()));
+                meshes.Add(new MeshExport(subMesh, useSkinning, modelSubMesh, shapeNames.ToArray()));
             }
         }
         

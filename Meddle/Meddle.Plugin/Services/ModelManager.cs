@@ -57,7 +57,7 @@ public partial class ModelManager
     }
 
     public async Task Export(
-        ExportLogger logger, ExportConfig config, Model model, Skeleton skeleton, ushort targetRace,
+        ExportLogger logger, ExportConfig config, Model model, Skeleton skeleton, GenderRace targetRace,
         CustomizeParameters? customizeParameter, CancellationToken cancellationToken)
     {
         if (IsExporting)
@@ -136,6 +136,8 @@ public partial class ModelManager
                     var boneTarget = boneMap.First(b => b.BoneName.Equals(attachName, StringComparison.Ordinal));
                     boneTarget.AddNode(childRoot);
                 }
+                
+                childRoot.LocalMatrix = child.Attach.Transform.AffineTransform.Matrix;
 
                 var transform = Matrix4x4.Identity;
                 NodeBuilder c = childRoot!;
@@ -166,15 +168,14 @@ public partial class ModelManager
     }
 
     private void HandleModel(
-        ExportLogger logger, ExportConfig config, Model model, ushort targetRace, SceneBuilder scene,
+        ExportLogger logger, ExportConfig config, Model model, GenderRace targetRace, SceneBuilder scene,
         BoneNodeBuilder[] boneMap, Matrix4x4 worldPosition, CustomizeParameters? customizeParameter)
     {
         logger.Debug($"Exporting model {model.HandlePath}");
 
         var materials = CreateMaterials(logger, model, customizeParameter).ToArray();
 
-        IEnumerable<(IMeshBuilder<MaterialBuilder> mesh, bool useSkinning, SubMesh? submesh, IReadOnlyList<string>?
-            shapes)> meshes;
+        IEnumerable<MeshExport> meshes;
         if (model.RaceCode != GenderRace.Unknown)
         {
             logger.Debug($"Setup deform for {model.HandlePath} from {model.RaceCode} to {targetRace}");

@@ -14,7 +14,7 @@ public unsafe class CharacterTree
     public Transform Transform { get;}
     public Skeleton Skeleton { get; }
     public IReadOnlyList<Model> Models { get; }
-    public ushort? RaceCode { get; }
+    public GenderRace? RaceCode { get; }
 
     public CustomizeParameters? CustomizeParameter { get; set; }
     
@@ -24,7 +24,8 @@ public unsafe class CharacterTree
     {
     }
     
-    public CharacterTree(CSCharacter* character) : this((CharacterBase*)character->GameObject.DrawObject)
+    public CharacterTree(CSCharacter* character) : 
+        this((CharacterBase*)character->GameObject.DrawObject)
     {
         Name = MemoryHelper.ReadStringNullTerminated((nint)character->GameObject.GetName());
 
@@ -57,7 +58,7 @@ public unsafe class CharacterTree
         var human = modelType == CharacterBase.ModelType.Human ? (Human*)character : null;
         if (human != null)
         {
-            RaceCode = human->RaceSexId;
+            RaceCode = (GenderRace)human->RaceSexId;
             
             if (human->CustomizeParameterCBuffer != null)
             {

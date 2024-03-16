@@ -12,15 +12,9 @@ namespace Meddle.Plugin.Xande;
 public class MeshBuilder
 {
     private Mesh Mesh { get; }
-    private List<object> GeometryParamCache { get; } = new();
-    private List<object> MaterialParamCache { get; } = new();
-    private List<(int, float)> SkinningParamCache { get; } = new();
-    private object[] VertexBuilderParams { get; } = new object[3];
-
     private int[]? JointLut { get; }
     private MaterialBuilder MaterialBuilder { get; }
     private RaceDeformer? RaceDeformer { get; }
-
     private Type GeometryT { get; }
     private Type MaterialT { get; }
     private Type SkinningT { get; }
@@ -29,7 +23,7 @@ public class MeshBuilder
 
     private IReadOnlyList<PbdFile.Deformer> Deformers { get; }
 
-    private List<IVertexBuilder> Vertices { get; }
+    private IReadOnlyList<IVertexBuilder> Vertices { get; }
 
     public MeshBuilder(
         Mesh mesh,
@@ -64,22 +58,26 @@ public class MeshBuilder
         Vertices = BuildVertices();
     }
 
-    public List<IVertexBuilder> BuildVertices()
+    public IReadOnlyList<IVertexBuilder> BuildVertices()
     {
-        return Mesh.Vertices.Select(BuildVertex).ToList();
+        //return Mesh.Vertices.Select(BuildVertex).ToList();
+        // Parallel impl keep index
+        var vertices = new IVertexBuilder[Mesh.Vertices.Count];
+        Parallel.For(0, Mesh.Vertices.Count, i => { vertices[i] = BuildVertex(Mesh.Vertices[i]); });
+        return vertices;
     }
 
-    /// <summary>Creates a mesh from the given submesh.</summary>
-    public IMeshBuilder<MaterialBuilder> BuildSubmesh(SubMesh submesh)
+    /// <summary>Creates a mesh from the given sub mesh.</summary>
+    public IMeshBuilder<MaterialBuilder> BuildSubMesh(SubMesh subMesh)
     {
         var ret = (IMeshBuilder<MaterialBuilder>)Activator.CreateInstance(MeshBuilderT, string.Empty)!;
         var primitive = ret.UsePrimitive(MaterialBuilder);
 
-        if (submesh.IndexCount + submesh.IndexOffset > Mesh.Indices.Count)
-            throw new InvalidOperationException("Submesh index count is out of bounds.");
-        for (var triIdx = 0; triIdx < submesh.IndexCount; triIdx += 3)
+        if (subMesh.IndexCount + subMesh.IndexOffset > Mesh.Indices.Count)
+            throw new InvalidOperationException("SubMesh index count is out of bounds.");
+        for (var triIdx = 0; triIdx < subMesh.IndexCount; triIdx += 3)
         {
-            var o = triIdx + (int)submesh.IndexOffset;
+            var o = triIdx + (int)subMesh.IndexOffset;
             var indA = Mesh.Indices[o + 0];
             var indB = Mesh.Indices[o + 1];
             var indC = Mesh.Indices[o + 2];
@@ -116,9 +114,8 @@ public class MeshBuilder
         var triangles = primitive.Triangles;
         var vertices = primitive.Vertices;
         var shapeNames = new List<string>();
-        for (var i = 0; i < shapes.Count; i++)
+        foreach (var shape in shapes)
         {
-            var shape = shapes[i];
             var vertexList = new List<(IVertexGeometry, IVertexGeometry)>();
             foreach (var shapeMesh in shape.Meshes.Where(m => m.Mesh.MeshIdx == Mesh.MeshIdx))
             {
@@ -160,7 +157,9 @@ public class MeshBuilder
 
     private IVertexBuilder BuildVertex(Vertex vertex)
     {
-        ClearCaches();
+        var skinningParamCache = new List<(int, float)>();
+        var geometryParamCache = new List<object>();
+        var materialParamCache = new List<object>();
 
         var skinningIsEmpty = SkinningT == typeof(VertexEmpty);
         if (!skinningIsEmpty && JointLut != null)
@@ -178,7 +177,7 @@ public class MeshBuilder
                 var mappedBoneIndex = JointLut[boneIndex];
 
                 var binding = (mappedBoneIndex, boneWeight);
-                SkinningParamCache.Add(binding);
+                skinningParamCache.Add(binding);
             }
         }
 
@@ -191,7 +190,7 @@ public class MeshBuilder
             {
                 var deformedPos = Vector3.Zero;
 
-                foreach (var (idx, weight) in SkinningParamCache)
+                foreach (var (idx, weight) in skinningParamCache)
                 {
                     if (weight == 0) continue;
 
@@ -203,45 +202,39 @@ public class MeshBuilder
             }
         }
 
-        GeometryParamCache.Add(currentPos);
+        geometryParamCache.Add(currentPos);
 
         // Means it's either VertexPositionNormal or VertexPositionNormalTangent; both have Normal
-        if (GeometryT != typeof(VertexPosition)) GeometryParamCache.Add(vertex.Normal!.Value);
+        if (GeometryT != typeof(VertexPosition)) geometryParamCache.Add(vertex.Normal!.Value);
 
         // Tangent W should be 1 or -1, but sometimes XIV has their -1 as 0?
         if (GeometryT == typeof(VertexPositionNormalTangent))
         {
             // ReSharper disable once CompareOfFloatsByEqualityOperator
-            GeometryParamCache.Add(vertex.Tangent1!.Value with { W = vertex.Tangent1.Value.W == 1 ? 1 : -1 });
+            geometryParamCache.Add(vertex.Tangent1!.Value with { W = vertex.Tangent1.Value.W == 1 ? 1 : -1 });
         }
 
         // AKA: Has "Color1" component
         //if( _materialT != typeof( VertexTexture2 ) ) _materialParamCache.Insert( 0, vertex.Color!.Value );
-        if (MaterialT != typeof(VertexTexture2)) MaterialParamCache.Insert(0, new Vector4(255, 255, 255, 255));
+        if (MaterialT != typeof(VertexTexture2)) materialParamCache.Insert(0, new Vector4(255, 255, 255, 255));
 
         // AKA: Has "TextureN" component
         if (MaterialT != typeof(VertexColor1))
         {
             var (xy, zw) = ToVec2(vertex.UV!.Value);
-            MaterialParamCache.Add(xy);
-            MaterialParamCache.Add(zw);
+            materialParamCache.Add(xy);
+            materialParamCache.Add(zw);
         }
 
-
-        VertexBuilderParams[0] = Activator.CreateInstance(GeometryT, GeometryParamCache.ToArray())!;
-        VertexBuilderParams[1] = Activator.CreateInstance(MaterialT, MaterialParamCache.ToArray())!;
-        VertexBuilderParams[2] = skinningIsEmpty
-                                        ? Activator.CreateInstance(SkinningT)!
-                                        : Activator.CreateInstance(SkinningT, SkinningParamCache.ToArray())!;
-
-        return (IVertexBuilder)Activator.CreateInstance(VertexBuilderT, VertexBuilderParams)!;
-    }
-
-    private void ClearCaches()
-    {
-        GeometryParamCache.Clear();
-        MaterialParamCache.Clear();
-        SkinningParamCache.Clear();
+        var vertexBuilderParams = new object[]
+        {
+            Activator.CreateInstance(GeometryT, geometryParamCache.ToArray())!,
+            Activator.CreateInstance(MaterialT, materialParamCache.ToArray())!,
+            skinningIsEmpty
+                ? Activator.CreateInstance(SkinningT)!
+                : Activator.CreateInstance(SkinningT, skinningParamCache.ToArray())!
+        };
+        return (IVertexBuilder)Activator.CreateInstance(VertexBuilderT, vertexBuilderParams)!;
     }
 
     /// <summary>Obtain the correct geometry type for a given set of vertices.</summary>

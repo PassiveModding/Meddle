@@ -18,8 +18,11 @@ public unsafe class SkeletonPose
         var transforms = new List<Transform>();
         var boneCount = pose->LocalPose.Length;
         for (var i = 0; i < boneCount; ++i)
-            transforms.Add(new Transform(pose->LocalPose[i]));
-        
+        {
+            var localSpace = pose->AccessBoneLocalSpace(i);
+            transforms.Add(new Transform(*localSpace));
+        }
+
         Pose = transforms;
     }
 }

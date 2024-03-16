@@ -9,14 +9,15 @@ public unsafe class PartialSkeleton
     public IReadOnlyList<SkeletonPose> Poses { get;}
     public int ConnectedBoneIndex { get; }
 
-    public PartialSkeleton(Pointer<PartialCSSkeleton> partialSkeleton) : this(partialSkeleton.Value)
+    public PartialSkeleton(Pointer<PartialCSSkeleton> partialSkeleton) : 
+        this(partialSkeleton.Value)
     {
     }
     
     public PartialSkeleton(PartialCSSkeleton* partialSkeleton)
     {
         if (partialSkeleton->SkeletonResourceHandle != null)
-            HkSkeleton = new(partialSkeleton->SkeletonResourceHandle->HavokSkeleton);
+            HkSkeleton = new HkSkeleton(partialSkeleton->SkeletonResourceHandle->HavokSkeleton);
 
         ConnectedBoneIndex = partialSkeleton->ConnectedBoneIndex;
 
@@ -30,7 +31,7 @@ public unsafe class PartialSkeleton
                 {
                     throw new ArgumentException($"Pose is not the same as the skeleton");
                 }
-                poses.Add(new(pose));
+                poses.Add(new SkeletonPose(pose));
             }
         }
         
