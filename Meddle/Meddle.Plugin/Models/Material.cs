@@ -39,10 +39,7 @@ public unsafe class Material
     }
     
     [JsonIgnore]
-    public Half[]? ColorTable { get; }
-
-    [JsonPropertyName("ColorTable")]
-    public ushort[]? JsonColorTable => ColorTable?.Select(BitConverter.HalfToUInt16Bits).ToArray();
+    public ColorTable? ColorTable { get; }
     
     public Material(Pointer<CSMaterial> material, Pointer<CSTexture> colorTable) : this(material.Value, colorTable.Value)
     {
@@ -109,9 +106,11 @@ public unsafe class Material
 
             var stridedData = TextureHelper.AdjustStride(data.Stride, (int)colorTable->Width * 8, (int)colorTable->Height, data.Data);
 
-            ColorTable = MemoryMarshal.Cast<byte, Half>(stridedData.AsSpan()).ToArray();
-            if (ColorTable.Length != 4 * 16 * 4)
-                throw new ArgumentException($"Color table is not 4x16x4 ({ColorTable.Length})");
+            var table = MemoryMarshal.Cast<byte, Half>(stridedData.AsSpan()).ToArray();
+            if (table.Length != 4 * 16 * 4)
+                throw new ArgumentException($"Color table is not 4x16x4 ({table.Length})");
+            
+            ColorTable = new ColorTable(table);
         }
         //else
         //    Log.Warning($"No color table for {HandlePath}");

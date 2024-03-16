@@ -351,7 +351,7 @@ public class MaterialUtility
         return imageBuilder;
     }
     
-    private class ProcessCharacterNormalOperation(SKTexture normal, Half[] table)
+    private class ProcessCharacterNormalOperation(SKTexture normal, ColorTable table)
     {
         public SKTexture Normal    { get; } = normal.Copy();
         public SKTexture BaseColor { get; } = new(normal.Width, normal.Height);
@@ -384,67 +384,18 @@ public class MaterialUtility
             public float Weight;
         }
         
-        private class ColorTable
-        {
-            public Vector3 Diffuse { get; init; }          // 0,1,2
-            public Vector3 Specular { get; init; }         // 4,5,6
-            public float   SpecularStrength { get; init; } // 3
-            public Vector3 Emissive { get; init; }         // 8,9,10
-
-            public object Serialize()
-            {
-                // serialize vec3 not supported, so we'll just do it manually
-                
-                var diff = $"{Diffuse.X},{Diffuse.Y},{Diffuse.Z}";
-                var spec = $"{Specular.X},{Specular.Y},{Specular.Z}";
-                var emis = $"{Emissive.X},{Emissive.Y},{Emissive.Z}";
-                
-                return new
-                {
-                    Diffuse = diff,
-                    Specular = spec,
-                    SpecularStrength,
-                    Emissive = emis,
-                };
-            }
-        }
-        
         public ProcessCharacterNormalOperation Run()
         {
-            // Convert table to ColorTable rows
-            // table is 256, we want 16 rows
-            var colorTable = new ColorTable[16];
-            for (var i = 0; i < colorTable.Length; i++)
-            {
-                var set = table.AsSpan(i * 16, 16);
-                // convert to floats
-                // values 0 to 1
-                var floats = set.ToArray().Select(x => (float)x).ToArray();
-                var diff = new Vector3(floats[0], floats[1], floats[2]);
-                var spec = new Vector3(floats[4], floats[5], floats[6]);
-                var emis = new Vector3(floats[8], floats[9], floats[10]);
-                var ss = floats[3];
-                
-                var colorRow = new ColorTable
-                {
-                    Diffuse           = diff,
-                    Specular          = spec,
-                    SpecularStrength  = ss,
-                    Emissive          = emis,
-                };
-
-                colorTable[i] = colorRow;
-            }
             
             for (var y = 0; y < normal.Height; y++)
             {
-                ProcessRow(y, colorTable);
+                ProcessRow(y, table);
             }
             
             return this;
         }
         
-        private void ProcessRow(int y, IReadOnlyList<ColorTable> colorTable)
+        private void ProcessRow(int y, ColorTable colorTable)
         {
             for (var x = 0; x < normal.Width; x++)
             {
@@ -452,8 +403,8 @@ public class MaterialUtility
                 
                 // Table row data (.a)
                 var tableRow = GetTableRowIndices(normalPixel.Alpha / 255f);
-                var prevRow  = colorTable[tableRow.Previous];
-                var nextRow  = colorTable[tableRow.Next];
+                var prevRow  = colorTable.Rows[tableRow.Previous];
+                var nextRow  = colorTable.Rows[tableRow.Next];
                 
                 // Base colour (table, .b)
                 var lerpedDiffuse = Vector3.Lerp(prevRow.Diffuse, nextRow.Diffuse, tableRow.Weight);

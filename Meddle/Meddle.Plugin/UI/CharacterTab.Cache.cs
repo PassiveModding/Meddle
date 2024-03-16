@@ -236,7 +236,7 @@ public partial class CharacterTab
                 using var mainTable = ImRaii.Table("AttachedChildren", 1, ImGuiTableFlags.Borders);
                 foreach (var model in child.Models)
                 {
-                    if (!DrawModel(model, logger)) continue;
+                    if (!DrawModel(model)) continue;
                     ExportCts?.Cancel();
                     ExportCts = new();
                     ExportTask = ModelConverter.Export(
@@ -264,7 +264,7 @@ public partial class CharacterTab
         using var mainTable = ImRaii.Table("Models", 1, ImGuiTableFlags.Borders);
         foreach (var model in tree.Models)
         {
-            if (!DrawModel(model, logger)) continue;
+            if (!DrawModel(model)) continue;
             ExportCts?.Cancel();
             ExportCts = new();
             ExportTask = ModelConverter.Export(
@@ -278,7 +278,7 @@ public partial class CharacterTab
         }
     }
 
-    private bool DrawModel(Model model, ExportLogger logger)
+    private bool DrawModel(Model model)
     {
         ImGui.TableNextColumn();
         using var modelNode = ImRaii.TreeNode($"{model.HandlePath}##{model.GetHashCode()}", ImGuiTreeNodeFlags.CollapsingHeader);
@@ -305,12 +305,11 @@ public partial class CharacterTab
         }
 
         // Display Materials
-        using (var table = ImRaii.Table("MaterialsTable", 2,
-                                        ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable))
+        using (var table = ImRaii.Table("MaterialsTable", 2, ImGuiTableFlags.Borders))
         {
-            ImGui.TableSetupColumn("Path", ImGuiTableColumnFlags.WidthFixed,
-                                   0.75f * ImGui.GetWindowWidth());
-            ImGui.TableSetupColumn("Info", ImGuiTableColumnFlags.WidthStretch);
+            ImGui.TableSetupColumn("Path", ImGuiTableColumnFlags.WidthStretch);
+            ImGui.TableSetupColumn("Info", ImGuiTableColumnFlags.WidthFixed,
+                                   0.25f * ImGui.GetWindowWidth());
 
             foreach (var material in model.Materials)
             {
@@ -332,6 +331,71 @@ public partial class CharacterTab
                     ImGui.Text($"{texture.HandlePath}");
                     ImGui.TableNextColumn();
                     ImGui.Text($"{texture.Usage}");
+                }
+
+                if (material.ColorTable != null)
+                {
+                    var diffuses = material.ColorTable.Rows.Select(x => x.Diffuse).ToArray();
+                    var speculars = material.ColorTable.Rows.Select(x => x.Specular).ToArray();
+                    var specularStrengths = material.ColorTable.Rows.Select(x => x.SpecularStrength).ToArray();
+                    var emissives = material.ColorTable.Rows.Select(x => x.Emissive).ToArray();
+
+                    ImGui.TableNextRow();
+                    ImGui.TableNextColumn();
+                    for (var i = 0; i < diffuses.Length; i++)
+                    {
+                        if (i > 0)
+                        {
+                            ImGui.SameLine();
+                        }
+                        var diffuse = diffuses[i];
+                        ImGui.ColorButton("##Diffuse", new Vector4(diffuse.X, diffuse.Y, diffuse.Z, 1), ImGuiColorEditFlags.NoAlpha);
+                    }
+                    ImGui.TableNextColumn();
+                    ImGui.Text("ColorTable Diffuse");
+                    
+                    ImGui.TableNextRow();
+                    ImGui.TableNextColumn();
+                    for (var i = 0; i < speculars.Length; i++)
+                    {
+                        if (i > 0)
+                        {
+                            ImGui.SameLine();
+                        }
+                        var specular = speculars[i];
+                        ImGui.ColorButton("##Specular", new Vector4(specular.X, specular.Y, specular.Z, 1), ImGuiColorEditFlags.NoAlpha);
+                    }
+                    ImGui.TableNextColumn();
+                    ImGui.Text("ColorTable Specular");
+                    
+                    /*
+                    ImGui.TableNextRow();
+                    ImGui.TableNextColumn();
+                    for (var i = 0; i < specularStrengths.Length; i++)
+                    {
+                        if (i > 0)
+                        {
+                            ImGui.SameLine();
+                        }
+                        var specularStrength = specularStrengths[i];
+                        ImGui.Text($"{specularStrength}");
+                    }
+                    ImGui.TableNextColumn();
+                    */
+                    
+                    ImGui.TableNextRow();
+                    ImGui.TableNextColumn();
+                    for (var i = 0; i < emissives.Length; i++)
+                    {
+                        if (i > 0)
+                        {
+                            ImGui.SameLine();
+                        }
+                        var emissive = emissives[i];
+                        ImGui.ColorButton("##Emissive", new Vector4(emissive.X, emissive.Y, emissive.Z, 1), ImGuiColorEditFlags.NoAlpha);
+                    }
+                    ImGui.TableNextColumn();
+                    ImGui.Text("ColorTable Emissive");
                 }
 
                 ImGui.Unindent();
