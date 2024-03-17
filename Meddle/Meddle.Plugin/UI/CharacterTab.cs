@@ -114,7 +114,7 @@ public unsafe partial class CharacterTab : ITab
         {
             if (ImGui.CollapsingHeader("Character Pose"))
             {
-                DrawPoseInfo(SelectedCharacter, ClientState);
+                DrawPoseInfo(SelectedCharacter);
             }
             
             if (ImGui.CollapsingHeader($"Character Tree", ImGuiTreeNodeFlags.DefaultOpen))

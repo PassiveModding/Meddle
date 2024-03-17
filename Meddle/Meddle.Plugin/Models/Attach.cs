@@ -7,7 +7,8 @@ public unsafe class Attach
 {
     public int ExecuteType { get;}
 
-    public Transform Transform { get;}
+    public Transform OffsetTransform { get;}
+    public Transform SkeleTransform { get;}
     public byte PartialSkeletonIdx { get; }
     public ushort BoneIdx { get; }
     
@@ -28,8 +29,9 @@ public unsafe class Attach
         }
 
         var att = attach->SkeletonBoneAttachments[0];
-
-        Transform = new(att.ChildTransform);
+        
+        OffsetTransform = new(att.ChildTransform);
+        SkeleTransform = new(attach->OwnerSkeleton->Transform);
 
         PartialSkeletonIdx = att.SkeletonIdx;
         BoneIdx = att.BoneIdx;

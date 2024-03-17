@@ -18,7 +18,7 @@ public unsafe class CharacterTree
 
     public CustomizeParameters? CustomizeParameter { get; set; }
     
-    public IReadOnlyList<AttachedChild>? AttachedChildren { get; }
+    public IReadOnlyList<AttachedChild> AttachedChildren { get; }
 
     public CharacterTree(Pointer<CSCharacter> character) : this(character.Value)
     {
@@ -84,5 +84,6 @@ public unsafe class CharacterTree
         }
 
         Models = models;
+        AttachedChildren ??= Array.Empty<AttachedChild>();
     }
 }

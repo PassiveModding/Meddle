@@ -61,26 +61,52 @@ public partial class ModelManager
     }
 
     public async Task Export(
-        ExportLogger logger, ExportConfig config, Model model, Skeleton skeleton, GenderRace targetRace,
+        ExportLogger logger, ExportConfig config, 
+        Model[] models, 
+        AttachedChild[] attachedChildren,
+        Skeleton skeleton, GenderRace targetRace,
         CustomizeParameters? customizeParameter, CancellationToken cancellationToken)
     {
         if (IsExporting)
             throw new InvalidOperationException("Already exporting.");
 
+        if (models.Length == 0 && attachedChildren.Length == 0)
+            throw new ArgumentException("No models to export");
+        
         IsExporting = true;
         await Task.Run(() =>
         {
             try
             {
                 var path = Path.Combine(Plugin.TempDirectory,
-                                        $"{model.GetHashCode():X8}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}");
+                                        $"{models.GetHashCode():X8}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}");
                 logger.Debug($"Exporting to {path}");
 
                 var scene = new SceneBuilder("scene");
                 var boneMap = ModelUtility.GetBoneMap(skeleton, out var rootBone).ToArray();
                 scene.AddNode(rootBone);
-                HandleModel(logger, config, model, targetRace, scene, boneMap, Matrix4x4.Identity, customizeParameter,
-                            cancellationToken);
+
+                foreach (var model in models)
+                {
+                    HandleModel(logger, config, model, targetRace, scene, boneMap, Matrix4x4.Identity, customizeParameter,
+                                cancellationToken);
+                }
+                
+                for (var i = 0; i < attachedChildren.Length; i++)
+                {
+                    var child = attachedChildren[i];
+                    var attachName = skeleton.PartialSkeletons[child.Attach.PartialSkeletonIdx]
+                                              .HkSkeleton!.BoneNames[child.Attach.BoneIdx];
+                    var childInfo = HandleAttachedChild(child, i, attachName, scene, boneMap, rootBone);
+                    foreach (var model in child.Models)
+                    {
+                        logger.Debug($"Handling child model {model.HandlePath}");
+                        HandleModel(logger, config, model, targetRace, scene,
+                                    childInfo.childBoneMap.ToArray(),
+                                    childInfo.worldPosition,
+                                    customizeParameter, cancellationToken);
+                    }
+                }
 
                 Directory.CreateDirectory(path);
                 var gltfPath = Path.Combine(path, "model.gltf");
@@ -126,45 +152,19 @@ public partial class ModelManager
                         character.CustomizeParameter, cancellationToken);
         }
 
-        if (character.AttachedChildren != null)
+        for (var i = 0; i < character.AttachedChildren.Count; i++)
         {
-            for (var i = 0; i < character.AttachedChildren.Count; i++)
+            var child = character.AttachedChildren[i];
+            var attachName = character.Skeleton.PartialSkeletons[child.Attach.PartialSkeletonIdx]
+                                         .HkSkeleton!.BoneNames[child.Attach.BoneIdx];
+            var childInfo = HandleAttachedChild(child, i, attachName, scene, boneMap, rootBone);
+            foreach (var model in child.Models)
             {
-                var child = character.AttachedChildren[i];
-                var childBoneMap = ModelUtility.GetBoneMap(child.Skeleton, out var childRoot);
-                childRoot!.SetSuffixRecursively(i);
-
-                // Name of the bone this model is attached to
-                var attachName = character.Skeleton.PartialSkeletons[child.Attach.PartialSkeletonIdx]
-                                          .HkSkeleton!.BoneNames[child.Attach.BoneIdx];
-
-                if (rootBone == null || boneMap == null)
-                {
-                    scene.AddNode(childRoot);
-                }
-                else
-                {
-                    // Make root bone of this child a child of the attach bone
-                    var boneTarget = boneMap.First(b => b.BoneName.Equals(attachName, StringComparison.Ordinal));
-                    boneTarget.AddNode(childRoot);
-                }
-
-                var transform = Matrix4x4.Identity;
-                NodeBuilder c = childRoot;
-                while (c != null)
-                {
-                    transform *= c.LocalMatrix;
-                    c = c.Parent;
-                }
-
-                foreach (var model in child.Models)
-                {
-                    logger.Debug($"Handling child model {model.HandlePath}");
-                    HandleModel(logger, config, model, character.RaceCode ?? 0, scene,
-                                childBoneMap.ToArray(),
-                                transform,
-                                character.CustomizeParameter, cancellationToken);
-                }
+                logger.Debug($"Handling child model {model.HandlePath}");
+                HandleModel(logger, config, model, character.RaceCode ?? 0, scene,
+                            childInfo.childBoneMap.ToArray(),
+                            childInfo.worldPosition,
+                            character.CustomizeParameter, cancellationToken);
             }
         }
 
@@ -210,7 +210,7 @@ public partial class ModelManager
             // Remove subMeshes that are not enabled
             if (subMesh != null)
             {
-                // Reaper eye for whatever reason is always enabled
+                // Reaper eye go away
                 if (subMesh.Attributes.Contains("atr_eye_a") && config.IncludeReaperEye == false)
                 {
                     instance.Remove();
@@ -221,6 +221,37 @@ public partial class ModelManager
                 }
             }
         }
+    }
+
+    private (BoneNodeBuilder rootBone, Matrix4x4 worldPosition, IReadOnlyList<BoneNodeBuilder> childBoneMap) HandleAttachedChild(AttachedChild child, 
+                                     int i,
+                                     string attachName,
+                                     SceneBuilder scene,
+                                     BoneNodeBuilder[]? boneMap, 
+                                     NodeBuilder? rootBone)
+    {
+        var childBoneMap = ModelUtility.GetBoneMap(child.Skeleton, out var childRoot);
+        childRoot!.SetSuffixRecursively(i);
+
+        if (rootBone == null || boneMap == null)
+        {
+            scene.AddNode(childRoot);
+        }
+        else
+        {
+            var boneTarget = boneMap.First(b => b.BoneName.Equals(attachName, StringComparison.Ordinal));
+            boneTarget.AddNode(childRoot);
+        }
+
+        var transform = Matrix4x4.Identity;
+        NodeBuilder c = childRoot;
+        while (c != null)
+        {
+            transform *= c.LocalMatrix;
+            c = c.Parent;
+        }
+        
+        return (childRoot, transform, childBoneMap);
     }
 
     private static void ApplyMeshShapes(InstanceBuilder builder, Model model, IReadOnlyList<string>? appliedShapes)

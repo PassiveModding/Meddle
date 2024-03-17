@@ -6,8 +6,11 @@ using SharpGLTF.Transforms;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
 using Meddle.Plugin.Models;
+using Meddle.Plugin.Utility;
+using Meddle.Plugin.Xande;
 using Character = Dalamud.Game.ClientState.Objects.Types.Character;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
 using CSTransform = FFXIVClientStructs.FFXIV.Client.Graphics.Transform;
@@ -17,11 +20,11 @@ namespace Meddle.Plugin.UI;
 
 public unsafe partial class CharacterTab
 {
-    private static void DrawPoseInfo(Character character, IClientState clientState)
+    private static void DrawPoseInfo(Character character)
     {
         var charPtr = (CSCharacter*)character.Address;
         var human = (Human*)charPtr->GameObject.DrawObject;
-        var mainPose = GetPose(human->CharacterBase.Skeleton, clientState)!;
+        var mainPose = GetPose(human->CharacterBase.Skeleton)!;
         var weaponData = charPtr->DrawData.WeaponDataSpan;
         
         var t = human->CharacterBase.Skeleton->Transform;
@@ -31,11 +34,7 @@ public unsafe partial class CharacterTab
 
         if (ImGui.CollapsingHeader("Main Pose"))
         {
-            foreach (var bone in mainPose)
-            {
-                var v = new Transform(bone.Value);
-                ImGui.TextUnformatted($"{bone.Key} => {v}");
-            }
+            DrawSkeletonAsTree(human->CharacterBase.Skeleton);
         }
 
         if (ImGui.CollapsingHeader("Main Pose Names"))
@@ -55,50 +54,121 @@ public unsafe partial class CharacterTab
         }
         
         if (ImGui.CollapsingHeader("Main Hand"))
-            DrawWeaponData(weaponData[0], clientState);
+            DrawWeaponData(weaponData[0]);
 
         if (ImGui.CollapsingHeader("Off Hand"))
-            DrawWeaponData(weaponData[1], clientState);
+            DrawWeaponData(weaponData[1]);
         
         if (ImGui.CollapsingHeader("Prop"))
-            DrawWeaponData(weaponData[2], clientState);
+            DrawWeaponData(weaponData[2]);
 
         if (ImGui.Button("Copy"))
             ImGui.SetClipboardText(JsonSerializer.Serialize(new CharacterTree(charPtr), new JsonSerializerOptions() { WriteIndented = true, IncludeFields = true }));
     }
     
-    private static void DrawWeaponData(DrawObjectData data, IClientState clientState)
+    private static void DrawWeaponData(DrawObjectData data)
     {
         var skeleton = GetWeaponSkeleton(data);
-        var pose = GetPose(skeleton, clientState);
+        var pose = GetPose(skeleton);
         
         if (pose != null)
         {
-            ImGui.TextUnformatted($"{new Transform(data.Model->CharacterBase.DrawObject.Object.Transform)} {(nint)data.Model:X8}");
-            ImGui.TextUnformatted($"{new Transform(data.Model->CharacterBase.Skeleton->Transform)}");
+            ImGui.TextUnformatted($"Draw Object Transform: {new Transform(data.Model->CharacterBase.DrawObject.Object.Transform)}");
+            ImGui.TextUnformatted($"{(nint)data.Model:X8}");
+            ImGui.TextUnformatted($"Skeleton Transform: {new Transform(data.Model->CharacterBase.Skeleton->Transform)}");
+            ImGui.Separator();
+            var attach = &data.Model->CharacterBase.Attach;
+            var skele = attach->OwnerSkeleton;
+            var attachments = attach->SkeletonBoneAttachments;
+            for (var i = 0; i < attach->AttachmentCount; ++i)
             {
-                var attach = &data.Model->CharacterBase.Attach;
-                var skele = attach->OwnerSkeleton;
-                var attachments = attach->SkeletonBoneAttachments;
-                for (var i = 0; i < attach->AttachmentCount; ++i)
-                {
-                    var attachment = &attachments[i];
-                    ImGui.TextUnformatted($"[{attachment->SkeletonIdx:X}, {attachment->BoneIdx:X}] " +
-                        $"{skele->PartialSkeletonsSpan[attachment->SkeletonIdx].GetHavokPose(0)->Skeleton->Bones[attachment->BoneIdx].Name.String ?? "Unknown"} => " +
-                        $"{new Transform(attachment->ChildTransform)}");
-                    var poseMatrix = GetMatrix(*skele->PartialSkeletonsSpan[attachment->SkeletonIdx].GetHavokPose(0)->CalculateBoneModelSpace(attachment->BoneIdx));
-                    var offsetMatrix = GetMatrix(attachment->ChildTransform);
-                    ImGui.TextUnformatted($"{new Transform(offsetMatrix * poseMatrix * GetMatrix(skele->Transform))}");
-                }
+                var attachment = &attachments[i];
+                var havokPose = skele->PartialSkeletonsSpan[attachment->SkeletonIdx].GetHavokPose(0);
+                // This is the bone the attachment is connected to
+                ImGui.Text($"Skeleton Index: {attachment->SkeletonIdx} Bone Index: {attachment->BoneIdx}");
+                ImGui.Text($"Attached bone: {havokPose->Skeleton->Bones[attachment->BoneIdx].Name.String ?? "Unknown"}");
+                ImGui.Text($"Child Transform: {new Transform(attachment->ChildTransform)}");
+                var poseMatrix = GetMatrix(*havokPose->CalculateBoneModelSpace(attachment->BoneIdx));
+                var offsetMatrix = GetMatrix(attachment->ChildTransform);
+                var skeleTransform = GetMatrix(skele->Transform);
+                ImGui.Text($"Pose Transform: {new Transform(poseMatrix)}");
+                ImGui.Text($"Offset Transform: {new Transform(offsetMatrix)}");
+                ImGui.Text($"Skeleton Transform: {new Transform(skeleTransform)}");
+                ImGui.Text($"{new Transform(offsetMatrix * poseMatrix * GetMatrix(skele->Transform))}");
+                ImGui.Separator();
             }
-            foreach (var bone in pose)
+            
+            ImGui.Text("Child Skeleton");
+            /*foreach (var bone in pose)
             {
                 var v = new Transform(bone.Value);
                 ImGui.TextUnformatted($"{bone.Key} => {v.Translation:0.00} {new EulerAngles(v.Rotation).Angles:0.00} {v.Scale:0.00}");
-            }
+            }*/
+            DrawSkeletonAsTree(skeleton, $"child_{data.Model->GetHashCode()}");
         }
         else
             ImGui.TextUnformatted("No pose");
+    }
+    
+    private static void DrawSkeletonAsTree(Skeleton* skeleton, string ctx = "Main")
+    {
+        var mSkele = new Meddle.Plugin.Models.Skeleton(skeleton);
+        var map = ModelUtility.GetBoneMap(mSkele, out var root);
+        
+        if (root == null)
+            return;
+        
+        ImGui.TextUnformatted("Root Bone");
+        
+        DrawBoneNode(root, ctx);
+    }
+
+    private static void DrawBoneNode(BoneNodeBuilder node, string ctx)
+    {
+        var pose = new Transform(node.GetWorldMatrix("pose", 0));
+        var refPose = node.LocalTransform;
+        var name = $"{node.BoneName}##{ctx}";
+        
+        if (node.VisualChildren.Count == 0)
+        {
+            using var tree = ImRaii.TreeNode(name);
+            if (tree)
+            {
+                using (ImRaii.TreeNode(
+                           $"Pose: " +
+                           $"{pose.Translation:0.00} " +
+                           $"{new EulerAngles(pose.Rotation).Angles:0.00} " +
+                           $"{pose.Scale:0.00}",
+                           ImGuiTreeNodeFlags.Leaf)) { }
+                using (ImRaii.TreeNode(
+                           $"Ref: {refPose.Translation:0.00} " +
+                           $"{new EulerAngles(refPose.Rotation).Angles:0.00} " +
+                           $"{refPose.Scale:0.00}",
+                           ImGuiTreeNodeFlags.Leaf)) { }
+            }
+        }
+        else
+        {
+            using var tree = ImRaii.TreeNode(name);
+            if (tree)
+            {
+                using (ImRaii.TreeNode($"Pose: " +
+                                       $"{pose.Translation:0.00} " +
+                                       $"{new EulerAngles(pose.Rotation).Angles:0.00} " +
+                                       $"{pose.Scale:0.00}", 
+                                       ImGuiTreeNodeFlags.Leaf)) {}
+                using (ImRaii.TreeNode($"Ref: " +
+                                       $"{refPose.Translation:0.00} " +
+                                       $"{new EulerAngles(refPose.Rotation).Angles:0.00} " +
+                                       $"{refPose.Scale:0.00}", 
+                                       ImGuiTreeNodeFlags.Leaf)) {}
+                foreach (var child in node.VisualChildren)
+                {
+                    var cb = (BoneNodeBuilder)child;
+                    DrawBoneNode(cb, ctx);
+                }
+            }
+        }
     }
 
     private static Skeleton* GetWeaponSkeleton(DrawObjectData data)
@@ -136,7 +206,7 @@ public unsafe partial class CharacterTab
         return new(GetMatrix(hkTransform));
     }
 
-    private static Dictionary<string, hkQsTransformf>? GetPose(Skeleton* skeleton, IClientState clientState)
+    private static Dictionary<string, hkQsTransformf>? GetPose(Skeleton* skeleton)
     {
         if (skeleton == null)
             return null;
