@@ -57,11 +57,6 @@
         "resolved": "8.0.0",
         "contentHash": "cjWrLkJXK0rs4zofsK4bSdg+jhDLTaxrkXu4gS6Y7MAlCvRyNNgwY/lJi5RDlQOnSZweHqoyvgvbdvQsRIW+hg=="
       },
-      "Serilog": {
-        "type": "Transitive",
-        "resolved": "2.11.0",
-        "contentHash": "ysv+hBzTul6Dp+Hvm10FlhJO3yMQcFKSAleus+LpiIzvNstpeV4Z7gGuIZ1OPNfIMulSHOjmLuGAEDKzpnV8ZQ=="
-      },
       "SharpGen.Runtime": {
         "type": "Transitive",
         "resolved": "2.1.2-beta",
@@ -118,10 +113,7 @@
         "contentHash": "zRqtgTTR7HYRLs40/Ip0jyjXiOnn5WnucmLPBUsMItJPuB5t3TdwKkPcCbyDWicncR6W5ShEno6gH/PxalAXAg=="
       },
       "ffxivclientstructs": {
-        "type": "Project",
-        "dependencies": {
-          "Serilog": "[2.11.0, )"
-        }
+        "type": "Project"
       }
     }
   }
