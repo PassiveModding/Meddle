@@ -340,7 +340,8 @@ public partial class CharacterTab
         }
         ImGui.SameLine();
 
-        using var modelNode = ImRaii.TreeNode($"{model.HandlePath}##{model.GetHashCode()}", ImGuiTreeNodeFlags.CollapsingHeader);
+        var path = model.ResolvedPath ?? model.HandlePath;
+        using var modelNode = ImRaii.TreeNode($"{path}##{model.GetHashCode()}", ImGuiTreeNodeFlags.CollapsingHeader);
         if (!modelNode.Success) return false;
         
         // Export icon
@@ -351,6 +352,9 @@ public partial class CharacterTab
                 return true;
             }
         }
+        
+        ImGui.Text($"Handle Path: {model.HandlePath}");
+        ImGui.Text($"Resolved Path: {model.ResolvedPath}");
 
         if (model.Shapes.Count > 0)
         {

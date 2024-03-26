@@ -13,6 +13,7 @@ namespace Meddle.Plugin.Models;
 public unsafe class Model
 {
     public string HandlePath { get; private set; }
+    public string? ResolvedPath { get; private set; }
     public GenderRace RaceCode { get; private set; }
 
     public IReadOnlyList<Material> Materials { get; private set; }
@@ -31,7 +32,8 @@ public unsafe class Model
     public Model(CSModel* model, CSTexture** colorTable)
     {
         HandlePath = model->ModelResourceHandle->ResourceHandle.FileName.ToString();
-        RaceCode = RaceDeformer.ParseRaceCode(HandlePath);
+        ResolvedPath = model->Skeleton->Owner->ResolveMdlPath(model->SlotIndex);
+        RaceCode = RaceDeformer.ParseRaceCode(ResolvedPath ?? HandlePath);
 
         var materials = new List<Material>();
         for (var i = 0; i < model->MaterialCount; ++i)
@@ -126,11 +128,14 @@ public unsafe class Model
         Meshes = meshes;
         
         var shapeMeshes = new ShapeMesh[hnd->Header->ShapeMeshCount];
-        var meshDict = Meshes.ToDictionary(x => hnd->Meshes[x.MeshIdx].StartIndex, x => x);
+        //var meshDict = Meshes.ToDictionary(x => hnd->Meshes[x.MeshIdx].StartIndex, x => x);
         for (var i = 0; i < shapeMeshes.Length; i++)
         {
             var shapeMesh = hnd->ShapeMeshes[i];
-            if (!meshDict.TryGetValue(shapeMesh.MeshIndexOffset, out var meshMatch)) continue;
+            //if (!meshDict.TryGetValue(shapeMesh.MeshIndexOffset, out var meshMatch)) continue;
+            var meshMatch = Meshes.FirstOrDefault(x => hnd->Meshes[x.MeshIdx].StartIndex == shapeMesh.MeshIndexOffset);
+            if (meshMatch == null)
+                continue;
             shapeMeshes[i] = new ShapeMesh(hnd->ShapeValues, shapeMesh, meshMatch, i);
         }
 
