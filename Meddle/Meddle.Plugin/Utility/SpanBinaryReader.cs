@@ -64,6 +64,34 @@ public unsafe ref struct SpanBinaryReader
         Remaining -= size;
         return new ReadOnlySpan<T>(ptr, num);
     }
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    public void Seek(int offset, SeekOrigin origin)
+    {
+        if (origin == SeekOrigin.Begin)
+        {
+            if (offset < 0 || offset > Length)
+                throw new ArgumentOutOfRangeException();
+            _pos      =  ref Unsafe.Add(ref _start, offset);
+            Remaining =  Length - offset;
+        }
+        else if (origin == SeekOrigin.Current)
+        {
+            if (offset < 0 || offset > Remaining)
+                throw new ArgumentOutOfRangeException();
+            _pos      =  ref Unsafe.Add(ref _pos, offset);
+            Remaining -= offset;
+        }
+        else if (origin == SeekOrigin.End)
+        {
+            if (offset < 0 || offset > Length)
+                throw new ArgumentOutOfRangeException();
+            _pos      =  ref Unsafe.Add(ref _start, Length - offset);
+            Remaining =  offset;
+        }
+        else
+            throw new ArgumentOutOfRangeException();
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public byte ReadByte()
