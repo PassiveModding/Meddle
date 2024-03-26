@@ -142,7 +142,6 @@ public partial class CharacterTab
         var (level, message) = tree.Logger.GetLastLog();
         if (message != null)
         {
-            ImGui.SameLine();
             switch (level)
             {
                 case ExportLogger.LogEventLevel.Debug:
@@ -162,7 +161,6 @@ public partial class CharacterTab
                     break;
             }
         }
-        
 
         DrawCustomizeParameters(tree.Tree);
         DrawModelView(tree.Tree, tree.Logger);
@@ -340,8 +338,7 @@ public partial class CharacterTab
         }
         ImGui.SameLine();
 
-        var path = model.ResolvedPath ?? model.HandlePath;
-        using var modelNode = ImRaii.TreeNode($"{path}##{model.GetHashCode()}", ImGuiTreeNodeFlags.CollapsingHeader);
+        using var modelNode = ImRaii.TreeNode($"{model.Path}##{model.GetHashCode()}", ImGuiTreeNodeFlags.CollapsingHeader);
         if (!modelNode.Success) return false;
         
         // Export icon

@@ -100,7 +100,7 @@ public partial class ModelManager
                     var childInfo = HandleAttachedChild(child, i, attachName, scene, boneMap, rootBone);
                     foreach (var model in child.Models)
                     {
-                        logger.Debug($"Handling child model {model.HandlePath}");
+                        logger.Debug($"Handling child model {model.Path}");
                         HandleModel(logger, config, model, targetRace, scene,
                                     childInfo.childBoneMap.ToArray(),
                                     childInfo.worldPosition,
@@ -146,7 +146,7 @@ public partial class ModelManager
 
         foreach (var model in character.Models)
         {
-            if (LowPolyModelRegex().IsMatch(model.HandlePath)) continue;
+            if (LowPolyModelRegex().IsMatch(model.Path)) continue;
 
             HandleModel(logger, config, model, character.RaceCode!.Value, scene, boneMap, Matrix4x4.Identity,
                         character.CustomizeParameter, cancellationToken);
@@ -160,7 +160,7 @@ public partial class ModelManager
             var childInfo = HandleAttachedChild(child, i, attachName, scene, boneMap, rootBone);
             foreach (var model in child.Models)
             {
-                logger.Debug($"Handling child model {model.HandlePath}");
+                logger.Debug($"Handling child model {model.Path}");
                 HandleModel(logger, config, model, character.RaceCode ?? 0, scene,
                             childInfo.childBoneMap.ToArray(),
                             childInfo.worldPosition,
@@ -182,7 +182,7 @@ public partial class ModelManager
         BoneNodeBuilder[] boneMap, Matrix4x4 worldPosition, CustomizeParameters? customizeParameter,
         CancellationToken cancellationToken = default)
     {
-        logger.Debug($"Exporting model {model.HandlePath}");
+        logger.Debug($"Exporting model {model.Path}");
         var boneNodes = boneMap.Cast<NodeBuilder>().ToArray();
 
         var materials = CreateMaterials(logger, model, customizeParameter, cancellationToken).ToArray();
@@ -190,7 +190,7 @@ public partial class ModelManager
         IEnumerable<MeshExport> meshes;
         if (model.RaceCode != GenderRace.Unknown)
         {
-            logger.Debug($"Setup deform for {model.HandlePath} from {model.RaceCode} to {targetRace}");
+            logger.Debug($"Setup deform for {model.Path} from {model.RaceCode} to {targetRace}");
             var raceDeformer = new RaceDeformer(Pbd, boneMap.ToArray());
             meshes = ModelBuilder.BuildMeshes(model, materials, boneMap, (targetRace, raceDeformer));
         }

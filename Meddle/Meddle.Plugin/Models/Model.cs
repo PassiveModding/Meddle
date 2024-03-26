@@ -1,5 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 using Dalamud.Memory;
+using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using FFXIVClientStructs.Interop;
 using Meddle.Plugin.Enums;
@@ -14,6 +15,7 @@ public unsafe class Model
 {
     public string HandlePath { get; private set; }
     public string? ResolvedPath { get; private set; }
+    public string Path => ResolvedPath ?? HandlePath;
     public GenderRace RaceCode { get; private set; }
 
     public IReadOnlyList<Material> Materials { get; private set; }
@@ -24,20 +26,25 @@ public unsafe class Model
     public IReadOnlyList<string> EnabledShapes { get; private set; }
     public IReadOnlyList<string> EnabledAttributes { get; private set; }
 
-    public Model(Pointer<CSModel> model, Pointer<Pointer<CSTexture>> colorTable) : this(model.Value, (CSTexture**)colorTable.Value)
+    public Model(Pointer<CSModel> model, Pointer<Pointer<CSTexture>> colorTable, Pointer<CharacterBase> resolveContext) : this(model.Value, (CSTexture**)colorTable.Value, resolveContext.Value)
     {
 
     }
     
-    public Model(CSModel* model, CSTexture** colorTable)
+    public Model(CSModel* model, CSTexture** colorTable, CharacterBase* resolveContext = null)
     {
         HandlePath = model->ModelResourceHandle->ResourceHandle.FileName.ToString();
-        ResolvedPath = model->Skeleton->Owner->ResolveMdlPath(model->SlotIndex);
-        RaceCode = RaceDeformer.ParseRaceCode(ResolvedPath ?? HandlePath);
+        if (resolveContext != null)
+        {
+            ResolvedPath = resolveContext->ResolveMdlPath(model->SlotIndex);
+        }
+        RaceCode = RaceDeformer.ParseRaceCode(Path);
 
-        var materials = new List<Material>();
+        var materials = new Material[model->MaterialCount];
         for (var i = 0; i < model->MaterialCount; ++i)
-            materials.Add(new Material(model->Materials[i], colorTable == null ? null : colorTable[i]));
+        {
+            materials[i] = new Material(model->Materials[i], colorTable == null ? null : colorTable[i]);
+        }
 
         Materials = materials;
         Meshes = new List<Mesh>();

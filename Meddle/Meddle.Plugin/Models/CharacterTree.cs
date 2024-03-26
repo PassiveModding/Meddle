@@ -80,7 +80,7 @@ public unsafe class CharacterTree
             if (character->Models[i] == null)
                 continue;
             
-            models.Add(new Model(character->Models[i], character->ColorTableTextures + (i * 4)));
+            models.Add(new Model(character->Models[i], character->ColorTableTextures + (i * 4), character));
         }
 
         Models = models;

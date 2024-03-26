@@ -33,7 +33,7 @@ public class ModelBuilder
         foreach (var mesh in model.Meshes)
         {
             var useSkinning = mesh.BoneTable != null;
-            Log.Debug($"Building mesh {model.HandlePath}_{mesh.MeshIdx} with skinning: {useSkinning}");
+            Log.Debug($"Building mesh {model.Path}_{mesh.MeshIdx} with skinning: {useSkinning}");
             MeshBuilder meshBuilder;
             var material = materials[mesh.MaterialIdx];
             if (useSkinning)
@@ -67,7 +67,7 @@ public class ModelBuilder
             {
                 var modelSubMesh = mesh.SubMeshes[i];
                 var subMesh = meshBuilder.BuildSubMesh(modelSubMesh);
-                subMesh.Name = $"{model.HandlePath}_{mesh.MeshIdx}.{i}";
+                subMesh.Name = $"{model.Path}_{mesh.MeshIdx}.{i}";
                 if (modelSubMesh.Attributes.Count > 0)
                 {
                     subMesh.Name += $";{string.Join(";", modelSubMesh.Attributes)}";
