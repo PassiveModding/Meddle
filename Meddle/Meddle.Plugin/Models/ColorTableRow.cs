@@ -21,6 +21,12 @@ public class ColorTable
             var spec = new Vector3(floats[4], floats[5], floats[6]);
             var emis = new Vector3(floats[8], floats[9], floats[10]);
             var ss = floats[3];
+            
+            // clamp values
+            diff = Vector3.Clamp(diff, Vector3.Zero, Vector3.One);
+            spec = Vector3.Clamp(spec, Vector3.Zero, Vector3.One);
+            emis = Vector3.Clamp(emis, Vector3.Zero, Vector3.One);
+            
             colorTable[i] = new ColorTableRow(diff, spec, ss, emis);
         }
         
