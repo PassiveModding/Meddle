@@ -17,14 +17,14 @@ public unsafe partial class CharacterTab : ITab
     public CharacterTab(DalamudPluginInterface pluginInterface,
                         IObjectTable objectTable,
                         IClientState clientState,
-                        ModelManager modelConverter,
+                        ExportManager exportManager,
                         IPluginLog log)
     {
         Log = log;
         PluginInterface = pluginInterface;
         ObjectTable = objectTable;
         ClientState = clientState;
-        ModelConverter = modelConverter;
+        ExportManager = exportManager;
     }
     public string Name => "Character";
 
@@ -34,7 +34,7 @@ public unsafe partial class CharacterTab : ITab
     private DalamudPluginInterface PluginInterface { get; }
     private IObjectTable ObjectTable { get; }
     private IClientState ClientState { get; }
-    private ModelManager ModelConverter { get; }
+    private ExportManager ExportManager { get; }
     private Character? SelectedCharacter { get; set; }
 
     public void Draw()

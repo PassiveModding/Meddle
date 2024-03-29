@@ -19,53 +19,7 @@ public class MaterialUtility
     private static readonly Vector3 DefaultHairColor      = new Vector3(130, 64,  13) / new Vector3(255);
     private static readonly Vector3 DefaultHighlightColor = new Vector3(77,  126, 240) / new Vector3(255);
     
-    public static void ExportMaterial(Material material, ExportLogger logger, string directory, CustomizeParameters? customizeParameter = null)
-    { 
-        logger.Log(ExportLogger.LogEventLevel.Information, "Exporting material textures");
-        Directory.CreateDirectory(directory);
-        
-        foreach (var texture in material.Textures)
-        {
-            logger.Log(ExportLogger.LogEventLevel.Information, $"Exporting texture {texture.Usage}");
-            var skTexture = texture.Resource.ToTexture();
-            var name = $"{texture.Usage}_{texture.Resource.Format}_xivraw.png";
-            var path = Path.Combine(directory, name);
-            using var outStream = File.OpenWrite(path);
-            skTexture.Bitmap.Encode(SKEncodedImageFormat.Png, 100).SaveTo(outStream);
-        }
-        
-        logger.Log(ExportLogger.LogEventLevel.Information, "Parsing material");
-        var materialBuilder = ParseMaterial(material, material.HandlePath, customizeParameter);
-
-        foreach (var channel in materialBuilder.Channels)
-        {
-            if (channel.Texture.PrimaryImage == null) continue;
-            logger.Log(ExportLogger.LogEventLevel.Information, $"Exporting channel {channel.Key}");
-            var image = channel.Texture.PrimaryImage;
-            var name = $"{channel.Key}.{image.Content.FileExtension}";
-            image.Content.SaveToFile(Path.Combine(directory, name));
-        }
-        
-        logger.Log(ExportLogger.LogEventLevel.Information, "Exported material textures");
-        Process.Start("explorer.exe", directory);
-    }
-    
-    public static MaterialBuilder ParseMaterial(Material material, string name, CustomizeParameters? customizeParameter = null)
-    {
-        name = $"{name}_{material.ShaderPackage.Name.Replace(".shpk", "")}";
-
-        return material.ShaderPackage.Name switch
-        {
-            "character.shpk" => BuildCharacter(material, name).WithAlpha(AlphaMode.MASK, 0.5f),
-            "characterglass.shpk" => BuildCharacter(material, name).WithAlpha(AlphaMode.BLEND),
-            "hair.shpk" => BuildHair(material, name, customizeParameter),
-            "iris.shpk"           => BuildIris(material, name, customizeParameter),
-            "skin.shpk"           => BuildSkin(material, name, customizeParameter),
-            _ => BuildFallback(material, name),
-        };
-    }
-    
-    private static MaterialBuilder BuildCharacter(Material material, string name)
+    public static MaterialBuilder BuildCharacter(Material material, string name)
     {
         var normal = material.GetTexture(TextureUsage.SamplerNormal);
         
@@ -129,13 +83,13 @@ public class MaterialUtility
     }
     
     /// <summary> Build a material following the semantics of hair.shpk. </summary>
-    private static MaterialBuilder BuildHair(Material material, string name, CustomizeParameters? customizeParameter = null)
+    public static MaterialBuilder BuildHair(Material material, string name, HairShaderParameters? customizeParameters)
     {
         // Trust me bro.
         const uint categoryHairType = 0x24826489;
         const uint valueFace        = 0x6E5B8F10;
         
-        var hairCol      = customizeParameter?.MainColor ?? DefaultHairColor;
+        var hairCol      = customizeParameters?.MainColor ?? DefaultHairColor;
         
         var isFace = material.ShaderKeys
             .Any(key => key is { Category: categoryHairType, Value: valueFace });
@@ -154,19 +108,19 @@ public class MaterialUtility
         {
             var normalPixel = normal[x, y];
             var maskPixel = mask[x, y];
-            if (isFace && customizeParameter?.OptionColor != null)
+            if (isFace && customizeParameters?.OptionColor != null)
             {
                 // Alpha = Tattoo/Limbal/Ear Clasp Color (OptionColor)
                 var alpha = maskPixel.Alpha / 255f;
                 
-                var color = Vector3.Lerp(hairCol, customizeParameter.OptionColor, alpha);
+                var color = Vector3.Lerp(hairCol, customizeParameters.OptionColor, alpha);
                 baseColor[x, y] = ToSkColor(color).WithAlpha(normalPixel.Alpha);
             }
 
             if (!isFace)
             {
                 var color = Vector3.Lerp(hairCol, 
-                                         customizeParameter?.MeshColor ?? DefaultHighlightColor, 
+                                         customizeParameters?.MeshColor ?? DefaultHighlightColor, 
                                          maskPixel.Alpha / 255f);
                 baseColor[x, y] = ToSkColor(color).WithAlpha(normalPixel.Alpha);
                 
@@ -184,8 +138,6 @@ public class MaterialUtility
             }
         }
         
-        //if (!isFace)
-        //    builder.WithOcclusion(BuildImage(occlusion, name, "occlusion"));
         return BuildSharedBase(material, name)
                .WithBaseColor(BuildImage(baseColor, name, "basecolor"))
                .WithNormal(BuildImage(normal,       name, "normal"))
@@ -194,7 +146,7 @@ public class MaterialUtility
         
     }
     
-    private static MaterialBuilder BuildIris(Material material, string name, CustomizeParameters? customizeParameter = null)
+    public static MaterialBuilder BuildIris(Material material, string name, Vector4? leftEyeColor)
     {
         var normalTexture = material.GetTexture(TextureUsage.SamplerNormal);
         var maskTexture   = material.GetTexture(TextureUsage.SamplerMask);
@@ -211,7 +163,7 @@ public class MaterialUtility
 
             // Not sure if we can set it per eye since it's done by the shader
             // NOTE: W = Face paint (UV2) U multiplier. since we set it using the alpha it gets ignored for iris either way
-            var color = (customizeParameter?.LeftColor ?? DefaultEyeColor) * new Vector4(maskPixel.Red / 255f);
+            var color = (leftEyeColor ?? DefaultEyeColor) * new Vector4(maskPixel.Red / 255f);
             color.W = normalPixel.Alpha / 255f;
 
             baseColor[x, y] = ToSkColor(color);
@@ -224,7 +176,7 @@ public class MaterialUtility
     }
     
         /// <summary> Build a material following the semantics of skin.shpk. </summary>
-    private static MaterialBuilder BuildSkin(Material material, string name, CustomizeParameters? customizeParameter = null)
+    public static MaterialBuilder BuildSkin(Material material, string name, SkinShaderParameters? customizeParameter)
     {
         // Trust me bro.
         const uint categorySkinType = 0x380CAED0;
@@ -328,7 +280,7 @@ public class MaterialUtility
         return a * (1 - t) + b * t;
     }
     
-    private static MaterialBuilder BuildFallback(Material material, string name)
+    public static MaterialBuilder BuildFallback(Material material, string name)
     {
         var materialBuilder = BuildSharedBase(material, name)
                               .WithMetallicRoughnessShader()

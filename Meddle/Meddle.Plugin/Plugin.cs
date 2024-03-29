@@ -39,7 +39,7 @@ public sealed class Plugin : IDalamudPlugin
             .AddUi()
             .AddSingleton(pluginInterface)
             .AddSingleton(config)
-            .AddSingleton<ModelManager>()
+            .AddSingleton<ExportManager>()
             .AddSingleton<ModelBuilder>()
             .BuildServiceProvider();
         

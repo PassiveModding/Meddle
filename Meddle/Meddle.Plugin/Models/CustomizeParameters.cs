@@ -3,6 +3,52 @@ using FFXIVClientStructs.FFXIV.Shader;
 
 namespace Meddle.Plugin.Models;
 
+public class SkinShaderParameters
+{
+    public Vector4 SkinColor;
+    public Vector3 MainColor;
+    public Vector3 MeshColor;
+    public Vector4 LipColor;
+    public bool ApplyLipColor;
+    public bool IsHrothgar;
+        
+    public static SkinShaderParameters? From(CustomizeParameters? parameters)
+    {
+        if (parameters == null)
+            return null;
+
+        return new SkinShaderParameters()
+        {
+            ApplyLipColor = parameters.ApplyLipColor,
+            IsHrothgar = parameters.IsHrothgar,
+            SkinColor = parameters.SkinColor,
+            MainColor = parameters.MainColor,
+            MeshColor = parameters.MeshColor,
+            LipColor = parameters.LipColor
+        };
+    }
+}
+
+public class HairShaderParameters
+{
+    public Vector3 MainColor;
+    public Vector3 MeshColor;
+    public Vector3 OptionColor;
+    
+    public static HairShaderParameters? From(CustomizeParameters? parameters)
+    {
+        if (parameters == null)
+            return null;
+
+        return new HairShaderParameters()
+        {
+            MainColor = parameters.MainColor,
+            MeshColor = parameters.MeshColor,
+            OptionColor = parameters.OptionColor
+        };
+    }
+}
+
 public class CustomizeParameters
 {
     public bool IsHrothgar;

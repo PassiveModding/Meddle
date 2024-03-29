@@ -5,6 +5,7 @@ using System.Numerics;
 using Meddle.Plugin.Enums;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Config;
+using Meddle.Plugin.Services;
 using Meddle.Plugin.Utility;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
 using Character = Dalamud.Game.ClientState.Objects.Types.Character;
@@ -68,9 +69,9 @@ public partial class CharacterTab
     private void DrawCharacterTree(Character character)
     {
         var tree = InitTree(character, false);
-        using (var d = ImRaii.Disabled(ModelConverter.IsExporting))
+        using (var d = ImRaii.Disabled(ExportManager.IsExporting))
         {
-            if (ImGui.Button("Refresh") && !ModelConverter.IsExporting)
+            if (ImGui.Button("Refresh") && !ExportManager.IsExporting)
             {
                 tree = InitTree(character, true);
             }
@@ -83,13 +84,13 @@ public partial class CharacterTab
         ImGui.Text($"At: {set.Time}");
         var tree = set.Tree;
 
-        using (var d = ImRaii.Disabled(ModelConverter.IsExporting))
+        using (var d = ImRaii.Disabled(ExportManager.IsExporting))
         {
-            if (ImGui.Button("Export") && !ModelConverter.IsExporting)
+            if (ImGui.Button("Export") && !ExportManager.IsExporting)
             {
                 ExportCts?.Cancel();
                 ExportCts = new();
-                ExportTask = ModelConverter.Export(
+                ExportTask = ExportManager.Export(
                     set.Logger,
                     new ExportConfig
                     {
@@ -105,11 +106,11 @@ public partial class CharacterTab
             var selectedCount = set.EnabledModels.Count(x => x) + set.EnabledChildren.Count(x => x);
             using (var s = ImRaii.Disabled(selectedCount == 0))
             {
-                if (ImGui.Button($"Export {selectedCount} Selected") && !ModelConverter.IsExporting)
+                if (ImGui.Button($"Export {selectedCount} Selected") && !ExportManager.IsExporting)
                 {
                     ExportCts?.Cancel();
                     ExportCts = new();
-                    ExportTask = ModelConverter.Export(
+                    ExportTask = ExportManager.Export(
                         set.Logger,
                         new ExportConfig
                         {
@@ -127,7 +128,7 @@ public partial class CharacterTab
             }
         }
 
-        if (ModelConverter.IsExporting)
+        if (ExportManager.IsExporting)
         {
             ImGui.SameLine();
             using var d = ImRaii.Disabled(ExportCts?.IsCancellationRequested ?? false);
@@ -164,7 +165,7 @@ public partial class CharacterTab
         switch (request)
         {
             case ExportModelRequest emr:
-                ExportTask = ModelConverter.Export(
+                ExportTask = ExportManager.Export(
                     logger,
                     new ExportConfig
                     {
@@ -182,7 +183,7 @@ public partial class CharacterTab
                     try
                     {
                         var dir = Path.Combine(Plugin.TempDirectory, "Materials", $"{mer.Material.ShaderPackage.Name}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}");
-                        MaterialUtility.ExportMaterial(mer.Material, logger, dir, tree.CustomizeParameter);
+                        ExportManager.ExportMaterial(mer.Material, logger, dir, tree.CustomizeParameter);
                     }
                     catch (Exception e)
                     {
@@ -395,7 +396,7 @@ public partial class CharacterTab
         using var modelNode = ImRaii.TreeNode($"{model.Path}##{model.GetHashCode()}", ImGuiTreeNodeFlags.CollapsingHeader);
         if (!modelNode.Success) return;
         
-        using (var d = ImRaii.Disabled(ModelConverter.IsExporting))
+        using (var d = ImRaii.Disabled(ExportManager.IsExporting))
         {
             if (ImGui.SmallButton($"Export##{model.GetHashCode()}") && (ExportTask?.IsCompleted ?? true))
             {

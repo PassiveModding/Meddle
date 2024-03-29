@@ -8,21 +8,21 @@ using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Config;
 using Meddle.Plugin.Utility;
 using Meddle.Plugin.Xande;
-using SharpGLTF.Geometry;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
+using SkiaSharp;
 using RaceDeformer = Meddle.Plugin.Xande.RaceDeformer;
 
 namespace Meddle.Plugin.Services;
 
-public partial class ModelManager
+public partial class ExportManager
 {
     public IPluginLog Log { get; }
     public ModelBuilder ModelBuilder { get; }
     public PbdFile Pbd { get; }
     public bool IsExporting { get; private set; }
 
-    public ModelManager(IPluginLog log, IDataManager gameData, ModelBuilder modelBuilder)
+    public ExportManager(IPluginLog log, IDataManager gameData, ModelBuilder modelBuilder)
     {
         Log = log;
         ModelBuilder = modelBuilder;
@@ -266,7 +266,7 @@ public partial class ModelManager
     }
 
     private IEnumerable<MaterialBuilder> CreateMaterials(
-        ExportLogger logger, Model model, CustomizeParameters? cp, CancellationToken cancellationToken)
+        ExportLogger logger, Model model, CustomizeParameters? customizeParameters, CancellationToken cancellationToken)
     {
         var materials = new MaterialBuilder[model.Materials.Count];
 
@@ -276,11 +276,56 @@ public partial class ModelManager
 
             var material = model.Materials[i];
             logger.Debug($"Exporting material {material.HandlePath}");
-
-            var name = Path.GetFileName(material.HandlePath);
-            materials[i] = MaterialUtility.ParseMaterial(material, name, cp);
+;
+            materials[i] = ParseMaterial(material, Path.GetFileName(material.HandlePath), customizeParameters);
         }
 
         return materials;
+    }
+    
+    public static void ExportMaterial(Material material, ExportLogger logger, string directory, CustomizeParameters? customizeParameters = null)
+    { 
+        logger.Log(ExportLogger.LogEventLevel.Information, "Exporting material textures");
+        Directory.CreateDirectory(directory);
+        
+        foreach (var texture in material.Textures)
+        {
+            logger.Log(ExportLogger.LogEventLevel.Information, $"Exporting texture {texture.Usage}");
+            var skTexture = texture.Resource.ToTexture();
+            var name = $"{texture.Usage}_{texture.Resource.Format}_xivraw.png";
+            var path = Path.Combine(directory, name);
+            using var outStream = File.OpenWrite(path);
+            skTexture.Bitmap.Encode(SKEncodedImageFormat.Png, 100).SaveTo(outStream);
+        }
+        
+        logger.Log(ExportLogger.LogEventLevel.Information, "Parsing material");
+        var materialBuilder = ParseMaterial(material, Path.GetFileName(material.HandlePath), customizeParameters);
+
+        foreach (var channel in materialBuilder.Channels)
+        {
+            if (channel.Texture.PrimaryImage == null) continue;
+            logger.Log(ExportLogger.LogEventLevel.Information, $"Exporting channel {channel.Key}");
+            var image = channel.Texture.PrimaryImage;
+            var name = $"{channel.Key}.{image.Content.FileExtension}";
+            image.Content.SaveToFile(Path.Combine(directory, name));
+        }
+        
+        logger.Log(ExportLogger.LogEventLevel.Information, "Exported material textures");
+        Process.Start("explorer.exe", directory);
+    }
+    
+    public static MaterialBuilder ParseMaterial(Material material, string name, CustomizeParameters? customizeParameter = null)
+    {
+        name = $"{name}_{material.ShaderPackage.Name.Replace(".shpk", "")}";
+
+        return material.ShaderPackage.Name switch
+        {
+            "character.shpk" => MaterialUtility.BuildCharacter(material, name).WithAlpha(AlphaMode.MASK, 0.5f),
+            "characterglass.shpk" => MaterialUtility.BuildCharacter(material, name).WithAlpha(AlphaMode.BLEND),
+            "hair.shpk" => MaterialUtility.BuildHair(material, name, HairShaderParameters.From(customizeParameter)),
+            "iris.shpk"           => MaterialUtility.BuildIris(material, name, customizeParameter?.LeftColor),
+            "skin.shpk"           => MaterialUtility.BuildSkin(material, name, SkinShaderParameters.From(customizeParameter)),
+            _ => MaterialUtility.BuildFallback(material, name),
+        };
     }
 }
