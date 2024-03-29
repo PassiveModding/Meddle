@@ -213,7 +213,7 @@ public class MaterialUtility
         var resizedNormal = new SKTexture(normal.Bitmap.Resize(new SKImageInfo(diffuse.Width, diffuse.Height), SKFilterQuality.High));
 
         for (var x = 0; x < diffuse.Width; x++)
-        for (int y = 0; y < diffuse.Height; y++)
+        for (var y = 0; y < diffuse.Height; y++)
         {
             var diffusePixel = diffuse[x, y];
             var normalPixel = resizedNormal[x, y];
@@ -222,7 +222,7 @@ public class MaterialUtility
         
         // Clear the blue channel out of the normal now that we're done with it.
         for (var x = 0; x < normal.Width; x++)
-        for (int y = 0; y < normal.Height; y++)
+        for (var y = 0; y < normal.Height; y++)
         {
             var normalPixel = normal[x, y];
             normal[x, y] = new SKColor(normalPixel.Red, normalPixel.Green, byte.MaxValue, normalPixel.Blue);
@@ -232,7 +232,7 @@ public class MaterialUtility
         if (customizeParameter != null)
         {
             for (var x = 0; x < diffuse.Width; x++)
-            for (int y = 0; y < diffuse.Height; y++)
+            for (var y = 0; y < diffuse.Height; y++)
             {
                 // R: Skin color intensity
                 // G: Specular intensity - todo maybe
@@ -361,9 +361,9 @@ public class MaterialUtility
         private static TableRow GetTableRowIndices(float input)
         {
             // These calculations are ported from character.shpk.
-            var smoothed = (MathF.Floor(input * 7.5f % 1.0f * 2)
-                            * ((-input * 15) + MathF.Floor((input * 15) + 0.5f)))
-                           + (input * 15);
+            var smoothed = (MathF.Floor(input * 7.5f % 1.0f * 2) 
+                            * (-input * 15 + MathF.Floor(input * 15 + 0.5f)))
+                            + (input * 15);
 
             var stepped = MathF.Floor(smoothed + 0.5f);
 
@@ -386,45 +386,35 @@ public class MaterialUtility
         
         public ProcessCharacterNormalOperation Run()
         {
-            
             for (var y = 0; y < normal.Height; y++)
-            {
-                ProcessRow(y, table);
-            }
-            
-            return this;
-        }
-        
-        private void ProcessRow(int y, ColorTable colorTable)
-        {
             for (var x = 0; x < normal.Width; x++)
             {
                 var normalPixel = Normal[x, y];
-                
+            
                 // Table row data (.a)
                 var tableRow = GetTableRowIndices(normalPixel.Alpha / 255f);
-                var prevRow  = colorTable.Rows[tableRow.Previous];
-                var nextRow  = colorTable.Rows[tableRow.Next];
-                
+                var prevRow  = table.Rows[tableRow.Previous];
+                var nextRow  = table.Rows[tableRow.Next];
+            
                 // Base colour (table, .b)
                 var lerpedDiffuse = Vector3.Lerp(prevRow.Diffuse, nextRow.Diffuse, tableRow.Weight);
-                var diff = new Vector4(lerpedDiffuse, 1);
-                BaseColor[x, y] = ToSkColor(diff).WithAlpha(normalPixel.Blue);
-                
+                BaseColor[x, y] = ToSkColor(new Vector4(lerpedDiffuse, 1)).WithAlpha(normalPixel.Blue);
+            
                 // Specular (table)
                 var lerpedSpecularColor = Vector3.Lerp(prevRow.Specular, nextRow.Specular, tableRow.Weight);
                 // float.Lerp is .NET8 ;-;
                 //var lerpedSpecularFactor = (prevRow.SpecularStrength * (1.0f - tableRow.Weight)) + (nextRow.SpecularStrength * tableRow.Weight);
                 var lerpedSpecularFactor = Lerp(prevRow.SpecularStrength, nextRow.SpecularStrength, tableRow.Weight);
-                var spec = new Vector4(lerpedSpecularColor, lerpedSpecularFactor);
-                Specular[x, y] = ToSkColor(spec);
-                
+                Specular[x, y] = ToSkColor(new Vector4(lerpedSpecularColor, lerpedSpecularFactor));
+            
                 // Emissive (table)
                 var lerpedEmissive = Vector3.Lerp(prevRow.Emissive, nextRow.Emissive, tableRow.Weight);
-                var emis = new Vector4(lerpedEmissive, 1);
-                Emissive[x, y] = ToSkColor(emis);
-                
+                Emissive[x, y] = ToSkColor(new Vector4(lerpedEmissive, 1));
+            
                 // Normal (.rg)
+                Normal[x, y] = new SKColor(normalPixel.Red, normalPixel.Green, byte.MaxValue, normalPixel.Blue);
+
+                /*
                 if (normalPixel is {Red: 0, Green: 0})
                 {
                     Normal[x, y] = new SKColor(byte.MaxValue/2, byte.MaxValue/2, byte.MaxValue, byte.MinValue);
@@ -432,8 +422,10 @@ public class MaterialUtility
                 else
                 {
                     Normal[x, y] = new SKColor(normalPixel.Red, normalPixel.Green, byte.MaxValue, normalPixel.Blue);
-                }
+                }*/
             }
+            
+            return this;
         }
     }
 
