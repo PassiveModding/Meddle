@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using System.Diagnostics;
+using System.Numerics;
 using Lumina.Data.Parsing;
 using Meddle.Plugin.Models;
 using SharpGLTF.Materials;
@@ -17,6 +18,37 @@ public class MaterialUtility
     private static readonly Vector4 DefaultEyeColor = new Vector4(21, 176, 172, 255) / new Vector4(255);
     private static readonly Vector3 DefaultHairColor      = new Vector3(130, 64,  13) / new Vector3(255);
     private static readonly Vector3 DefaultHighlightColor = new Vector3(77,  126, 240) / new Vector3(255);
+    
+    public static void ExportMaterial(Material material, ExportLogger logger, string directory, CustomizeParameters? customizeParameter = null)
+    { 
+        logger.Log(ExportLogger.LogEventLevel.Information, "Exporting material textures");
+        Directory.CreateDirectory(directory);
+        
+        foreach (var texture in material.Textures)
+        {
+            logger.Log(ExportLogger.LogEventLevel.Information, $"Exporting texture {texture.Usage}");
+            var skTexture = texture.Resource.ToTexture();
+            var name = $"{texture.Usage}_{texture.Resource.Format}_xivraw.png";
+            var path = Path.Combine(directory, name);
+            using var outStream = File.OpenWrite(path);
+            skTexture.Bitmap.Encode(SKEncodedImageFormat.Png, 100).SaveTo(outStream);
+        }
+        
+        logger.Log(ExportLogger.LogEventLevel.Information, "Parsing material");
+        var materialBuilder = ParseMaterial(material, material.HandlePath, customizeParameter);
+
+        foreach (var channel in materialBuilder.Channels)
+        {
+            if (channel.Texture.PrimaryImage == null) continue;
+            logger.Log(ExportLogger.LogEventLevel.Information, $"Exporting channel {channel.Key}");
+            var image = channel.Texture.PrimaryImage;
+            var name = $"{channel.Key}.{image.Content.FileExtension}";
+            image.Content.SaveToFile(Path.Combine(directory, name));
+        }
+        
+        logger.Log(ExportLogger.LogEventLevel.Information, "Exported material textures");
+        Process.Start("explorer.exe", directory);
+    }
     
     public static MaterialBuilder ParseMaterial(Material material, string name, CustomizeParameters? customizeParameter = null)
     {

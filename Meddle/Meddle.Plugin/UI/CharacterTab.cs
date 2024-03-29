@@ -6,9 +6,7 @@ using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using ImGuiNET;
 using System.Numerics;
 using System.Reflection;
-using Meddle.Plugin.Models;
 using Meddle.Plugin.Services;
-using Meddle.Plugin.Utility;
 using Character = Dalamud.Game.ClientState.Objects.Types.Character;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
 

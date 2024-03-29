@@ -64,11 +64,24 @@ public partial class CharacterTab
         
         return CharacterTreeCache;
     }
-    
+
     private void DrawCharacterTree(Character character)
     {
         var tree = InitTree(character, false);
-        ImGui.Text($"At: {tree.Time}");
+        using (var d = ImRaii.Disabled(ModelConverter.IsExporting))
+        {
+            if (ImGui.Button("Refresh") && !ModelConverter.IsExporting)
+            {
+                tree = InitTree(character, true);
+            }
+        }
+        DrawCharacterTree(tree);
+    }
+    
+    private void DrawCharacterTree(CharacterTreeSet set)
+    {
+        ImGui.Text($"At: {set.Time}");
+        var tree = set.Tree;
 
         using (var d = ImRaii.Disabled(ModelConverter.IsExporting))
         {
@@ -77,19 +90,19 @@ public partial class CharacterTab
                 ExportCts?.Cancel();
                 ExportCts = new();
                 ExportTask = ModelConverter.Export(
-                    tree.Logger,
+                    set.Logger,
                     new ExportConfig
                     {
                         ExportType = ExportType.Gltf,
                         IncludeReaperEye = false,
                         OpenFolderWhenComplete = true
                     },
-                    tree.Tree,
+                    tree,
                     ExportCts.Token);
             }
             
             ImGui.SameLine();
-            var selectedCount = tree.EnabledModels.Count(x => x) + tree.EnabledChildren.Count(x => x);
+            var selectedCount = set.EnabledModels.Count(x => x) + set.EnabledChildren.Count(x => x);
             using (var s = ImRaii.Disabled(selectedCount == 0))
             {
                 if (ImGui.Button($"Export {selectedCount} Selected") && !ModelConverter.IsExporting)
@@ -97,18 +110,18 @@ public partial class CharacterTab
                     ExportCts?.Cancel();
                     ExportCts = new();
                     ExportTask = ModelConverter.Export(
-                        tree.Logger,
+                        set.Logger,
                         new ExportConfig
                         {
                             ExportType = ExportType.Gltf,
                             IncludeReaperEye = false,
                             OpenFolderWhenComplete = true
                         },
-                        tree.SelectedModels,
-                        tree.SelectedChildren,
-                        tree.Tree.Skeleton,
-                        tree.Tree.RaceCode ?? 0,
-                        tree.Tree.CustomizeParameter,
+                        set.SelectedModels,
+                        set.SelectedChildren,
+                        tree.Skeleton,
+                        tree.RaceCode ?? 0,
+                        tree.CustomizeParameter,
                         ExportCts.Token);
                 }
             }
@@ -129,17 +142,60 @@ public partial class CharacterTab
         {
             Process.Start("explorer.exe", Plugin.TempDirectory);
         }
-        
-        ImGui.SameLine();
-        using (var d = ImRaii.Disabled(ModelConverter.IsExporting))
-        {
-            if (ImGui.Button("Refresh") && !ModelConverter.IsExporting)
-            {
-                tree = InitTree(character, true);
-            }
-        }
 
-        var (level, message) = tree.Logger.GetLastLog();
+        DrawLogMessage(set.Logger);
+        DrawCustomizeParameters(tree);
+        DrawModelView(tree, out var modelViewExport);
+        DrawAttachView(tree, out var attachViewExport);
+        
+        HandleExportRequest(modelViewExport ?? attachViewExport, set.Logger, tree);
+    }
+
+    private void HandleExportRequest(IExportRequest? request, ExportLogger logger, CharacterTree tree)
+    {
+        if (request == null)
+        {
+            return;
+        }
+        
+        ExportCts?.Cancel();
+        ExportCts = new();
+        
+        switch (request)
+        {
+            case ExportModelRequest emr:
+                ExportTask = ModelConverter.Export(
+                    logger,
+                    new ExportConfig
+                    {
+                        ExportType = ExportType.Gltf,
+                        IncludeReaperEye = false,
+                        OpenFolderWhenComplete = true
+                    }, [emr.Model], [], 
+                    emr.SkeletonOverride ?? tree.Skeleton, 
+                    tree.RaceCode ?? 0, 
+                    tree.CustomizeParameter, ExportCts.Token);
+                break;
+            case MaterialExportRequest mer:
+                ExportTask = Task.Run(() =>
+                {
+                    try
+                    {
+                        var dir = Path.Combine(Plugin.TempDirectory, "Materials", $"{mer.Material.ShaderPackage.Name}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}");
+                        MaterialUtility.ExportMaterial(mer.Material, logger, dir, tree.CustomizeParameter);
+                    }
+                    catch (Exception e)
+                    {
+                        logger.Log(ExportLogger.LogEventLevel.Error, e.Message);
+                    }
+                });
+                break;
+        }
+    }
+
+    private static void DrawLogMessage(ExportLogger logger)
+    {
+        var (level, message) = logger.GetLastLog();
         if (message != null)
         {
             switch (level)
@@ -161,10 +217,6 @@ public partial class CharacterTab
                     break;
             }
         }
-
-        DrawCustomizeParameters(tree.Tree);
-        DrawModelView(tree.Tree, tree.Logger);
-        DrawAttachView(tree.Tree, tree.Logger);
     }
     
     private static void DrawCustomizeParameters(CharacterTree tree)
@@ -266,8 +318,9 @@ public partial class CharacterTab
         return false;
     }
 
-    private void DrawAttachView(CharacterTree tree, ExportLogger logger)
+    private void DrawAttachView(CharacterTree tree, out IExportRequest? exportRequest)
     {
+        exportRequest = null;
         if (tree.AttachedChildren.Count > 0)
         {
             ImGui.Text("Attached Children");
@@ -281,24 +334,19 @@ public partial class CharacterTab
                 for (var i = 0; i < child.Models.Count; i++)
                 {
                     var model = child.Models[i];
-                    if (!DrawModel(model, i, true)) continue;
-                    ExportCts?.Cancel();
-                    ExportCts = new();
-                    ExportTask = ModelConverter.Export(
-                        logger,
-                        new ExportConfig
-                        {
-                            ExportType = ExportType.Gltf,
-                            IncludeReaperEye = false,
-                            OpenFolderWhenComplete = true
-                        }, [model], [], child.Skeleton, tree.RaceCode ?? 0, tree.CustomizeParameter, ExportCts.Token);
+                    DrawModel(model, i, true, out var er);
+                    if (er != null && er is ExportModelRequest emr)
+                    {
+                        emr.SkeletonOverride = child.Skeleton;
+                    }
                 }
             }
         }
     }
     
-    private void DrawModelView(CharacterTree tree, ExportLogger logger)
+    private void DrawModelView(CharacterTree tree, out IExportRequest? exportRequest)
     {
+        exportRequest = null!;
         if (tree.Models.Count == 0)
         {
             ImGui.Text("No models found. Try refreshing.");
@@ -310,23 +358,29 @@ public partial class CharacterTab
         for (var i = 0; i < tree.Models.Count; i++)
         {
             var model = tree.Models[i];
-            if (!DrawModel(model, i, false)) continue;
-            ExportCts?.Cancel();
-            ExportCts = new();
-            // Note, passing the entire skeleton here. Works fine enough but probably can be more specific
-            ExportTask = ModelConverter.Export(
-                logger,
-                new ExportConfig
-                {
-                    ExportType = ExportType.Gltf,
-                    IncludeReaperEye = false,
-                    OpenFolderWhenComplete = true
-                }, [model], [], tree.Skeleton, tree.RaceCode ?? 0, tree.CustomizeParameter, ExportCts.Token);
+            DrawModel(model, i, false, out var er);
+            if (er != null)
+            {
+                exportRequest = er;
+            }
         }
     }
 
-    private bool DrawModel(Model model, int index, bool isChild)
+    public interface IExportRequest;
+    public class ExportModelRequest(Model model) : IExportRequest
     {
+        public Model Model { get; } = model;
+        public Skeleton? SkeletonOverride { get; set; }
+    }
+    
+    public class MaterialExportRequest(Material material) : IExportRequest
+    {
+        public Material Material { get; } = material;
+    }
+
+    private void DrawModel(Model model, int index, bool isChild, out IExportRequest? exportRequest)
+    {
+        exportRequest = null!;
         ImGui.TableNextColumn();
         if (isChild)
         {
@@ -339,14 +393,13 @@ public partial class CharacterTab
         ImGui.SameLine();
 
         using var modelNode = ImRaii.TreeNode($"{model.Path}##{model.GetHashCode()}", ImGuiTreeNodeFlags.CollapsingHeader);
-        if (!modelNode.Success) return false;
+        if (!modelNode.Success) return;
         
-        // Export icon
         using (var d = ImRaii.Disabled(ModelConverter.IsExporting))
         {
             if (ImGui.SmallButton($"Export##{model.GetHashCode()}") && (ExportTask?.IsCompleted ?? true))
             {
-                return true;
+                exportRequest = new ExportModelRequest(model);
             }
         }
         
@@ -365,134 +418,140 @@ public partial class CharacterTab
         }
 
         // Display Materials
-        using (var table = ImRaii.Table("MaterialsTable", 2, ImGuiTableFlags.Borders))
+        for (var m = 0; m < model.Materials.Count; m++)
         {
-            ImGui.TableSetupColumn("Path", ImGuiTableColumnFlags.WidthStretch);
-            ImGui.TableSetupColumn("Info", ImGuiTableColumnFlags.WidthFixed,
-                                   0.25f * ImGui.GetWindowWidth());
+            var material = model.Materials[m];
+            ImGui.Text($"Material #{m}");
+            ImGui.Indent();
+            DrawMaterial(material, out var exportMaterial);
+            if (exportMaterial)
+            {
+                exportRequest = new MaterialExportRequest(material);
+            }
+            ImGui.Unindent();
+            ImGui.Separator();
+        }
+        
+        
+        for (var m = 0; m < model.Meshes.Count; m++)
+        {
+            var mesh = model.Meshes[m];
+            ImGui.Text($"Mesh #{m}");
+            ImGui.Indent();
+            DrawMesh(mesh);
+            ImGui.Unindent();
+            ImGui.Separator();
+        }
+    }
+    
+    private void DrawMesh(Mesh mesh)
+    {
+        ImGui.Text($"Vertices: {mesh.Vertices.Count}");
+        ImGui.Text($"Indices: {mesh.Indices.Count}");
+        if (mesh.BoneTable != null)
+        {
+            ImGui.Text($"Bones: {mesh.BoneTable.Count}");
+            if (ImGui.CollapsingHeader($"Bone Table##{mesh.GetHashCode()}"))
+            {
+                using (var btable = ImRaii.Table("BoneTable", 1, ImGuiTableFlags.Borders))
+                {
+                    ImGui.TableSetupColumn("Bone", ImGuiTableColumnFlags.WidthStretch);
+                    ImGui.TableHeadersRow();
+                    foreach (var bone in mesh.BoneTable)
+                    {
+                        ImGui.TableNextRow();
+                        ImGui.TableNextColumn();
+                        ImGui.Text(bone);
+                    }
+                }
+            }
+        }
+        
+        ImGui.Text($"Submeshes: {mesh.SubMeshes.Count}");
+        using (var smtable = ImRaii.Table("SubMeshTable", 4, ImGuiTableFlags.Borders))
+        {
+            ImGui.TableSetupColumn("Index", ImGuiTableColumnFlags.WidthFixed, 50);
+            ImGui.TableSetupColumn("Offset", ImGuiTableColumnFlags.WidthFixed, 50);
+            ImGui.TableSetupColumn("Count", ImGuiTableColumnFlags.WidthFixed, 50);
+            ImGui.TableSetupColumn("Attributes", ImGuiTableColumnFlags.WidthStretch);
+            ImGui.TableHeadersRow();
+            for (var i = 0; i < mesh.SubMeshes.Count; i++)
+            {
+                var submesh = mesh.SubMeshes[i];
+                ImGui.TableNextRow();
+                ImGui.TableNextColumn();
+                ImGui.Text($"{i}");
+                ImGui.TableNextColumn();
+                ImGui.Text($"{submesh.IndexOffset}");
+                ImGui.TableNextColumn();
+                ImGui.Text($"{submesh.IndexCount}");
+                ImGui.TableNextColumn();
+                ImGui.Text($"{string.Join(", ", submesh.Attributes)}");
+            }
+        }
+    }
+    
+    private void DrawMaterial(Material material, out bool export)
+    {
+        export = ImGui.Button($"Export Textures##{material.GetHashCode()}");
+        
+        ImGui.BulletText($"{material.HandlePath}");
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip(material.HandlePath);
+        }
 
-            foreach (var material in model.Materials)
+        ImGui.BulletText($"Shader: {material.ShaderPackage.Name}");
+        // Display Material Textures in the same table
+        using (var textable = ImRaii.Table("TextureTable", 2, ImGuiTableFlags.Borders))
+        {
+            ImGui.TableSetupColumn("Texture Usage", ImGuiTableColumnFlags.WidthFixed, 120);
+            ImGui.TableSetupColumn("Path", ImGuiTableColumnFlags.WidthStretch);
+            ImGui.TableHeadersRow();
+            
+            foreach (var texture in material.Textures)
             {
                 ImGui.TableNextRow();
                 ImGui.TableNextColumn();
-                ImGui.Text($"{material.HandlePath}");
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip(material.HandlePath);
-                }
+                ImGui.Text($"{texture.Usage}");
                 ImGui.TableNextColumn();
-                ImGui.Text($"Shader: {material.ShaderPackage.Name} Textures: {material.Textures.Count}");
-                ImGui.Indent();
-                // Display Material Textures in the same table
-                foreach (var texture in material.Textures)
-                {
-                    ImGui.TableNextRow();
-                    ImGui.TableNextColumn();
-                    ImGui.Text($"{texture.HandlePath}");
-                    ImGui.TableNextColumn();
-                    ImGui.Text($"{texture.Usage}");
-                }
-
-                if (material.ColorTable != null)
-                {
-                    var diffuses = material.ColorTable.Rows.Select(x => x.Diffuse).ToArray();
-                    var speculars = material.ColorTable.Rows.Select(x => x.Specular).ToArray();
-                    var specularStrengths = material.ColorTable.Rows.Select(x => x.SpecularStrength).ToArray();
-                    var emissives = material.ColorTable.Rows.Select(x => x.Emissive).ToArray();
-
-                    ImGui.TableNextRow();
-                    ImGui.TableNextColumn();
-                    for (var i = 0; i < diffuses.Length; i++)
-                    {
-                        if (i > 0)
-                        {
-                            ImGui.SameLine();
-                        }
-                        var diffuse = diffuses[i];
-                        ImGui.ColorButton("##Diffuse", new Vector4(diffuse.X, diffuse.Y, diffuse.Z, 1), ImGuiColorEditFlags.NoAlpha);
-                    }
-                    ImGui.TableNextColumn();
-                    ImGui.Text("ColorTable Diffuse");
-                    
-                    ImGui.TableNextRow();
-                    ImGui.TableNextColumn();
-                    for (var i = 0; i < speculars.Length; i++)
-                    {
-                        if (i > 0)
-                        {
-                            ImGui.SameLine();
-                        }
-                        var specular = speculars[i];
-                        ImGui.ColorButton("##Specular", new Vector4(specular.X, specular.Y, specular.Z, 1), ImGuiColorEditFlags.NoAlpha);
-                    }
-                    ImGui.TableNextColumn();
-                    ImGui.Text("ColorTable Specular");
-                    
-                    /*
-                    ImGui.TableNextRow();
-                    ImGui.TableNextColumn();
-                    for (var i = 0; i < specularStrengths.Length; i++)
-                    {
-                        if (i > 0)
-                        {
-                            ImGui.SameLine();
-                        }
-                        var specularStrength = specularStrengths[i];
-                        ImGui.Text($"{specularStrength}");
-                    }
-                    ImGui.TableNextColumn();
-                    */
-                    
-                    ImGui.TableNextRow();
-                    ImGui.TableNextColumn();
-                    for (var i = 0; i < emissives.Length; i++)
-                    {
-                        if (i > 0)
-                        {
-                            ImGui.SameLine();
-                        }
-                        var emissive = emissives[i];
-                        ImGui.ColorButton("##Emissive", new Vector4(emissive.X, emissive.Y, emissive.Z, 1), ImGuiColorEditFlags.NoAlpha);
-                    }
-                    ImGui.TableNextColumn();
-                    ImGui.Text("ColorTable Emissive");
-                }
-
-                ImGui.Unindent();
+                ImGui.Text($"{texture.HandlePath}");
             }
         }
 
-
-        ImGui.Spacing();
-
-        using var tableMeshes = ImRaii.Table("MeshesTable", 3,
-                                             ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable);
-        ImGui.TableSetupColumn("Mesh", ImGuiTableColumnFlags.WidthFixed, 0.5f * ImGui.GetWindowWidth());
-        ImGui.TableSetupColumn("Vertices", ImGuiTableColumnFlags.WidthStretch);
-        ImGui.TableSetupColumn("Indices", ImGuiTableColumnFlags.WidthStretch);
-
-        for (var i = 0; i < model.Meshes.Count; ++i)
+        if (material.ColorTable != null)
         {
+            if (ImGui.CollapsingHeader($"Color Table##{material.GetHashCode()}"))
+                DrawColorTable(material.ColorTable);
+        }
+    }
+    
+    private void DrawColorTable(ColorTable table)
+    {
+        using var rt = ImRaii.Table("ColorTable", 4, ImGuiTableFlags.Borders);
+        // headers
+        ImGui.TableSetupColumn("Row", ImGuiTableColumnFlags.WidthFixed, 50);
+        ImGui.TableSetupColumn("Diffuse", ImGuiTableColumnFlags.WidthFixed, 50);
+        ImGui.TableSetupColumn("Specular", ImGuiTableColumnFlags.WidthFixed, 50);
+        ImGui.TableSetupColumn("Emissive", ImGuiTableColumnFlags.WidthFixed, 50);
+        ImGui.TableHeadersRow();
+        
+        for (var i = 0; i < table.Rows.Length; i++)
+        {
+            var row = table.Rows[i];
             ImGui.TableNextRow();
             ImGui.TableNextColumn();
-
-            ImGui.Text($"Mesh {i}");
-            var mesh = model.Meshes[i];
+            ImGui.Text($"Row {i}");
             ImGui.TableNextColumn();
-            ImGui.Text($"Vertices: {mesh.Vertices.Count}");
+            ImGui.ColorButton("##Diffuse", new Vector4(row.Diffuse.X, row.Diffuse.Y, row.Diffuse.Z, 1),
+                              ImGuiColorEditFlags.NoAlpha);
             ImGui.TableNextColumn();
-            ImGui.Text($"Indices: {mesh.Indices.Count}");
-            for (var j = 0; j < mesh.SubMeshes.Count; j++)
-            {
-                var submesh = mesh.SubMeshes[j];
-                ImGui.TableNextRow();
-                ImGui.TableNextColumn();
-                ImGui.Text($"[{j}] Submesh attributes: {string.Join(", ", submesh.Attributes)}");
-                ImGui.TableNextColumn();
-                ImGui.TableNextColumn(); // Leave an empty column for spacing
-            }
+            ImGui.ColorButton("##Specular", new Vector4(row.Specular.X, row.Specular.Y, row.Specular.Z, 1),
+                              ImGuiColorEditFlags.NoAlpha);
+            ImGui.TableNextColumn();
+            ImGui.ColorButton("##Emissive", new Vector4(row.Emissive.X, row.Emissive.Y, row.Emissive.Z, 1),
+                              ImGuiColorEditFlags.NoAlpha);
+                
         }
-
-        return false;
     }
 }
