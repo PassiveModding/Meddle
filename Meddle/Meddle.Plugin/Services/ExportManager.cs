@@ -68,7 +68,8 @@ public partial class ExportManager : IDisposable
         ExportLogger logger, ExportConfig config, 
         Model[] models, 
         AttachedChild[] attachedChildren,
-        Skeleton skeleton, GenderRace targetRace,
+        Skeleton skeleton, 
+        GenderRace? targetRace,
         CustomizeParameters? customizeParameter)
     {
         if (IsExporting)
@@ -196,7 +197,7 @@ public partial class ExportManager : IDisposable
     }
 
     private void HandleModel(
-        ExportLogger logger, ExportConfig config, Model model, GenderRace targetRace, SceneBuilder scene,
+        ExportLogger logger, ExportConfig config, Model model, GenderRace? targetRace, SceneBuilder scene,
         BoneNodeBuilder[] boneMap, Matrix4x4 worldPosition, CustomizeParameters? customizeParameter)
     {
         logger.Debug($"Exporting model {model.Path}");
@@ -205,11 +206,11 @@ public partial class ExportManager : IDisposable
         var materials = CreateMaterials(logger, model, customizeParameter).ToArray();
 
         IEnumerable<MeshExport> meshes;
-        if (model.RaceCode != GenderRace.Unknown)
+        if (model.RaceCode != GenderRace.Unknown && targetRace != null && targetRace != model.RaceCode && targetRace != GenderRace.Unknown)
         {
             logger.Debug($"Setup deform for {model.Path} from {model.RaceCode} to {targetRace}");
             var raceDeformer = new RaceDeformer(Pbd, boneMap.ToArray());
-            meshes = ModelBuilder.BuildMeshes(model, materials, boneMap, (targetRace, raceDeformer));
+            meshes = ModelBuilder.BuildMeshes(model, materials, boneMap, (targetRace.Value, raceDeformer));
         }
         else
         {

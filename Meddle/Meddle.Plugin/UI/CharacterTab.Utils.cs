@@ -67,7 +67,7 @@ public partial class CharacterTab : ITab
                         ear.Child.Models.ToArray(),
                         [],
                         ear.Child.Skeleton,
-                        ear.RaceCode ?? 0,
+                        ear.RaceCode,
                         ear.CustomizeParameters));
                 break;
             case ExportPartialTreeRequest eptr:
@@ -84,7 +84,7 @@ public partial class CharacterTab : ITab
                              eptr.SelectedModels,
                              eptr.AttachedChildren,
                              eptr.Skeleton,
-                             eptr.RaceCode ?? 0,
+                             eptr.RaceCode,
                              eptr.CustomizeParameters));
                     break;
             case ExportTreeRequest etr:
@@ -112,7 +112,7 @@ public partial class CharacterTab : ITab
                              ParallelBuild = configuration.ParallelBuild
                          }, [emr.Model], [],
                          emr.Skeleton,
-                         emr.RaceCode ?? 0,
+                         emr.RaceCode,
                          emr.CustomizeParameters));
                 break;
             case MaterialExportRequest mer:
