@@ -23,7 +23,7 @@ public class MaterialUtility
     {
         var normal = material.GetTexture(TextureUsage.SamplerNormal);
         
-        var operation = new ProcessCharacterNormalOperation(normal.Resource.ToTexture(), material.ColorTable).Run();
+        var operation = new ProcessCharacterNormalOperation(normal.Resource.ToTexture(), material.ColorTable!).Run();
         
         var baseColor = operation.BaseColor;
         if (material.TryGetTexture(TextureUsage.SamplerDiffuse, out var diffuseTexture))
@@ -35,7 +35,7 @@ public class MaterialUtility
             if (diffuse.Width > baseColor.Width || diffuse.Height > baseColor.Height)
                 baseColor = new SKTexture(baseColor.Bitmap.Resize(new SKImageInfo(diffuse.Width, diffuse.Height), SKFilterQuality.High));
             
-            baseColor = MultiplyBitmaps(diffuse, baseColor);
+            baseColor = MultiplyBitmaps(baseColor, diffuse);
         }
         
         var specular = operation.Specular;
