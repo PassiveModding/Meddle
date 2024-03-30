@@ -17,16 +17,20 @@ public unsafe class Attach
     
     public Attach(CSAttach* attach)
     {
+        // 0 => Mount
+        // 3 => Fashion Accessories
+        // 4 => Weapon
         ExecuteType = attach->ExecuteType;
+        
+        // TODO: Deconstruct union based on type
+        var att = attach->SkeletonBoneAttachments[0];
+        OffsetTransform = new(att.ChildTransform);
         if (ExecuteType == 0)
             return;
 
         //if (ExecuteType != 4)
         //    return;
-
-        var att = attach->SkeletonBoneAttachments[0];
         
-        OffsetTransform = new(att.ChildTransform);
         PartialSkeletonIdx = att.SkeletonIdx;
         BoneIdx = att.BoneIdx;
     }

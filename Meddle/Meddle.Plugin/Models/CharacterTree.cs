@@ -14,7 +14,7 @@ public unsafe class CharacterTree
     public Transform Transform { get;}
     public Skeleton Skeleton { get; }
     public IReadOnlyList<Model> Models { get; }
-    public GenderRace? RaceCode { get; }
+    public GenderRace RaceCode { get; }
     public CustomizeParameters? CustomizeParameter { get; set; }
     
     public IReadOnlyList<AttachedChild> AttachedChildren { get; }
@@ -49,9 +49,20 @@ public unsafe class CharacterTree
             var ornamentObject = character->Ornament.OrnamentObject;
             if (ornamentObject != null)
             {
-                //Ornament = new Ornament(ornamentObject);
+                // ExecuteType 3 (I think)
                 var ornamentCharacter = (CharacterBase*)ornamentObject->Character.GameObject.DrawObject;
                 attachedChildren.Add(new AttachedChild(ornamentCharacter));
+            }
+        }
+
+        if (character->Mount.MountObject != null && character->Mount.MountId != 0)
+        {
+            var mountObject = character->Mount.MountObject;
+            if (mountObject != null)
+            {
+                // ExecuteType 0?
+                var mountCharacter = (CharacterBase*)mountObject->GameObject.DrawObject;
+                attachedChildren.Add(new AttachedChild(mountCharacter));
             }
         }
 
