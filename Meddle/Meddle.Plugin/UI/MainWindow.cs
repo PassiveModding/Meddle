@@ -25,6 +25,8 @@ public sealed class MainWindow : Window, IDisposable
         IsOpen = config.AutoOpen;
     }
 
+    private string? lastError;
+    
     public override void Draw()
     {
         using var tabBar = ImRaii.TabBar("##meddleTabs");
@@ -40,9 +42,15 @@ public sealed class MainWindow : Window, IDisposable
             }
             catch (Exception e)
             {
+                var errStr = e.ToString();
+                if (errStr != lastError)
+                {
+                    lastError = errStr;
+                    Log.Error(e, $"Failed to draw {tab.Name}");
+                }
+                
                 ImGui.TextColored(new Vector4(1, 0, 0, 1), $"Failed to draw {tab.Name} tab");
                 ImGui.TextWrapped(e.ToString());
-                Log.Error(e, $"Failed to draw {tab.Name}");
             }
         }
     }
