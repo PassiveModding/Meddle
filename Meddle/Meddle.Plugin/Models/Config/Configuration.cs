@@ -11,6 +11,7 @@ public class Configuration : IPluginConfiguration
     public int Version { get; set; }
 
     public bool AutoOpen { get; set; }
+    public bool ParallelBuild { get; set; }
 
     public void Initialize(DalamudPluginInterface pluginInterface)
     {

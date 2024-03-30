@@ -85,12 +85,12 @@ public partial class ExportManager
                 var scene = new SceneBuilder("scene");
                 var boneMap = ModelUtility.GetBoneMap(skeleton, out var rootBone).ToArray();
                 scene.AddNode(rootBone);
-
-                foreach (var model in models)
+                
+                ForEach(models, model =>
                 {
-                    HandleModel(logger, config, model, targetRace, scene, boneMap, Matrix4x4.Identity, customizeParameter,
-                                cancellationToken);
-                }
+                    HandleModel(logger, config, model, targetRace, scene, boneMap, Matrix4x4.Identity,
+                                customizeParameter, cancellationToken);
+                }, config.ParallelBuild);
                 
                 for (var i = 0; i < attachedChildren.Length; i++)
                 {
@@ -133,6 +133,15 @@ public partial class ExportManager
     [GeneratedRegex("^chara/human/c\\d+/obj/body/b0003/model/c\\d+b0003_top.mdl$")]
     private static partial Regex LowPolyModelRegex();
 
+    private static void ForEach<T>(IEnumerable<T> source, Action<T> action, bool parallel = false)
+    {
+        if (parallel)
+            Parallel.ForEach(source, action);
+        else
+            foreach (var item in source)
+                action(item);
+    }
+    
     private void ExportInternal(
         ExportLogger logger, ExportConfig config, CharacterTree character, CancellationToken cancellationToken)
     {
@@ -143,14 +152,14 @@ public partial class ExportManager
         var scene = new SceneBuilder(string.IsNullOrWhiteSpace(character.Name) ? "scene" : character.Name);
         var boneMap = ModelUtility.GetBoneMap(character.Skeleton, out var rootBone).ToArray();
         scene.AddNode(rootBone);
-
-        foreach (var model in character.Models)
+        
+        ForEach(character.Models, model =>
         {
-            if (LowPolyModelRegex().IsMatch(model.Path)) continue;
+            if (LowPolyModelRegex().IsMatch(model.Path)) return;
 
             HandleModel(logger, config, model, character.RaceCode!.Value, scene, boneMap, Matrix4x4.Identity,
                         character.CustomizeParameter, cancellationToken);
-        }
+        }, config.ParallelBuild);
 
         for (var i = 0; i < character.AttachedChildren.Count; i++)
         {

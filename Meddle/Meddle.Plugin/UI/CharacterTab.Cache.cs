@@ -14,7 +14,7 @@ namespace Meddle.Plugin.UI;
 
 public partial class CharacterTab
 {
-    private class CharacterTreeSet(
+    public class CharacterTreeSet(
         Character character,
         CharacterTree tree,
         ExportLogger logger,
@@ -84,46 +84,22 @@ public partial class CharacterTab
         ImGui.Text($"At: {set.Time}");
         var tree = set.Tree;
 
+        IExportRequest? exportRequest = null;
         using (var d = ImRaii.Disabled(ExportManager.IsExporting))
         {
             if (ImGui.Button("Export") && !ExportManager.IsExporting)
             {
-                ExportCts?.Cancel();
-                ExportCts = new();
-                ExportTask = ExportManager.Export(
-                    set.Logger,
-                    new ExportConfig
-                    {
-                        ExportType = ExportType.Gltf,
-                        IncludeReaperEye = false,
-                        OpenFolderWhenComplete = true
-                    },
-                    tree,
-                    ExportCts.Token);
+                exportRequest = new ExportTreeRequest(set);
             }
             
             ImGui.SameLine();
             var selectedCount = set.EnabledModels.Count(x => x) + set.EnabledChildren.Count(x => x);
+
             using (var s = ImRaii.Disabled(selectedCount == 0))
             {
                 if (ImGui.Button($"Export {selectedCount} Selected") && !ExportManager.IsExporting)
                 {
-                    ExportCts?.Cancel();
-                    ExportCts = new();
-                    ExportTask = ExportManager.Export(
-                        set.Logger,
-                        new ExportConfig
-                        {
-                            ExportType = ExportType.Gltf,
-                            IncludeReaperEye = false,
-                            OpenFolderWhenComplete = true
-                        },
-                        set.SelectedModels,
-                        set.SelectedChildren,
-                        tree.Skeleton,
-                        tree.RaceCode ?? 0,
-                        tree.CustomizeParameter,
-                        ExportCts.Token);
+                    exportRequest = new ExportTreeRequest(set, true);
                 }
             }
         }
@@ -147,9 +123,11 @@ public partial class CharacterTab
         DrawLogMessage(set.Logger);
         DrawCustomizeParameters(tree);
         DrawModelView(tree, out var modelViewExport);
+        exportRequest ??= modelViewExport;
         DrawAttachView(tree, out var attachViewExport);
+        exportRequest ??= attachViewExport;
         
-        HandleExportRequest(modelViewExport ?? attachViewExport, set.Logger, tree);
+        HandleExportRequest(exportRequest, set.Logger, tree);
     }
 
     private void HandleExportRequest(IExportRequest? request, ExportLogger logger, CharacterTree tree)
@@ -164,6 +142,40 @@ public partial class CharacterTab
         
         switch (request)
         {
+            case ExportTreeRequest etr:
+                if (etr.ApplySettings)
+                {
+                    ExportTask = ExportManager.Export(
+                        logger,
+                        new ExportConfig
+                        {
+                            ExportType = ExportType.Gltf,
+                            IncludeReaperEye = false,
+                            OpenFolderWhenComplete = true,
+                            ParallelBuild = Configuration.ParallelBuild
+                        },
+                        etr.Set.SelectedModels,
+                        etr.Set.SelectedChildren,
+                        tree.Skeleton,
+                        tree.RaceCode ?? 0,
+                        tree.CustomizeParameter,
+                        ExportCts.Token);
+                }
+                else
+                {
+                    ExportTask = ExportManager.Export(
+                        logger,
+                        new ExportConfig
+                        {
+                            ExportType = ExportType.Gltf,
+                            IncludeReaperEye = false,
+                            OpenFolderWhenComplete = true,
+                            ParallelBuild = Configuration.ParallelBuild
+                        },
+                        tree,
+                        ExportCts.Token);
+                }
+                break;
             case ExportModelRequest emr:
                 ExportTask = ExportManager.Export(
                     logger,
@@ -171,7 +183,8 @@ public partial class CharacterTab
                     {
                         ExportType = ExportType.Gltf,
                         IncludeReaperEye = false,
-                        OpenFolderWhenComplete = true
+                        OpenFolderWhenComplete = true,
+                        ParallelBuild = Configuration.ParallelBuild
                     }, [emr.Model], [], 
                     emr.SkeletonOverride ?? tree.Skeleton, 
                     tree.RaceCode ?? 0, 
@@ -336,7 +349,7 @@ public partial class CharacterTab
                 {
                     var model = child.Models[i];
                     DrawModel(model, i, true, out var er);
-                    if (er != null && er is ExportModelRequest emr)
+                    if (er is ExportModelRequest emr)
                     {
                         emr.SkeletonOverride = child.Skeleton;
                     }
@@ -378,6 +391,12 @@ public partial class CharacterTab
     {
         public Material Material { get; } = material;
     }
+    
+    public class ExportTreeRequest(CharacterTreeSet set, bool applySettings = false) : IExportRequest
+    {
+        public CharacterTreeSet Set { get; } = set;
+        public bool ApplySettings { get; set; } = applySettings;
+    }
 
     private void DrawModel(Model model, int index, bool isChild, out IExportRequest? exportRequest)
     {
@@ -393,7 +412,17 @@ public partial class CharacterTab
         }
         ImGui.SameLine();
 
-        using var modelNode = ImRaii.TreeNode($"{model.Path}##{model.GetHashCode()}", ImGuiTreeNodeFlags.CollapsingHeader);
+        var displayPath = model.ResolvedPath;
+        if (displayPath != null && model.HandlePath != model.ResolvedPath)
+        {
+            displayPath = $"{model.ResolvedPath} -> {model.HandlePath}";
+        }
+        else
+        {
+            displayPath = model.HandlePath;
+        }
+        
+        using var modelNode = ImRaii.TreeNode($"{displayPath}##{model.GetHashCode()}", ImGuiTreeNodeFlags.CollapsingHeader);
         if (!modelNode.Success) return;
         
         using (var d = ImRaii.Disabled(ExportManager.IsExporting))

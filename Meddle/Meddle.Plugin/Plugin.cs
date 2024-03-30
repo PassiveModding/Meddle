@@ -55,6 +55,8 @@ public sealed class Plugin : IDalamudPlugin
         this.pluginInterface.UiBuilder.DisableGposeUiHide = true;
 
         gameInteropProvider = services.GetRequiredService<IGameInteropProvider>();
+        mainWindow = services.GetRequiredService<MainWindow>();
+        WindowSystem.AddWindow(mainWindow);
         
         // https://github.com/Caraxi/SimpleTweaksPlugin/blob/2b7c105d1671fd6a344edb5c621632b8825a81c5/SimpleTweaksPlugin.cs#L101C13-L103C75
         Task.Run(() =>
@@ -63,8 +65,11 @@ public sealed class Plugin : IDalamudPlugin
             FFXIVClientStructs.Interop.Resolver.GetInstance.Resolve();
             
             services.GetRequiredService<IPluginLog>().Information("Resolved FFXIVClientStructs");
-            mainWindow = services.GetRequiredService<MainWindow>();
-            WindowSystem.AddWindow(mainWindow);
+            
+            // Only enable the character tab after FFXIVClientStructs has been resolved
+            var tabs = services.GetRequiredService<IEnumerable<ITab>>();
+            var ct = tabs.OfType<CharacterTab>().First();
+            ct.Enabled = true;
         });
     }
 

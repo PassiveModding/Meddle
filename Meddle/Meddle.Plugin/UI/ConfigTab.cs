@@ -8,6 +8,7 @@ public sealed class ConfigTab : ITab
     public string Name => "Config";
 
     public int Order => int.MaxValue;
+    public bool Enabled => true;
 
     private Configuration Config { get; }
 
@@ -22,6 +23,13 @@ public sealed class ConfigTab : ITab
         if (ImGui.Checkbox("Auto-open", ref autoOpen))
         {
             Config.AutoOpen = autoOpen;
+            Config.Save();
+        }
+        
+        var parallelBuild = Config.ParallelBuild;
+        if (ImGui.Checkbox("Parallel build", ref parallelBuild))
+        {
+            Config.ParallelBuild = parallelBuild;
             Config.Save();
         }
     }

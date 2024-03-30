@@ -6,6 +6,7 @@ using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using ImGuiNET;
 using System.Numerics;
 using System.Reflection;
+using Meddle.Plugin.Models.Config;
 using Meddle.Plugin.Services;
 using Character = Dalamud.Game.ClientState.Objects.Types.Character;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
@@ -15,6 +16,7 @@ namespace Meddle.Plugin.UI;
 public unsafe partial class CharacterTab : ITab
 {
     public CharacterTab(DalamudPluginInterface pluginInterface,
+                        Configuration configuration,
                         IObjectTable objectTable,
                         IClientState clientState,
                         ExportManager exportManager,
@@ -22,6 +24,7 @@ public unsafe partial class CharacterTab : ITab
     {
         Log = log;
         PluginInterface = pluginInterface;
+        Configuration = configuration;
         ObjectTable = objectTable;
         ClientState = clientState;
         ExportManager = exportManager;
@@ -29,9 +32,11 @@ public unsafe partial class CharacterTab : ITab
     public string Name => "Character";
 
     public int Order => 0;
+    public bool Enabled { get; set; }
 
     private IPluginLog Log { get; }
     private DalamudPluginInterface PluginInterface { get; }
+    public Configuration Configuration { get; }
     private IObjectTable ObjectTable { get; }
     private IClientState ClientState { get; }
     private ExportManager ExportManager { get; }
@@ -55,7 +60,6 @@ public unsafe partial class CharacterTab : ITab
             try
             {
                 // Lobby :)
-                // TODO: Maybe don't call this until post tick is done
                 var chara = CharaSelectCharacterList.GetCurrentCharacter();
                 if (chara != null)
                     objects = new[] { (Character)Activator.CreateInstance(typeof(Character), BindingFlags.NonPublic | BindingFlags.Instance, null, new[] { (object?)(nint)chara }, null)! };
