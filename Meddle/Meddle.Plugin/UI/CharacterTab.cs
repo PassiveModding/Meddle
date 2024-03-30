@@ -111,7 +111,7 @@ public unsafe partial class CharacterTab : ITab
 
         if (SelectedCharacter != null)
         {
-            if (ImGui.CollapsingHeader("Character Pose"))
+            /*if (ImGui.CollapsingHeader("Character Pose"))
             {
                 DrawPoseInfo(SelectedCharacter);
             }
@@ -119,7 +119,8 @@ public unsafe partial class CharacterTab : ITab
             if (ImGui.CollapsingHeader($"Character Tree", ImGuiTreeNodeFlags.DefaultOpen))
             {
                 DrawCharacterTree(SelectedCharacter);
-            }
+            }*/
+            DrawCharacterTree(SelectedCharacter);
         }
         else
         {
