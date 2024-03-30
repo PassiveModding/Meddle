@@ -5,10 +5,9 @@ namespace Meddle.Plugin.Models;
 
 public unsafe class Attach
 {
-    public int ExecuteType { get;}
+    public int ExecuteType { get; }
 
-    public Transform OffsetTransform { get;}
-    public Transform SkeleTransform { get;}
+    public Transform OffsetTransform { get; }
     public byte PartialSkeletonIdx { get; }
     public ushort BoneIdx { get; }
     
@@ -22,17 +21,12 @@ public unsafe class Attach
         if (ExecuteType == 0)
             return;
 
-        if (attach->ExecuteType != 4)
-        {
-            //PluginLog.Error($"Unsupported ExecuteType {attach->ExecuteType}");
-            return;
-        }
+        //if (ExecuteType != 4)
+        //    return;
 
         var att = attach->SkeletonBoneAttachments[0];
         
         OffsetTransform = new(att.ChildTransform);
-        SkeleTransform = new(attach->OwnerSkeleton->Transform);
-
         PartialSkeletonIdx = att.SkeletonIdx;
         BoneIdx = att.BoneIdx;
     }

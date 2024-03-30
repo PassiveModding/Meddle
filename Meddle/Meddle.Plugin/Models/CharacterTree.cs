@@ -15,10 +15,10 @@ public unsafe class CharacterTree
     public Skeleton Skeleton { get; }
     public IReadOnlyList<Model> Models { get; }
     public GenderRace? RaceCode { get; }
-
     public CustomizeParameters? CustomizeParameter { get; set; }
     
     public IReadOnlyList<AttachedChild> AttachedChildren { get; }
+    //public Ornament? Ornament { get; }
 
     public CharacterTree(Pointer<CSCharacter> character) : this(character.Value)
     {
@@ -30,17 +30,31 @@ public unsafe class CharacterTree
         Name = MemoryHelper.ReadStringNullTerminated((nint)character->GameObject.GetName());
 
         var attachedChildren = new List<AttachedChild>();
-        foreach (var weaponData in character->DrawData.WeaponDataSpan)
+        if (character->DrawData.IsWeaponHidden == false)
         {
-            if (weaponData.Model == null)
-                continue;
-            var attach = &weaponData.Model->CharacterBase.Attach;
-            if (attach->ExecuteType == 0)
-                continue;
+            foreach (var weaponData in character->DrawData.WeaponDataSpan)
+            {
+                if (weaponData.Model == null)
+                    continue;
+                var attach = &weaponData.Model->CharacterBase.Attach;
+                if (attach->ExecuteType == 0)
+                    continue;
 
-            attachedChildren.Add(new AttachedChild(&weaponData.Model->CharacterBase));
+                attachedChildren.Add(new AttachedChild(&weaponData.Model->CharacterBase));
+            }
         }
         
+        if (character->Ornament.OrnamentObject != null && character->Ornament.OrnamentId != 0)
+        {
+            var ornamentObject = character->Ornament.OrnamentObject;
+            if (ornamentObject != null)
+            {
+                //Ornament = new Ornament(ornamentObject);
+                var ornamentCharacter = (CharacterBase*)ornamentObject->Character.GameObject.DrawObject;
+                attachedChildren.Add(new AttachedChild(ornamentCharacter));
+            }
+        }
+
         AttachedChildren = attachedChildren;
     }
     
@@ -50,9 +64,7 @@ public unsafe class CharacterTree
 
     public CharacterTree(CharacterBase* character)
     {
-        var name = stackalloc byte[256];
-        name = character->ResolveRootPath(name, 256);
-        Name = name != null ? MemoryHelper.ReadString((nint)name, 256) : string.Empty;
+        Name = character->ResolveRootPath();
 
         var modelType = character->GetModelType();
         var human = modelType == CharacterBase.ModelType.Human ? (Human*)character : null;
@@ -65,8 +77,10 @@ public unsafe class CharacterTree
                 var cp = human->CustomizeParameterCBuffer->LoadBuffer<CustomizeParameter>(0, 1);
                 if (cp != null && cp.Length > 0)
                 {
-                    var isHrothgar = RaceCode == GenderRace.HrothgarFemale || RaceCode == GenderRace.HrothgarMale
-                                     || RaceCode == GenderRace.HrothgarFemaleNpc || RaceCode == GenderRace.HrothgarMaleNpc;
+                    var isHrothgar = RaceCode is GenderRace.HrothgarFemale 
+                                         or GenderRace.HrothgarMale 
+                                         or GenderRace.HrothgarFemaleNpc 
+                                         or GenderRace.HrothgarMaleNpc;
                     CustomizeParameter = new CustomizeParameters(cp[0], isHrothgar);
                 }
             }
