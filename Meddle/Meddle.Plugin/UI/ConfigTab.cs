@@ -8,7 +8,6 @@ public sealed class ConfigTab : ITab
     public string Name => "Config";
 
     public int Order => int.MaxValue;
-    public bool Enabled => true;
 
     private Configuration Config { get; }
 

@@ -19,6 +19,7 @@ public sealed class Plugin : IDalamudPlugin
 {
     private static readonly WindowSystem WindowSystem = new("Meddle");
     public static readonly string TempDirectory = Path.Combine(Path.GetTempPath(), "Meddle.Export");
+    public static bool CsResolved { get; private set; } = false;
     private MainWindow? mainWindow = null;
     private readonly ICommandManager commandManager;
     private readonly DalamudPluginInterface pluginInterface;
@@ -65,11 +66,7 @@ public sealed class Plugin : IDalamudPlugin
             FFXIVClientStructs.Interop.Resolver.GetInstance.Resolve();
             
             services.GetRequiredService<IPluginLog>().Information("Resolved FFXIVClientStructs");
-            
-            // Only enable the character tab after FFXIVClientStructs has been resolved
-            var tabs = services.GetRequiredService<IEnumerable<ITab>>();
-            var ct = tabs.OfType<CharacterTab>().First();
-            ct.Enabled = true;
+            CsResolved = true;
         });
     }
 

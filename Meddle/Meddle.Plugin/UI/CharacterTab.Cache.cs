@@ -65,6 +65,17 @@ public partial class CharacterTab
         
         return CharacterTreeCache;
     }
+    
+    private bool DrawExportButton(string text)
+    {
+        using var d = ImRaii.Disabled(ExportManager.IsExporting);
+        if (ImGui.Button(text) && !ExportManager.IsExporting)
+        {
+            return true;
+        }
+
+        return false;
+    }
 
     private void DrawCharacterTree(Character character)
     {
@@ -79,31 +90,8 @@ public partial class CharacterTab
         DrawCharacterTree(tree);
     }
     
-    private void DrawCharacterTree(CharacterTreeSet set)
+    private void DrawCancelExportButton()
     {
-        ImGui.Text($"At: {set.Time}");
-        var tree = set.Tree;
-
-        IExportRequest? exportRequest = null;
-        using (var d = ImRaii.Disabled(ExportManager.IsExporting))
-        {
-            if (ImGui.Button("Export") && !ExportManager.IsExporting)
-            {
-                exportRequest = new ExportTreeRequest(set);
-            }
-            
-            ImGui.SameLine();
-            var selectedCount = set.EnabledModels.Count(x => x) + set.EnabledChildren.Count(x => x);
-
-            using (var s = ImRaii.Disabled(selectedCount == 0))
-            {
-                if (ImGui.Button($"Export {selectedCount} Selected") && !ExportManager.IsExporting)
-                {
-                    exportRequest = new ExportTreeRequest(set, true);
-                }
-            }
-        }
-
         if (ExportManager.IsExporting)
         {
             ImGui.SameLine();
@@ -113,6 +101,31 @@ public partial class CharacterTab
                 ExportCts?.Cancel();
             }
         }
+    }
+    
+    private void DrawCharacterTree(CharacterTreeSet set)
+    {
+        ImGui.Text($"At: {set.Time}");
+        var tree = set.Tree;
+
+        IExportRequest? exportRequest = null;
+        
+        if (DrawExportButton("Export"))
+        {
+            exportRequest = new ExportTreeRequest(set);
+        }
+        
+        ImGui.SameLine();
+        var selectedCount = set.EnabledModels.Count(x => x) + set.EnabledChildren.Count(x => x);
+        using (var s = ImRaii.Disabled(selectedCount == 0))
+        {
+            if (DrawExportButton($"Export {selectedCount} Selected"))
+            {
+                exportRequest = new ExportTreeRequest(set, true);
+            }
+        }
+
+        DrawCancelExportButton();
         
         ImGui.SameLine();
         if (ImGui.Button("Open export folder"))
@@ -191,18 +204,11 @@ public partial class CharacterTab
                     tree.CustomizeParameter, ExportCts.Token);
                 break;
             case MaterialExportRequest mer:
-                ExportTask = Task.Run(() =>
-                {
-                    try
-                    {
-                        var dir = Path.Combine(Plugin.TempDirectory, "Materials", $"{mer.Material.ShaderPackage.Name}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}");
-                        ExportManager.ExportMaterial(mer.Material, logger, dir, tree.CustomizeParameter);
-                    }
-                    catch (Exception e)
-                    {
-                        logger.Log(ExportLogger.LogEventLevel.Error, e.Message);
-                    }
-                });
+                ExportTask = ExportManager.ExportMaterial(
+                    mer.Material,
+                    logger,
+                    tree.CustomizeParameter,
+                    ExportCts.Token);
                 break;
         }
     }
@@ -429,13 +435,12 @@ public partial class CharacterTab
         using var modelNode = ImRaii.TreeNode($"{displayPath}##{model.GetHashCode()}", ImGuiTreeNodeFlags.CollapsingHeader);
         if (!modelNode.Success) return;
         
-        using (var d = ImRaii.Disabled(ExportManager.IsExporting))
+        if (DrawExportButton($"Export##{model.GetHashCode()}{index}"))
         {
-            if (ImGui.SmallButton($"Export##{model.GetHashCode()}{index}") && (ExportTask?.IsCompleted ?? true))
-            {
-                exportRequest = new ExportModelRequest(model);
-            }
+            exportRequest = new ExportModelRequest(model);
         }
+        
+        DrawCancelExportButton();
         
         ImGui.Text($"Handle Path: {model.HandlePath}");
         ImGui.Text($"Resolved Path: {model.ResolvedPath}");
@@ -527,8 +532,9 @@ public partial class CharacterTab
     
     private void DrawMaterial(Material material, out bool export)
     {
-        export = ImGui.Button($"Export Textures##{material.GetHashCode()}");
-        
+        export = DrawExportButton($"Export Textures##{material.GetHashCode()}");
+        DrawCancelExportButton();
+
         ImGui.BulletText($"{material.HandlePath}");
         if (ImGui.IsItemHovered())
         {

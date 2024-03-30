@@ -32,8 +32,6 @@ public unsafe partial class CharacterTab : ITab
     public string Name => "Character";
 
     public int Order => 0;
-    public bool Enabled { get; set; }
-
     private IPluginLog Log { get; }
     private DalamudPluginInterface PluginInterface { get; }
     public Configuration Configuration { get; }
@@ -44,6 +42,7 @@ public unsafe partial class CharacterTab : ITab
 
     public void Draw()
     {
+        if (Plugin.CsResolved == false) return;
         DrawObjectPicker();
     }
 
@@ -51,29 +50,27 @@ public unsafe partial class CharacterTab : ITab
     {
         Character[] objects;
         if (ClientState.LocalPlayer != null)
+        {
             objects = ObjectTable.OfType<Character>()
                                  .Where(obj => obj.IsValid() && IsHuman(obj))
                                  .OrderBy(c => GetCharacterDistance(c).LengthSquared())
                                  .ToArray();
+        }
         else
         {
-            try
+            // Lobby :)
+            var chara = CharaSelectCharacterList.GetCurrentCharacter();
+            if (chara != null)
             {
-                // Lobby :)
-                var chara = CharaSelectCharacterList.GetCurrentCharacter();
-                if (chara != null)
-                    objects = new[] { (Character)Activator.CreateInstance(typeof(Character), BindingFlags.NonPublic | BindingFlags.Instance, null, new[] { (object?)(nint)chara }, null)! };
-                else
-                    objects = Array.Empty<Character>();
+                objects = new[] { (Character)Activator.CreateInstance(typeof(Character), BindingFlags.NonPublic | BindingFlags.Instance, null, new[] { (object?)(nint)chara }, null)! };
             }
-            catch
+            else
             {
-                return;
+                objects = Array.Empty<Character>();
             }
-
         }
 
-        if (ClientState.IsGPosing)
+        /*if (ClientState.IsGPosing)
         {
             // Within gpose, only show characters that are gpose actors
             objects = objects.Where(x => x.ObjectIndex is >= 201 and < 239).ToArray();
@@ -84,7 +81,7 @@ public unsafe partial class CharacterTab : ITab
         {
             if (SelectedCharacter?.ObjectIndex is >= 201 and < 239)
                 SelectedCharacter = null;
-        }
+        }*/
 
         if (SelectedCharacter != null && !SelectedCharacter.IsValid())
         {

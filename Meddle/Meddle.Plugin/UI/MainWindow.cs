@@ -30,7 +30,6 @@ public sealed class MainWindow : Window, IDisposable
         using var tabBar = ImRaii.TabBar("##meddleTabs");
         foreach (var tab in Tabs)
         {
-            if (tab.Enabled == false) continue;
             using var tabItem = ImRaii.TabItem(tab.Name);
             try
             {

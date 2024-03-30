@@ -292,35 +292,58 @@ public partial class ExportManager
         return materials;
     }
     
-    public static void ExportMaterial(Material material, ExportLogger logger, string directory, CustomizeParameters? customizeParameters = null)
-    { 
-        logger.Log(ExportLogger.LogEventLevel.Information, "Exporting material textures");
-        Directory.CreateDirectory(directory);
-        
-        foreach (var texture in material.Textures)
-        {
-            logger.Log(ExportLogger.LogEventLevel.Information, $"Exporting texture {texture.Usage}");
-            var skTexture = texture.Resource.ToTexture();
-            var name = $"{texture.Usage}_{texture.Resource.Format}_xivraw.png";
-            var path = Path.Combine(directory, name);
-            using var outStream = File.OpenWrite(path);
-            skTexture.Bitmap.Encode(SKEncodedImageFormat.Png, 100).SaveTo(outStream);
-        }
-        
-        logger.Log(ExportLogger.LogEventLevel.Information, "Parsing material");
-        var materialBuilder = ParseMaterial(material, Path.GetFileName(material.HandlePath), customizeParameters);
+    public async Task ExportMaterial(Material material, 
+                    ExportLogger logger, 
+                    CustomizeParameters? customizeParameters = null,
+                    CancellationToken cancellationToken = default)
+    {        
+        if (IsExporting)
+            throw new InvalidOperationException("Already exporting.");
 
-        foreach (var channel in materialBuilder.Channels)
+        IsExporting = true;
+        await Task.Run(async () =>
         {
-            if (channel.Texture.PrimaryImage == null) continue;
-            logger.Log(ExportLogger.LogEventLevel.Information, $"Exporting channel {channel.Key}");
-            var image = channel.Texture.PrimaryImage;
-            var name = $"{channel.Key}.{image.Content.FileExtension}";
-            image.Content.SaveToFile(Path.Combine(directory, name));
-        }
-        
-        logger.Log(ExportLogger.LogEventLevel.Information, "Exported material textures");
-        Process.Start("explorer.exe", directory);
+            try
+            {
+                var directory = Path.Combine(Plugin.TempDirectory, "Materials", 
+                    $"{material.ShaderPackage.Name}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}");
+                logger.Log(ExportLogger.LogEventLevel.Information, "Exporting material textures");
+                Directory.CreateDirectory(directory);
+
+                foreach (var texture in material.Textures)
+                {
+                    logger.Log(ExportLogger.LogEventLevel.Information, $"Exporting texture {texture.Usage}");
+                    var skTexture = texture.Resource.ToTexture();
+                    var name = $"{texture.Usage}_{texture.Resource.Format}_xivraw.png";
+                    var path = Path.Combine(directory, name);
+                    await using var outStream = File.OpenWrite(path);
+                    skTexture.Bitmap.Encode(SKEncodedImageFormat.Png, 100).SaveTo(outStream);
+                }
+
+                logger.Log(ExportLogger.LogEventLevel.Information, "Parsing material");
+                var materialBuilder =
+                    ParseMaterial(material, Path.GetFileName(material.HandlePath), customizeParameters);
+
+                foreach (var channel in materialBuilder.Channels)
+                {
+                    if (channel.Texture.PrimaryImage == null) continue;
+                    logger.Log(ExportLogger.LogEventLevel.Information, $"Exporting channel {channel.Key}");
+                    var image = channel.Texture.PrimaryImage;
+                    var name = $"{channel.Key}.{image.Content.FileExtension}";
+                    image.Content.SaveToFile(Path.Combine(directory, name));
+                }
+
+                logger.Log(ExportLogger.LogEventLevel.Information, "Exported material textures");
+                Process.Start("explorer.exe", directory);
+            }
+            catch (Exception e)
+            {
+                logger.Error(e, "Failed to export material textures");
+            } finally
+            {
+                IsExporting = false;
+            }
+        }, cancellationToken);
     }
     
     public static MaterialBuilder ParseMaterial(Material material, string name, CustomizeParameters? customizeParameter = null)
