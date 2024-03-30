@@ -124,7 +124,9 @@ public class MeshBuilder
                     if (baseIdx < subMeshStart || baseIdx >= subMeshEnd) continue; // different submesh?
                     var triIdx = (baseIdx - subMeshStart) / 3;
                     var vertexIdx = (baseIdx - subMeshStart) % 3;
-
+                    
+                    if (triangles.Count <= triIdx) continue;
+                    
                     var triA = triangles[triIdx];
                     var vertexA = vertices[vertexIdx switch
                     {
