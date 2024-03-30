@@ -14,12 +14,13 @@ namespace Meddle.Plugin.UI;
 
 public unsafe partial class CharacterTab : ITab
 {
-    public CharacterTab(DalamudPluginInterface pluginInterface,
-                        Configuration configuration,
-                        IObjectTable objectTable,
-                        IClientState clientState,
-                        ExportManager exportManager,
-                        IPluginLog log)
+    public CharacterTab(
+        DalamudPluginInterface pluginInterface,
+        Configuration configuration,
+        IObjectTable objectTable,
+        IClientState clientState,
+        ExportManager exportManager,
+        IPluginLog log)
     {
         Log = log;
         PluginInterface = pluginInterface;
@@ -28,6 +29,7 @@ public unsafe partial class CharacterTab : ITab
         ClientState = clientState;
         ExportManager = exportManager;
     }
+
     public string Name => "Character";
 
     public int Order => 0;
@@ -61,7 +63,12 @@ public unsafe partial class CharacterTab : ITab
             var chara = CharaSelectCharacterList.GetCurrentCharacter();
             if (chara != null)
             {
-                objects = new[] { (Character)Activator.CreateInstance(typeof(Character), BindingFlags.NonPublic | BindingFlags.Instance, null, new[] { (object?)(nint)chara }, null)! };
+                objects = new[]
+                {
+                    (Character)Activator.CreateInstance(typeof(Character),
+                                                        BindingFlags.NonPublic | BindingFlags.Instance, null,
+                                                        new[] {(object?)(nint)chara}, null)!
+                };
             }
             else
             {
@@ -114,7 +121,7 @@ public unsafe partial class CharacterTab : ITab
             {
                 DrawPoseInfo(SelectedCharacter);
             }
-            
+
             if (ImGui.CollapsingHeader($"Character Tree", ImGuiTreeNodeFlags.DefaultOpen))
             {
                 DrawCharacterTree(SelectedCharacter);
@@ -126,7 +133,7 @@ public unsafe partial class CharacterTab : ITab
             ImGui.Text("No character selected");
         }
     }
-    
+
     private bool DrawExportButton(string text)
     {
         using var d = ImRaii.Disabled(ExportManager.IsExporting);
@@ -145,16 +152,16 @@ public unsafe partial class CharacterTab : ITab
             }
         }
     }
-    
-    private Vector3 GetDistanceToLocalPlayer(GameObject obj) {
-        if (ClientState.LocalPlayer is { Position: var charPos })
+
+    private Vector3 GetDistanceToLocalPlayer(GameObject obj)
+    {
+        if (ClientState.LocalPlayer is {Position: var charPos})
             return Vector3.Abs(obj.Position - charPos);
         return new Vector3(obj.YalmDistanceX, 0, obj.YalmDistanceZ);
     }
 
     private string GetCharacterDisplayText(Character obj) =>
         $"{obj.Address:X8}:{obj.ObjectId:X} - {obj.ObjectKind} - {(string.IsNullOrWhiteSpace(obj.Name.TextValue) ? "Unnamed" : obj.Name.TextValue)} - {GetDistanceToLocalPlayer(obj).Length():0.00}y";
-
 
 
     public void Dispose()

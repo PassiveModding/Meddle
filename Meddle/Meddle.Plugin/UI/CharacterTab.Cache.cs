@@ -22,7 +22,7 @@ public partial class CharacterTab
     {
         if (CharacterTreeCache != null)
         {
-            if (character != CharacterTreeCache.Character || 
+            if (character != CharacterTreeCache.Character ||
                 character.ObjectId != CharacterTreeCache.Character.ObjectId)
             {
                 CharacterTreeCache = null;
@@ -39,14 +39,14 @@ public partial class CharacterTab
             var address = (CSCharacter*)character.Address;
             var tree = new CharacterTree(address);
             CharacterTreeCache = new CharacterTreeSet(
-                character, 
+                character,
                 tree,
                 new ExportLogger(Log),
                 DateTime.Now,
                 new bool[tree.Models.Count],
                 new bool[tree.AttachedChildren.Count]);
         }
-        
+
         return CharacterTreeCache;
     }
 
@@ -60,21 +60,22 @@ public partial class CharacterTab
                 tree = InitTree(character, true);
             }
         }
+
         DrawCharacterTree(tree);
     }
-    
+
     private void DrawCharacterTree(CharacterTreeSet set)
     {
         ImGui.Text($"At: {set.Time}");
         var tree = set.Tree;
 
         IExportRequest? exportRequest = null;
-        
+
         if (DrawExportButton("Export"))
         {
             exportRequest = new ExportTreeRequest(set);
         }
-        
+
         ImGui.SameLine();
         var selectedCount = set.EnabledModels.Count(x => x) + set.EnabledAttaches.Count(x => x);
         using (var s = ImRaii.Disabled(selectedCount == 0))
@@ -86,7 +87,7 @@ public partial class CharacterTab
         }
 
         DrawCancelExportButton();
-        
+
         ImGui.SameLine();
         if (ImGui.Button("Open export folder"))
         {
@@ -98,6 +99,7 @@ public partial class CharacterTab
         {
             DrawCustomizeParameters(tree);
         }
+
         var enabledModels = set.EnabledModels;
         var enabledAttaches = set.EnabledAttaches;
         DrawModelView(tree, ref enabledModels, out var modelViewExport);
@@ -111,10 +113,10 @@ public partial class CharacterTab
         {
             return;
         }
-        
+
         ExportCts?.Cancel();
         ExportCts = new();
-        
+
         switch (request)
         {
             case ExportAttachRequest ear:
@@ -167,6 +169,7 @@ public partial class CharacterTab
                         tree,
                         ExportCts.Token);
                 }
+
                 break;
             case ExportModelRequest emr:
                 ExportTask = ExportManager.Export(
@@ -177,9 +180,9 @@ public partial class CharacterTab
                         IncludeReaperEye = false,
                         OpenFolderWhenComplete = true,
                         ParallelBuild = Configuration.ParallelBuild
-                    }, [emr.Model], [], 
-                    emr.SkeletonOverride ?? tree.Skeleton, 
-                    tree.RaceCode ?? 0, 
+                    }, [emr.Model], [],
+                    emr.SkeletonOverride ?? tree.Skeleton,
+                    tree.RaceCode ?? 0,
                     tree.CustomizeParameter, ExportCts.Token);
                 break;
             case MaterialExportRequest mer:
@@ -191,7 +194,7 @@ public partial class CharacterTab
                 break;
         }
     }
-    
+
     private static void DrawCustomizeParameters(CharacterTree tree)
     {
         ImGui.Text("Customize");
@@ -202,21 +205,21 @@ public partial class CharacterTab
         }
 
         var c = tree.CustomizeParameter;
-        
+
         var sk3 = new Vector3(c.SkinColor.X, c.SkinColor.Y, c.SkinColor.Z);
         if (DrawColorEdit3("Skin Color", sk3, out var sc3))
         {
             c.SkinColor = new Vector4(sc3.X, sc3.Y, sc3.Z, c.SkinColor.W);
         }
-        
+
         if (DrawColorEdit4("Lip Color", c.LipColor, out var lc4))
         {
             c.LipColor = lc4;
         }
-        
+
         ImGui.SameLine();
         ImGui.Checkbox("Apply Lip Color", ref c.ApplyLipColor);
-        
+
         // info hover for lip
         ImGui.SameLine();
         ImGui.TextDisabled("(?)");
@@ -224,27 +227,27 @@ public partial class CharacterTab
         {
             ImGui.SetTooltip("Lip color does not apply to Hrothgar");
         }
-        
+
         if (DrawColorEdit3("Hair Color", c.MainColor, out var hc3))
         {
             c.MainColor = hc3;
         }
-        
+
         if (DrawColorEdit3("Hair Highlight", c.MeshColor, out var hh3))
         {
             c.MeshColor = hh3;
         }
-        
+
         if (DrawColorEdit4("Left Iris", c.LeftColor, out var ic4))
         {
             c.LeftColor = ic4;
         }
-        
+
         if (DrawColorEdit3("Race Feature", c.OptionColor, out var oc3))
         {
             c.OptionColor = oc3;
         }
-        
+
         ImGui.SameLine();
         ImGui.TextDisabled("(?)");
         if (ImGui.IsItemHovered())
@@ -291,7 +294,7 @@ public partial class CharacterTab
                 {
                     set[i] = check;
                 }
-                
+
                 ImGui.SameLine();
 
                 if (ImGui.CollapsingHeader($"Attach at {bone ?? "unknown"}##{child.GetHashCode()}"))
@@ -322,7 +325,7 @@ public partial class CharacterTab
             }
         }
     }
-    
+
     private void DrawModelView(CharacterTree tree, ref bool[] set, out IExportRequest? exportRequest)
     {
         exportRequest = null!;
@@ -331,7 +334,7 @@ public partial class CharacterTab
             ImGui.Text("No models found. Try refreshing.");
             return;
         }
-        
+
         ImGui.Text("Models");
         using var mainTable = ImRaii.Table("Models", 1, ImGuiTableFlags.Borders);
         for (var i = 0; i < tree.Models.Count; i++)
@@ -343,16 +346,17 @@ public partial class CharacterTab
             {
                 set[i] = check;
             }
+
             ImGui.SameLine();
             DrawModel(model, out var er);
-            
+
             if (er != null)
             {
                 exportRequest = er;
             }
         }
     }
-    
+
     private void DrawModel(Model model, out IExportRequest? exportRequest)
     {
         exportRequest = null!;
@@ -365,17 +369,18 @@ public partial class CharacterTab
         {
             displayPath = model.HandlePath;
         }
-        
-        using var modelNode = ImRaii.TreeNode($"{displayPath}##{model.GetHashCode()}", ImGuiTreeNodeFlags.CollapsingHeader);
+
+        using var modelNode =
+            ImRaii.TreeNode($"{displayPath}##{model.GetHashCode()}", ImGuiTreeNodeFlags.CollapsingHeader);
         if (!modelNode.Success) return;
-        
+
         if (DrawExportButton($"Export##{model.GetHashCode()}"))
         {
             exportRequest = new ExportModelRequest(model);
         }
-        
+
         DrawCancelExportButton();
-        
+
         ImGui.Text($"Handle Path: {model.HandlePath}");
         ImGui.Text($"Resolved Path: {model.ResolvedPath}");
 
@@ -403,10 +408,11 @@ public partial class CharacterTab
             {
                 exportRequest = new MaterialExportRequest(material);
             }
+
             ImGui.Unindent();
             ImGui.Separator();
         }
-        
+
         for (var m = 0; m < model.Meshes.Count; m++)
         {
             var mesh = model.Meshes[m];

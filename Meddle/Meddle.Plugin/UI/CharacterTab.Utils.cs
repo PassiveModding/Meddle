@@ -36,7 +36,7 @@ public unsafe partial class CharacterTab : ITab
             }
         }
     }
-    
+
     private static bool DrawColorEdit3(string label, Vector3 vec, out Vector3 result)
     {
         var v = new Vector3(vec.X, vec.Y, vec.Z);
@@ -49,7 +49,7 @@ public unsafe partial class CharacterTab : ITab
         result = vec;
         return false;
     }
-    
+
     private static bool DrawColorEdit4(string label, Vector4 vec, out Vector4 result)
     {
         var v = new Vector4(vec.X, vec.Y, vec.Z, vec.W);
@@ -62,7 +62,7 @@ public unsafe partial class CharacterTab : ITab
         result = vec;
         return false;
     }
-    
+
     private static bool IsHuman(Character obj)
     {
         var drawObject = ((CSCharacter*)obj.Address)->GameObject.DrawObject;
@@ -74,7 +74,7 @@ public unsafe partial class CharacterTab : ITab
             return false;
         return true;
     }
-    
+
     private static void DrawMesh(Mesh mesh)
     {
         ImGui.Text($"Vertices: {mesh.Vertices.Count}");
@@ -97,7 +97,7 @@ public unsafe partial class CharacterTab : ITab
                 }
             }
         }
-        
+
         ImGui.Text($"Submeshes: {mesh.SubMeshes.Count}");
         using (var smtable = ImRaii.Table("SubMeshTable", 4, ImGuiTableFlags.Borders))
         {
@@ -121,7 +121,7 @@ public unsafe partial class CharacterTab : ITab
             }
         }
     }
-    
+
     private static void DrawMaterial(Material material)
     {
         ImGui.BulletText($"{material.HandlePath}");
@@ -137,7 +137,7 @@ public unsafe partial class CharacterTab : ITab
             ImGui.TableSetupColumn("Texture Usage", ImGuiTableColumnFlags.WidthFixed, 120);
             ImGui.TableSetupColumn("Path", ImGuiTableColumnFlags.WidthStretch);
             ImGui.TableHeadersRow();
-            
+
             foreach (var texture in material.Textures)
             {
                 ImGui.TableNextRow();
@@ -154,7 +154,7 @@ public unsafe partial class CharacterTab : ITab
                 DrawColorTable(material.ColorTable);
         }
     }
-    
+
     private static void DrawColorTable(ColorTable table)
     {
         using var rt = ImRaii.Table("ColorTable", 4, ImGuiTableFlags.Borders);
@@ -164,7 +164,7 @@ public unsafe partial class CharacterTab : ITab
         ImGui.TableSetupColumn("Specular", ImGuiTableColumnFlags.WidthFixed, 50);
         ImGui.TableSetupColumn("Emissive", ImGuiTableColumnFlags.WidthFixed, 50);
         ImGui.TableHeadersRow();
-        
+
         for (var i = 0; i < table.Rows.Length; i++)
         {
             var row = table.Rows[i];
@@ -180,7 +180,6 @@ public unsafe partial class CharacterTab : ITab
             ImGui.TableNextColumn();
             ImGui.ColorButton("##Emissive", new Vector4(row.Emissive.X, row.Emissive.Y, row.Emissive.Z, 1),
                               ImGuiColorEditFlags.NoAlpha);
-                
         }
     }
 }

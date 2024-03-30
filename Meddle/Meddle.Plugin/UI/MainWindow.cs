@@ -21,12 +21,12 @@ public sealed class MainWindow : Window, IDisposable
             MinimumSize = new Vector2(375, 350),
             MaximumSize = new Vector2(1200, 1000),
         };
-        
+
         IsOpen = config.AutoOpen;
     }
 
     private string? lastError;
-    
+
     public override void Draw()
     {
         using var tabBar = ImRaii.TabBar("##meddleTabs");
@@ -48,7 +48,7 @@ public sealed class MainWindow : Window, IDisposable
                     lastError = errStr;
                     Log.Error(e, $"Failed to draw {tab.Name}");
                 }
-                
+
                 ImGui.TextColored(new Vector4(1, 0, 0, 1), $"Failed to draw {tab.Name} tab");
                 ImGui.TextWrapped(e.ToString());
             }

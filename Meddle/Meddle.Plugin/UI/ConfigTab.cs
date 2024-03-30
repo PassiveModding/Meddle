@@ -24,7 +24,7 @@ public sealed class ConfigTab : ITab
             Config.AutoOpen = autoOpen;
             Config.Save();
         }
-        
+
         var parallelBuild = Config.ParallelBuild;
         if (ImGui.Checkbox("Parallel build", ref parallelBuild))
         {
@@ -33,8 +33,5 @@ public sealed class ConfigTab : ITab
         }
     }
 
-    public void Dispose()
-    {
-        
-    }
+    public void Dispose() { }
 }
