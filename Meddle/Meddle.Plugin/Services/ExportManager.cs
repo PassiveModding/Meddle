@@ -15,12 +15,13 @@ using RaceDeformer = Meddle.Plugin.Xande.RaceDeformer;
 
 namespace Meddle.Plugin.Services;
 
-public partial class ExportManager
+public partial class ExportManager : IDisposable
 {
     public IPluginLog Log { get; }
     public ModelBuilder ModelBuilder { get; }
     public PbdFile Pbd { get; }
     public bool IsExporting { get; private set; }
+    public CancellationTokenSource CancellationTokenSource { get; private set; }
 
     public ExportManager(IPluginLog log, IDataManager gameData, ModelBuilder modelBuilder)
     {
@@ -30,21 +31,24 @@ public partial class ExportManager
             gameData.GetFile("chara/xls/boneDeformer/human.pbd") ??
             throw new InvalidOperationException("Failed to load PBD file");
         Pbd = new PbdFile(fileContent.Data);
+        CancellationTokenSource = new CancellationTokenSource();
     }
 
 
     public async Task Export(
-        ExportLogger logger, ExportConfig config, CharacterTree characterTree, CancellationToken cancellationToken)
+        ExportLogger logger, ExportConfig config, CharacterTree characterTree)
     {
         if (IsExporting)
             throw new InvalidOperationException("Already exporting.");
+        
+        CancellationTokenSource = new CancellationTokenSource();
 
         IsExporting = true;
         await Task.Run(() =>
         {
             try
             {
-                ExportInternal(logger, config, characterTree, cancellationToken);
+                ExportInternal(logger, config, characterTree);
             }
             catch (OperationCanceledException)
             {
@@ -57,7 +61,7 @@ public partial class ExportManager
             {
                 IsExporting = false;
             }
-        }, cancellationToken);
+        }, CancellationTokenSource.Token);
     }
 
     public async Task Export(
@@ -65,10 +69,12 @@ public partial class ExportManager
         Model[] models, 
         AttachedChild[] attachedChildren,
         Skeleton skeleton, GenderRace targetRace,
-        CustomizeParameters? customizeParameter, CancellationToken cancellationToken)
+        CustomizeParameters? customizeParameter)
     {
         if (IsExporting)
             throw new InvalidOperationException("Already exporting.");
+        
+        CancellationTokenSource = new CancellationTokenSource();
 
         if (models.Length == 0 && attachedChildren.Length == 0)
             throw new ArgumentException("No models to export");
@@ -89,7 +95,7 @@ public partial class ExportManager
                 ForEach(models, model =>
                 {
                     HandleModel(logger, config, model, targetRace, scene, boneMap, Matrix4x4.Identity,
-                                customizeParameter, cancellationToken);
+                                customizeParameter);
                 }, config.ParallelBuild);
                 
                 for (var i = 0; i < attachedChildren.Length; i++)
@@ -104,7 +110,7 @@ public partial class ExportManager
                         HandleModel(logger, config, model, targetRace, scene,
                                     childInfo.childBoneMap.ToArray(),
                                     childInfo.worldPosition,
-                                    customizeParameter, cancellationToken);
+                                    customizeParameter);
                     }
                 }
 
@@ -127,7 +133,7 @@ public partial class ExportManager
             {
                 IsExporting = false;
             }
-        }, cancellationToken);
+        }, CancellationTokenSource.Token);
     }
 
     [GeneratedRegex("^chara/human/c\\d+/obj/body/b0003/model/c\\d+b0003_top.mdl$")]
@@ -143,7 +149,7 @@ public partial class ExportManager
     }
     
     private void ExportInternal(
-        ExportLogger logger, ExportConfig config, CharacterTree character, CancellationToken cancellationToken)
+        ExportLogger logger, ExportConfig config, CharacterTree character)
     {
         var path = Path.Combine(Plugin.TempDirectory,
                                 $"{character.GetHashCode():X8}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}");
@@ -157,8 +163,8 @@ public partial class ExportManager
         {
             if (LowPolyModelRegex().IsMatch(model.Path)) return;
 
-            HandleModel(logger, config, model, character.RaceCode!.Value, scene, boneMap, Matrix4x4.Identity,
-                        character.CustomizeParameter, cancellationToken);
+            HandleModel(logger, config, model, character.RaceCode, scene, boneMap, Matrix4x4.Identity,
+                        character.CustomizeParameter);
         }, config.ParallelBuild);
 
         for (var i = 0; i < character.AttachedChildren.Count; i++)
@@ -170,10 +176,10 @@ public partial class ExportManager
             foreach (var model in child.Models)
             {
                 logger.Debug($"Handling child model {model.Path}");
-                HandleModel(logger, config, model, character.RaceCode ?? 0, scene,
+                HandleModel(logger, config, model, character.RaceCode, scene,
                             childInfo.childBoneMap.ToArray(),
                             childInfo.worldPosition,
-                            character.CustomizeParameter, cancellationToken);
+                            character.CustomizeParameter);
             }
         }
 
@@ -188,13 +194,12 @@ public partial class ExportManager
 
     private void HandleModel(
         ExportLogger logger, ExportConfig config, Model model, GenderRace targetRace, SceneBuilder scene,
-        BoneNodeBuilder[] boneMap, Matrix4x4 worldPosition, CustomizeParameters? customizeParameter,
-        CancellationToken cancellationToken = default)
+        BoneNodeBuilder[] boneMap, Matrix4x4 worldPosition, CustomizeParameters? customizeParameter)
     {
         logger.Debug($"Exporting model {model.Path}");
         var boneNodes = boneMap.Cast<NodeBuilder>().ToArray();
 
-        var materials = CreateMaterials(logger, model, customizeParameter, cancellationToken).ToArray();
+        var materials = CreateMaterials(logger, model, customizeParameter).ToArray();
 
         IEnumerable<MeshExport> meshes;
         if (model.RaceCode != GenderRace.Unknown)
@@ -275,13 +280,13 @@ public partial class ExportManager
     }
 
     private IEnumerable<MaterialBuilder> CreateMaterials(
-        ExportLogger logger, Model model, CustomizeParameters? customizeParameters, CancellationToken cancellationToken)
+        ExportLogger logger, Model model, CustomizeParameters? customizeParameters)
     {
         var materials = new MaterialBuilder[model.Materials.Count];
 
         for (var i = 0; i < model.Materials.Count; i++)
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            CancellationTokenSource.Token.ThrowIfCancellationRequested();
 
             var material = model.Materials[i];
             logger.Debug($"Exporting material {material.HandlePath}");
@@ -294,11 +299,12 @@ public partial class ExportManager
     
     public async Task ExportMaterial(Material material, 
                     ExportLogger logger, 
-                    CustomizeParameters? customizeParameters = null,
-                    CancellationToken cancellationToken = default)
+                    CustomizeParameters? customizeParameters = null)
     {        
         if (IsExporting)
             throw new InvalidOperationException("Already exporting.");
+        
+        CancellationTokenSource = new CancellationTokenSource();
 
         IsExporting = true;
         await Task.Run(async () =>
@@ -343,7 +349,7 @@ public partial class ExportManager
             {
                 IsExporting = false;
             }
-        }, cancellationToken);
+        }, CancellationTokenSource.Token);
     }
     
     public static MaterialBuilder ParseMaterial(Material material, string name, CustomizeParameters? customizeParameter = null)
@@ -359,5 +365,10 @@ public partial class ExportManager
             "skin.shpk"           => MaterialUtility.BuildSkin(material, name, SkinShaderParameters.From(customizeParameter)),
             _ => MaterialUtility.BuildFallback(material, name),
         };
+    }
+
+    public void Dispose()
+    {
+        CancellationTokenSource.Dispose();
     }
 }

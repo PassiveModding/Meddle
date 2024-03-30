@@ -134,25 +134,6 @@ public unsafe partial class CharacterTab : ITab
         }
     }
 
-    private bool DrawExportButton(string text)
-    {
-        using var d = ImRaii.Disabled(ExportManager.IsExporting);
-        return ImGui.Button(text) && !ExportManager.IsExporting;
-    }
-
-    private void DrawCancelExportButton()
-    {
-        if (ExportManager.IsExporting)
-        {
-            ImGui.SameLine();
-            using var d = ImRaii.Disabled(ExportCts?.IsCancellationRequested ?? false);
-            if (ImGui.Button("Cancel"))
-            {
-                ExportCts?.Cancel();
-            }
-        }
-    }
-
     private Vector3 GetDistanceToLocalPlayer(GameObject obj)
     {
         if (ClientState.LocalPlayer is {Position: var charPos})
@@ -166,7 +147,5 @@ public unsafe partial class CharacterTab : ITab
 
     public void Dispose()
     {
-        ExportCts?.Cancel();
-        ExportCts?.Dispose();
     }
 }

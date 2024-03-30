@@ -67,6 +67,19 @@ public unsafe partial class CharacterTab
                                                             new JsonSerializerOptions()
                                                                 {WriteIndented = true, IncludeFields = true}));
     }
+    
+    
+    public static bool IsHuman(Character obj)
+    {
+        var drawObject = ((CSCharacter*)obj.Address)->GameObject.DrawObject;
+        if (drawObject == null)
+            return false;
+        if (drawObject->Object.GetObjectType() != ObjectType.CharacterBase)
+            return false;
+        if (((CharacterBase*)drawObject)->GetModelType() != CharacterBase.ModelType.Human)
+            return false;
+        return true;
+    }
 
     private static void DrawWeaponData(DrawObjectData data)
     {

@@ -2,16 +2,20 @@
 using Dalamud.Interface.Utility.Raii;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using ImGuiNET;
+using Meddle.Plugin.Enums;
 using Meddle.Plugin.Models;
+using Meddle.Plugin.Models.Config;
+using Meddle.Plugin.Models.ExportRequest;
+using Meddle.Plugin.Services;
 using Meddle.Plugin.Utility;
 using Character = Dalamud.Game.ClientState.Objects.Types.Character;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
 
 namespace Meddle.Plugin.UI;
 
-public unsafe partial class CharacterTab : ITab
+public partial class CharacterTab : ITab
 {
-    private static void DrawLogMessage(ExportLogger logger)
+    public static void DrawLogMessage(ExportLogger logger)
     {
         var (level, message) = logger.GetLastLog();
         if (message != null)
@@ -36,8 +40,252 @@ public unsafe partial class CharacterTab : ITab
             }
         }
     }
+    
+    public static void HandleExportRequest(IExportRequest? request, ExportLogger logger, ExportManager exportManager, Configuration configuration)
+    {
+        if (request == null)
+        {
+            return;
+        }
+        
+        exportManager.CancellationTokenSource?.Cancel();
+        
+        
+        switch (request)
+        {
+            case ExportAttachRequest ear:
+                Task.Run(async () => 
+                    await exportManager.Export(
+                        logger,
+                        new ExportConfig
+                        {
+                            ExportType = ExportType.Gltf,
+                            IncludeReaperEye = false,
+                            OpenFolderWhenComplete = true,
+                            ParallelBuild = configuration.ParallelBuild
+                        },
+                        ear.Child.Models.ToArray(),
+                        [],
+                        ear.Child.Skeleton,
+                        ear.RaceCode ?? 0,
+                        ear.CustomizeParameters));
+                break;
+            case ExportPartialTreeRequest eptr:
+                    Task.Run(async () => 
+                        await exportManager.Export(
+                             logger,
+                             new ExportConfig
+                             {
+                                 ExportType = ExportType.Gltf,
+                                 IncludeReaperEye = false,
+                                 OpenFolderWhenComplete = true,
+                                 ParallelBuild = configuration.ParallelBuild
+                             },
+                             eptr.SelectedModels,
+                             eptr.AttachedChildren,
+                             eptr.Skeleton,
+                             eptr.RaceCode ?? 0,
+                             eptr.CustomizeParameters));
+                    break;
+            case ExportTreeRequest etr:
+                    Task.Run(async () => 
+                        await exportManager.Export(
+                             logger,
+                             new ExportConfig
+                             {
+                                 ExportType = ExportType.Gltf,
+                                 IncludeReaperEye = false,
+                                 OpenFolderWhenComplete = true,
+                                 ParallelBuild = configuration.ParallelBuild
+                             },
+                             etr.Tree));
+                break;
+            case ExportModelRequest emr:
+                Task.Run(async () => 
+                    await exportManager.Export(
+                         logger,
+                         new ExportConfig
+                         {
+                             ExportType = ExportType.Gltf,
+                             IncludeReaperEye = false,
+                             OpenFolderWhenComplete = true,
+                             ParallelBuild = configuration.ParallelBuild
+                         }, [emr.Model], [],
+                         emr.Skeleton,
+                         emr.RaceCode ?? 0,
+                         emr.CustomizeParameters));
+                break;
+            case MaterialExportRequest mer:
+                Task.Run(async () => 
+                    await exportManager.ExportMaterial(
+                         mer.Material,
+                         logger,
+                         mer.CustomizeParameters));
+                break;
+        }
+    }
+    
+    public static void DrawModel(Model model, bool isExporting, CancellationTokenSource? cts, out Material? materialExport, out Model? modelExport)
+    {
+        materialExport = null;
+        modelExport = null;
+        var displayPath = model.ResolvedPath;
+        if (displayPath != null && model.HandlePath != model.ResolvedPath)
+        {
+            displayPath = $"{model.ResolvedPath} -> {model.HandlePath}";
+        }
+        else
+        {
+            displayPath = model.HandlePath;
+        }
 
-    private static bool DrawColorEdit3(string label, Vector3 vec, out Vector3 result)
+        using var modelNode =
+            ImRaii.TreeNode($"{displayPath}##{model.GetHashCode()}", ImGuiTreeNodeFlags.CollapsingHeader);
+        if (!modelNode.Success) return;
+
+        if (DrawExportButton($"Export##{model.GetHashCode()}", isExporting))
+        {
+            modelExport = model;
+        }
+
+        DrawCancelExportButton(isExporting, cts);
+
+        ImGui.Text($"Handle Path: {model.HandlePath}");
+        ImGui.Text($"Resolved Path: {model.ResolvedPath}");
+
+        if (model.Shapes.Count > 0)
+        {
+            ImGui.TextWrapped($"Shapes: {string.Join(", ", model.Shapes.Select(x => x.Name))}");
+            ImGui.TextWrapped($"Enabled Shapes: {string.Join(", ", model.EnabledShapes)}");
+        }
+
+        if (model.EnabledAttributes.Count > 0)
+        {
+            ImGui.TextWrapped($"Enabled Attributes: {string.Join(", ", model.EnabledAttributes)}");
+        }
+
+        // Display Materials
+        for (var m = 0; m < model.Materials.Count; m++)
+        {
+            var material = model.Materials[m];
+            ImGui.Text($"Material #{m}");
+            ImGui.Indent();
+            var export = DrawExportButton($"Export Textures##{material.GetHashCode()}", isExporting);
+            DrawCancelExportButton(isExporting, cts);
+            DrawMaterial(material);
+            if (export)
+            {
+                materialExport = material;
+            }
+
+            ImGui.Unindent();
+            ImGui.Separator();
+        }
+
+        for (var m = 0; m < model.Meshes.Count; m++)
+        {
+            var mesh = model.Meshes[m];
+            ImGui.Text($"Mesh #{m}");
+            ImGui.Indent();
+            DrawMesh(mesh);
+            ImGui.Unindent();
+            ImGui.Separator();
+        }
+    }
+    
+    public static void DrawCustomizeParameters(CharacterTree tree)
+    {
+        ImGui.Text("Customize");
+        if (tree.CustomizeParameter == null)
+        {
+            ImGui.Text("No customize parameters");
+            return;
+        }
+
+        var c = tree.CustomizeParameter;
+
+        var sk3 = new Vector3(c.SkinColor.X, c.SkinColor.Y, c.SkinColor.Z);
+        if (DrawColorEdit3("Skin Color", sk3, out var sc3))
+        {
+            c.SkinColor = new Vector4(sc3.X, sc3.Y, sc3.Z, c.SkinColor.W);
+        }
+
+        if (DrawColorEdit4("Lip Color", c.LipColor, out var lc4))
+        {
+            c.LipColor = lc4;
+        }
+
+        ImGui.SameLine();
+        ImGui.Checkbox("Apply Lip Color", ref c.ApplyLipColor);
+
+        // info hover for lip
+        ImGui.SameLine();
+        ImGui.TextDisabled("(?)");
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip("Lip color does not apply to Hrothgar");
+        }
+
+        if (DrawColorEdit3("Hair Color", c.MainColor, out var hc3))
+        {
+            c.MainColor = hc3;
+        }
+
+        if (DrawColorEdit3("Hair Highlight", c.MeshColor, out var hh3))
+        {
+            c.MeshColor = hh3;
+        }
+
+        if (DrawColorEdit4("Left Iris", c.LeftColor, out var ic4))
+        {
+            c.LeftColor = ic4;
+        }
+
+        if (DrawColorEdit3("Race Feature", c.OptionColor, out var oc3))
+        {
+            c.OptionColor = oc3;
+        }
+
+        ImGui.SameLine();
+        ImGui.TextDisabled("(?)");
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip("Tattoo Color, Limbal Ring Color, Ear Clasp Color; Varies by race");
+        }
+
+
+        // Not sure about applying separate eye colours yet
+        /*
+        var irisCol2 = c.RightColor;
+        var ic42 = new Vector4(irisCol2.X, irisCol2.Y, irisCol2.Z, irisCol2.W);
+        if (ImGui.ColorEdit4("Right Iris", ref ic42))
+        {
+            c.RightColor = ic42;
+        }*/
+
+        tree.CustomizeParameter = c;
+    }
+
+    public static bool DrawExportButton(string text, bool isExporting)
+    {
+        using var d = ImRaii.Disabled(isExporting);
+        return ImGui.Button(text) && !isExporting;
+    }
+
+    public static void DrawCancelExportButton(bool isExporting, CancellationTokenSource? cts)
+    {
+        if (isExporting)
+        {
+            ImGui.SameLine();
+            using var d = ImRaii.Disabled(cts?.IsCancellationRequested ?? false);
+            if (ImGui.Button("Cancel"))
+            {
+                cts?.Cancel();
+            }
+        }
+    }
+    
+    public static bool DrawColorEdit3(string label, Vector3 vec, out Vector3 result)
     {
         var v = new Vector3(vec.X, vec.Y, vec.Z);
         if (ImGui.ColorEdit3(label, ref v))
@@ -50,7 +298,7 @@ public unsafe partial class CharacterTab : ITab
         return false;
     }
 
-    private static bool DrawColorEdit4(string label, Vector4 vec, out Vector4 result)
+    public static bool DrawColorEdit4(string label, Vector4 vec, out Vector4 result)
     {
         var v = new Vector4(vec.X, vec.Y, vec.Z, vec.W);
         if (ImGui.ColorEdit4(label, ref v))
@@ -63,19 +311,7 @@ public unsafe partial class CharacterTab : ITab
         return false;
     }
 
-    private static bool IsHuman(Character obj)
-    {
-        var drawObject = ((CSCharacter*)obj.Address)->GameObject.DrawObject;
-        if (drawObject == null)
-            return false;
-        if (drawObject->Object.GetObjectType() != ObjectType.CharacterBase)
-            return false;
-        if (((CharacterBase*)drawObject)->GetModelType() != CharacterBase.ModelType.Human)
-            return false;
-        return true;
-    }
-
-    private static void DrawMesh(Mesh mesh)
+    public static void DrawMesh(Mesh mesh)
     {
         ImGui.Text($"Vertices: {mesh.Vertices.Count}");
         ImGui.Text($"Indices: {mesh.Indices.Count}");
@@ -84,45 +320,41 @@ public unsafe partial class CharacterTab : ITab
             ImGui.Text($"Bones: {mesh.BoneTable.Count}");
             if (ImGui.CollapsingHeader($"Bone Table##{mesh.GetHashCode()}"))
             {
-                using (var btable = ImRaii.Table("BoneTable", 1, ImGuiTableFlags.Borders))
+                using var btable = ImRaii.Table("BoneTable", 1, ImGuiTableFlags.Borders);
+                ImGui.TableSetupColumn("Bone", ImGuiTableColumnFlags.WidthStretch);
+                ImGui.TableHeadersRow();
+                foreach (var bone in mesh.BoneTable)
                 {
-                    ImGui.TableSetupColumn("Bone", ImGuiTableColumnFlags.WidthStretch);
-                    ImGui.TableHeadersRow();
-                    foreach (var bone in mesh.BoneTable)
-                    {
-                        ImGui.TableNextRow();
-                        ImGui.TableNextColumn();
-                        ImGui.Text(bone);
-                    }
+                    ImGui.TableNextRow();
+                    ImGui.TableNextColumn();
+                    ImGui.Text(bone);
                 }
             }
         }
 
         ImGui.Text($"Submeshes: {mesh.SubMeshes.Count}");
-        using (var smtable = ImRaii.Table("SubMeshTable", 4, ImGuiTableFlags.Borders))
+        using var smtable = ImRaii.Table("SubMeshTable", 4, ImGuiTableFlags.Borders);
+        ImGui.TableSetupColumn("Index", ImGuiTableColumnFlags.WidthFixed, 50);
+        ImGui.TableSetupColumn("Offset", ImGuiTableColumnFlags.WidthFixed, 50);
+        ImGui.TableSetupColumn("Count", ImGuiTableColumnFlags.WidthFixed, 50);
+        ImGui.TableSetupColumn("Attributes", ImGuiTableColumnFlags.WidthStretch);
+        ImGui.TableHeadersRow();
+        for (var i = 0; i < mesh.SubMeshes.Count; i++)
         {
-            ImGui.TableSetupColumn("Index", ImGuiTableColumnFlags.WidthFixed, 50);
-            ImGui.TableSetupColumn("Offset", ImGuiTableColumnFlags.WidthFixed, 50);
-            ImGui.TableSetupColumn("Count", ImGuiTableColumnFlags.WidthFixed, 50);
-            ImGui.TableSetupColumn("Attributes", ImGuiTableColumnFlags.WidthStretch);
-            ImGui.TableHeadersRow();
-            for (var i = 0; i < mesh.SubMeshes.Count; i++)
-            {
-                var submesh = mesh.SubMeshes[i];
-                ImGui.TableNextRow();
-                ImGui.TableNextColumn();
-                ImGui.Text($"{i}");
-                ImGui.TableNextColumn();
-                ImGui.Text($"{submesh.IndexOffset}");
-                ImGui.TableNextColumn();
-                ImGui.Text($"{submesh.IndexCount}");
-                ImGui.TableNextColumn();
-                ImGui.Text($"{string.Join(", ", submesh.Attributes)}");
-            }
+            var submesh = mesh.SubMeshes[i];
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
+            ImGui.Text($"{i}");
+            ImGui.TableNextColumn();
+            ImGui.Text($"{submesh.IndexOffset}");
+            ImGui.TableNextColumn();
+            ImGui.Text($"{submesh.IndexCount}");
+            ImGui.TableNextColumn();
+            ImGui.Text($"{string.Join(", ", submesh.Attributes)}");
         }
     }
 
-    private static void DrawMaterial(Material material)
+    public static void DrawMaterial(Material material)
     {
         ImGui.BulletText($"{material.HandlePath}");
         if (ImGui.IsItemHovered())
@@ -155,7 +387,7 @@ public unsafe partial class CharacterTab : ITab
         }
     }
 
-    private static void DrawColorTable(ColorTable table)
+    public static void DrawColorTable(ColorTable table)
     {
         using var rt = ImRaii.Table("ColorTable", 4, ImGuiTableFlags.Borders);
         // headers
