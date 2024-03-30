@@ -165,10 +165,13 @@ public class ObjectTab : ITab
                 var bone = skeleton.HkSkeleton!.BoneNames[child.Attach.BoneIdx];
                 if (ImGui.CollapsingHeader($"Attach at {bone ?? "unknown"}##{child.GetHashCode()}"))
                 {
+                    if (child.Attach.OffsetTransform is { } ct)
+                    {
+                        ImGui.Text($"Position: {ct.Translation}");
+                        ImGui.Text($"Rotation: {ct.Rotation}");
+                        ImGui.Text($"Scale: {ct.Scale}");
+                    }
                     
-                    ImGui.Text($"Position: {child.Attach.OffsetTransform.Translation}");
-                    ImGui.Text($"Rotation: {child.Attach.OffsetTransform.Rotation}");
-                    ImGui.Text($"Scale: {child.Attach.OffsetTransform.Scale}");
                     ImGui.Text($"Execute Type: {child.Attach.ExecuteType}");
                     using var table = ImRaii.Table("##attachmodels", 1, ImGuiTableFlags.Borders);
                     foreach (var model in child.Models)

@@ -129,19 +129,28 @@ public partial class CharacterTab
                 var bone = skeleton.HkSkeleton!.BoneNames[child.Attach.BoneIdx];
 
                 ImGui.TableNextColumn();
-                var check = set[i];
-                if (ImGui.Checkbox($"##{child.GetHashCode()}", ref check))
-                {
-                    set[i] = check;
-                }
 
-                ImGui.SameLine();
+                // other execute types are a lil broken still
+                if (child.Attach.ExecuteType == 4)
+                {
+                    var check = set[i];
+                    if (ImGui.Checkbox($"##{child.GetHashCode()}", ref check))
+                    {
+                        set[i] = check;
+                    }
+
+                    ImGui.SameLine();
+                }
 
                 if (ImGui.CollapsingHeader($"Attach at {bone ?? "unknown"}##{child.GetHashCode()}"))
                 {
-                    ImGui.Text($"Position: {child.Attach.OffsetTransform.Translation}");
-                    ImGui.Text($"Rotation: {child.Attach.OffsetTransform.Rotation}");
-                    ImGui.Text($"Scale: {child.Attach.OffsetTransform.Scale}");
+                    if (child.Attach.OffsetTransform is { } ct)
+                    {
+                        ImGui.Text($"Position: {ct.Translation}");
+                        ImGui.Text($"Rotation: {ct.Rotation}");
+                        ImGui.Text($"Scale: {ct.Scale}");
+                    }
+
                     ImGui.Text($"Execute Type: {child.Attach.ExecuteType}");
                     if (DrawExportButton($"Export##{child.GetHashCode()}", ExportManager.IsExporting))
                     {

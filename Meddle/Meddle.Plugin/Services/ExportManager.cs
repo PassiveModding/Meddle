@@ -103,7 +103,8 @@ public partial class ExportManager : IDisposable
                     var child = attachedChildren[i];
                     var attachName = skeleton.PartialSkeletons[child.Attach.PartialSkeletonIdx]
                                               .HkSkeleton!.BoneNames[child.Attach.BoneIdx];
-                    var childInfo = HandleAttachedChild(child, i, attachName, scene, boneMap, rootBone);
+                    var childInfo = HandleAttachedChild(child, i, attachName, scene, boneMap);
+
                     foreach (var model in child.Models)
                     {
                         logger.Debug($"Handling child model {model.Path}");
@@ -166,13 +167,15 @@ public partial class ExportManager : IDisposable
             HandleModel(logger, config, model, character.RaceCode, scene, boneMap, Matrix4x4.Identity,
                         character.CustomizeParameter);
         }, config.ParallelBuild);
-
+        
         for (var i = 0; i < character.AttachedChildren.Count; i++)
         {
             var child = character.AttachedChildren[i];
+            if (child.Attach.ExecuteType != 4) continue;
             var attachName = character.Skeleton.PartialSkeletons[child.Attach.PartialSkeletonIdx]
                                          .HkSkeleton!.BoneNames[child.Attach.BoneIdx];
-            var childInfo = HandleAttachedChild(child, i, attachName, scene, boneMap, rootBone);
+            var childInfo = HandleAttachedChild(child, i, attachName, scene, boneMap);
+
             foreach (var model in child.Models)
             {
                 logger.Debug($"Handling child model {model.Path}");
@@ -241,20 +244,33 @@ public partial class ExportManager : IDisposable
                                      int i,
                                      string attachName,
                                      SceneBuilder scene,
-                                     BoneNodeBuilder[]? boneMap, 
-                                     NodeBuilder? rootBone)
+                                     BoneNodeBuilder[]? boneMap)
     {
         var childBoneMap = ModelUtility.GetBoneMap(child.Skeleton, out var childRoot);
         childRoot!.SetSuffixRecursively(i);
 
-        if (rootBone == null || boneMap == null)
+        if (child.Attach.OffsetTransform is { } ct)
+        {
+            // This appears to fix weapon attaches
+            childRoot.WithLocalScale(ct.Scale);
+            childRoot.WithLocalRotation(ct.Rotation);
+            childRoot.WithLocalTranslation(ct.Translation);
+            if (childRoot.AnimationTracksNames.Contains("pose"))
+            {
+                childRoot.UseScale().UseTrackBuilder("pose").WithPoint(0, ct.Scale);
+                childRoot.UseRotation().UseTrackBuilder("pose").WithPoint(0, ct.Rotation);
+                childRoot.UseTranslation().UseTrackBuilder("pose").WithPoint(0, ct.Translation);
+            }
+        }
+
+        var childBone = boneMap?.FirstOrDefault(b => b.BoneName.Equals(attachName, StringComparison.Ordinal));
+        if (childBone == null)
         {
             scene.AddNode(childRoot);
         }
         else
         {
-            var boneTarget = boneMap.First(b => b.BoneName.Equals(attachName, StringComparison.Ordinal));
-            boneTarget.AddNode(childRoot);
+            childBone.AddNode(childRoot);
         }
 
         var transform = Matrix4x4.Identity;
