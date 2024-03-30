@@ -18,7 +18,7 @@ public unsafe class Model
     public string Path => ResolvedPath ?? HandlePath;
     public GenderRace RaceCode { get; private set; }
 
-    public IReadOnlyList<Material> Materials { get; private set; }
+    public IReadOnlyList<Material?> Materials { get; private set; }
     public IReadOnlyList<Mesh> Meshes { get; private set; }
     public IReadOnlyList<ModelShape> Shapes { get; private set; }
     public uint ShapesMask { get; private set; }
@@ -43,6 +43,8 @@ public unsafe class Model
         var materials = new Material[model->MaterialCount];
         for (var i = 0; i < model->MaterialCount; ++i)
         {
+            if (model->Materials[i] == null)
+                continue;
             materials[i] = new Material(model->Materials[i], colorTable == null ? null : colorTable[i]);
         }
 

@@ -306,6 +306,12 @@ public partial class ExportManager : IDisposable
             CancellationTokenSource.Token.ThrowIfCancellationRequested();
 
             var material = model.Materials[i];
+            if (material == null)
+            {
+                materials[i] = new MaterialBuilder("fallback");
+                continue;
+            }
+
             logger.Debug($"Exporting material {material.HandlePath}");
 ;
             materials[i] = ParseMaterial(material, Path.GetFileName(material.HandlePath), customizeParameters);
