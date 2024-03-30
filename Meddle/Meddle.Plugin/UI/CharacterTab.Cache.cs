@@ -349,9 +349,13 @@ public partial class CharacterTab
                 {
                     var model = child.Models[i];
                     DrawModel(model, i, true, out var er);
-                    if (er is ExportModelRequest emr)
+                    if (er != null)
                     {
-                        emr.SkeletonOverride = child.Skeleton;
+                        exportRequest = er;
+                        if (er is ExportModelRequest emr)
+                        {
+                            emr.SkeletonOverride = child.Skeleton;
+                        }
                     }
                 }
             }
@@ -427,7 +431,7 @@ public partial class CharacterTab
         
         using (var d = ImRaii.Disabled(ExportManager.IsExporting))
         {
-            if (ImGui.SmallButton($"Export##{model.GetHashCode()}") && (ExportTask?.IsCompleted ?? true))
+            if (ImGui.SmallButton($"Export##{model.GetHashCode()}{index}") && (ExportTask?.IsCompleted ?? true))
             {
                 exportRequest = new ExportModelRequest(model);
             }
