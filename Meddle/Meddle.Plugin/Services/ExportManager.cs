@@ -224,6 +224,8 @@ public partial class ExportManager : IDisposable
                                : scene.AddRigidMesh(mesh, worldPosition);
 
             ApplyMeshShapes(instance, model, shapes);
+            
+            // If shape is atr_eye... and uses a hair texture, use the original hair texture instead of modified one
 
             // Remove subMeshes that are not enabled
             if (subMesh != null)
@@ -313,7 +315,7 @@ public partial class ExportManager : IDisposable
             }
 
             logger.Debug($"Exporting material {material.HandlePath}");
-;
+
             materials[i] = ParseMaterial(material, Path.GetFileName(material.HandlePath), customizeParameters);
         }
 
@@ -381,11 +383,11 @@ public partial class ExportManager : IDisposable
 
         return material.ShaderPackage.Name switch
         {
-            "character.shpk" => MaterialUtility.BuildCharacter(material, name).WithAlpha(AlphaMode.MASK, 0.5f),
-            "characterglass.shpk" => MaterialUtility.BuildCharacter(material, name).WithAlpha(AlphaMode.BLEND),
-            "hair.shpk" => MaterialUtility.BuildHair(material, name, HairShaderParameters.From(customizeParameter)),
+            "character.shpk" => MaterialUtility.BuildCharacter(material, name).WithAlpha(AlphaMode.MASK, material.Parameters!.Value.AlphaThreshold),
+            "characterglass.shpk" => MaterialUtility.BuildCharacter(material, name).WithAlpha(AlphaMode.BLEND, material.Parameters!.Value.AlphaThreshold),
+            "hair.shpk"           => MaterialUtility.BuildHair(material, name, customizeParameter != null ? HairShaderParameters.From(customizeParameter) : null),
             "iris.shpk"           => MaterialUtility.BuildIris(material, name, customizeParameter?.LeftColor),
-            "skin.shpk"           => MaterialUtility.BuildSkin(material, name, SkinShaderParameters.From(customizeParameter)),
+            "skin.shpk"           => MaterialUtility.BuildSkin(material, name, customizeParameter != null ? SkinShaderParameters.From(customizeParameter) : null),
             _ => MaterialUtility.BuildFallback(material, name),
         };
     }

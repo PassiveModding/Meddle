@@ -86,6 +86,12 @@ public class MeshBuilder
             var triC = Vertices[indC];
             primitive.AddTriangle(triA, triB, triC);
         }
+        
+        var attributes = subMesh.Attributes.ToArray();
+        if (attributes.Length > 0)
+        {
+            ret.Extras = JsonNode.Parse(JsonSerializer.Serialize(attributes));
+        }
 
         return ret;
     }

@@ -9,22 +9,27 @@ public class SkinShaderParameters
     public Vector3 MainColor;
     public Vector3 MeshColor;
     public Vector4 LipColor;
-    public bool ApplyLipColor;
+    public Vector3 SkinFresnelValue0;
+    public float SkinFresnelValue0W;
+    public Vector3 HairFresnelValue0;
     public bool IsHrothgar;
         
-    public static SkinShaderParameters? From(CustomizeParameters? parameters)
+    public static SkinShaderParameters From(CustomizeParameters parameters)
     {
-        if (parameters == null)
-            return null;
-
-        return new SkinShaderParameters()
+        var sfv0 = parameters.SkinFresnelValue0;
+        var skinFresnelValue0W = sfv0.W;
+        var skinFresnelValue0Xyz = new Vector3(sfv0.X, sfv0.Y, sfv0.Z);
+        
+        return new SkinShaderParameters
         {
-            ApplyLipColor = parameters.ApplyLipColor,
             IsHrothgar = parameters.IsHrothgar,
             SkinColor = parameters.SkinColor,
             MainColor = parameters.MainColor,
             MeshColor = parameters.MeshColor,
-            LipColor = parameters.LipColor
+            LipColor = parameters.LipColor,
+            SkinFresnelValue0 = skinFresnelValue0Xyz,
+            SkinFresnelValue0W = skinFresnelValue0W,
+            HairFresnelValue0 = parameters.HairFresnelValue0
         };
     }
 }
@@ -34,17 +39,16 @@ public class HairShaderParameters
     public Vector3 MainColor;
     public Vector3 MeshColor;
     public Vector3 OptionColor;
+    public Vector3 HairFresnelValue0;
     
-    public static HairShaderParameters? From(CustomizeParameters? parameters)
+    public static HairShaderParameters From(CustomizeParameters parameters)
     {
-        if (parameters == null)
-            return null;
-
-        return new HairShaderParameters()
+        return new HairShaderParameters
         {
             MainColor = parameters.MainColor,
             MeshColor = parameters.MeshColor,
-            OptionColor = parameters.OptionColor
+            OptionColor = parameters.OptionColor,
+            HairFresnelValue0 = parameters.HairFresnelValue0
         };
     }
 }
@@ -68,7 +72,6 @@ public class CustomizeParameters
     /// W : Lip opacity.
     /// </summary>
     public Vector4 LipColor;
-    public bool ApplyLipColor;
 
     /// <summary>
     /// XYZ : Hair primary color
@@ -111,7 +114,6 @@ public class CustomizeParameters
         RightColor = FromSquaredRgb(customizeParameter.RightColor);
         OptionColor = FromSquaredRgb(customizeParameter.OptionColor);
         IsHrothgar = isHrothgar;
-        ApplyLipColor = customizeParameter.LipColor.W > 0;
     }
     
     private static Vector4 FromSquaredRgb(Vector4 input)

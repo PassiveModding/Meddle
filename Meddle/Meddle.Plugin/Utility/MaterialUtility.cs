@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
+using Dalamud.Utility.Numerics;
 using Lumina.Data.Parsing;
 using Meddle.Plugin.Models;
 using SharpGLTF.Materials;
@@ -18,8 +19,74 @@ public class MaterialUtility
     private static readonly Vector4 DefaultEyeColor = new Vector4(21, 176, 172, 255) / new Vector4(255);
     private static readonly Vector3 DefaultHairColor      = new Vector3(130, 64,  13) / new Vector3(255);
     private static readonly Vector3 DefaultHighlightColor = new Vector3(77,  126, 240) / new Vector3(255);
-    
+
     public static MaterialBuilder BuildCharacter(Material material, string name)
+    {
+        var parameters = material.Parameters!.Value;
+        
+        var srcNormal = material.GetTexture(TextureUsage.SamplerNormal);
+        var operation = new ProcessCharacterNormalOperation(srcNormal.Resource.ToTexture(), material.ColorTable).Run();
+        var normal = operation.Normal;
+        var diffuseColor = operation.BaseColor;
+        var specularMask = operation.Specular;
+        
+        if (material.TryGetTexture(TextureUsage.SamplerDiffuse, out var diff))
+        {
+            var diffuse = diff.Resource.ToTexture((diffuseColor.Width, diffuseColor.Height));
+            diffuseColor = MultiplyBitmaps(diffuseColor, diffuse);
+        }
+
+        if (material.TryGetTexture(TextureUsage.SamplerSpecular, out var spec))
+        {
+            var specular = spec.Resource.ToTexture((specularMask.Width, specularMask.Height));
+            specularMask = MultiplyBitmaps(specularMask, specular);
+        }
+
+        var fresnelValue0 = new SKTexture(normal.Width, normal.Height);
+        var shininess = new SKTexture(normal.Width, normal.Height);
+        for (var x = 0; x < normal.Width; x++)
+        for (var y = 0; y < normal.Height; y++)
+        {
+            fresnelValue0[x, y] = ToSkColor(parameters.FresnelValue0);
+            shininess[x, y] = ToSkColor(new Vector4(parameters.Shininess));
+        }
+
+        if (material.TryGetTexture(TextureUsage.SamplerMask, out var mask))
+        {
+            var samplerMask = mask.Resource.ToTexture((normal.Width, normal.Height));
+            for (var x = 0; x < normal.Width; x++)
+            for (var y = 0; y < normal.Height; y++)
+            {
+                var maskPixel = ToVector4(samplerMask[x, y]);
+                var maskSSq = maskPixel * maskPixel;
+                var diffuseVec = ToVector4(diffuseColor[x, y]);
+                var fresnelVec = ToVector4(fresnelValue0[x, y]);
+                var specularVec = ToVector4(specularMask[x, y]);
+
+                diffuseColor[x, y] = ToSkColor((diffuseVec * maskSSq.X).WithW(diffuseVec.W));
+                fresnelValue0[x, y] = ToSkColor((fresnelVec * maskSSq.Y).WithW(fresnelVec.W));
+                specularMask[x, y] = ToSkColor((specularVec * maskSSq.Z).WithW(specularVec.W));
+            }
+        }
+        
+        var emissiveColor = operation.Emissive;
+        for (var x = 0; x < normal.Width; x++)
+        for (var y = 0; y < normal.Height; y++)
+        {
+            var emissivePixel = ToVector4(emissiveColor[x, y]);
+            emissivePixel = ToVector4(emissiveColor[x, y]) * new Vector4(parameters.EmissiveColor, emissivePixel.W);
+            emissiveColor[x, y] = ToSkColor(emissivePixel);
+        }
+        
+        return BuildSharedBase(material, name)
+               .WithBaseColor(BuildImage(diffuseColor,      name, "basecolor"))
+               .WithNormal(BuildImage(normal,     name, "normal"))
+               .WithEmissive(BuildImage(emissiveColor, name, "emissive"), Vector3.One, 1)
+               .WithSpecularFactor(BuildImage(specularMask, name, "specular"), 1)
+               .WithSpecularColor(BuildImage(fresnelValue0, name, "fresnel"));
+    }
+    
+    public static MaterialBuilder BuildCharacter2(Material material, string name)
     {
         var normal = material.GetTexture(TextureUsage.SamplerNormal);
         
@@ -81,15 +148,73 @@ public class MaterialUtility
                .WithSpecularFactor(specularImage, 1)
                .WithSpecularColor(specularImage);
     }
+
+    public static MaterialBuilder BuildHair(Material material, string name, HairShaderParameters? customizeParameters)
+    {
+        var parameters = material.Parameters!.Value;
+        // Trust me bro.
+        const uint categoryHairType = 0x24826489;
+        const uint valueFace        = 0x6E5B8F10;
+        const uint valueHair        = 0xF7B8956E;
+        var isFace = material.ShaderKeys
+                             .Any(key => key is { Category: categoryHairType, Value: valueFace });
+        var isHair = material.ShaderKeys
+                             .Any(key => key is { Category: categoryHairType, Value: valueHair });
+        
+        var hairCol      = customizeParameters?.MainColor ?? DefaultHairColor;
+        var highlightCol = customizeParameters?.MeshColor ?? DefaultHighlightColor;
+        var optionCol    = customizeParameters?.OptionColor ?? Vector3.Zero;
+        var hairFresnel  = customizeParameters?.HairFresnelValue0 ?? Vector3.Zero;
+        
+        
+        var normal = material.GetTexture(TextureUsage.SamplerNormal).Resource.ToTexture();
+        var mask   = material.GetTexture(TextureUsage.SamplerMask).Resource.ToTexture((normal.Width, normal.Height));
+        var baseColor = new SKTexture(normal.Width, normal.Height);
+        var specular = new SKTexture(normal.Width, normal.Height);
+        for (var x = 0; x < normal.Width; x++)
+        for (var y = 0; y < normal.Height; y++)
+        {
+            // PS_Input = ps
+            // this represents the pixel in the shader
+            // since we are not using a shader we need to replicate the logic here
+            
+            var normalVec = ToVector4(normal[x, y]);
+            var maskVec = ToVector4(mask[x, y]);
+            if (isHair)
+            {
+                var diffuseColor = Vector3.Lerp(hairCol, highlightCol, maskVec.W);
+                baseColor[x, y] = ToSkColor(new Vector4(diffuseColor, normalVec.W));
+            }
+            
+            if (isFace)
+            {
+                var diffuseColor = Vector3.Lerp(hairCol, optionCol, maskVec.W);
+                baseColor[x, y] = ToSkColor(new Vector4(diffuseColor, normalVec.W));
+            }
+            
+            specular[x, y] = ToSkColor(new Vector4(maskVec.Y * parameters.SpecularMask).WithW(normalVec.W));
+        }
+
+        var specularImg = BuildImage(specular, name, "specular");
+        
+        return BuildSharedBase(material, name)
+               .WithBaseColor(BuildImage(baseColor, name, "basecolor"), new Vector4(parameters.DiffuseColor, 1))
+               .WithNormal(BuildImage(normal,       name, "normal"), parameters.NormalScale)
+               .WithSpecularFactor(specularImg, 1)
+               .WithSpecularColor(specularImg, hairFresnel)
+               .WithAlpha(isFace ? AlphaMode.BLEND : AlphaMode.MASK, parameters.AlphaThreshold);
+    }
+    
     
     /// <summary> Build a material following the semantics of hair.shpk. </summary>
-    public static MaterialBuilder BuildHair(Material material, string name, HairShaderParameters? customizeParameters)
+    public static MaterialBuilder BuildHair2(Material material, string name, HairShaderParameters? customizeParameters)
     {
         // Trust me bro.
         const uint categoryHairType = 0x24826489;
         const uint valueFace        = 0x6E5B8F10;
         
         var hairCol      = customizeParameters?.MainColor ?? DefaultHairColor;
+        var highlightCol = customizeParameters?.MeshColor ?? DefaultHighlightColor;
         
         var isFace = material.ShaderKeys
             .Any(key => key is { Category: categoryHairType, Value: valueFace });
@@ -103,31 +228,35 @@ public class MaterialUtility
         var baseColor = new SKTexture(normal.Width, normal.Height);
         var occlusion = new SKTexture(normal.Width, normal.Height);
         var specular = new SKTexture(normal.Width, normal.Height);
+        
         for (var x = 0; x < normal.Width; x++)
         for (var y = 0; y < normal.Height; y++)
         {
             var normalPixel = normal[x, y];
             var maskPixel = mask[x, y];
-            if (isFace && customizeParameters?.OptionColor != null)
+            if (isFace)
             {
                 // Alpha = Tattoo/Limbal/Ear Clasp Color (OptionColor)
                 var alpha = maskPixel.Alpha / 255f;
+
+                var color = customizeParameters?.OptionColor != null ? 
+                                Vector3.Lerp(hairCol, customizeParameters.OptionColor, alpha) : 
+                                hairCol;
                 
-                var color = Vector3.Lerp(hairCol, customizeParameters.OptionColor, alpha);
+                // Eyelashes shouldn't be mutated here but logic is too dependent on shader to fix
                 baseColor[x, y] = ToSkColor(color).WithAlpha(normalPixel.Alpha);
             }
-
-            if (!isFace)
+            else
             {
-                var color = Vector3.Lerp(hairCol, 
-                                         customizeParameters?.MeshColor ?? DefaultHighlightColor, 
+                var color = Vector3.Lerp(hairCol,
+                                         highlightCol,
                                          maskPixel.Alpha / 255f);
                 baseColor[x, y] = ToSkColor(color).WithAlpha(normalPixel.Alpha);
-                
+
                 // Mask red channel is occlusion supposedly
                 occlusion[x, y] = new SKColor(maskPixel.Red, maskPixel.Red, maskPixel.Red, maskPixel.Red);
             }
-            
+
             // mask green channel is specular
             specular[x, y] = new SKColor(maskPixel.Green, maskPixel.Green, maskPixel.Green, maskPixel.Green);
             
@@ -185,84 +314,103 @@ public class MaterialUtility
         // Face is the default for the skin shader, so a lack of skin type category is also correct.
         var isFace = !material.ShaderKeys
                .Any(key => key.Category == categorySkinType && key.Value != valueFace);
+        var parameters = material.Parameters!.Value;
         
-        var diffuseTexture = material.GetTexture(TextureUsage.SamplerDiffuse);
-        var normalTexture  = material.GetTexture(TextureUsage.SamplerNormal);
-        var maskTexture    = material.GetTexture(TextureUsage.SamplerMask);
+        var diffuse = material.GetTexture(TextureUsage.SamplerDiffuse).Resource.ToTexture();
+        var normal  = material.GetTexture(TextureUsage.SamplerNormal).Resource.ToTexture((diffuse.Width, diffuse.Height));
+        var mask    = material.GetTexture(TextureUsage.SamplerMask).Resource.ToTexture((diffuse.Width, diffuse.Height));
         
-        var diffuse = diffuseTexture.Resource.ToTexture();
-        var normal  = normalTexture.Resource.ToTexture();
-        var mask    = maskTexture.Resource.ToTexture();
+        var skinColor = customizeParameter?.SkinColor ?? new Vector4(255f, 223f, 220f, 255f) / 255f;
+        var skinFresnel = customizeParameter?.SkinFresnelValue0 ?? new Vector3(0.25f, 0.25f, 0.25f);
+        var skinFresnelW = customizeParameter?.SkinFresnelValue0W ?? 32f;
+        var hairFresnel = customizeParameter?.HairFresnelValue0 ?? new Vector3(0.86f, 0.86f, 0.86f);
+        var hairColor = customizeParameter?.MainColor ?? DefaultHairColor;
+        var hairHighlight = customizeParameter?.MeshColor ?? DefaultHighlightColor;
+        var lipColor = customizeParameter?.LipColor ?? new Vector4(120f, 69f, 104f, 153f) / 255f;
+        var isHrothgar = customizeParameter?.IsHrothgar ?? false;
         
-        var resizedNormal = new SKTexture(normal.Bitmap.Resize(new SKImageInfo(diffuse.Width, diffuse.Height), SKFilterQuality.High));
-
+        
+        var fresnelMap = new SKTexture(diffuse.Width, diffuse.Height);
+        var shininessMap = new SKTexture(diffuse.Width, diffuse.Height);
         for (var x = 0; x < diffuse.Width; x++)
         for (var y = 0; y < diffuse.Height; y++)
         {
-            var diffusePixel = diffuse[x, y];
-            var normalPixel = resizedNormal[x, y];
-            diffuse[x, y] = new SKColor(diffusePixel.Red, diffusePixel.Green, diffusePixel.Blue, normalPixel.Blue);
-        }
-        
-        // Clear the blue channel out of the normal now that we're done with it.
-        for (var x = 0; x < normal.Width; x++)
-        for (var y = 0; y < normal.Height; y++)
-        {
-            var normalPixel = normal[x, y];
-            normal[x, y] = new SKColor(normalPixel.Red, normalPixel.Green, byte.MaxValue, normalPixel.Blue);
-        }
-        
-        var resizedMask = new SKTexture(mask.Bitmap.Resize(new SKImageInfo(diffuse.Width, diffuse.Height), SKFilterQuality.High));
-        if (customizeParameter != null)
-        {
-            for (var x = 0; x < diffuse.Width; x++)
-            for (var y = 0; y < diffuse.Height; y++)
+            var normalVec = ToVector4(normal[x, y]);
+            var mtrlDiffuse = ToVector4(diffuse[x, y]).WithW(normalVec.W);
+            normalVec = normalVec.WithW(byte.MaxValue);
+            
+            if (mtrlDiffuse.W == 0f)
             {
-                // R: Skin color intensity
-                // G: Specular intensity - todo maybe
-                // B: Lip intensity
-                var maskPixel = resizedMask[x, y];
-                var diffusePixel = diffuse[x, y];
-                var diffuseVec = new Vector4(diffusePixel.Red, diffusePixel.Green, diffusePixel.Blue,
-                                             diffusePixel.Alpha) / 255f;
-
-                if (maskPixel.Red > 0)
-                {
-                    var skinColorIntensity = maskPixel.Red / 255f;
-                    // NOTE: SkinColor alpha channel is muscle tone
-                    diffuseVec = FloatLerp(diffuseVec, customizeParameter.SkinColor, skinColorIntensity * 0.5f);
-                }
-
-                if (customizeParameter.IsHrothgar && !isFace)
-                {
-                    // Mask G is hair color intensity
-                    // Mask B is hair highlight intensity
-                    var hairColorIntensity = maskPixel.Green / 255f;
-                    var highlightIntensity = maskPixel.Blue / 255f;
-                    var diffuseCol = new Vector3(diffuseVec.X, diffuseVec.Y, diffuseVec.Z);
-                    var hairColor = Vector3.Lerp(diffuseCol, customizeParameter.MainColor, hairColorIntensity);
-                    var highlightColor = Vector3.Lerp(hairColor, customizeParameter.MeshColor, highlightIntensity);
-                    diffuseVec = new Vector4(highlightColor, diffuseVec.W);
-                }
-
-                if (!customizeParameter.IsHrothgar && isFace && customizeParameter.ApplyLipColor)
-                {
-                    // Lerp between base colour and lip colour based on the blue channel
-                    var lipIntensity = maskPixel.Blue / 255f;
-                    diffuseVec = FloatLerp(diffuseVec, customizeParameter.LipColor,
-                                           lipIntensity * customizeParameter.LipColor.W);
-                }
-                
-                // keep original alpha
-                diffuse[x, y] = ToSkColor(diffuseVec).WithAlpha(diffusePixel.Alpha);
+                normal[x, y] = ToSkColor(normalVec);
+                diffuse[x, y] = ToSkColor(mtrlDiffuse);
+                continue;
             }
+            
+            var maskS = ToVector4(mask[x, y]);
+            // comp.diffuseColor = lerp(1, g_CustomizeParameter.m_SkinColor.xyz, maskS.x);
+            // comp.fresnelValue0 = lerp(mtrlFresnelValue0Sq, g_CustomizeParameter.m_SkinFresnelValue0.xyz, maskS.x);
+            var diffuseColor = Vector4.Lerp(Vector4.One, skinColor, maskS.X);
+            var fresnelValue0 = Vector3.Lerp(parameters.FresnelValue0, skinFresnel, maskS.X);
+            
+            float specularSq;
+            if (isHrothgar)
+            {
+                specularSq = 0.04f;
+                var hc = Vector3.Lerp(
+                    hairColor, 
+                    hairHighlight, 
+                    maskS.Z);
+                var diffuseCol = Vector3.Lerp(
+                    new Vector3(diffuseColor.X, diffuseColor.Y, diffuseColor.Z), 
+                    hc, 
+                    maskS.Y);
+                
+                diffuseColor = new Vector4(diffuseCol, diffuseColor.W);
+            }
+            else
+            {
+                specularSq = maskS.Y * maskS.Y;
+            }
+            
+            // comp.diffuseColor *= diffuseSSq;
+            // comp.shininess = g_Shininess;
+            var shininess = parameters.Shininess;
+            if (isFace)
+            {
+                var lipInfluence = maskS.Z * (lipColor.W > 0.1f ? 1.0f : 0f);
+                fresnelValue0 = Vector3.Lerp(fresnelValue0, parameters.LipFresnelValue0, lipInfluence);
+                shininess = Lerp(shininess, parameters.LipShininess, lipInfluence);
+            }
+
+            if (isHrothgar)
+            {
+                fresnelValue0 = Vector3.Lerp(fresnelValue0, hairFresnel, maskS.Y);
+            }
+
+            if (isFace)
+            {
+                // comp.diffuseColor = lerp(comp.diffuseColor, g_CustomizeParameter.m_LipColor.xyz, g_CustomizeParameter.m_LipColor.w * maskS.z);
+                diffuseColor = Vector4.Lerp(
+                    diffuseColor, 
+                    lipColor, 
+                    maskS.Z * lipColor.W);
+                
+            }
+            
+            // keep original alpha
+            diffuse[x, y] = ToSkColor((diffuseColor * mtrlDiffuse).WithW(mtrlDiffuse.W));
+            fresnelMap[x, y] = ToSkColor(new Vector4(fresnelValue0 * specularSq, skinFresnelW));
+            shininessMap[x, y] = ToSkColor(new Vector4(0, 0, 0, shininess));
         }
         
         return BuildSharedBase(material, name)
-               .WithBaseColor(BuildImage(diffuse, name, "basecolor"))
-               .WithNormal(BuildImage(normal,     name, "normal"))
+               .WithBaseColor(BuildImage(diffuse, name, "basecolor"), new Vector4(parameters.DiffuseColor, 1))
+               .WithNormal(BuildImage(normal,     name, "normal"), parameters.NormalScale)
                .WithOcclusion(BuildImage(mask, name, "mask"))
-               .WithAlpha(isFace ? AlphaMode.MASK : AlphaMode.OPAQUE, 0.5f);
+               .WithSpecularFactor(BuildImage(mask, name, "mask"), 1)
+               .WithSpecularColor(BuildImage(fresnelMap, name, "fresnel"))
+               .WithEmissive(BuildImage(shininessMap, name, "shininess"), parameters.EmissiveColor)
+               .WithAlpha(isFace ? AlphaMode.MASK : AlphaMode.OPAQUE, parameters.AlphaThreshold);
     }
         
     private static Vector4 FloatLerp(Vector4 a, Vector4 b, float t)
@@ -302,6 +450,11 @@ public class MaterialUtility
         
         return new MaterialBuilder(name)
             .WithDoubleSide(showBackfaces);
+    }
+    
+    private static Vector4 ToVector4(SKColor color)
+    {
+        return new Vector4(color.Red / 255f, color.Green / 255f, color.Blue / 255f, color.Alpha / 255f);
     }
     
     private static SKColor ToSkColor(Vector4 color)
@@ -377,8 +530,8 @@ public class MaterialUtility
             
                 // Table row data (.a)
                 var tableRow = GetTableRowIndices(normalPixel.Alpha / 255f);
-                var prevRow  = table.Rows[tableRow.Previous];
-                var nextRow  = table.Rows[tableRow.Next];
+                var prevRow  = table[tableRow.Previous];
+                var nextRow  = table[tableRow.Next];
             
                 // Base colour (table, .b)
                 var lerpedDiffuse = Vector3.Lerp(prevRow.Diffuse, nextRow.Diffuse, tableRow.Weight);

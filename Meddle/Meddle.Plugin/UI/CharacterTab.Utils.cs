@@ -215,9 +215,6 @@ public partial class CharacterTab : ITab
             c.LipColor = lc4;
         }
 
-        ImGui.SameLine();
-        ImGui.Checkbox("Apply Lip Color", ref c.ApplyLipColor);
-
         // info hover for lip
         ImGui.SameLine();
         ImGui.TextDisabled("(?)");
@@ -363,6 +360,40 @@ public partial class CharacterTab : ITab
         }
 
         ImGui.BulletText($"Shader: {material.ShaderPackage.Name}");
+
+        if (material.Parameters != null && ImGui.CollapsingHeader($"Parameters##{material.GetHashCode()}"))
+        {
+            ImGui.Indent();
+            var p = material.Parameters.Value;
+
+            ImGui.ColorButton("Diffuse", new Vector4(p.DiffuseColor.X, p.DiffuseColor.Y, p.DiffuseColor.Z, 1),
+                              ImGuiColorEditFlags.NoAlpha);
+            ImGui.SameLine();
+            ImGui.Text("Diffuse");
+
+            ImGui.Text($"Alpha Threshold: {p.AlphaThreshold}");
+
+            ImGui.ColorButton("Fresnel", new Vector4(p.FresnelValue0.X, p.FresnelValue0.Y, p.FresnelValue0.Z, 1),
+                              ImGuiColorEditFlags.NoAlpha);
+            ImGui.SameLine();
+            ImGui.Text("Fresnel");
+
+            ImGui.ColorButton("Lip Fresnel",
+                              new Vector4(p.LipFresnelValue0.X, p.LipFresnelValue0.Y, p.LipFresnelValue0.Z, 1),
+                              ImGuiColorEditFlags.NoAlpha);
+            ImGui.SameLine();
+            ImGui.Text("Lip Fresnel");
+
+            ImGui.Text($"Shininess: {p.Shininess}");
+            ImGui.ColorButton("Emissive", new Vector4(p.EmissiveColor.X, p.EmissiveColor.Y, p.EmissiveColor.Z, 1),
+                              ImGuiColorEditFlags.NoAlpha);
+            ImGui.SameLine();
+            ImGui.Text("Emissive");
+
+            ImGui.Text($"Lip Shininess: {p.LipShininess}");
+            ImGui.Unindent();
+        }
+        
         // Display Material Textures in the same table
         using (var textable = ImRaii.Table("TextureTable", 3, ImGuiTableFlags.Borders))
         {
@@ -383,11 +414,8 @@ public partial class CharacterTab : ITab
             }
         }
 
-        if (material.ColorTable != null)
-        {
-            if (ImGui.CollapsingHeader($"Color Table##{material.GetHashCode()}"))
-                DrawColorTable(material.ColorTable);
-        }
+        if (ImGui.CollapsingHeader($"Color Table##{material.GetHashCode()}"))
+            DrawColorTable(material.ColorTable);
     }
 
     public static void DrawColorTable(ColorTable table)
@@ -400,9 +428,9 @@ public partial class CharacterTab : ITab
         ImGui.TableSetupColumn("Emissive", ImGuiTableColumnFlags.WidthFixed, 50);
         ImGui.TableHeadersRow();
 
-        for (var i = 0; i < table.Rows.Length; i++)
+        for (var i = 0; i < ColorTable.NumRows; i++)
         {
-            var row = table.Rows[i];
+            var row = table[i];
             ImGui.TableNextRow();
             ImGui.TableNextColumn();
             ImGui.Text($"Row {i}");
