@@ -11,6 +11,7 @@ public class Service
     public Service(DalamudPluginInterface pluginInterface)
     {
         pluginInterface.Inject(this);
+        Log = PrivLog;
     }
 
     public void AddServices(IServiceCollection services)
@@ -18,7 +19,7 @@ public class Service
         services.AddSingleton(PluginInterface);
         services.AddSingleton(Framework);
         services.AddSingleton(CommandManager);
-        services.AddSingleton(Log);
+        services.AddSingleton(PrivLog);
         services.AddSingleton(ObjectTable);
         services.AddSingleton(ClientState);
         services.AddSingleton(SigScanner);
@@ -32,7 +33,9 @@ public class Service
 
     [PluginService] private ICommandManager CommandManager { get; set; } = null!;
 
-    [PluginService] private IPluginLog Log { get; set; } = null!;
+    public static IPluginLog Log { get; private set; } = null!;
+    
+    [PluginService] private IPluginLog PrivLog { get; set; } = null!;
     [PluginService] private IObjectTable ObjectTable { get; set; } = null!;
     [PluginService] private IClientState ClientState { get; set; } = null!;
     [PluginService] private ISigScanner SigScanner { get; set; } = null!;

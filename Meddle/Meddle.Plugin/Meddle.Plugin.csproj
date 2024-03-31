@@ -22,9 +22,10 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Compile Remove="UI\Shared\**" />
-      <EmbeddedResource Remove="UI\Shared\**" />
-      <None Remove="UI\Shared\**" />
+      <None Update="Lib\DirectXTexC.dll">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <TargetPath>DirectXTexC.dll</TargetPath>  
+      </None>
     </ItemGroup>
 
     <ItemGroup>
@@ -48,6 +49,9 @@
         <Reference Include="Newtonsoft.Json">
             <HintPath>$(DalamudLibPath)Newtonsoft.Json.dll</HintPath>
             <Private>False</Private>
+        </Reference>
+        <Reference Include="OtterTex">
+          <HintPath>Lib\OtterTex.dll</HintPath>
         </Reference>
     </ItemGroup>
 

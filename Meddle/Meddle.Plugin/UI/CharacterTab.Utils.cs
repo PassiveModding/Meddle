@@ -364,9 +364,10 @@ public partial class CharacterTab : ITab
 
         ImGui.BulletText($"Shader: {material.ShaderPackage.Name}");
         // Display Material Textures in the same table
-        using (var textable = ImRaii.Table("TextureTable", 2, ImGuiTableFlags.Borders))
+        using (var textable = ImRaii.Table("TextureTable", 3, ImGuiTableFlags.Borders))
         {
             ImGui.TableSetupColumn("Texture Usage", ImGuiTableColumnFlags.WidthFixed, 120);
+            ImGui.TableSetupColumn("Type", ImGuiTableColumnFlags.WidthFixed, 120);
             ImGui.TableSetupColumn("Path", ImGuiTableColumnFlags.WidthStretch);
             ImGui.TableHeadersRow();
 
@@ -375,6 +376,8 @@ public partial class CharacterTab : ITab
                 ImGui.TableNextRow();
                 ImGui.TableNextColumn();
                 ImGui.Text($"{texture.Usage}");
+                ImGui.TableNextColumn();
+                ImGui.Text($"{texture.Resource.Format}");
                 ImGui.TableNextColumn();
                 ImGui.Text($"{texture.HandlePath}");
             }

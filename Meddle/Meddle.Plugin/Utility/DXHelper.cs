@@ -1,9 +1,10 @@
 using System.Runtime.InteropServices;
-using Dalamud.Logging;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
+using OtterTex;
 using SharpGen.Runtime;
 using Vortice.Direct3D11;
 using Format = Vortice.DXGI.Format;
+using MapFlags = Vortice.Direct3D11.MapFlags;
 
 namespace Meddle.Plugin.Utility;
 
@@ -18,37 +19,55 @@ public static unsafe class DXHelper
         tex.AddRef();
 
         var ret = GetResourceData(tex,
-            r =>
-            {
-                var desc = r.Description1 with
-                {
-                    Usage = ResourceUsage.Staging,
-                    BindFlags = 0,
-                    CPUAccessFlags = CpuAccessFlags.Read,
-                    MiscFlags = 0,
-                };
+          r =>
+          {
+              var desc = r.Description1 with
+              {
+                  Usage = ResourceUsage.Staging,
+                  BindFlags = 0,
+                  CPUAccessFlags = CpuAccessFlags.Read,
+                  MiscFlags = 0,
+              };
 
-                return r.Device.As<ID3D11Device3>().CreateTexture2D1(desc);
-            },
-            (r, map) =>
-            {
-                var desc = r.Description1;
+              return r.Device.As<ID3D11Device3>().CreateTexture2D1(desc);
+          },
+          (r, map) =>
+          {
+              var desc = r.Description1;
+              if (desc.Format is 
+                  Format.BC1_UNorm or 
+                  Format.BC2_UNorm or 
+                  Format.BC3_UNorm or 
+                  Format.BC4_UNorm or 
+                  Format.BC5_UNorm or
+                  Format.BC7_UNorm)
+              {
+                  var blockHeight = Math.Max(1, (desc.Height + 3) / 4);
+                  if (map.RowPitch * blockHeight != map.DepthPitch)
+                      throw new InvalidDataException($"Invalid/unknown texture size for {desc.Format}: RowPitch = {map.RowPitch}; Height = {desc.Height}; Block Height = {blockHeight}; DepthPitch = {map.DepthPitch}");
+              }
+              else
+              {
+                  if (map.RowPitch * desc.Height != map.DepthPitch)
+                      throw new InvalidDataException($"Invalid/unknown texture size for {desc.Format}: RowPitch = {map.RowPitch}; Height = {desc.Height}; DepthPitch = {map.DepthPitch}");
+              }
 
-                if (desc.Format is Format.BC1_UNorm or Format.BC2_UNorm or Format.BC3_UNorm or Format.BC4_UNorm or Format.BC5_UNorm)
-                {
-                    if (map.RowPitch * Math.Max(1, (desc.Height + 3) / 4) != map.DepthPitch)
-                        throw new InvalidDataException($"Invalid/unknown texture size for {desc.Format}: RowPitch = {map.RowPitch}; Height = {desc.Height}; Block Height = {Math.Max(1, (desc.Height + 3) / 4)}; DepthPitch = {map.DepthPitch}");
-                }
-                else
-                {
-                    if (map.RowPitch * desc.Height != map.DepthPitch)
-                        throw new InvalidDataException($"Invalid/unknown texture size for {desc.Format}: RowPitch = {map.RowPitch}; Height = {desc.Height}; DepthPitch = {map.DepthPitch}");
-                }
-
-                var buf = new byte[map.DepthPitch];
-                Marshal.Copy(map.DataPointer, buf, 0, buf.Length);
-                return new TextureHelper.TextureResource(desc.Format, desc.Width, desc.Height, map.RowPitch, buf);
-            });
+              var buf = new byte[map.DepthPitch];
+              Marshal.Copy(map.DataPointer, buf, 0, buf.Length);
+              var resource = new TextureHelper.TextureResource(
+                  // Vortice and OtterTex use different enums but the values *should* be the same so just cast
+                  (DXGIFormat)desc.Format, 
+                  desc.Width, 
+                  desc.Height, 
+                  map.RowPitch, 
+                  desc.MipLevels, 
+                  desc.ArraySize, 
+                  (TexDimension)r.Dimension, 
+                  (D3DResourceMiscFlags)desc.MiscFlags, 
+                  buf);
+              
+              return resource;
+          });
 
         return ret;
     }

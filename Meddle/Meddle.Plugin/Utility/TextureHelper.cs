@@ -1,32 +1,23 @@
-using System.Diagnostics;
-using System.Runtime.InteropServices;
-using Dalamud.Logging;
-using Lumina.Data.Parsing.Tex;
 using Meddle.Plugin.Models;
 using SkiaSharp;
-using Vortice.DXGI;
-using LuminaFormat = Lumina.Data.Files.TexFile.TextureFormat;
+using OtterTex;
 
 namespace Meddle.Plugin.Utility;
 
 public static class TextureHelper
 {
-    public readonly struct TextureResource
+    public readonly struct TextureResource(DXGIFormat format, int width, int height, int stride, int mipLevels, int arraySize, TexDimension dimension, D3DResourceMiscFlags miscFlags, byte[] data)
     {
-        public TextureResource(Format format, int width, int height, int stride, byte[] data)
-        {
-            this.Format = format;
-            this.Width = width;
-            this.Height = height;
-            this.Stride = stride;
-            this.Data = data;
-        }
-        public Format Format { get; init; }
-        public int Width { get; init; }
-        public int Height { get; init; }
-        public int Stride { get; init; }
-        public byte[] Data { get; init; }
-        
+        public DXGIFormat Format { get; init; } = format;
+        public int Width { get; init; } = width;
+        public int Height { get; init; } = height;
+        public int Stride { get; init; } = stride;
+        public int MipLevels { get; init; } = mipLevels;
+        public int ArraySize { get; init; } = arraySize;
+        public TexDimension Dimension { get; init; } = dimension;
+        public D3DResourceMiscFlags MiscFlags { get; init; } = miscFlags;
+        public byte[] Data { get; init; } = data;
+
         public SKTexture ToTexture((int width, int height)? resize = null)
         {
             var bitmap = ToBitmap(this);
@@ -38,8 +29,85 @@ public static class TextureHelper
             return new SKTexture(bitmap);
         }
     }
+
+    private static readonly object LockObj = new();
+    public static unsafe SKBitmap ToBitmap(TextureResource resource)
+    {
+        lock (LockObj)
+        {
+            var meta = FromResource(resource);
+            var image = ScratchImage.Initialize(meta);
+
+            // copy data - ensure destination not too short
+            fixed (byte* data = image.Pixels)
+            {
+                var span = new Span<byte>(data, image.Pixels.Length);
+                if (resource.Data.Length > span.Length)
+                {
+                    // As far as I can tell this only happens when placeholder textures are used anyways
+                    Service.Log.Warning($"Data too large for scratch image. " +
+                                        $"{resource.Data.Length} > {span.Length} " +
+                                        $"{resource.Width}x{resource.Height} {resource.Format}");
+                }
+                else
+                {
+                    resource.Data.AsSpan().CopyTo(span);
+                }
+            }
+            
+            image.GetRGBA(out var rgba);
+
+            var bitmap = new SKBitmap(rgba.Meta.Width, rgba.Meta.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
+            bitmap.Erase(new SKColor(0));
+            fixed (byte* data = rgba.Pixels)
+            {
+                bitmap.InstallPixels(bitmap.Info, (nint)data, rgba.Meta.Width * 4);
+            }
+            
+            // I have trust issues
+            var copy = new SKBitmap(bitmap.Info);
+            bitmap.CopyTo(copy, bitmap.Info.ColorType);
+            
+            return copy;
+        }
+    }
+
+    private static TexMeta FromResource(TextureResource resource)
+    {
+        var meta = new TexMeta
+        {
+            Height = resource.Height,
+            Width = resource.Width,
+            Depth = 1, // 3D textures would have other values, but we're only handling kernelTexture->D3D11Texture2D
+            MipLevels = resource.MipLevels,
+            ArraySize = resource.ArraySize,
+            Format = resource.Format,
+            Dimension = resource.Dimension,
+            MiscFlags = resource.MiscFlags.HasFlag(D3DResourceMiscFlags.TextureCube) ? D3DResourceMiscFlags.TextureCube : 0,
+            MiscFlags2 = 0,
+        };
+        
+        return meta;
+    }
     
-    public static TextureResource FromTexFile(Lumina.Data.Files.TexFile file)
+    public static byte[] AdjustStride(int oldStride, int newStride, int height, byte[] data)
+    {
+        if (data.Length != oldStride * height)
+            throw new ArgumentException("Data length must match stride * height.", nameof(data));
+
+        if (oldStride == newStride)
+            return data;
+        if (oldStride < newStride)
+            throw new ArgumentException("New stride must be smaller than old stride.", nameof(newStride));
+
+        var newData = new byte[newStride * height];
+        for (var y = 0; y < height; ++y)
+            Buffer.BlockCopy(data, y * oldStride, newData, y * newStride, newStride);
+        return newData;
+    }
+
+    /*
+    public static TextureResource FromTexFile(TexFile file)
     {
         var format = file.Header.Format switch
         {
@@ -85,23 +153,7 @@ public static class TextureHelper
 
         return new TextureResource(format, file.Header.Width, file.Header.Height, stride, file.Data);
     }
-
-    public static byte[] AdjustStride(int oldStride, int newStride, int height, byte[] data)
-    {
-        if (data.Length != oldStride * height)
-            throw new ArgumentException("Data length must match stride * height.", nameof(data));
-
-        if (oldStride == newStride)
-            return data;
-        if (oldStride < newStride)
-            throw new ArgumentException("New stride must be smaller than old stride.", nameof(newStride));
-
-        var newData = new byte[newStride * height];
-        for (var y = 0; y < height; ++y)
-            Buffer.BlockCopy(data, y * oldStride, newData, y * newStride, newStride);
-        return newData;
-    }
-
+     
     public static byte[] ToBGRA8(TextureResource resource)
     {
         var ret = new byte[resource.Width * resource.Height * 4];
@@ -173,7 +225,7 @@ public static class TextureHelper
                 bitmap.InstallPixels(format.WithSize(resource.Width, resource.Height), (nint)data,  resource.Width * 4);
         }
         s.Stop();
-        //PluginLog.Log($"ToBitmap ({(direct ? "SkiaSharp" : "Software")}) took {s.Elapsed.TotalMilliseconds}ms for {resource.Width}x{resource.Height} {resource.Format}");
+        Service.Log.Debug($"ToBitmap ({(direct ? "SkiaSharp" : "Software")}) took {s.Elapsed.TotalMilliseconds}ms for {resource.Width}x{resource.Height} {resource.Format}");
         
         // make copy so we can dispose the original
         var copy = new SKBitmap(bitmap.Info);
@@ -354,4 +406,5 @@ public static class TextureHelper
         };
         Squish.DecompressImage(resource.Data, resource.Width, resource.Height, flags).CopyTo(MemoryMarshal.Cast<uint, byte>(output));
     }
+    */
 }
