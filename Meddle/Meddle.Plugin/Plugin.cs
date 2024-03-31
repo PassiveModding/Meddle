@@ -52,6 +52,7 @@ public sealed class Plugin : IDalamudPlugin
         
         this.pluginInterface = services.GetRequiredService<DalamudPluginInterface>();
         this.pluginInterface.UiBuilder.Draw += DrawUi;
+        this.pluginInterface.UiBuilder.OpenMainUi += OpenUi;
         this.pluginInterface.UiBuilder.OpenConfigUi += OpenUi;
         this.pluginInterface.UiBuilder.DisableGposeUiHide = true;
 
