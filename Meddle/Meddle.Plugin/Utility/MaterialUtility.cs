@@ -379,7 +379,7 @@ public class MaterialUtility
             {
                 var lipInfluence = maskS.Z * (lipColor.W > 0.1f ? 1.0f : 0f);
                 fresnelValue0 = Vector3.Lerp(fresnelValue0, parameters.LipFresnelValue0, lipInfluence);
-                shininess = Lerp(shininess, parameters.LipShininess, lipInfluence);
+                shininess = float.Lerp(shininess, parameters.LipShininess, lipInfluence);
             }
 
             if (isHrothgar)
@@ -411,21 +411,6 @@ public class MaterialUtility
                .WithSpecularColor(BuildImage(fresnelMap, name, "fresnel"))
                .WithEmissive(BuildImage(shininessMap, name, "shininess"), parameters.EmissiveColor)
                .WithAlpha(isFace ? AlphaMode.MASK : AlphaMode.OPAQUE, parameters.AlphaThreshold);
-    }
-        
-    private static Vector4 FloatLerp(Vector4 a, Vector4 b, float t)
-    {
-        return new(
-            Lerp(a.X, b.X, t),
-            Lerp(a.Y, b.Y, t),
-            Lerp(a.Z, b.Z, t),
-            Lerp(a.W, b.W, t)
-        );
-    }
-    
-    private static float Lerp(float a, float b, float t)
-    {
-        return a * (1 - t) + b * t;
     }
     
     public static MaterialBuilder BuildFallback(Material material, string name)
@@ -526,22 +511,20 @@ public class MaterialUtility
             for (var y = 0; y < normal.Height; y++)
             for (var x = 0; x < normal.Width; x++)
             {
-                var normalPixel = Normal[x, y];
+                var normalPixel = ToVector4(normal[x, y]);
             
                 // Table row data (.a)
-                var tableRow = GetTableRowIndices(normalPixel.Alpha / 255f);
+                var tableRow = GetTableRowIndices(normalPixel.W / 255f);
                 var prevRow  = table[tableRow.Previous];
                 var nextRow  = table[tableRow.Next];
             
                 // Base colour (table, .b)
                 var lerpedDiffuse = Vector3.Lerp(prevRow.Diffuse, nextRow.Diffuse, tableRow.Weight);
-                BaseColor[x, y] = ToSkColor(new Vector4(lerpedDiffuse, 1)).WithAlpha(normalPixel.Blue);
+                BaseColor[x, y] = ToSkColor(new Vector4(lerpedDiffuse, normalPixel.Z));
             
                 // Specular (table)
                 var lerpedSpecularColor = Vector3.Lerp(prevRow.Specular, nextRow.Specular, tableRow.Weight);
-                // float.Lerp is .NET8 ;-;
-                //var lerpedSpecularFactor = (prevRow.SpecularStrength * (1.0f - tableRow.Weight)) + (nextRow.SpecularStrength * tableRow.Weight);
-                var lerpedSpecularFactor = Lerp(prevRow.SpecularStrength, nextRow.SpecularStrength, tableRow.Weight);
+                var lerpedSpecularFactor = float.Lerp(prevRow.SpecularStrength, nextRow.SpecularStrength, tableRow.Weight);
                 Specular[x, y] = ToSkColor(new Vector4(lerpedSpecularColor, lerpedSpecularFactor));
             
                 // Emissive (table)
@@ -549,17 +532,7 @@ public class MaterialUtility
                 Emissive[x, y] = ToSkColor(new Vector4(lerpedEmissive, 1));
             
                 // Normal (.rg)
-                Normal[x, y] = new SKColor(normalPixel.Red, normalPixel.Green, byte.MaxValue, normalPixel.Blue);
-
-                /*
-                if (normalPixel is {Red: 0, Green: 0})
-                {
-                    Normal[x, y] = new SKColor(byte.MaxValue/2, byte.MaxValue/2, byte.MaxValue, byte.MinValue);
-                }
-                else
-                {
-                    Normal[x, y] = new SKColor(normalPixel.Red, normalPixel.Green, byte.MaxValue, normalPixel.Blue);
-                }*/
+                Normal[x, y] = ToSkColor(normalPixel.WithW(normalPixel.Z).WithZ(byte.MaxValue));
             }
             
             return this;
