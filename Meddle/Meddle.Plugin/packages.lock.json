@@ -44,12 +44,12 @@
       },
       "Vortice.Direct3D11": {
         "type": "Direct",
-        "requested": "[3.4.4-beta, )",
-        "resolved": "3.4.4-beta",
-        "contentHash": "GW4RFxXcEwb2QwHGkDuHuAELPX8zG//C1AsCEL7kPrQaqS2ytGGgPfoSYc3GARGDEudJvlMryStvL6diRPb5Sw==",
+        "requested": "[3.5.0, )",
+        "resolved": "3.5.0",
+        "contentHash": "TUVz5tml5tTlk1UpQgh/0cj74ehmlyzvQeGdVkdQGACth2v2t1d+/f84dqT/Trs/5O2WdIvXfYQe2yxALLR5mQ==",
         "dependencies": {
           "SharpGen.Runtime": "2.1.2-beta",
-          "Vortice.DXGI": "3.4.4-beta"
+          "Vortice.DXGI": "3.5.0"
         }
       },
       "Microsoft.Extensions.DependencyInjection.Abstractions": {
@@ -90,27 +90,27 @@
       },
       "Vortice.DirectX": {
         "type": "Transitive",
-        "resolved": "3.4.4-beta",
-        "contentHash": "arSM6/6bWk6r8eHNT1jeuDtHDmlktf9OMOUIy5H8DP9B73GJWFK2v9U/+NYaRGH9cbTAAbExypcB1UoiUBhJjA==",
+        "resolved": "3.5.0",
+        "contentHash": "LwyojEqRCaYgMoEqKsLnHWJ85wM237wFzZy/w57kvQPDsEd+zcqdwDYswOCEdizcLtDBzX/Xt4bbUPgFi8Kp4w==",
         "dependencies": {
           "SharpGen.Runtime": "2.1.2-beta",
           "SharpGen.Runtime.COM": "2.1.2-beta",
-          "Vortice.Mathematics": "1.7.7"
+          "Vortice.Mathematics": "1.7.8"
         }
       },
       "Vortice.DXGI": {
         "type": "Transitive",
-        "resolved": "3.4.4-beta",
-        "contentHash": "mrVWuj4iCWnO3U3vrXREpJbOyRtLuvoAtYdvm98535DskFAwcYHah9puN59UCRuelewfL4E4Gvji8D0IQE7WyQ==",
+        "resolved": "3.5.0",
+        "contentHash": "W1dHY13DbitLJDVAAD8+YiGddqzBP1m3wN3pfEmxYrrE+dGEV/31aaw8EV74GXYnJQZ2vWJCnc7LCFPR2YkBnw==",
         "dependencies": {
           "SharpGen.Runtime": "2.1.2-beta",
-          "Vortice.DirectX": "3.4.4-beta"
+          "Vortice.DirectX": "3.5.0"
         }
       },
       "Vortice.Mathematics": {
         "type": "Transitive",
-        "resolved": "1.7.7",
-        "contentHash": "zRqtgTTR7HYRLs40/Ip0jyjXiOnn5WnucmLPBUsMItJPuB5t3TdwKkPcCbyDWicncR6W5ShEno6gH/PxalAXAg=="
+        "resolved": "1.7.8",
+        "contentHash": "hpVlfej54yC6Qaq9AYXWgTgF8SDz2dtKbDNZGO8msjn3NjdkUBnFcIzYfOWyvwvpr3aqZPKh4WSSnJ78GxyIWg=="
       },
       "ffxivclientstructs": {
         "type": "Project"
