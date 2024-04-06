@@ -62,6 +62,15 @@ public sealed class SKTexture
             Data.CopyTo(ret.Data, 0);
             return ret;
         }
+        
+        public SKTexture Resize(int width, int height)
+        {
+            var info = new SKImageInfo(width, height);
+            var bitmapCopy = Bitmap.Copy();
+            var resize = bitmapCopy.Resize(info, SKFilterQuality.High);
+            
+            return new SKTexture(resize);
+        }
 
         private Span<byte> GetPixelData(int x, int y) =>
             Data.AsSpan().Slice((Width * y + x) * 4, 4);

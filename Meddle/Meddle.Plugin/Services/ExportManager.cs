@@ -2,6 +2,7 @@
 using System.Numerics;
 using System.Text.RegularExpressions;
 using Dalamud.Plugin.Services;
+using Lumina.Data.Parsing;
 using Meddle.Plugin.Enums;
 using Meddle.Plugin.Files;
 using Meddle.Plugin.Models;
@@ -95,8 +96,7 @@ public partial class ExportManager : IDisposable
                 
                 ForEach(models, model =>
                 {
-                    HandleModel(logger, config, model, targetRace, scene, boneMap, Matrix4x4.Identity,
-                                customizeParameter);
+                    HandleModel(logger, config, model, targetRace, scene, boneMap, Matrix4x4.Identity, customizeParameter);
                 }, config.ParallelBuild);
                 
                 for (var i = 0; i < attachedChildren.Length; i++)
@@ -110,8 +110,8 @@ public partial class ExportManager : IDisposable
                     {
                         logger.Debug($"Handling child model {model.Path}");
                         HandleModel(logger, config, model, targetRace, scene,
-                                    childInfo.childBoneMap.ToArray(),
-                                    childInfo.worldPosition,
+                                    childInfo.ChildBoneMap,
+                                    childInfo.WorldPosition,
                                     customizeParameter);
                     }
                 }
@@ -138,7 +138,7 @@ public partial class ExportManager : IDisposable
         }, CancellationTokenSource.Token);
     }
 
-    [GeneratedRegex("^chara/human/c\\d+/obj/body/b0003/model/c\\d+b0003_top.mdl$")]
+    [GeneratedRegex(@"^chara/human/c\d+/obj/body/b0003/model/c\d+b0003_top.mdl$")]
     private static partial Regex LowPolyModelRegex();
 
     private static void ForEach<T>(IEnumerable<T> source, Action<T> action, bool parallel = false)
@@ -181,8 +181,8 @@ public partial class ExportManager : IDisposable
             {
                 logger.Debug($"Handling child model {model.Path}");
                 HandleModel(logger, config, model, character.RaceCode, scene,
-                            childInfo.childBoneMap.ToArray(),
-                            childInfo.worldPosition,
+                            childInfo.ChildBoneMap,
+                            childInfo.WorldPosition,
                             character.CustomizeParameter);
             }
         }
@@ -198,7 +198,7 @@ public partial class ExportManager : IDisposable
 
     private void HandleModel(
         ExportLogger logger, ExportConfig config, Model model, GenderRace? targetRace, SceneBuilder scene,
-        BoneNodeBuilder[] boneMap, Matrix4x4 worldPosition, CustomizeParameters? customizeParameter)
+        IReadOnlyList<BoneNodeBuilder> boneMap, Matrix4x4 worldPosition, CustomizeParameters? customizeParameter)
     {
         logger.Debug($"Exporting model {model.Path}");
         var boneNodes = boneMap.Cast<NodeBuilder>().ToArray();
@@ -241,9 +241,11 @@ public partial class ExportManager : IDisposable
         }
     }
 
-    private (BoneNodeBuilder rootBone, Matrix4x4 worldPosition, IReadOnlyList<BoneNodeBuilder> childBoneMap) HandleAttachedChild(AttachedChild child, 
+    public record AttachedChildOutput(Matrix4x4 WorldPosition, IReadOnlyList<BoneNodeBuilder> ChildBoneMap);
+    
+    private AttachedChildOutput HandleAttachedChild(AttachedChild child, 
                                      int i,
-                                     string attachName,
+                                     string? attachName,
                                      SceneBuilder scene,
                                      BoneNodeBuilder[]? boneMap)
     {
@@ -282,7 +284,7 @@ public partial class ExportManager : IDisposable
             c = c.Parent;
         }
         
-        return (childRoot, transform, childBoneMap);
+        return new AttachedChildOutput(transform, childBoneMap.ToArray());
     }
 
     private static void ApplyMeshShapes(InstanceBuilder builder, Model model, IReadOnlyList<string>? appliedShapes)
@@ -313,8 +315,8 @@ public partial class ExportManager : IDisposable
             }
 
             logger.Debug($"Exporting material {material.HandlePath}");
-;
-            materials[i] = ParseMaterial(material, Path.GetFileName(material.HandlePath), customizeParameters);
+
+            materials[i] = MaterialUtility.ParseMaterial(material, customizeParameters);
         }
 
         return materials;
@@ -350,8 +352,7 @@ public partial class ExportManager : IDisposable
                 }
 
                 logger.Log(ExportLogger.LogEventLevel.Information, "Parsing material");
-                var materialBuilder =
-                    ParseMaterial(material, Path.GetFileName(material.HandlePath), customizeParameters);
+                var materialBuilder = MaterialUtility.ParseMaterial(material, customizeParameters);
 
                 foreach (var channel in materialBuilder.Channels)
                 {
@@ -373,21 +374,6 @@ public partial class ExportManager : IDisposable
                 IsExporting = false;
             }
         }, CancellationTokenSource.Token);
-    }
-    
-    public static MaterialBuilder ParseMaterial(Material material, string name, CustomizeParameters? customizeParameter = null)
-    {
-        name = $"{name}_{material.ShaderPackage.Name.Replace(".shpk", "")}";
-
-        return material.ShaderPackage.Name switch
-        {
-            "character.shpk" => MaterialUtility.BuildCharacter(material, name).WithAlpha(AlphaMode.MASK, 0.5f),
-            "characterglass.shpk" => MaterialUtility.BuildCharacter(material, name).WithAlpha(AlphaMode.BLEND),
-            "hair.shpk" => MaterialUtility.BuildHair(material, name, HairShaderParameters.From(customizeParameter)),
-            "iris.shpk"           => MaterialUtility.BuildIris(material, name, customizeParameter?.LeftColor),
-            "skin.shpk"           => MaterialUtility.BuildSkin(material, name, SkinShaderParameters.From(customizeParameter)),
-            _ => MaterialUtility.BuildFallback(material, name),
-        };
     }
 
     public void Dispose()
