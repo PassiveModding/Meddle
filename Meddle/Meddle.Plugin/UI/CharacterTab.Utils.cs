@@ -1,19 +1,15 @@
 ﻿using System.Numerics;
 using Dalamud.Interface.Utility.Raii;
-using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using ImGuiNET;
-using Meddle.Plugin.Enums;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Config;
 using Meddle.Plugin.Models.ExportRequest;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.Utility;
-using Character = Dalamud.Game.ClientState.Objects.Types.Character;
-using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
 
 namespace Meddle.Plugin.UI;
 
-public partial class CharacterTab : ITab
+public partial class CharacterTab
 {
     public static void DrawLogMessage(ExportLogger logger)
     {
@@ -40,92 +36,71 @@ public partial class CharacterTab : ITab
             }
         }
     }
-    
-    public static void HandleExportRequest(IExportRequest? request, ExportLogger logger, ExportManager exportManager, Configuration configuration)
+
+    public static void HandleExportRequest(
+        IExportRequest? request, ExportLogger logger, ExportManager exportManager, Configuration configuration)
     {
         if (request == null)
         {
             return;
         }
-        
-        exportManager.CancellationTokenSource?.Cancel();
-        
-        
+
+        exportManager.CancellationTokenSource.Cancel();
         switch (request)
         {
             case ExportAttachRequest ear:
-                Task.Run(async () => 
-                    await exportManager.Export(
-                        logger,
-                        new ExportConfig
-                        {
-                            ExportType = ExportType.Gltf,
-                            IncludeReaperEye = false,
-                            OpenFolderWhenComplete = true,
-                            ParallelBuild = configuration.ParallelBuild
-                        },
-                        ear.Child.Models.ToArray(),
-                        [],
-                        ear.Child.Skeleton,
-                        ear.RaceCode,
-                        ear.CustomizeParameters));
+                Task.Run(async () =>
+                             await exportManager.Export(
+                                 logger,
+                                 configuration.GetExportConfig(),
+                                 ear.Child.Models.ToArray(),
+                                 [],
+                                 ear.Child.Skeleton,
+                                 ear.RaceCode,
+                                 ear.CustomizeParameters));
                 break;
             case ExportPartialTreeRequest eptr:
-                    Task.Run(async () => 
-                        await exportManager.Export(
-                             logger,
-                             new ExportConfig
-                             {
-                                 ExportType = ExportType.Gltf,
-                                 IncludeReaperEye = false,
-                                 OpenFolderWhenComplete = true,
-                                 ParallelBuild = configuration.ParallelBuild
-                             },
-                             eptr.SelectedModels,
-                             eptr.AttachedChildren,
-                             eptr.Skeleton,
-                             eptr.RaceCode,
-                             eptr.CustomizeParameters));
-                    break;
+                Task.Run(async () =>
+                             await exportManager.Export(
+                                 logger,
+                                 configuration.GetExportConfig(),
+                                 eptr.SelectedModels,
+                                 eptr.AttachedChildren,
+                                 eptr.Skeleton,
+                                 eptr.RaceCode,
+                                 eptr.CustomizeParameters));
+                break;
             case ExportTreeRequest etr:
-                    Task.Run(async () => 
-                        await exportManager.Export(
-                             logger,
-                             new ExportConfig
-                             {
-                                 ExportType = ExportType.Gltf,
-                                 IncludeReaperEye = false,
-                                 OpenFolderWhenComplete = true,
-                                 ParallelBuild = configuration.ParallelBuild
-                             },
-                             etr.Tree));
+                Task.Run(async () =>
+                             await exportManager.Export(
+                                 logger,
+                                 configuration.GetExportConfig(),
+                                 etr.Tree));
                 break;
             case ExportModelRequest emr:
-                Task.Run(async () => 
-                    await exportManager.Export(
-                         logger,
-                         new ExportConfig
-                         {
-                             ExportType = ExportType.Gltf,
-                             IncludeReaperEye = false,
-                             OpenFolderWhenComplete = true,
-                             ParallelBuild = configuration.ParallelBuild
-                         }, [emr.Model], [],
-                         emr.Skeleton,
-                         emr.RaceCode,
-                         emr.CustomizeParameters));
+                Task.Run(async () =>
+                             await exportManager.Export(
+                                 logger,
+                                 configuration.GetExportConfig(), 
+                                 [emr.Model], 
+                                 [],
+                                 emr.Skeleton,
+                                 emr.RaceCode,
+                                 emr.CustomizeParameters));
                 break;
             case MaterialExportRequest mer:
-                Task.Run(async () => 
-                    await exportManager.ExportMaterial(
-                         mer.Material,
-                         logger,
-                         mer.CustomizeParameters));
+                Task.Run(async () =>
+                             await exportManager.ExportMaterial(
+                                 mer.Material,
+                                 logger,
+                                 mer.CustomizeParameters));
                 break;
         }
     }
-    
-    public static void DrawModel(Model model, bool isExporting, CancellationTokenSource? cts, out Material? materialExport, out Model? modelExport)
+
+    public static void DrawModel(
+        Model model, bool isExporting, CancellationTokenSource? cts, out Material? materialExport,
+        out Model? modelExport)
     {
         materialExport = null;
         modelExport = null;
@@ -192,7 +167,7 @@ public partial class CharacterTab : ITab
             ImGui.Separator();
         }
     }
-    
+
     public static void DrawCustomizeParameters(CharacterTree tree)
     {
         ImGui.Text("Customize");
@@ -284,7 +259,7 @@ public partial class CharacterTab : ITab
             }
         }
     }
-    
+
     public static bool DrawColorEdit3(string label, Vector3 vec, out Vector3 result)
     {
         var v = new Vector3(vec.X, vec.Y, vec.Z);

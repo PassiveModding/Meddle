@@ -1,12 +1,8 @@
 ﻿using System.Diagnostics;
 using Dalamud.Interface.Utility.Raii;
 using ImGuiNET;
-using System.Numerics;
-using Meddle.Plugin.Enums;
 using Meddle.Plugin.Models;
-using Meddle.Plugin.Models.Config;
 using Meddle.Plugin.Models.ExportRequest;
-using Meddle.Plugin.Services;
 using Meddle.Plugin.Utility;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
 using Character = Dalamud.Game.ClientState.Objects.Types.Character;
@@ -40,7 +36,7 @@ public partial class CharacterTab
             CharacterTreeCache = new CharacterTreeSet(
                 character,
                 tree,
-                new ExportLogger(Log),
+                new ExportLogger(log),
                 DateTime.Now,
                 new bool[tree.Models.Count],
                 new bool[tree.AttachedChildren.Count]);
@@ -103,11 +99,11 @@ public partial class CharacterTab
         var enabledAttaches = set.EnabledAttaches;
         DrawModelView(tree, ref enabledModels, out var modelViewExport);
         DrawAttachView(tree, ref enabledAttaches, out var attachViewExport);
-        HandleExportRequest(exportRequest ?? modelViewExport ?? attachViewExport, set.Logger, 
+        HandleExportRequest(exportRequest ?? modelViewExport ?? attachViewExport, set.Logger,
                             ExportManager,
-                            Configuration);
+                            configuration);
     }
-    
+
     private void DrawAttachView(CharacterTree tree, ref bool[] set, out IExportRequest? exportRequest)
     {
         exportRequest = null;
@@ -161,12 +157,13 @@ public partial class CharacterTab
                     foreach (var model in child.Models)
                     {
                         ImGui.TableNextColumn();
-                        DrawModel(model, ExportManager.IsExporting, ExportManager.CancellationTokenSource, out var me, out var er);
+                        DrawModel(model, ExportManager.IsExporting, ExportManager.CancellationTokenSource, out var me,
+                                  out var er);
                         if (me != null)
                         {
                             exportRequest = new MaterialExportRequest(me);
                         }
-                        
+
                         if (er != null)
                         {
                             exportRequest = new ExportModelRequest(er, child.Skeleton);
@@ -205,7 +202,7 @@ public partial class CharacterTab
             {
                 exportRequest = new MaterialExportRequest(me, tree.CustomizeParameter);
             }
-            
+
             if (er != null)
             {
                 exportRequest = new ExportModelRequest(er, tree.Skeleton);

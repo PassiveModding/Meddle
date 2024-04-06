@@ -17,38 +17,40 @@ namespace Meddle.Plugin.UI;
 
 public class ObjectTab : ITab
 {
+    private readonly IClientState clientState;
+    private readonly Configuration configuration;
+    private readonly ExportManager exportManager;
+    private readonly InteropService interopService;
+
+    private readonly IPluginLog log;
+    private readonly IObjectTable objectTable;
+
     public ObjectTab(
-        DalamudPluginInterface pluginInterface,
         Configuration configuration,
         IObjectTable objectTable,
         IClientState clientState,
         ExportManager exportManager,
+        InteropService interopService,
         IPluginLog log)
     {
-        Log = log;
-        PluginInterface = pluginInterface;
-        Configuration = configuration;
-        ObjectTable = objectTable;
-        ClientState = clientState;
-        ExportManager = exportManager;
+        this.log = log;
+        this.configuration = configuration;
+        this.objectTable = objectTable;
+        this.clientState = clientState;
+        this.exportManager = exportManager;
+        this.interopService = interopService;
     }
 
-    public IPluginLog Log { get; }
-    public DalamudPluginInterface PluginInterface { get; }
-    public Configuration Configuration { get; }
-    public IObjectTable ObjectTable { get; }
-    public IClientState ClientState { get; }
-    public ExportManager ExportManager { get; }
+    private int SelectedObjectIndex { get; set; }
+    private CharacterTree? Tree { get; set; }
     public string Name => "Objects";
     public int Order => 2;
-    public int SelectedObjectIndex { get; set; }
-    public CharacterTree? Tree { get; set; }
 
-    public unsafe void Draw()
+    public void Draw()
     {
-        if (Plugin.CsResolved == false) return;
-        if (ClientState.LocalPlayer == null) return;
-        var objects = ObjectTable.Where(obj => obj.IsValid())
+        if (!interopService.IsResolved) return;
+        if (clientState.LocalPlayer == null) return;
+        var objects = objectTable.Where(obj => obj.IsValid())
                                  .OrderBy(obj => GetDistance(obj).LengthSquared())
                                  .ToArray();
 
@@ -111,17 +113,19 @@ public class ObjectTab : ITab
         if (selectedObject == null) return;
         if (initialIndex != SelectedObjectIndex)
         {
-            Log.Info("Selected object: " + selectedObject.Name);
+            log.Info("Selected object: " + selectedObject.Name);
             Tree = null;
         }
-        
+
         DrawGameObjectInfo(selectedObject);
     }
+
+    public void Dispose() { }
 
     private unsafe void DrawCharacterInfo(CSCharacter* character)
     {
         Tree ??= new CharacterTree(character);
-        
+
         if (ImGui.Button("Refresh"))
         {
             Tree = new CharacterTree(character);
@@ -129,27 +133,27 @@ public class ObjectTab : ITab
 
         ImGui.Text("Character Info");
         ImGui.Text($"Name: {Tree.Name}");
-        
+
         IExportRequest? exportRequest = null;
-        if (CharacterTab.DrawExportButton("Export", ExportManager.IsExporting))
+        if (CharacterTab.DrawExportButton("Export", exportManager.IsExporting))
         {
             exportRequest = new ExportTreeRequest(Tree);
         }
-        
+
         if (Tree.Models.Count > 0 && ImGui.CollapsingHeader("Models"))
         {
             using var table = ImRaii.Table("##models", 1, ImGuiTableFlags.Borders);
             foreach (var model in Tree.Models)
             {
                 ImGui.TableNextColumn();
-                CharacterTab.DrawModel(model, ExportManager.IsExporting, ExportManager.CancellationTokenSource,
+                CharacterTab.DrawModel(model, exportManager.IsExporting, exportManager.CancellationTokenSource,
                                        out var me, out var em);
 
                 if (me != null)
                 {
                     exportRequest = new MaterialExportRequest(me, Tree.CustomizeParameter);
                 }
-                
+
                 if (em != null)
                 {
                     exportRequest = new ExportModelRequest(em, Tree.Skeleton);
@@ -171,20 +175,20 @@ public class ObjectTab : ITab
                         ImGui.Text($"Rotation: {ct.Rotation}");
                         ImGui.Text($"Scale: {ct.Scale}");
                     }
-                    
+
                     ImGui.Text($"Execute Type: {child.Attach.ExecuteType}");
                     using var table = ImRaii.Table("##attachmodels", 1, ImGuiTableFlags.Borders);
                     foreach (var model in child.Models)
                     {
                         ImGui.TableNextColumn();
-                        CharacterTab.DrawModel(model, ExportManager.IsExporting, ExportManager.CancellationTokenSource,
+                        CharacterTab.DrawModel(model, exportManager.IsExporting, exportManager.CancellationTokenSource,
                                                out var me, out var em);
 
                         if (me != null)
                         {
                             exportRequest = new MaterialExportRequest(me);
                         }
-                        
+
                         if (em != null)
                         {
                             exportRequest = new ExportModelRequest(em, child.Skeleton);
@@ -193,10 +197,10 @@ public class ObjectTab : ITab
                 }
             }
         }
-        
+
         if (exportRequest != null)
         {
-            CharacterTab.HandleExportRequest(exportRequest, new ExportLogger(Log), ExportManager, Configuration);
+            CharacterTab.HandleExportRequest(exportRequest, new ExportLogger(log), exportManager, configuration);
         }
     }
 
@@ -208,15 +212,15 @@ public class ObjectTab : ITab
         ImGui.Text($"Index: {selectedObject.ObjectIndex}");
         ImGui.Text($"Distance: {GetDistance(selectedObject).Length():0.00}y");
         ImGui.Text($"Address: {selectedObject.Address:X}");
-        
+
         if (selectedObject is Character character)
         {
             var drawObject = ((CSCharacter*)character.Address)->GameObject.DrawObject;
-            if (drawObject == null) 
+            if (drawObject == null)
                 return;
             if (drawObject->Object.GetObjectType() != ObjectType.CharacterBase)
                 return;
-            
+
             var csCharacter = (CSCharacter*)character.Address;
             DrawCharacterInfo(csCharacter);
         }
@@ -230,10 +234,8 @@ public class ObjectTab : ITab
 
     private Vector3 GetDistance(GameObject obj)
     {
-        if (ClientState.LocalPlayer is {Position: var charPos})
+        if (clientState.LocalPlayer is {Position: var charPos})
             return Vector3.Abs(obj.Position - charPos);
         return new Vector3(obj.YalmDistanceX, 0, obj.YalmDistanceZ);
     }
-
-    public void Dispose() { }
 }

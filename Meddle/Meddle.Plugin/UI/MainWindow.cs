@@ -9,13 +9,13 @@ namespace Meddle.Plugin.UI;
 
 public sealed class MainWindow : Window, IDisposable
 {
-    private ITab[] Tabs { get; }
-    private IPluginLog Log { get; }
+    private readonly ITab[] tabs;
+    private readonly IPluginLog log;
 
     public MainWindow(IEnumerable<ITab> tabs, Configuration config, IPluginLog log) : base("Meddle")
     {
-        Tabs = tabs.OrderBy(x => x.Order).ToArray();
-        Log = log;
+        this.tabs = tabs.OrderBy(x => x.Order).ToArray();
+        this.log = log;
         SizeConstraints = new WindowSizeConstraints
         {
             MinimumSize = new Vector2(375, 350),
@@ -30,7 +30,7 @@ public sealed class MainWindow : Window, IDisposable
     public override void Draw()
     {
         using var tabBar = ImRaii.TabBar("##meddleTabs");
-        foreach (var tab in Tabs)
+        foreach (var tab in tabs)
         {
             using var tabItem = ImRaii.TabItem(tab.Name);
             try
@@ -46,7 +46,7 @@ public sealed class MainWindow : Window, IDisposable
                 if (errStr != lastError)
                 {
                     lastError = errStr;
-                    Log.Error(e, $"Failed to draw {tab.Name}");
+                    log.Error(e, $"Failed to draw {tab.Name}");
                 }
 
                 ImGui.TextColored(new Vector4(1, 0, 0, 1), $"Failed to draw {tab.Name} tab");
@@ -57,7 +57,7 @@ public sealed class MainWindow : Window, IDisposable
 
     public void Dispose()
     {
-        foreach (var tab in Tabs)
+        foreach (var tab in tabs)
             tab.Dispose();
     }
 }

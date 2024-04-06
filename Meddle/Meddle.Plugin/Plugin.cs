@@ -19,15 +19,9 @@ public sealed class Plugin : IDalamudPlugin
 {
     private static readonly WindowSystem WindowSystem = new("Meddle");
     public static readonly string TempDirectory = Path.Combine(Path.GetTempPath(), "Meddle.Export");
-    public static bool CsResolved { get; private set; } = false;
-    private MainWindow? mainWindow = null;
+    private readonly MainWindow? mainWindow;
     private readonly ICommandManager commandManager;
     private readonly DalamudPluginInterface pluginInterface;
-    private readonly IGameInteropProvider gameInteropProvider;
-
-    [Signature("40 53 48 83 EC 20 FF 81 ?? ?? ?? ?? 48 8B D9 48 8D 4C 24", DetourName = nameof(PostTickDetour))]
-    private Hook<PostTickDelegate> postTickHook = null!;
-    private delegate bool PostTickDelegate(nint a1);
 
     public Plugin(DalamudPluginInterface pluginInterface)
     {
@@ -42,6 +36,7 @@ public sealed class Plugin : IDalamudPlugin
             .AddSingleton(config)
             .AddSingleton<ExportManager>()
             .AddSingleton<ModelBuilder>()
+            .AddSingleton<InteropService>()
             .BuildServiceProvider();
         
         commandManager = services.GetRequiredService<ICommandManager>();
@@ -51,31 +46,27 @@ public sealed class Plugin : IDalamudPlugin
         });
         
         this.pluginInterface = services.GetRequiredService<DalamudPluginInterface>();
-        this.pluginInterface.UiBuilder.Draw += DrawUi;
+        this.pluginInterface.UiBuilder.Draw += WindowSystem.Draw;
         this.pluginInterface.UiBuilder.OpenMainUi += OpenUi;
         this.pluginInterface.UiBuilder.OpenConfigUi += OpenUi;
-        this.pluginInterface.UiBuilder.DisableGposeUiHide = true;
+        this.pluginInterface.UiBuilder.DisableGposeUiHide = config.DisableGposeUiHide;
+        this.pluginInterface.UiBuilder.DisableCutsceneUiHide = config.DisableCutsceneUiHide;
+        config.OnChange += () =>
+        {
+            this.pluginInterface.UiBuilder.DisableGposeUiHide = config.DisableGposeUiHide;
+            this.pluginInterface.UiBuilder.DisableCutsceneUiHide = config.DisableCutsceneUiHide;
+        };
 
-        gameInteropProvider = services.GetRequiredService<IGameInteropProvider>();
         mainWindow = services.GetRequiredService<MainWindow>();
         WindowSystem.AddWindow(mainWindow);
         
-        // https://github.com/Caraxi/SimpleTweaksPlugin/blob/2b7c105d1671fd6a344edb5c621632b8825a81c5/SimpleTweaksPlugin.cs#L101C13-L103C75
         Task.Run(() =>
         {
-            FFXIVClientStructs.Interop.Resolver.GetInstance.SetupSearchSpace(services.GetRequiredService<ISigScanner>().SearchBase);
-            FFXIVClientStructs.Interop.Resolver.GetInstance.Resolve();
-            
-            services.GetRequiredService<IPluginLog>().Information("Resolved FFXIVClientStructs");
-            CsResolved = true;
+            var interop = services.GetRequiredService<InteropService>();
+            interop.Initialize();
         });
     }
 
-    private bool PostTickDetour(nint a1)
-    {
-        var ret = postTickHook.Original(a1);
-        return ret;
-    }
 
     private void OnCommand(string command, string args)
     {
@@ -89,20 +80,15 @@ public sealed class Plugin : IDalamudPlugin
         mainWindow.IsOpen = true;
         mainWindow.BringToFront();
     }
-    
-    private void DrawUi()
-    {
-        WindowSystem.Draw();
-    }
 
     public void Dispose()
     {
-        postTickHook?.Dispose();
         mainWindow?.Dispose();
         WindowSystem.RemoveAllWindows();
         commandManager.RemoveHandler("/meddle");
 
-        pluginInterface.UiBuilder.Draw -= DrawUi;
+        pluginInterface.UiBuilder.Draw -= WindowSystem.Draw;
         pluginInterface.UiBuilder.OpenConfigUi -= OpenUi;
+        pluginInterface.UiBuilder.OpenMainUi -= OpenUi;
     }
 }

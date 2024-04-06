@@ -1,15 +1,15 @@
-﻿using FFXIVClientStructs.FFXIV.Client.Game.Character;
-using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
-using FFXIVClientStructs.Havok;
-using ImGuiNET;
-using SharpGLTF.Transforms;
-using System.Numerics;
+﻿using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using Dalamud.Interface.Utility.Raii;
+using FFXIVClientStructs.FFXIV.Client.Game.Character;
+using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
+using FFXIVClientStructs.Havok;
+using ImGuiNET;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Utility;
 using Meddle.Plugin.Xande;
+using SharpGLTF.Transforms;
 using Character = Dalamud.Game.ClientState.Objects.Types.Character;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
 using CSTransform = FFXIVClientStructs.FFXIV.Client.Graphics.Transform;
@@ -46,7 +46,9 @@ public unsafe partial class CharacterTab
                 if (p != null && p->Skeleton != null)
                 {
                     for (var j = 0; j < p->Skeleton->Bones.Length; ++j)
+                    {
                         ImGui.TextUnformatted($"[{i:X}, {j:X}] => {p->Skeleton->Bones[j].Name.String ?? $"Bone {j}"}");
+                    }
                 }
 
                 ImGui.Separator();
@@ -63,12 +65,14 @@ public unsafe partial class CharacterTab
             DrawWeaponData(weaponData[2]);
 
         if (ImGui.Button("Copy"))
+        {
             ImGui.SetClipboardText(JsonSerializer.Serialize(new CharacterTree(charPtr),
-                                                            new JsonSerializerOptions()
+                                                            new JsonSerializerOptions
                                                                 {WriteIndented = true, IncludeFields = true}));
+        }
     }
-    
-    
+
+
     public static bool IsHuman(Character obj)
     {
         var drawObject = ((CSCharacter*)obj.Address)->GameObject.DrawObject;
@@ -130,7 +134,7 @@ public unsafe partial class CharacterTab
 
     private static void DrawSkeletonAsTree(Skeleton* skeleton, string ctx = "Main")
     {
-        var mSkele = new Meddle.Plugin.Models.Skeleton(skeleton);
+        var mSkele = new Models.Skeleton(skeleton);
         var map = ModelUtility.GetBoneMap(mSkele, out var root);
 
         if (root == null)
@@ -197,24 +201,32 @@ public unsafe partial class CharacterTab
         return data.Model == null ? null : data.Model->CharacterBase.Skeleton;
     }
 
-    private static Vector3 AsVector(hkVector4f hkVector) =>
-        new(hkVector.X, hkVector.Y, hkVector.Z);
+    private static Vector3 AsVector(hkVector4f hkVector)
+    {
+        return new Vector3(hkVector.X, hkVector.Y, hkVector.Z);
+    }
 
-    private static Vector4 AsVector(hkQuaternionf hkVector) =>
-        new(hkVector.X, hkVector.Y, hkVector.Z, hkVector.W);
+    private static Vector4 AsVector(hkQuaternionf hkVector)
+    {
+        return new Vector4(hkVector.X, hkVector.Y, hkVector.Z, hkVector.W);
+    }
 
-    private static Quaternion AsQuaternion(hkQuaternionf hkQuaternion) =>
-        new(hkQuaternion.X, hkQuaternion.Y, hkQuaternion.Z, hkQuaternion.W);
+    private static Quaternion AsQuaternion(hkQuaternionf hkQuaternion)
+    {
+        return new Quaternion(hkQuaternion.X, hkQuaternion.Y, hkQuaternion.Z, hkQuaternion.W);
+    }
 
-    private static Matrix4x4 GetMatrix(CSTransform transform) =>
-        new Transform(transform).AffineTransform.Matrix;
+    private static Matrix4x4 GetMatrix(CSTransform transform)
+    {
+        return new Transform(transform).AffineTransform.Matrix;
+    }
 
-    private static unsafe Matrix4x4 GetMatrix(hkQsTransformf transform)
+    private static Matrix4x4 GetMatrix(hkQsTransformf transform)
     {
         var transformPtr = (hkQsTransformf*)NativeMemory.AlignedAlloc((nuint)sizeof(hkQsTransformf), 32);
         var matrixPtr = (Matrix4x4*)NativeMemory.AlignedAlloc((nuint)sizeof(Matrix4x4), 32);
         *transformPtr = transform;
-        *matrixPtr = new();
+        *matrixPtr = new Matrix4x4();
         transformPtr->get4x4ColumnMajor((float*)matrixPtr);
         var ret = *matrixPtr;
         NativeMemory.AlignedFree(transformPtr);
@@ -224,7 +236,7 @@ public unsafe partial class CharacterTab
 
     private static AffineTransform AsAffineTransform(hkQsTransformf hkTransform)
     {
-        return new(GetMatrix(hkTransform));
+        return new AffineTransform(GetMatrix(hkTransform));
     }
 
     private static Dictionary<string, hkQsTransformf>? GetPose(Skeleton* skeleton)

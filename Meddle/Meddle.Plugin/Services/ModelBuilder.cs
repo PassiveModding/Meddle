@@ -2,25 +2,17 @@
 using Meddle.Plugin.Enums;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Xande;
-using SharpGLTF.Geometry;
 using SharpGLTF.Materials;
 using RaceDeformer = Meddle.Plugin.Xande.RaceDeformer;
 
 namespace Meddle.Plugin.Services;
 
-public class ModelBuilder
+public class ModelBuilder(IPluginLog log)
 {
-    public IPluginLog Log { get; }
-
-    public ModelBuilder(IPluginLog log)
-    {
-        Log = log;
-    }
-    
     public IReadOnlyList<MeshExport> BuildMeshes(Model model, 
-                               IReadOnlyList<MaterialBuilder> materials, 
-                               IReadOnlyList<BoneNodeBuilder> boneMap, 
-                               (GenderRace targetDeform, RaceDeformer deformer)? raceDeformer)
+                                                 IReadOnlyList<MaterialBuilder> materials, 
+                                                 IReadOnlyList<BoneNodeBuilder> boneMap, 
+                                                 (GenderRace targetDeform, RaceDeformer deformer)? raceDeformer)
     {
         var meshes = new List<MeshExport>();
         (RaceDeformer deformer, ushort from, ushort to)? deform = null;
@@ -33,7 +25,7 @@ public class ModelBuilder
         foreach (var mesh in model.Meshes)
         {
             var useSkinning = mesh.BoneTable != null;
-            Log.Debug($"Building mesh {model.Path}_{mesh.MeshIdx} with skinning: {useSkinning}");
+            log.Debug($"Building mesh {model.Path}_{mesh.MeshIdx} with skinning: {useSkinning}");
             MeshBuilder meshBuilder;
             var material = materials[mesh.MaterialIdx];
             if (useSkinning)
@@ -73,7 +65,7 @@ public class ModelBuilder
                     subMesh.Name += $";{string.Join(";", modelSubMesh.Attributes)}";
                 }
                 
-                Log.Debug($"Building submesh {subMesh.Name}");
+                log.Debug($"Building submesh {subMesh.Name}");
 
                 var subMeshStart = (int)modelSubMesh.IndexOffset;
                 var subMeshEnd = subMeshStart + (int)modelSubMesh.IndexCount;

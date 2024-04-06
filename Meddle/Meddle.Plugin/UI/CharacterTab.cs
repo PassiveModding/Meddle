@@ -1,11 +1,10 @@
-using Dalamud.Interface.Utility.Raii;
-using Dalamud.Plugin;
-using Dalamud.Plugin.Services;
-using FFXIVClientStructs.FFXIV.Client.UI.Agent;
-using ImGuiNET;
 using System.Numerics;
 using System.Reflection;
 using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Interface.Utility.Raii;
+using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Client.UI.Agent;
+using ImGuiNET;
 using Meddle.Plugin.Models.Config;
 using Meddle.Plugin.Services;
 using Character = Dalamud.Game.ClientState.Objects.Types.Character;
@@ -14,45 +13,50 @@ namespace Meddle.Plugin.UI;
 
 public unsafe partial class CharacterTab : ITab
 {
+    private readonly IClientState clientState;
+    private readonly Configuration configuration;
+    private readonly InteropService interopService;
+    private readonly IPluginLog log;
+    private readonly IObjectTable objectTable;
+
     public CharacterTab(
-        DalamudPluginInterface pluginInterface,
         Configuration configuration,
         IObjectTable objectTable,
         IClientState clientState,
         ExportManager exportManager,
+        InteropService interopService,
         IPluginLog log)
     {
-        Log = log;
-        PluginInterface = pluginInterface;
-        Configuration = configuration;
-        ObjectTable = objectTable;
-        ClientState = clientState;
+        this.interopService = interopService;
+        this.log = log;
+        this.configuration = configuration;
+        this.objectTable = objectTable;
+        this.clientState = clientState;
         ExportManager = exportManager;
     }
+
+    private ExportManager ExportManager { get; }
+    private Character? SelectedCharacter { get; set; }
 
     public string Name => "Character";
 
     public int Order => 0;
-    private IPluginLog Log { get; }
-    private DalamudPluginInterface PluginInterface { get; }
-    public Configuration Configuration { get; }
-    private IObjectTable ObjectTable { get; }
-    private IClientState ClientState { get; }
-    private ExportManager ExportManager { get; }
-    private Character? SelectedCharacter { get; set; }
 
     public void Draw()
     {
-        if (Plugin.CsResolved == false) return;
+        if (!interopService.IsResolved) return;
         DrawObjectPicker();
     }
+
+
+    public void Dispose() { }
 
     private void DrawObjectPicker()
     {
         Character[] objects;
-        if (ClientState.LocalPlayer != null)
+        if (clientState.LocalPlayer != null)
         {
-            objects = ObjectTable.OfType<Character>()
+            objects = objectTable.OfType<Character>()
                                  .Where(obj => obj.IsValid() && IsHuman(obj))
                                  .OrderBy(c => GetDistanceToLocalPlayer(c).LengthSquared())
                                  .ToArray();
@@ -96,7 +100,7 @@ public unsafe partial class CharacterTab : ITab
 
         if (SelectedCharacter == null)
         {
-            SelectedCharacter = objects.FirstOrDefault() ?? ClientState.LocalPlayer;
+            SelectedCharacter = objects.FirstOrDefault() ?? clientState.LocalPlayer;
         }
 
         ImGui.Text("Select Character");
@@ -117,15 +121,6 @@ public unsafe partial class CharacterTab : ITab
 
         if (SelectedCharacter != null)
         {
-            /*if (ImGui.CollapsingHeader("Character Pose"))
-            {
-                DrawPoseInfo(SelectedCharacter);
-            }
-
-            if (ImGui.CollapsingHeader($"Character Tree", ImGuiTreeNodeFlags.DefaultOpen))
-            {
-                DrawCharacterTree(SelectedCharacter);
-            }*/
             DrawCharacterTree(SelectedCharacter);
         }
         else
@@ -136,16 +131,14 @@ public unsafe partial class CharacterTab : ITab
 
     private Vector3 GetDistanceToLocalPlayer(GameObject obj)
     {
-        if (ClientState.LocalPlayer is {Position: var charPos})
+        if (clientState.LocalPlayer is {Position: var charPos})
             return Vector3.Abs(obj.Position - charPos);
         return new Vector3(obj.YalmDistanceX, 0, obj.YalmDistanceZ);
     }
 
-    private string GetCharacterDisplayText(Character obj) =>
-        $"{obj.Address:X8}:{obj.ObjectId:X} - {obj.ObjectKind} - {(string.IsNullOrWhiteSpace(obj.Name.TextValue) ? "Unnamed" : obj.Name.TextValue)} - {GetDistanceToLocalPlayer(obj).Length():0.00}y";
-
-
-    public void Dispose()
+    private string GetCharacterDisplayText(Character obj)
     {
+        return
+            $"{obj.Address:X8}:{obj.ObjectId:X} - {obj.ObjectKind} - {(string.IsNullOrWhiteSpace(obj.Name.TextValue) ? "Unnamed" : obj.Name.TextValue)} - {GetDistanceToLocalPlayer(obj).Length():0.00}y";
     }
 }
