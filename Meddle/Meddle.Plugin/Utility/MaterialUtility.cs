@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using Dalamud.Utility.Numerics;
 using Lumina.Data.Parsing;
 using Meddle.Plugin.Models;
 using SharpGLTF.Materials;
@@ -39,18 +40,10 @@ public static class MaterialUtility
             for (var x = 0; x < baseColor.Width; x++)
             for (var y = 0; y < baseColor.Height; y++)
             {
-                var maskPixel = maskImage[x,y];
-                var baseColorPixel = baseColor[x, y];
-                // multiply base by mask red channel
-                var r = maskPixel.Red / 255f;
-
-                var result = new SKColor(
-                    (byte)(baseColorPixel.Red * r),
-                    (byte)(baseColorPixel.Green * r),
-                    (byte)(baseColorPixel.Blue * r),
-                    baseColorPixel.Alpha
-                );
-                baseColor[x, y] = result;
+                var maskPixel = maskImage[x,y].ToVector4();
+                var baseColorPixel = baseColor[x, y].ToVector4();
+                var alpha = baseColorPixel.W;
+                baseColor[x, y] = (baseColorPixel * maskPixel.X).WithW(alpha).ToSkColor();
             }
         }
         
@@ -83,35 +76,28 @@ public static class MaterialUtility
         var mask   = maskTexture.Resource.ToTexture((normal.Width, normal.Height));
         
         var baseColor = new SKTexture(normal.Width, normal.Height);
-        var occlusion = new SKTexture(normal.Width, normal.Height);
         var specular = new SKTexture(normal.Width, normal.Height);
         for (var x = 0; x < normal.Width; x++)
         for (var y = 0; y < normal.Height; y++)
         {
-            var normalPixel = normal[x, y];
-            var maskPixel = mask[x, y];
+            var normalPixel = normal[x, y].ToVector4();
+            var maskPixel = mask[x, y].ToVector4();
             if (isFace && customizeParameters?.OptionColor != null)
             {
-                // Alpha = Tattoo/Limbal/Ear Clasp Color (OptionColor)
-                var alpha = maskPixel.Alpha / 255f;
-                
-                var color = Vector3.Lerp(hairCol, customizeParameters.OptionColor, alpha);
-                baseColor[x, y] = ToSkColor(color).WithAlpha(normalPixel.Alpha);
+                // Mask Alpha = Option color intensity
+                var color = Vector3.Lerp(hairCol, customizeParameters.OptionColor,  maskPixel.W);
+                baseColor[x, y] = new Vector4(color, normalPixel.W).ToSkColor();
             }
 
             if (!isFace)
             {
-                var color = Vector3.Lerp(hairCol, 
-                                         customizeParameters?.MeshColor ?? DefaultHighlightColor, 
-                                         maskPixel.Alpha / 255f);
-                baseColor[x, y] = ToSkColor(color).WithAlpha(normalPixel.Alpha);
-                
-                // Mask red channel is occlusion supposedly
-                occlusion[x, y] = new SKColor(maskPixel.Red, maskPixel.Red, maskPixel.Red, maskPixel.Red);
+                var color = Vector3.Lerp(hairCol, customizeParameters?.MeshColor ?? DefaultHighlightColor, 
+                                         maskPixel.W);
+                baseColor[x, y] = new Vector4(color, normalPixel.W).ToSkColor();
             }
             
             // mask green channel is specular
-            specular[x, y] = new SKColor(maskPixel.Green, maskPixel.Green, maskPixel.Green, maskPixel.Green);
+            specular[x, y] = new Vector4(maskPixel.Y).ToSkColor();
         }
         
         return BuildSharedBase(material, name)
@@ -134,16 +120,16 @@ public static class MaterialUtility
         for (var x = 0; x < normal.Width; x++)
         for (var y = 0; y < normal.Height; y++)
         {
-            var normalPixel = normal[x, y];
-            var maskPixel = mask[x, y];
+            var normalPixel = normal[x, y].ToVector4();
+            var maskPixel = mask[x, y].ToVector4();
 
             // Not sure if we can set it per eye since it's done by the shader
             // NOTE: W = Face paint (UV2) U multiplier. since we set it using the alpha it gets ignored for iris either way
-            var color = (leftEyeColor ?? DefaultEyeColor) * new Vector4(maskPixel.Red / 255f);
-            color.W = normalPixel.Alpha / 255f;
+            var color = (leftEyeColor ?? DefaultEyeColor) * new Vector4(maskPixel.X);
+            color.W = normalPixel.W;
 
-            baseColor[x, y] = ToSkColor(color);
-            normal[x, y] = normalPixel.WithAlpha(byte.MaxValue);
+            baseColor[x, y] = color.ToSkColor();
+            normal[x, y] = normalPixel.WithW(1).ToSkColor();
         }
 
         return BuildSharedBase(material, name)
@@ -185,40 +171,38 @@ public static class MaterialUtility
                 // R: Skin color intensity
                 // G: Specular intensity - todo maybe
                 // B: Lip intensity
-                var maskPixel = resizedMask[x, y];
-                var diffusePixel = diffuse[x, y];
-                var diffuseVec = new Vector4(diffusePixel.Red, diffusePixel.Green, diffusePixel.Blue,
-                                             diffusePixel.Alpha) / 255f;
-
-                if (maskPixel.Red > 0)
+                var maskPixel = resizedMask[x, y].ToVector4();
+                var diffusePixel = diffuse[x, y].ToVector4();
+                var alpha = diffusePixel.W;
+                if (maskPixel.X > 0)
                 {
-                    var skinColorIntensity = maskPixel.Red / 255f;
+                    var skinColorIntensity = maskPixel.X;
                     // NOTE: SkinColor alpha channel is muscle tone
-                    diffuseVec = Vector4.Lerp(diffuseVec, customizeParameter.SkinColor, skinColorIntensity * 0.5f);
+                    diffusePixel = Vector4.Lerp(diffusePixel, customizeParameter.SkinColor, skinColorIntensity * 0.5f);
                 }
 
                 if (customizeParameter.IsHrothgar && !isFace)
                 {
                     // Mask G is hair color intensity
                     // Mask B is hair highlight intensity
-                    var hairColorIntensity = maskPixel.Green / 255f;
-                    var highlightIntensity = maskPixel.Blue / 255f;
-                    var diffuseCol = new Vector3(diffuseVec.X, diffuseVec.Y, diffuseVec.Z);
+                    var hairColorIntensity = maskPixel.Y;
+                    var highlightIntensity = maskPixel.Z;
+                    var diffuseCol = new Vector3(diffusePixel.X, diffusePixel.Y, diffusePixel.Z);
                     var hairColor = Vector3.Lerp(diffuseCol, customizeParameter.MainColor, hairColorIntensity);
                     var highlightColor = Vector3.Lerp(hairColor, customizeParameter.MeshColor, highlightIntensity);
-                    diffuseVec = new Vector4(highlightColor, diffuseVec.W);
+                    diffusePixel = new Vector4(highlightColor, diffusePixel.W);
                 }
 
                 if (!customizeParameter.IsHrothgar && isFace && customizeParameter.ApplyLipColor)
                 {
                     // Lerp between base colour and lip colour based on the blue channel
-                    var lipIntensity = maskPixel.Blue / 255f;
-                    diffuseVec = Vector4.Lerp(diffuseVec, customizeParameter.LipColor, 
-                                              lipIntensity * customizeParameter.LipColor.W);
+                    var lipIntensity = maskPixel.Z;
+                    diffusePixel = Vector4.Lerp(diffusePixel, customizeParameter.LipColor, 
+                                                lipIntensity * customizeParameter.LipColor.W);
                 }
 
                 // keep original alpha
-                diffuse[x, y] = ToSkColor(diffuseVec).WithAlpha(diffusePixel.Alpha);
+                diffuse[x, y] = diffusePixel.WithW(alpha).ToSkColor();
             }
         }
 
@@ -252,7 +236,7 @@ public static class MaterialUtility
         return new MaterialBuilder(name)
             .WithDoubleSide(showBackfaces);
     }
-    
+
     public static Vector4 ToVector4(this SKColor color) => 
         new Vector4(color.Red, color.Green, color.Blue, color.Alpha) / 255f;
     public static SKColor ToSkColor(this Vector4 color) => 
@@ -300,15 +284,12 @@ public static class MaterialUtility
         for (var x = 0; x < target.Width; x++)
         for (var y = 0; y < target.Height; y++)
         {
-            var targetPixel = target[x, y];
-            var multPixel = multiplier[x, y];
-            var resultPixel = new SKColor(
-                (byte)(targetPixel.Red * multPixel.Red / 255f),
-                (byte)(targetPixel.Green * multPixel.Green / 255f),
-                (byte)(targetPixel.Blue * multPixel.Blue / 255f),
-                preserveTargetAlpha ? targetPixel.Alpha : (byte)(targetPixel.Alpha * multPixel.Alpha / 255f)
-            );
-            result[x, y] = resultPixel;
+            var targetPixel = target[x, y].ToVector4();
+            var multPixel = multiplier[x, y].ToVector4();
+            var resultPixel = targetPixel * multPixel;
+            resultPixel.W = !preserveTargetAlpha ? targetPixel.W * multPixel.W : targetPixel.W;
+
+            result[x, y] = resultPixel.ToSkColor();
         }
 
         return result;
@@ -352,28 +333,28 @@ public static class MaterialUtility
             for (var y = 0; y < normal.Height; y++)
             for (var x = 0; x < normal.Width; x++)
             {
-                var normalPixel = Normal[x, y];
+                var normalPixel = Normal[x, y].ToVector4();
             
                 // Table row data (.a)
-                var tableRow = GetTableRowIndices(normalPixel.Alpha / 255f);
+                var tableRow = GetTableRowIndices(normalPixel.W);
                 var prevRow  = table.Rows[tableRow.Previous];
                 var nextRow  = table.Rows[tableRow.Next];
             
                 // Base colour (table, .b)
                 var lerpedDiffuse = Vector3.Lerp(prevRow.Diffuse, nextRow.Diffuse, tableRow.Weight);
-                BaseColor[x, y] = ToSkColor(new Vector4(lerpedDiffuse, 1)).WithAlpha(normalPixel.Blue);
+                BaseColor[x, y] = new Vector4(lerpedDiffuse, normalPixel.Z).ToSkColor();
             
                 // Specular (table)
                 var lerpedSpecularColor = Vector3.Lerp(prevRow.Specular, nextRow.Specular, tableRow.Weight);
                 var lerpedSpecularFactor = float.Lerp(prevRow.SpecularStrength, nextRow.SpecularStrength, tableRow.Weight);
-                Specular[x, y] = ToSkColor(new Vector4(lerpedSpecularColor, lerpedSpecularFactor));
+                Specular[x, y] = new Vector4(lerpedSpecularColor, lerpedSpecularFactor).ToSkColor();
             
                 // Emissive (table)
                 var lerpedEmissive = Vector3.Lerp(prevRow.Emissive, nextRow.Emissive, tableRow.Weight);
-                Emissive[x, y] = ToSkColor(new Vector4(lerpedEmissive, 1));
+                Emissive[x, y] = lerpedEmissive.ToSkColor();
             
                 // Normal (.rg)
-                Normal[x, y] = new SKColor(normalPixel.Red, normalPixel.Green, byte.MaxValue, normalPixel.Blue);
+                Normal[x, y] = new Vector4(normalPixel.X, normalPixel.Y, 1, normalPixel.Z).ToSkColor();;
             }
             
             return this;
