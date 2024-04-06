@@ -361,7 +361,7 @@ public partial class CharacterTab
         if (material.ColorTable != null)
         {
             if (ImGui.CollapsingHeader($"Color Table##{material.GetHashCode()}"))
-                DrawColorTable(material.ColorTable);
+                DrawColorTable(material.ColorTable.Value);
         }
     }
 
@@ -375,9 +375,9 @@ public partial class CharacterTab
         ImGui.TableSetupColumn("Emissive", ImGuiTableColumnFlags.WidthFixed, 50);
         ImGui.TableHeadersRow();
 
-        for (var i = 0; i < table.Rows.Length; i++)
+        for (var i = 0; i < ColorTable.NumRows; i++)
         {
-            var row = table.Rows[i];
+            var row = table[i];
             ImGui.TableNextRow();
             ImGui.TableNextColumn();
             ImGui.Text($"Row {i}");
