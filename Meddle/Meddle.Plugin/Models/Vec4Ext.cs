@@ -47,6 +47,11 @@ public struct Vec4Ext
     {
         this.value = new Vector4(x, y, z, w);
     }
+
+    public Vec4Ext(float value)
+    {
+        this.value = new Vector4(value);
+    }
     
     public Vec4Ext(Vector3 xyz, float w)
     {

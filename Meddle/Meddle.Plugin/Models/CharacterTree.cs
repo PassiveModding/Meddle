@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using Dalamud.Memory;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Shader;

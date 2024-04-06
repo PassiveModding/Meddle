@@ -19,7 +19,6 @@ public class SkinShaderParameters
 
         return new SkinShaderParameters()
         {
-            ApplyLipColor = parameters.ApplyLipColor,
             IsHrothgar = parameters.IsHrothgar,
             SkinColor = parameters.SkinColor,
             MainColor = parameters.MainColor,
@@ -58,6 +57,7 @@ public class CustomizeParameters
     /// W : Muscle tone.
     /// </summary>
     public Vector4 SkinColor;
+    
     /// <summary>
     /// XYZ : Skin specular color
     /// </summary>
@@ -68,16 +68,17 @@ public class CustomizeParameters
     /// W : Lip opacity.
     /// </summary>
     public Vector4 LipColor;
-    public bool ApplyLipColor;
 
     /// <summary>
     /// XYZ : Hair primary color
     /// </summary>
     public Vector3 MainColor;
+    
     /// <summary>
     /// XYZ : Hair specular color
     /// </summary>
     public Vector3 HairFresnelValue0;
+    
     /// <summary>
     /// XYZ : Hair highlight color
     /// </summary>
@@ -88,6 +89,7 @@ public class CustomizeParameters
     /// W : Face paint (UV2) U multiplier.
     /// </summary>
     public Vector4 LeftColor;
+    
     /// <summary>
     /// XYZ : Right eye color
     /// W : Face paint (UV2) U offset.
@@ -111,7 +113,25 @@ public class CustomizeParameters
         RightColor = FromSquaredRgb(customizeParameter.RightColor);
         OptionColor = FromSquaredRgb(customizeParameter.OptionColor);
         IsHrothgar = isHrothgar;
-        ApplyLipColor = customizeParameter.LipColor.W > 0;
+    }
+    
+    public CustomizeParameters(){}
+
+    public CustomizeParameters Default()
+    {
+        return new CustomizeParameters()
+        {
+            SkinColor = new Vector4(1, 0.8745098f, 0.8627451f, 1),
+            SkinFresnelValue0 = new Vector4(0.25f, 0.25f, 0.25f, 32),
+            LipColor = new Vector4(0.47058824f, 0.27058825f, 0.40784314f, 0.6f),
+            MainColor = new Vector3(0.89411765f, 0.89411765f, 0.89411765f),
+            HairFresnelValue0 = new Vector3(0.8627451f, 0.8627451f, 0.8627451f),
+            MeshColor = new Vector3(0.8666667f, 0.6745098f, 0.64705884f),
+            LeftColor = new Vector4(0.80784315f, 0.49803922f, 0.5176471f, -1),
+            RightColor = new Vector4(0.80784315f, 0.49803922f, 0.5176471f, 1),
+            OptionColor = new Vector3(0.7764706f, 0.7764706f, 0.7764706f),
+            IsHrothgar = false
+        };
     }
     
     private static Vector4 FromSquaredRgb(Vector4 input)

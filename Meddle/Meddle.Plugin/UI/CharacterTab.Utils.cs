@@ -191,10 +191,6 @@ public partial class CharacterTab
         }
 
         ImGui.SameLine();
-        ImGui.Checkbox("Apply Lip Color", ref c.ApplyLipColor);
-
-        // info hover for lip
-        ImGui.SameLine();
         ImGui.TextDisabled("(?)");
         if (ImGui.IsItemHovered())
         {
@@ -385,7 +381,7 @@ public partial class CharacterTab
             ImGui.ColorButton("##Diffuse", new Vector4(row.Diffuse.X, row.Diffuse.Y, row.Diffuse.Z, 1),
                               ImGuiColorEditFlags.NoAlpha);
             ImGui.TableNextColumn();
-            ImGui.ColorButton("##Specular", new Vector4(row.Specular.X, row.Specular.Y, row.Specular.Z, 1),
+            ImGui.ColorButton("##Specular", new Vector4(row.FresnelValue0.X, row.FresnelValue0.Y, row.FresnelValue0.Z, 1),
                               ImGuiColorEditFlags.NoAlpha);
             ImGui.TableNextColumn();
             ImGui.ColorButton("##Emissive", new Vector4(row.Emissive.X, row.Emissive.Y, row.Emissive.Z, 1),

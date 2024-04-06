@@ -1,10 +1,8 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Numerics;
 using System.Text.Json.Serialization;
 using Dalamud.Memory;
 using FFXIVClientStructs.Interop;
-using Lumina.Data.Files;
 using Lumina.Data.Parsing;
-using Meddle.Plugin.Utility;
 using CSMaterial = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Material;
 using CSTexture = FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Texture;
 
@@ -17,6 +15,7 @@ public unsafe class Material
     public IReadOnlyList<ShaderKey> ShaderKeys { get; }
     public ShaderPackage ShaderPackage { get; }
     public IReadOnlyList<Texture> Textures { get; }
+    public MaterialParameters MaterialParameters { get; }
     
     public bool TryGetTexture(TextureUsage usage, out Texture texture)
     {
@@ -28,6 +27,18 @@ public unsafe class Material
         }
 
         texture = match;
+        return true;
+    }
+
+    public bool TryGetSkTexture(TextureUsage usage, out SKTexture skTexture)
+    {
+        if (!TryGetTexture(usage, out var texture))
+        {
+            skTexture = null!;
+            return false;
+        }
+
+        skTexture = texture.Resource.ToTexture();
         return true;
     }
     
@@ -97,28 +108,114 @@ public unsafe class Material
 
         if (colorTable != null)
         {
-            var data = DXHelper.ExportTextureResource(colorTable);
-
-            if ((TexFile.TextureFormat)colorTable->TextureFormat != TexFile.TextureFormat.R16G16B16A16F)
-                throw new ArgumentException($"Color table is not R16G16B16A16F ({(TexFile.TextureFormat)colorTable->TextureFormat})");
-            if (colorTable->Width != 4 || colorTable->Height != 16)
-                throw new ArgumentException($"Color table is not 4x16 ({colorTable->Width}x{colorTable->Height})");
-
-            var stridedData = TextureHelper.AdjustStride(data.Stride, (int)colorTable->Width * 8, (int)colorTable->Height, data.Data);
-
-            var table = MemoryMarshal.Cast<byte, Half>(stridedData.AsSpan()).ToArray();
-            if (table.Length != 4 * 16 * 4)
-                throw new ArgumentException($"Color table is not 4x16x4 ({table.Length})");
-            
-            ColorTable = new ColorTable(table);
+            ColorTable = new ColorTable(colorTable);
         }
-        //else
-        //    Log.Warning($"No color table for {HandlePath}");
+        else
+        {
+            Service.Log.Warning($"[{ShaderPackage.Name}] No color table for {HandlePath}");
+        }
+
+        var matParams = material->MaterialParameterCBuffer;
+        if (matParams != null)
+        {
+            if (MaterialParameters.ValidShaders.Contains(ShaderPackage.Name))
+            {
+                var m = matParams->LoadBuffer<Vector4>(0, 6);
+                if (m != null && m.Length == 6)
+                {
+                    MaterialParameters = new MaterialParameters(m);
+                }
+                else if (m == null)
+                {
+                    Service.Log.Warning($"No material parameters for {HandlePath}");
+                }
+                else
+                {
+                    Service.Log.Warning($"Invalid material parameters for {HandlePath}, expected 6 but got {m.Length}");
+                }
+            }
+            else
+            {
+                Service.Log.Warning($"[{ShaderPackage.Name}] Skipping material parameters for {HandlePath}");
+            }
+        }
+        else
+        {
+            Service.Log.Warning($"No material parameters for {HandlePath}");
+        }
     }
     
+    // https://github.com/Shaderlayan/Ouroboros
     public struct ShaderKey
     {
+        public enum ShaderKeyCategory : uint
+        {
+            // Note:
+            // CharacterGlass always Color
+            // Hair always Color
+            // Iris always Multi
+            // Skin always Multi
+            VertexColorModeMulti = 4113354501,
+            SkinType = 940355280,
+            HairType = 612525193,
+            TextureMode = 3054951514,
+            DecalMode = 3531043187,
+            SpecularMapMode = 3367837167
+        }
+
+        public enum TextureMode : uint
+        {
+            Multi = 1556481461,
+            
+            // Diffuse Color: #D50000 Specular Color: #FFFFFF Specular Strength: 1.00 Gloss Strength: 100 Emissive Color: #8C0000
+            // Ignores vertex colors and normal map (except for opacity)
+            // Accepts no color table and no textures
+            Simple = 581216959, 
+            Compatibility = 1611594207 // Diffuse / Specular
+        }
+        
+        public enum DecalMode : uint
+        {
+            None = 1111668802,
+            Alpha = 1480746461, // Face paint
+            Color = 4083110193 // FC crest
+        }
+
+        // This is a setting of the Compatibility (Diffuse / Specular) Texture Mode, and has no effect outside of it.
+        public enum SpecularMapMode : uint
+        {
+            Color = 428675533,
+            Multi = 2687453224 
+        }
+
+        public enum VertexColorModeMultiValue : uint
+        {
+            Color = 3756477356,
+            Multi = 2815623008
+        }
+
+        public enum SkinTypeValue : uint
+        {
+            Face = 4117181732,
+            Body = 735790577,
+            BodyWithHair = 1476344676 // used notably on hrothgar
+        }
+
+        public enum HairTypeValue : uint
+        {
+            Hair = 4156069230,
+            Face = 1851494160
+        }
+        
         public uint Category;
         public uint Value;
+        
+        public ShaderKeyCategory CategoryEnum => (ShaderKeyCategory)Category;
+        public TextureMode TextureModeEnum => (TextureMode)Value;
+        public DecalMode DecalModeEnum => (DecalMode)Value;
+        public SpecularMapMode SpecularMapModeEnum => (SpecularMapMode)Value;
+        public VertexColorModeMultiValue VertexColorModeMultiValueEnum => (VertexColorModeMultiValue)Value;
+        public SkinTypeValue SkinTypeValueEnum => (SkinTypeValue)Value;
+        public HairTypeValue HairTypeValueEnum => (HairTypeValue)Value;
     }
 }

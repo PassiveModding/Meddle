@@ -1,4 +1,6 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Numerics;
+using System.Runtime.InteropServices;
+using Meddle.Plugin.Utility.Materials;
 using SkiaSharp;
 
 namespace Meddle.Plugin.Models;
@@ -24,6 +26,13 @@ public sealed class SKTexture
                     throw new InvalidOperationException("Invalid copied data");
                 return ret;
             }
+        }
+        
+        public Vec4Ext Sample(Vector2 relativePosition)
+        {
+            var x = (int)(relativePosition.X * Width);
+            var y = (int)(relativePosition.Y * Height);
+            return this[x, y].ToVector4();
         }
 
         public SKTexture(int width, int height)

@@ -4,7 +4,6 @@ using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using FFXIVClientStructs.Interop;
 using Lumina.Data.Parsing;
 using Meddle.Plugin.Utility;
-using CSTexture = FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Texture;
 using CSTextureEntry = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Material.TextureEntry;
 
 namespace Meddle.Plugin.Models;

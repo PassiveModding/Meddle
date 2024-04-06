@@ -8,6 +8,7 @@ using Meddle.Plugin.Files;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Config;
 using Meddle.Plugin.Utility;
+using Meddle.Plugin.Utility.Materials;
 using Meddle.Plugin.Xande;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;

@@ -1,11 +1,10 @@
 ﻿using System.Numerics;
 using Lumina.Data.Parsing;
 using Meddle.Plugin.Models;
-using Meddle.Plugin.Utility.Materials;
 using SharpGLTF.Materials;
 using SkiaSharp;
 
-namespace Meddle.Plugin.Utility;
+namespace Meddle.Plugin.Utility.Materials;
 
 public static class MaterialUtility
 {
@@ -40,8 +39,8 @@ public static class MaterialUtility
             for (var x = 0; x < baseColor.Width; x++)
             for (var y = 0; y < baseColor.Height; y++)
             {
-                var maskPixel = maskImage[x,y].ToVector4();
-                var baseColorPixel = baseColor[x, y].ToVector4();
+                var maskPixel = ToVector4(maskImage[x,y]);
+                var baseColorPixel = ToVector4(baseColor[x, y]);
                 var alpha = baseColorPixel.W;
                 baseColor[x, y] = (baseColorPixel * maskPixel.X).WithW(alpha);
             }
@@ -80,24 +79,24 @@ public static class MaterialUtility
         for (var x = 0; x < normal.Width; x++)
         for (var y = 0; y < normal.Height; y++)
         {
-            var normalPixel = normal[x, y].ToVector4();
-            var maskPixel = mask[x, y].ToVector4();
+            var normalPixel = ToVector4(normal[x, y]);
+            var maskPixel = ToVector4(mask[x, y]);
             if (isFace && customizeParameters?.OptionColor != null)
             {
                 // Mask Alpha = Option color intensity
                 var color = Vector3.Lerp(hairCol, customizeParameters.OptionColor,  maskPixel.W);
-                baseColor[x, y] = new Vector4(color, normalPixel.W).ToSkColor();
+                baseColor[x, y] = ToSkColor(new Vector4(color, normalPixel.W));
             }
 
             if (!isFace)
             {
                 var color = Vector3.Lerp(hairCol, customizeParameters?.MeshColor ?? DefaultHighlightColor.XYZ, 
                                          maskPixel.W);
-                baseColor[x, y] = new Vector4(color, normalPixel.W).ToSkColor();
+                baseColor[x, y] = ToSkColor(new Vector4(color, normalPixel.W));
             }
             
             // mask green channel is specular
-            specular[x, y] = new Vector4(maskPixel.Y).ToSkColor();
+            specular[x, y] = ToSkColor(new Vector4(maskPixel.Y));
         }
         
         return BuildSharedBase(material, name)
@@ -120,8 +119,8 @@ public static class MaterialUtility
         for (var x = 0; x < normal.Width; x++)
         for (var y = 0; y < normal.Height; y++)
         {
-            var normalPixel = normal[x, y].ToVector4();
-            var maskPixel = mask[x, y].ToVector4();
+            var normalPixel = ToVector4(normal[x, y]);
+            var maskPixel = ToVector4(mask[x, y]);
 
             // Not sure if we can set it per eye since it's done by the shader
             // NOTE: W = Face paint (UV2) U multiplier. since we set it using the alpha it gets ignored for iris either way
@@ -157,8 +156,8 @@ public static class MaterialUtility
         for (var x = 0; x < diffuse.Width; x++)
         for (var y = 0; y < diffuse.Height; y++)
         {
-            var diffusePixel = diffuse[x, y].ToVector4();
-            var normalPixel = resizedNormal[x, y].ToVector4();
+            var diffusePixel = ToVector4(diffuse[x, y]);
+            var normalPixel = ToVector4(resizedNormal[x, y]);
             diffuse[x, y] = diffusePixel.WithW(normalPixel.Z);
         }
 
@@ -171,8 +170,8 @@ public static class MaterialUtility
                 // R: Skin color intensity
                 // G: Specular intensity - todo maybe
                 // B: Lip intensity
-                var maskPixel = resizedMask[x, y].ToVector4();
-                var diffusePixel = diffuse[x, y].ToVector4();
+                var maskPixel = ToVector4(resizedMask[x, y]);
+                var diffusePixel = ToVector4(diffuse[x, y]);
                 var alpha = diffusePixel.W;
                 if (maskPixel.X > 0)
                 {
@@ -227,7 +226,7 @@ public static class MaterialUtility
         return materialBuilder;
     }
     
-    private static MaterialBuilder BuildSharedBase(Material material, string name)
+    public static MaterialBuilder BuildSharedBase(Material material, string name)
     {
         const uint backfaceMask  = 0x1;
         var        showBackfaces = (material.ShaderFlags & backfaceMask) == 0;
@@ -242,7 +241,7 @@ public static class MaterialUtility
     public static SKColor ToSkColor(this Vector3 color) => 
         new((byte)(color.X * 255), (byte)(color.Y * 255), (byte)(color.Z * 255), byte.MaxValue);
     
-    private static ImageBuilder BuildImage(SKTexture texture, string materialName, string suffix)
+    public static ImageBuilder BuildImage(SKTexture texture, string materialName, string suffix)
     {
         var name = $"{Path.GetFileNameWithoutExtension(materialName)}_{suffix}";
         
@@ -264,8 +263,8 @@ public static class MaterialUtility
 
         return material.ShaderPackage.Name switch
         {
-            "character.shpk" => BuildCharacter(material, name).WithAlpha(AlphaMode.MASK, 0.5f),
-            "characterglass.shpk" => BuildCharacter(material, name).WithAlpha(AlphaMode.BLEND),
+            "character.shpk" => MaterialParamUtility.BuildCharacter(material),
+            "characterglass.shpk" => MaterialParamUtility.BuildCharacter(material),
             "hair.shpk" => BuildHair(material, name, HairShaderParameters.From(customizeParameter)),
             "iris.shpk"           => BuildIris(material, name, customizeParameter?.LeftColor),
             "skin.shpk"           => BuildSkin(material, name, SkinShaderParameters.From(customizeParameter)),
@@ -282,8 +281,8 @@ public static class MaterialUtility
         for (var x = 0; x < target.Width; x++)
         for (var y = 0; y < target.Height; y++)
         {
-            var targetPixel = target[x, y].ToVector4();
-            var multPixel = multiplier[x, y].ToVector4();
+            var targetPixel = ToVector4(target[x, y]);
+            var multPixel = ToVector4(multiplier[x, y]);
             var resultPixel = targetPixel * multPixel;
             resultPixel.W = !preserveTargetAlpha ? targetPixel.W * multPixel.W : targetPixel.W;
 
