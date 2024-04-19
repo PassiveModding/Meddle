@@ -22,10 +22,11 @@ public sealed class Plugin : IDalamudPlugin
     private readonly MainWindow? mainWindow;
     private readonly ICommandManager commandManager;
     private readonly DalamudPluginInterface pluginInterface;
+    private readonly Configuration config;
 
     public Plugin(DalamudPluginInterface pluginInterface)
     {
-        var config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         config.Initialize(pluginInterface);
         config.Save();
 
@@ -70,6 +71,18 @@ public sealed class Plugin : IDalamudPlugin
 
     private void OnCommand(string command, string args)
     {
+        if (args == "cs")
+        {
+            config.DisableCutsceneUiHide = !config.DisableCutsceneUiHide;
+            config.Save();
+        }
+        
+        if (args == "gpose")
+        {
+            config.DisableGposeUiHide = !config.DisableGposeUiHide;
+            config.Save();
+        }
+        
         OpenUi();
     }
     

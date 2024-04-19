@@ -26,7 +26,7 @@ public class Configuration : IPluginConfiguration
     public void Save()
     {
         PluginInterface.SavePluginConfig(this);
-        OnChange?.Invoke();
+        InvokeOnChange();
     }
     
     public ExportConfig GetExportConfig() => new()
@@ -36,6 +36,8 @@ public class Configuration : IPluginConfiguration
         ParallelBuild = ParallelBuild,
         ExportType = ExportType.Gltf
     };
+    
+    public void InvokeOnChange() => OnChange?.Invoke();
 
     public event Action? OnChange;
 }

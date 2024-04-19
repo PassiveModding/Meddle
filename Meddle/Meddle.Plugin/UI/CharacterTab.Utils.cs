@@ -126,7 +126,24 @@ public partial class CharacterTab
         DrawCancelExportButton(isExporting, cts);
 
         ImGui.Text($"Handle Path: {model.HandlePath}");
+        // click to copy
+        if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
+        {
+            ImGui.SetClipboardText(model.HandlePath);
+        }
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip("Right click to copy");
+        }
         ImGui.Text($"Resolved Path: {model.ResolvedPath}");
+        if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
+        {
+            ImGui.SetClipboardText(model.ResolvedPath);
+        }
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip("Right click to copy");
+        }
 
         if (model.Shapes.Count > 0)
         {
