@@ -87,7 +87,10 @@ public class Repository
             var categoryId = byte.Parse(setId[..2], NumberStyles.HexNumber);
             var expansionId = byte.Parse(setId[2..4], NumberStyles.HexNumber);
             var chunkId = byte.Parse(setId[4..6], NumberStyles.HexNumber);
-            var cat = new Category(categoryId, index, index2, datFiles);
+            var cat = new Category(categoryId, index, index2, datFiles)
+            {
+                Repository = this
+            };
             Categories[(categoryId, expansionId, chunkId)] = cat;
         }
     }

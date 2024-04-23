@@ -133,6 +133,7 @@ public class Category
     public readonly ReadOnlyDictionary<ulong, IndexHashTableEntry> UnifiedIndexEntries;
     public readonly bool Index;
     public readonly bool Index2;
+    public Repository? Repository { get; set; }
 
     // Take paths instead of file since it will eat all your ram
     public Category(byte catId, byte[]? index, byte[]? index2, string[] datFilePaths)

@@ -77,7 +77,7 @@ public class SqPack
         return false;
     }
     
-    public (IndexHashTableEntry hash, SqPackFile file)? GetFile(string path)
+    public (Category category, IndexHashTableEntry hash, SqPackFile file)? GetFile(string path)
     {
         var hash = GetFileHash(path);
         var categoryName = path.Split('/')[0];
@@ -105,12 +105,12 @@ public class SqPack
             {
                 if (category.TryGetFile(hash.IndexHash, out var data))
                 {
-                    return (category.UnifiedIndexEntries[hash.IndexHash], data);
+                    return (category, category.UnifiedIndexEntries[hash.IndexHash], data);
                 }
                 
                 if (category.TryGetFile(hash.Index2Hash, out var data2))
                 {
-                    return (category.UnifiedIndexEntries[hash.Index2Hash], data2);
+                    return (category, category.UnifiedIndexEntries[hash.Index2Hash], data2);
                 }
             }
         }
