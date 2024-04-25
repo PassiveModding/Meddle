@@ -89,7 +89,7 @@ public class SqPackWindow
 
     private void DrawRepoCategory()
     {
-        var selectedRepositoryName = sqPack.Repositories.First().Path.Split(Path.DirectorySeparatorChar).Last();
+        var selectedRepositoryName = selectedRepository.Path.Split(Path.DirectorySeparatorChar).Last();
         if (ImGui.BeginCombo("Repository", selectedRepositoryName))
         {
             foreach (var repo in sqPack.Repositories)
