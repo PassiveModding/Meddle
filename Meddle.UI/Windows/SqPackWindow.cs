@@ -1,169 +1,202 @@
-﻿using System.Collections.Concurrent;
-using System.Diagnostics;
-using System.IO.Compression;
-using System.Numerics;
+﻿using System.Diagnostics;
 using ImGuiNET;
+using Meddle.UI.Windows.Views;
 using Meddle.Utils;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
-using OtterTex;
+using Category = Meddle.Utils.Files.SqPack.Category;
+using ParsedFilePath = Meddle.Utils.Files.SqPack.ParsedFilePath;
+using Repository = Meddle.Utils.Files.SqPack.Repository;
+using SqPack = Meddle.Utils.Files.SqPack.SqPack;
 
 namespace Meddle.UI.Windows;
 
 public class SqPackWindow
 {
-    private readonly string name;
-    private readonly Vector2? initialSize;
-    public bool Open;
-    public readonly SqPack SqPack;
-    public Task? InitTask;
-
-    public SqPackWindow()
+    public class PathManager
     {
-        this.name = "SqPack";
-        this.initialSize = new Vector2(400, 400);
-        SqPack = new SqPack(Services.Configuration.GameDirectory!);
-        InitTask = InitRl2();
-    }
-
-    private readonly ConcurrentBag<ParsedFilePath> parsedPaths = new();
-
-    private async Task InitRl2()
-    {
-        var parsedPathsFile = Path.Combine(Program.DataDirectory, "parsed_paths.txt");
-        if (File.Exists(parsedPathsFile))
+        public readonly List<ParsedFilePath> ParsedPaths = new();
+        public List<IGrouping<string, ParsedFilePath>> PathViewerCache = new();
+        public readonly Dictionary<ulong, ParsedFilePath?> ParsedPathDict = new();
+        
+        public ParsedFilePath? GetPath(ulong hash)
         {
-            var lines = File.ReadAllLines(parsedPathsFile);
-            Parallel.ForEach(lines, new ParallelOptions
+            if (ParsedPathDict.TryGetValue(hash, out var path))
             {
-                MaxDegreeOfParallelism = 50
-            }, line =>
-            {
-                var hash = SqPack.GetFileHash(line);
-                parsedPaths.Add(hash);
-            });
-        }
-        else
-        {
-            var url = "https://rl2.perchbird.dev/download/export/CurrentPathList.gz";
-            var path = Path.Combine(Program.DataDirectory, "paths_rl2_m.txt");
-            if (!File.Exists(path))
-            {
-                using var client = new HttpClient();
-                var req = await client.GetStreamAsync(url);
-                await using var gz = new GZipStream(req, CompressionMode.Decompress);
-                using var reader = new StreamReader(gz);
-
-                var rl = new List<string>();
-                while (!reader.EndOfStream)
-                {
-                    var line = reader.ReadLine();
-                    if (line is null) continue;
-                    rl.Add(line);
-                }
-
-                File.WriteAllLines(path, rl);
+                return path;
             }
-
-            var lines = File.ReadAllLines(path);
-            Parallel.ForEach(lines, new ParallelOptions
-            {
-                MaxDegreeOfParallelism = 50
-            }, line =>
-            {
-                if (SqPack.FileExists(line, out var hash))
-                {
-                    parsedPaths.Add(hash);
-                }
-            });
-
-            File.WriteAllLines(parsedPathsFile, parsedPaths.Select(x => x.Path));
+            
+            var match = ParsedPaths.FirstOrDefault(x => x.IndexHash == hash || x.Index2Hash == hash);
+            ParsedPathDict[hash] = match;
+            return match;
         }
+    }
+    
+    private readonly ImageHandler imageHandler;
+    private readonly SqPack sqPack;
+    private readonly PathManager pathManager;
+    private (int index, Category cat, IndexHashTableEntry hash, SqPackFile file)? selectedFile;
+    private string filter = string.Empty;
+    private string search = string.Empty;
+    private Repository selectedRepository;
+    private Category selectedCategory;
+    private IView? view;
+    
+
+    public SqPackWindow(SqPack sqPack, ImageHandler imageHandler, PathManager pathManager)
+    {
+        this.imageHandler = imageHandler;
+        this.sqPack = sqPack;
+        selectedRepository = sqPack.Repositories.First();
+        selectedCategory = selectedRepository.Categories.First().Value;
+        this.pathManager = pathManager;
     }
 
     public void Draw()
     {
-        if (initialSize != null)
-        {
-            ImGui.SetNextWindowSize(initialSize.Value, ImGuiCond.FirstUseEver);
-        }
-
-        if (ImGui.Begin(name, ref this.Open, ImGuiWindowFlags.None)) InternalDraw();
-        ImGui.End();
-
-        if (InitTask?.IsCompleted == true)
-        {
-            InitTask = null;
-            parsedPathDict.Clear();
-        }
+        InternalDraw();
     }
-
-    private string search = string.Empty;
 
     private void InternalDraw()
     {
-        ImGui.SetNextItemWidth(200);
         var cra = ImGui.GetContentRegionAvail();
-        ImGui.BeginChild("##SqPackWindow", cra with {X = 200}, ImGuiChildFlags.Border);
-        foreach (var repo in SqPack.Repositories)
+        if (ImGui.BeginChild("##SqPackWindow", cra with {X = 300}, ImGuiChildFlags.Border))
         {
-            var folderName = repo.Path.Split(Path.DirectorySeparatorChar).Last();
-            if (ImGui.CollapsingHeader(folderName))
+            DrawRepoCategory();
+            BrowseCategory(selectedCategory!);
+            ImGui.EndChild();
+        }
+
+        ImGui.SameLine();
+        if (ImGui.BeginChild("##PathViewer", cra with {X = 300}, ImGuiChildFlags.Border))
+        {
+            DrawPathViewer();
+            ImGui.EndChild();
+        }
+
+        ImGui.SameLine();
+        
+        if (ImGui.BeginChild("##SqPackFile", cra with {X = cra.X - 620 }, ImGuiChildFlags.Border))
+        {
+            if (selectedFile.HasValue)
             {
-                DrawRepository(repo);
+                DrawSelectedFile();
             }
-        }
 
-        ImGui.EndChild();
-
-        if (selectedCategory == null)
-        {
-            selectedCategory = SqPack.Repositories[0].Categories.First().Value;
-        }
-
-        ImGui.SameLine();
-        ImGui.BeginChild("##SqPackCategory", cra with {X = 300}, ImGuiChildFlags.Border);
-        BrowseCategory(selectedCategory!);
-        ImGui.EndChild();
-
-        ImGui.SameLine();
-        ImGui.BeginChild("##PathViewer", cra with {X = 300}, ImGuiChildFlags.Border);
-        DrawPathViewer();
-        ImGui.EndChild();
-
-        if (selectedFile.HasValue)
-        {
-            ImGui.SameLine();
-            ImGui.BeginChild("##SqPackFile", cra with {X = cra.X - 830}, ImGuiChildFlags.Border);
-            DrawFile(selectedFile.Value.hash, selectedFile.Value.file);
             ImGui.EndChild();
         }
     }
 
-    private List<IGrouping<string, ParsedFilePath>> pvCache = new();
+    private void DrawRepoCategory()
+    {
+        var selectedRepositoryName = sqPack.Repositories.First().Path.Split(Path.DirectorySeparatorChar).Last();
+        if (ImGui.BeginCombo("Repository", selectedRepositoryName))
+        {
+            foreach (var repo in sqPack.Repositories)
+            {
+                var folderName = repo.Path.Split(Path.DirectorySeparatorChar).Last();
+                if (ImGui.Selectable(folderName))
+                {
+                    selectedRepository = repo;
+                    selectedCategory = repo.Categories.First().Value;
+                }
+            }
+            ImGui.EndCombo();
+        }
+        
+        if (ImGui.BeginCombo("Category", Category.TryGetCategoryName(selectedCategory.Id) ?? $"0x{selectedCategory.Id:X2}"))
+        {
+            var categories = selectedRepository.Categories.GroupBy(x => x.Key.category);
+            foreach (var cg in categories)
+            {
+                ImGui.Separator();
+                var cName = $"[{cg.Key:X2}]";
+                var catName = Category.TryGetCategoryName(cg.Key);
+                if (ImGui.Selectable($"{cName} {catName}"))
+                {
+                    selectedCategory = cg.First().Value;
+                }
+            }
+            ImGui.EndCombo();
+        }
+    }
+    
+    private Task? importTask;
 
+    private void DrawImport()
+    {
+        if (importTask != null)
+        {
+            ImGui.Text("Importing...");
+            if (importTask.IsCompleted)
+            {
+                importTask = null;
+            }
+            return;
+        }
+        
+        if (ImGui.Button("Import"))
+        {
+            ImGui.OpenPopup("Import");
+        }
+        
+        if (ImGui.BeginPopup("Import", ImGuiWindowFlags.AlwaysAutoResize))
+        {
+            foreach (var file in Directory.GetFiles(Program.DataDirectory, "*.txt"))
+            {
+                if (ImGui.Selectable(file))
+                {
+                    var lines = File.ReadAllLines(file);
+                    importTask = Task.Run(() =>
+                    {
+                        var paths = PathUtils.ParsePaths(lines);
+                        foreach (var path in paths)
+                        {
+                            pathManager.ParsedPaths.Add(path);
+                        }
+                    });
+                }
+            }
+            
+            ImGui.EndPopup();
+        }
+
+    }
+    
     private void DrawPathViewer()
     {
-        if (ImGui.InputText("Search", ref search, 100))
+        DrawImport();
+        ImGui.InputText("##AddPath", ref search, 100);
+        ImGui.SameLine();
+        if (ImGui.Button("Add"))
         {
             var hash = SqPack.GetFileHash(search);
-            var file = SqPack.GetFile(hash);
+            var file = sqPack.GetFile(hash);
             if (file != null)
             {
                 selectedFile = (0, file.Value.category, file.Value.hash, file.Value.file);
-                parsedFile = null;
+                view = null;
+                pathManager.ParsedPaths.Add(hash);
             }
         }
-
-        if (pvCache.Count == 0)
+        
+        if (ImGui.InputText("Filter", ref filter, 100))
         {
-            pvCache = parsedPaths
+            pathManager.PathViewerCache = pathManager.ParsedPaths
+                      .Where(x => x.Path.Contains(filter))
                       .OrderBy(x => x.Path)
                       .GroupBy(x => x.Path.Split('/')[0])
                       .ToList();
         }
+        else if (pathManager.PathViewerCache.Count == 0)
+        {
+            pathManager.PathViewerCache = pathManager.ParsedPaths
+                                  .OrderBy(x => x.Path)
+                                  .GroupBy(x => x.Path.Split('/')[0])
+                                  .ToList();
+        }
 
-        foreach (var group in pvCache)
+        foreach (var group in pathManager.PathViewerCache)
         {
             if (ImGui.TreeNode(group.Key))
             {
@@ -184,12 +217,22 @@ public class SqPackWindow
                 if (ImGui.Selectable(group.Key))
                 {
                     var hash = SqPack.GetFileHash(key + "/" + group.Key);
-                    var file = SqPack.GetFile(hash);
+                    var file = sqPack.GetFile(hash);
                     if (file != null)
                     {
                         selectedFile = (0, file.Value.category, file.Value.hash, file.Value.file);
-                        parsedFile = null;
+                        view = null;
                     }
+                }
+                
+                // right click copy path
+                if (ImGui.BeginPopupContextItem())
+                {
+                    if (ImGui.Selectable("Copy Path"))
+                    {
+                        ImGui.SetClipboardText(key + "/" + group.Key);
+                    }
+                    ImGui.EndPopup();
                 }
 
                 continue;
@@ -203,76 +246,34 @@ public class SqPackWindow
         }
     }
 
-
-    private void DrawRepository(Repository repo)
+    private enum SelectedFileType
     {
-        foreach (var cg in repo.Categories.GroupBy(x => x.Key.category))
-        {
-            ImGui.Separator();
-            var cName = $"[{cg.Key:X2}]";
-            var catName = Category.TryGetCategoryName(cg.Key);
-            ImGui.Text($"{cName} {catName}");
-
-            foreach (var (key, cat) in cg)
-            {
-                DrawCategory(cat);
-            }
-        }
+        None,
+        Texture,
+        Model,
+        Material,
     }
 
-    private Category? selectedCategory;
-
-    private void DrawCategory(Category cat)
-    {
-        if (ImGui.Button($"Select##{cat.GetHashCode()}"))
-        {
-            selectedCategory = cat;
-            sliceStartIndex = 0;
-        }
-
-        ImGui.Text($"Entries: {cat.UnifiedIndexEntries.Count}");
-        ImGui.Text($"Index: {cat.Index}");
-        ImGui.Text($"Index2: {cat.Index2}");
-        foreach (var path in cat.DatFilePaths)
-        {
-            var fileName = Path.GetFileName(path);
-            ImGui.Text($"{fileName}");
-        }
-    }
-
-    private (int index, Category cat, IndexHashTableEntry hash, SqPackFile file)? selectedFile;
     private int sliceStartIndex;
-    private int slizeSize = 200;
-    private Dictionary<ulong, ParsedFilePath?> parsedPathDict = new();
+    private readonly int sliceSize = 200;
 
     private void BrowseCategory(Category cat)
     {
-        var catName = Category.TryGetCategoryName(cat.Id);
-        if (cat.Repository != null)
-        {
-            var repoName = cat.Repository.Path.Split(Path.DirectorySeparatorChar).Last();
-            ImGui.Text($"Repository: {repoName}");
-        }
-
-        ImGui.Text($"Category: {catName}");
+        ImGui.Text($"Index: {cat.Index}");
+        ImGui.Text($"Index2: {cat.Index2}");
         ImGui.Text($"Entries: {cat.UnifiedIndexEntries.Count}");
         var cra = ImGui.GetContentRegionAvail();
         if (ImGui.BeginChild("##SqPackCategoryEntries", cra with {Y = cra.Y - 50}))
         {
             bool displayDatFileIdx = cat.DatFilePaths.Length > 1;
-            var entries = cat.UnifiedIndexEntries.Skip(sliceStartIndex).Take(slizeSize).ToArray();
+            var entries = cat.UnifiedIndexEntries.Skip(sliceStartIndex).Take(sliceSize).ToArray();
             for (var i = 0; i < entries.Length; i++)
             {
                 var (hash, entry) = entries[i];
                 var entryName =
                     $"{(displayDatFileIdx ? $"[{entry.DataFileId:00}]" : "")}[0x{entry.Offset:X8}] {hash:X16}##{hash:X16}";
-
-                if (!parsedPathDict.TryGetValue(hash, out var path))
-                {
-                    path = parsedPaths.FirstOrDefault(x => x.IndexHash == hash || x.Index2Hash == hash);
-                    parsedPathDict[hash] = path;
-                }
-
+                
+                var path = pathManager.GetPath(hash);
                 if (path != null)
                 {
                     entryName = path.Path;
@@ -284,7 +285,7 @@ public class SqPackWindow
                     {
                         var index = sliceStartIndex + i;
                         selectedFile = (index, cat, entry, data);
-                        parsedFile = null;
+                        view = null;
                     }
                 }
             }
@@ -294,7 +295,7 @@ public class SqPackWindow
 
         if (ImGui.Button("Prev Page"))
         {
-            sliceStartIndex -= slizeSize;
+            sliceStartIndex -= sliceSize;
             if (sliceStartIndex < 0)
             {
                 sliceStartIndex = 0;
@@ -304,7 +305,7 @@ public class SqPackWindow
         ImGui.SameLine();
         if (ImGui.Button("Next Page"))
         {
-            sliceStartIndex += slizeSize;
+            sliceStartIndex += sliceSize;
             if (sliceStartIndex >= cat.UnifiedIndexEntries.Count)
             {
                 sliceStartIndex = 0;
@@ -312,7 +313,7 @@ public class SqPackWindow
         }
 
         ImGui.SameLine();
-        var endIdx = sliceStartIndex + slizeSize;
+        var endIdx = sliceStartIndex + sliceSize;
         if (endIdx > cat.UnifiedIndexEntries.Count)
         {
             endIdx = cat.UnifiedIndexEntries.Count;
@@ -334,7 +335,7 @@ public class SqPackWindow
                 if (cat.TryGetFile(hash, out var data))
                 {
                     selectedFile = (index, cat, entry, data);
-                    parsedFile = null;
+                    view = null;
                 }
                 else
                 {
@@ -359,7 +360,7 @@ public class SqPackWindow
                 if (cat.TryGetFile(hash, out var data))
                 {
                     selectedFile = (index, cat, entry, data);
-                    parsedFile = null;
+                    view = null;
                 }
                 else
                 {
@@ -372,11 +373,27 @@ public class SqPackWindow
         ImGui.Text(selectedFile.HasValue ? $"Selected: {selectedFile.Value.index}" : "No file selected");
     }
 
-    private object? parsedFile;
-    private Dictionary<TexFile, nint> textureCache = new();
+    private void DrawSelectedFile()
+    {
+        if (selectedFile.HasValue)
+        {
+            var file = selectedFile.Value;
+            DrawFile(file.hash, file.file);
+        }
+    }
 
     private void DrawFile(IndexHashTableEntry hash, SqPackFile file)
     {
+        var path = pathManager.GetPath(hash.Hash);
+        if (path != null)
+        {
+            ImGui.Text($"Path: {path.Path}"); 
+        }
+        else
+        {
+            ImGui.Text("Path: Unknown");
+        }
+
         ImGui.Text($"DataFileIdx: {hash.DataFileId}");
         ImGui.SameLine();
         ImGui.Text($"Offset: 0x{hash.Offset:X8}");
@@ -391,7 +408,10 @@ public class SqPackWindow
         ImGui.Text($"Blocks: {file.FileHeader.NumberOfBlocks}");
         ImGui.SameLine();
         ImGui.Text($"Type: {file.FileHeader.Type}");
-        if (ImGui.Button("Save"))
+        var type = TryGetType(path?.Path, file);
+        ImGui.Text($"Parsed Type: {type}");
+        
+        if (ImGui.Button("Save raw file"))
         {
             var outFolder = Path.Combine(Program.DataDirectory, "SqPackFiles");
             if (!Directory.Exists(outFolder))
@@ -399,148 +419,101 @@ public class SqPackWindow
                 Directory.CreateDirectory(outFolder);
             }
 
-            var ext = file.FileHeader.Type switch
-            {
-                FileType.Texture => ".tex",
-                FileType.Model => ".mdl",
-                _ => ".dat",
-            };
-
+            var ext = GetExtensionFromType(type);
             var outPath = Path.Combine(outFolder, $"{hash.Hash:X16}{ext}");
             File.WriteAllBytes(outPath, file.RawData.ToArray());
             Process.Start("explorer.exe", outFolder);
         }
 
-        if (file.FileHeader.Type == FileType.Texture)
+        switch (type)
         {
-            parsedFile ??= new TexFile(file.RawData);
-
-            var texFile = (TexFile)parsedFile;
-
-            ImGui.SameLine();
-            ImGui.Text($"Size: {texFile.Header.Width}x{texFile.Header.Height}");
-            ImGui.Text($"Format: {texFile.Header.Format}");
-            ImGui.Text($"Type: {texFile.Header.Type}");
-            ImGui.Text($"Depth: {texFile.Header.Depth}");
-            ImGui.SameLine();
-            ImGui.Text($"Array Size: {texFile.Header.ArraySize}");
-            ImGui.SameLine();
-            ImGui.Text($"Mips: {texFile.Header.MipLevels}");
-
-            var meta = ImageUtils.GetTexMeta(texFile);
-            if (!textureCache.TryGetValue(texFile, out var imagePtr) || DrawTexOptions(meta))
-            {
-                var texData = ImageUtils.GetTexData(texFile, arrayLevel, mipLevel, slice);
-                imagePtr = Services.ImageHandler.DrawTexData(texData, out bool cleanup);
-                if (cleanup)
+            case SelectedFileType.Texture:
+                if (view == null)
                 {
-                    textureCache.Clear();
+                    var parsedFile = new TexFile(file.RawData);
+                    view = new TexView(hash, parsedFile, imageHandler);
                 }
-
-                textureCache[texFile] = imagePtr;
-            }
-
-            var availableSize = ImGui.GetContentRegionAvail();
-            // keep aspect ratio and fit in the available space
-            Vector2 size = new(texFile.Header.Width, texFile.Header.Height);
-            if (texFile.Header.Width > availableSize.X && texFile.Header.Height > availableSize.Y)
+                view.Draw();
+                break;
+            case SelectedFileType.Material:
             {
-                var ratio = Math.Min(availableSize.X / texFile.Header.Width, availableSize.Y / texFile.Header.Height);
-                size = new Vector2(texFile.Header.Width * ratio, texFile.Header.Height * ratio);
-            }
-            else if (texFile.Header.Width > availableSize.X)
-            {
-                var ratio = availableSize.X / texFile.Header.Width;
-                size = new Vector2(texFile.Header.Width * ratio, texFile.Header.Height * ratio);
-            }
-            else if (texFile.Header.Height > availableSize.Y)
-            {
-                var ratio = availableSize.Y / texFile.Header.Height;
-                size = new Vector2(texFile.Header.Width * ratio, texFile.Header.Height * ratio);
-            }
-
-            if (ImGui.Button("Save as png"))
-            {
-                var image = ImageUtils.GetTexData(texFile, arrayLevel, mipLevel, slice);
-                var outFolder = Path.Combine(Program.DataDirectory, "SqPackFiles");
-                if (!Directory.Exists(outFolder))
+                if (view == null)
                 {
-                    Directory.CreateDirectory(outFolder);
+                    var parsedFile = new MtrlFile(file.RawData);
+                    view = new MtrlView(parsedFile, sqPack, imageHandler);
                 }
-
-                var outPath = Path.Combine(outFolder, $"{hash.Hash:X16}.png");
-                File.WriteAllBytes(outPath, ImageUtils.ImageAsPng(image).ToArray());
+                
+                view.Draw();
+                break;
             }
-
-            ImGui.Image(imagePtr, size);
+            case SelectedFileType.Model:
+            {
+                if (view == null)
+                {
+                    var parsedFile = new MdlFile(file.RawData);
+                    view = new MdlView(parsedFile);
+                }
+                
+                view.Draw();
+                break;
+            }
+            default:
+                view ??= new DefaultView(hash, file);
+                view.Draw();
+                break;
         }
     }
-
-    private int arrayLevel;
-    private int mipLevel;
-    private int slice;
-
-    public bool DrawTexOptions(TexMeta meta)
+    
+    private string GetExtensionFromType(SelectedFileType type)
     {
-        var initArray = arrayLevel;
-        var initMip = mipLevel;
-        var initSlice = slice;
-        if (meta.ArraySize > 1)
+        return type switch
         {
-            ImGui.InputInt("ArrayLevel", ref arrayLevel);
-            if (this.arrayLevel >= meta.ArraySize)
-            {
-                arrayLevel = 0;
-            }
-            else if (this.arrayLevel < 0)
-            {
-                arrayLevel = Math.Max(0, meta.ArraySize - 1);
-            }
-        }
-        else
+            SelectedFileType.Texture => ".tex",
+            SelectedFileType.Model => ".mdl",
+            SelectedFileType.Material => ".mtrl",
+            _ => ""
+        };
+    }
+    
+    private SelectedFileType GetTypeFromExtension(string extension)
+    {
+        return extension switch
         {
-            arrayLevel = 0;
-        }
+            ".tex" => SelectedFileType.Texture,
+            ".mdl" => SelectedFileType.Model,
+            ".mtrl" => SelectedFileType.Material,
+            _ => SelectedFileType.None
+        };
+    }
 
-        if (meta.MipLevels > 1)
+    private SelectedFileType TryGetType(string? path, SqPackFile file)
+    {
+        var extension = Path.GetExtension(path);
+        if (!string.IsNullOrEmpty(extension))
         {
-            ImGui.InputInt("MipLevel", ref mipLevel);
-            if (this.mipLevel >= meta.MipLevels)
+            if (GetTypeFromExtension(extension) != SelectedFileType.None)
             {
-                mipLevel = 0;
-            }
-            else if (this.mipLevel < 0)
-            {
-                mipLevel = Math.Max(0, meta.MipLevels - 1);
+                return GetTypeFromExtension(extension);
             }
         }
-        else
+        
+        switch (file.FileHeader.Type)
         {
-            mipLevel = 0;
+            case FileType.Model:
+                return SelectedFileType.Model;
+            case FileType.Texture:
+                return SelectedFileType.Texture;
+            case FileType.Empty:
+                return SelectedFileType.None;
         }
-
-        if (meta.Depth > 1)
+        
+        var reader = new SpanBinaryReader(file.RawData);
+        var magic = reader.ReadUInt32();
+        if (magic == 16973824) // known .mtrl file version value
         {
-            ImGui.InputInt("Slice", ref slice);
-            if (this.slice >= meta.Depth)
-            {
-                slice = 0;
-            }
-            else if (this.slice < 0)
-            {
-                slice = Math.Max(0, meta.Depth - 1);
-            }
+            return SelectedFileType.Material;
         }
-        else
-        {
-            slice = 0;
-        }
-
-        if (initArray != arrayLevel || initMip != mipLevel || initSlice != slice)
-        {
-            return true;
-        }
-
-        return false;
+        
+        return SelectedFileType.None;
     }
 }

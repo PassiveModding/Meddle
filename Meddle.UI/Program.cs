@@ -1,10 +1,11 @@
 ﻿using System.Diagnostics;
-using System.Globalization;
-using System.IO.Compression;
+using System.Numerics;
 using ImGuiNET;
 using Meddle.UI.Windows;
+using Meddle.Utils.Files.SqPack;
 using Microsoft.Extensions.Logging;
 using Veldrid;
+using Veldrid.Sdl2;
 using Veldrid.StartupUtilities;
 
 namespace Meddle.UI;
@@ -14,31 +15,35 @@ public class Program
     public static readonly string DataDirectory =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Meddle");
 
-    private static readonly ILoggerFactory LogFactory = LoggerFactory.Create(builder => builder.AddConsole());
+    private readonly ILoggerFactory logFactory = LoggerFactory.Create(builder => builder.AddConsole());
+    private readonly ILogger<Program> logger;
     
-    private static void Init()
-    {
+    public Configuration Configuration;
+    public Sdl2Window Window;
+    public GraphicsDevice GraphicsDevice;
+    public ImGuiHandler ImGuiHandler;
+    public ImageHandler ImageHandler;
+    
+    public Program()
+    {        
         if (!Directory.Exists(DataDirectory))
         {
             Directory.CreateDirectory(DataDirectory);
         }
 
-        Services.Configuration = Configuration.Load();
+        Configuration = Configuration.Load();
+        logger = logFactory.CreateLogger<Program>();
+        logger.LogInformation("Kweh!");
     }
 
-    public static async Task Main()
+    private async Task RunAsync()
     {
-        Init();
-
-        var logger = LogFactory.CreateLogger<Program>();
-        logger.LogInformation("Kweh!");
-
         VeldridStartup.CreateWindowAndGraphicsDevice(
             new WindowCreateInfo(
-                Services.Configuration.WindowX,
-                Services.Configuration.WindowY,
-                Services.Configuration.WindowWidth,
-                Services.Configuration.WindowHeight,
+                Configuration.WindowX,
+                Configuration.WindowY,
+                Configuration.WindowWidth,
+                Configuration.WindowHeight,
                 WindowState.Normal,
                 "Meddle"),
             out var window,
@@ -49,93 +54,145 @@ public class Program
             return;
         }
         
-        Services.Window = window;
-        Services.GraphicsDevice = graphicsDevice;
-        Services.Window.Resized += Resize;
-        var commandList = Services.GraphicsDevice.ResourceFactory.CreateCommandList();
+        Window = window;
+        GraphicsDevice = graphicsDevice;
+        Window.Resized += Resize;
+        var commandList = GraphicsDevice.ResourceFactory.CreateCommandList();
 
-        Services.ImGuiHandler = new ImGuiHandler(Services.Window, Services.GraphicsDevice);
-        Services.ImageHandler = new ImageHandler();
+        ImGuiHandler = new ImGuiHandler(Window, GraphicsDevice, Configuration.DisplayScale);
+        ImageHandler = new ImageHandler(GraphicsDevice, ImGuiHandler);
         
         var stopwatch = Stopwatch.StartNew();
-        while (Services.Window.Exists)
+        while (Window.Exists)
         {
             var deltaTime = stopwatch.ElapsedTicks / (float) Stopwatch.Frequency;
-            if (deltaTime < 1f / Services.Configuration.FpsLimit)
+            if (deltaTime < 1f / Configuration.FpsLimit)
             {
                 continue;
             }
             stopwatch.Restart();
 
-            var snapshot = Services.Window.PumpEvents();
-            if (!Services.Window.Exists) break;
+            var snapshot = Window.PumpEvents();
+            if (!Window.Exists) break;
 
-            Services.ImGuiHandler.Update(deltaTime, snapshot);
+            ImGuiHandler.Update(deltaTime, snapshot);
             Draw();
 
             commandList.Begin();
-            commandList.SetFramebuffer(Services.GraphicsDevice.MainSwapchain.Framebuffer);
+            commandList.SetFramebuffer(GraphicsDevice.MainSwapchain.Framebuffer);
             var forty = 40f / 255f;
             commandList.ClearColorTarget(0, new RgbaFloat(forty, forty, forty, 1f));
 
-            Services.ImGuiHandler.Render(commandList);
+            ImGuiHandler.Render(commandList);
             commandList.End();
-            Services.GraphicsDevice.SubmitCommands(commandList);
-            Services.GraphicsDevice.SwapBuffers(Services.GraphicsDevice.MainSwapchain);
+            GraphicsDevice.SubmitCommands(commandList);
+            GraphicsDevice.SwapBuffers(GraphicsDevice.MainSwapchain);
         }
         
-        Services.Window.Resized -= Resize;
-        Services.GraphicsDevice.WaitForIdle();
-        Services.ImageHandler.Dispose();
-        Services.ImGuiHandler.Dispose();
-        Services.GraphicsDevice.Dispose();
-        Services.Window.Close();
+        Window.Resized -= Resize;
+        GraphicsDevice.WaitForIdle();
+        ImageHandler.Dispose();
+        ImGuiHandler.Dispose();
+        GraphicsDevice.Dispose();
+        Window.Close();
         
-        Services.Configuration.WindowWidth = Services.Window.Width;
-        Services.Configuration.WindowHeight = Services.Window.Height;
-        Services.Configuration.WindowX = Services.Window.X;
-        Services.Configuration.WindowY = Services.Window.Y;
-        Services.Configuration.Save();
+        Configuration.WindowWidth = Window.Width;
+        Configuration.WindowHeight = Window.Height;
+        Configuration.WindowX = Window.X;
+        Configuration.WindowY = Window.Y;
+        Configuration.Save();
         
         logger.LogInformation("Kweh! Kweh!");
     }
 
-    private static SqPackWindow? SqPackWindow;
-    private static void Draw()
+    public static async Task Main()
     {
-        DrawSettings();
-        
-        if (!string.IsNullOrWhiteSpace(Services.Configuration.GameDirectory))
-        {
-            try
+        var program = new Program();
+        await program.RunAsync();
+    }
+
+    private static Task<SqPackWindow>? SqPackWindowTask;
+    private static bool ShowSettings;
+    private void Draw()
+    {
+        ImGui.SetNextWindowPos(Vector2.Zero);
+        ImGui.SetNextWindowSize(new Vector2(Window.Width, Window.Height));
+        if (ImGui.Begin("Main", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove))
+        {            
+            if (ImGui.Button("Settings"))
             {
-                SqPackWindow ??= new SqPackWindow();
-                SqPackWindow.Draw();
+                ShowSettings = true;
             }
-            catch (Exception e)
+            ImGui.Text("Meddle");
+            ImGui.SameLine();
+            ImGui.Text($"FPS: {ImGui.GetIO().Framerate}");
+            
+            if (ShowSettings)
             {
-                ImGui.TextWrapped(e.ToString());
+                ImGui.OpenPopup("Settings");
+                if (ImGui.BeginPopupModal("Settings"))
+                {
+                    ImGui.Text("Game Directory");
+                    ImGui.SameLine();
+                    var dir = Configuration.GameDirectory;
+                    ImGui.InputText("##GameDirectory", ref dir, 1024);
+                    Configuration.GameDirectory = dir;
+                    if (ImGui.Button("OK"))
+                    {
+                        SqPackWindowTask = null;
+                        ShowSettings = false;
+                        ImGui.CloseCurrentPopup();
+                    }
+                    ImGui.EndPopup();
+                }
+            }
+            
+
+            if (!string.IsNullOrWhiteSpace(Configuration.GameDirectory))
+            {
+                SqPackWindowTask ??= Task.Run(() =>
+                {
+                    var pack = new SqPack(Configuration.GameDirectory);
+                    var pathManager = new SqPackWindow.PathManager();
+                    var cacheFile = Path.Combine(DataDirectory, "parsed_paths.txt");
+                    if (Path.Exists(cacheFile))
+                    {
+                        var lines = File.ReadAllLines(cacheFile);
+                        var paths = PathUtils.ParsePaths(lines);
+                        pathManager.ParsedPaths.AddRange(paths);
+                    }
+                    return new SqPackWindow(pack, ImageHandler, pathManager);
+                });
+                if (SqPackWindowTask.IsCompletedSuccessfully)
+                {
+                    var sqPackWindow = SqPackWindowTask.Result;
+                    try
+                    {
+                        sqPackWindow.Draw();
+                    }
+                    catch (Exception e)
+                    {
+                        ImGui.TextWrapped($"Error: {e.Message}");
+                        logger.LogError(e, "Error drawing SqPackWindow");
+                    }
+                }
+                else if (SqPackWindowTask.IsFaulted)
+                {
+                    var exception = SqPackWindowTask.Exception;
+                    ImGui.TextWrapped($"Error: {exception?.Message}");
+                }
+                else
+                {
+                    ImGui.Text("Loading SqPackWindow...");
+                }
             }
         }
     }
 
-    private static void DrawSettings()
+    private void Resize()
     {
-        if (ImGui.Begin("Meddle", ImGuiWindowFlags.AlwaysAutoResize))
-        {
-            Services.Configuration.GameDirectory ??= string.Empty;
-            var gameDirectory = Services.Configuration.GameDirectory;
-            if (ImGui.InputText("Game Directory", ref gameDirectory, 1024))
-            {
-                Services.Configuration.GameDirectory = gameDirectory;
-            }
-        }
-    }
-    
-    private static void Resize()
-    {
-        var width = Services.Window.Width;
-        var height = Services.Window.Height;
-        Services.GraphicsDevice.MainSwapchain.Resize((uint)width, (uint)height);
+        var width = Window.Width;
+        var height = Window.Height;
+        GraphicsDevice.MainSwapchain.Resize((uint)width, (uint)height);
     }
 }

@@ -38,7 +38,7 @@ public class ImGuiHandler : IDisposable {
 
     private bool frameBegun;
 
-    public ImGuiHandler(Sdl2Window window, GraphicsDevice graphicsDevice) {
+    public ImGuiHandler(Sdl2Window window, GraphicsDevice graphicsDevice, int displayScale) {
         this.window = window;
         this.graphicsDevice = graphicsDevice;
 
@@ -47,7 +47,7 @@ public class ImGuiHandler : IDisposable {
         var io = ImGui.GetIO();
         io.BackendFlags |= ImGuiBackendFlags.RendererHasVtxOffset;
         io.ConfigFlags |= ImGuiConfigFlags.DockingEnable;
-        io.DisplayFramebufferScale = new Vector2(Services.Configuration.DisplayScale);
+        io.DisplayFramebufferScale = new Vector2(displayScale);
 
         io.Fonts.AddFontDefault();
         io.Fonts.Build();

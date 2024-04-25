@@ -4,14 +4,17 @@ namespace Meddle.Utils.Files.SqPack;
 
 public class SqPackFile
 {
-    public SqPackFileInfo FileHeader { get; }
+    public readonly SqPackFileInfo FileHeader;
+    
     private readonly byte[] rawData;
     public ReadOnlySpan<byte> RawData => rawData;
 
-    public SqPackFile(SqPackFileInfo fileHeader, byte[] fileData)
+    public SqPackFile(SqPackFileInfo fileHeader, byte[] fileData) : this(fileHeader, (ReadOnlySpan<byte>)fileData) { }
+    
+    public SqPackFile(SqPackFileInfo fileHeader, ReadOnlySpan<byte> fileData)
     {
         FileHeader = fileHeader;
-        rawData = fileData;
+        rawData = fileData.ToArray();
     }
 }
 

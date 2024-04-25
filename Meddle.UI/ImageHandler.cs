@@ -1,8 +1,4 @@
-﻿using System.Buffers;
-using System.Runtime.InteropServices;
-using ImGuiNET;
-using Meddle.Utils;
-using Meddle.Utils.Files;
+﻿using System.Runtime.InteropServices;
 using OtterTex;
 using Veldrid;
 
@@ -10,23 +6,19 @@ namespace Meddle.UI;
 
 public class ImageHandler : IDisposable
 {
-    private readonly List<IDisposable> disposables = new();
-    private readonly List<nint> pointers = new();
-    
-    public nint DrawTexData(Image img, out bool cleanup)
+    private readonly GraphicsDevice graphicsDevice;
+    private readonly ImGuiHandler imGuiHandler;
+    public ImageHandler(GraphicsDevice graphicsDevice, ImGuiHandler imGuiHandler)
     {
-        cleanup = false;
-        if (pointers.Count > 100)
-        {
-            foreach (var pointer in pointers)
-            {
-                Marshal.FreeHGlobal(pointer);
-            }
+        this.graphicsDevice = graphicsDevice;
+        this.imGuiHandler = imGuiHandler;
+    }
+    
+    private readonly List<IDisposable> disposables = [];
+    private readonly List<nint> pointers = new();
 
-            pointers.Clear();
-            cleanup = true;
-        }
-        
+    public nint DrawTexData(Image img)
+    {
         var desc = TextureDescription.Texture2D(
             (uint)img.Width,
             (uint)img.Height,
@@ -36,11 +28,11 @@ public class ImageHandler : IDisposable
             TextureUsage.Sampled
         );
         
-        Texture texture = Services.GraphicsDevice.ResourceFactory.CreateTexture(desc);
+        Texture texture = graphicsDevice.ResourceFactory.CreateTexture(desc);
         var dpt = Marshal.AllocHGlobal(img.Span.Length);
         Marshal.Copy(img.Span.ToArray(), 0, dpt, img.Span.Length);
 
-        Services.GraphicsDevice.UpdateTexture(
+        graphicsDevice.UpdateTexture(
             texture,
             dpt,
             (uint)img.Span.Length,
@@ -54,7 +46,7 @@ public class ImageHandler : IDisposable
             0
         );
 
-        var binding = Services.ImGuiHandler.GetOrCreateImGuiBinding(Services.GraphicsDevice.ResourceFactory, texture);
+        var binding = imGuiHandler.GetOrCreateImGuiBinding(graphicsDevice.ResourceFactory, texture);
 
         disposables.Add(texture);
         pointers.Add(dpt);
@@ -64,7 +56,7 @@ public class ImageHandler : IDisposable
 
     public void Dispose()
     {
-        Services.ImGuiHandler.DisposeAllTextures();
+        imGuiHandler.DisposeAllTextures();
         foreach (var disposable in this.disposables)
         {
             disposable.Dispose();
@@ -74,5 +66,7 @@ public class ImageHandler : IDisposable
         {
             Marshal.FreeHGlobal(pointer);
         }
+        
+        pointers.Clear();
     }
 }

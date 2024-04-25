@@ -36,80 +36,6 @@ public class Category
     }
     
     public byte Id { get; }
-
-    private SqPackFile ReadFile(int dataFileId, long offset)
-    {
-        var datFilePath = datFilePaths[dataFileId];
-        using var zzzzzzzzzzzzzzzzzz = File.OpenRead(datFilePath);
-        using var br = new BinaryReader(zzzzzzzzzzzzzzzzzz);
-        zzzzzzzzzzzzzzzzzz.Seek(offset, SeekOrigin.Begin);
-        
-        var header = br.Read<SqPackFileInfo>();
-        
-        var buffer = new byte[(int)header.RawFileSize];
-        using var ms = new MemoryStream(buffer);
-        if (header.Type == FileType.Empty)
-        {
-            throw new FileNotFoundException($"The file located at {datFilePath} at offset {offset} is empty");
-        }
-        
-        if (header.Type == FileType.Texture)
-        {
-            int lodBlocks = (int)header.NumberOfBlocks;
-            var blocks = br.Read<LodBlock>(lodBlocks);
-
-            uint mipMapSize = blocks[0].CompressedOffset;
-            if (mipMapSize != 0)
-            {
-                var pos = br.BaseStream.Position;
-                br.BaseStream.Position = offset + header.Size;
-                var mipMap = br.Read<byte>((int)mipMapSize);
-                ms.Write(mipMap);
-                br.BaseStream.Position = pos;
-            }
-            
-            for (var i = 0; i < blocks.Length; i++)
-            {
-                var blockOffset = offset + header.Size + blocks[i].CompressedOffset;
-                for (int j = 0; j < blocks[i].BlockCount; j++)
-                {
-                    var pos = br.BaseStream.Position;
-                    br.BaseStream.Position = blockOffset;
-                    var blockHeader = br.Read<DatBlockHeader>();
-                    if (blockHeader.DatBlockType == DatBlockType.Uncompressed)
-                    {
-                        ms.Write(br.Read<byte>((int)blockHeader.BlockDataSize));
-                    }
-                    else
-                    {
-                        using var zlibStream = new DeflateStream( br.BaseStream, CompressionMode.Decompress, true );
-            
-                        var ob = new byte[blockHeader.BlockDataSize];
-                        var totalRead = 0;
-                        while( totalRead < blockHeader.BlockDataSize )
-                        {
-                            var bytesRead = zlibStream.Read( ob, totalRead, (int)blockHeader.BlockDataSize - totalRead );
-                            if( bytesRead == 0 ) { break; }
-                            totalRead += bytesRead;
-                        }
-
-                        if( totalRead != (int)blockHeader.BlockDataSize )
-                        {
-                            throw new InvalidDataException( $"Failed to read block data, expected {blockHeader.BlockDataSize} bytes, got {totalRead}" );
-                        }
-            
-                        ms.Write(ob);
-                    }
-                    
-                    br.BaseStream.Position = pos;
-                    var size = br.ReadUInt16();
-                    blockOffset += size;
-                }
-            }
-        }
-
-        return new SqPackFile(header, buffer);
-    }
     
     public bool FileExists(ulong hash)
     {
@@ -124,7 +50,7 @@ public class Category
             return false;
         }
         
-        data = ReadFile(entry.DataFileId, entry.Offset);
+        data = SqPackUtil.ReadFile(entry.Offset, datFilePaths[entry.DataFileId]);
         return true;
     }
 

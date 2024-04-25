@@ -19,9 +19,13 @@ public class Repository
             var path = info.Parent!.Parent;
             filePath = System.IO.Path.Combine(path!.FullName, "ffxivgame.ver");
         }
-        else
+        else if (info.Name.StartsWith("ex"))
         {
             filePath = System.IO.Path.Combine(info.FullName, $"{info.Name}.ver");
+        }
+        else
+        {
+            return string.Empty;
         }
         
         if (!File.Exists(filePath))
@@ -73,7 +77,8 @@ public class Repository
 
             if (datFiles.Length == 0)
             {
-                throw new FileNotFoundException($"Could not find .dat files for category {setId} in {path}");
+                //throw new FileNotFoundException($"Could not find .dat files for category {setId} in {path}");
+                continue;
             }
             
             if (indexFile == null && index2File == null)

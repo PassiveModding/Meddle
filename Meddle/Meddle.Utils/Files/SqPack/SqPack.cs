@@ -4,8 +4,7 @@ namespace Meddle.Utils.Files.SqPack;
 
 public class SqPack
 {
-    private Repository[] repositories;
-    public ReadOnlySpan<Repository> Repositories => repositories;
+    public readonly IEnumerable<Repository> Repositories;
     
     public SqPack(string path)
     {
@@ -30,17 +29,15 @@ public class SqPack
             throw new DirectoryNotFoundException();
         }
         
-        // install/game/sqpack
-        // list directories under sqpack
-        // list files under each directory
-        // parse each file
         var directories = Directory.GetDirectories(sqpackDir);
-        repositories = new Repository[directories.Length];
+        var repositories = new Repository[directories.Length];
         for (var i = 0; i < directories.Length; i++)
         {
             var directory = directories[i];
             repositories[i] = new Repository(directory);
         }
+        
+        Repositories = repositories;
     }
 
     public bool FileExists(string path, out ParsedFilePath hash)
@@ -54,7 +51,7 @@ public class SqPack
             catId = id;
         }
 
-        foreach (var repo in repositories)
+        foreach (var repo in Repositories)
         {
             var catMatch = repo.Categories.ToArray();
             if (catId != null)
@@ -88,7 +85,7 @@ public class SqPack
             catId = id;
         }
 
-        foreach (var repo in repositories)
+        foreach (var repo in Repositories)
         {
             var catMatch = repo.Categories.ToArray();
             if (catId != null)

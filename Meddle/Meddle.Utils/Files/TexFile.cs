@@ -1,17 +1,96 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using OtterTex;
-using SkiaSharp;
 
 namespace Meddle.Utils.Files;
 
 public class TexFile
 {
+    [Flags]
+    public enum Attribute : uint
+    {
+        DiscardPerFrame = 0x1,
+        DiscardPerMap = 0x2,
+        Managed = 0x4,
+        UserManaged = 0x8,
+        CpuRead = 0x10,
+        LocationMain = 0x20,
+        NoGpuRead = 0x40,
+        AlignedSize = 0x80,
+        EdgeCulling = 0x100,
+        LocationOnion = 0x200,
+        ReadWrite = 0x400,
+        Immutable = 0x800,
+        TextureRenderTarget = 0x100000,
+        TextureDepthStencil = 0x200000,
+        TextureType1D = 0x400000,
+        TextureType2D = 0x800000,
+        TextureType3D = 0x1000000,
+        TextureTypeCube = 0x2000000,
+        TextureTypeMask = 0x3C00000,
+        TextureSwizzle = 0x4000000,
+        TextureNoTiled = 0x8000000,
+        TextureType2DArray = 0x10000000,
+        TextureNoSwizzle = 0x80000000
+    }
+
+    [Flags]
+    public enum TextureFormat
+    {
+        TypeShift = 0xC,
+        TypeMask = 0xF000,
+        ComponentShift = 0x8,
+        ComponentMask = 0xF00,
+        BppShift = 0x4,
+        BppMask = 0xF0,
+        EnumShift = 0x0,
+        EnumMask = 0xF,
+        TypeInteger = 0x1,
+        TypeFloat = 0x2,
+        TypeDxt = 0x3,
+        TypeBc123 = 0x3,
+        TypeDepthStencil = 0x4,
+        TypeSpecial = 0x5,
+        TypeBc57 = 0x6,
+
+        Unknown = 0x0,
+
+        // Integer types
+        L8 = 0x1130,
+        A8 = 0x1131,
+        B4G4R4A4 = 0x1440,
+        B5G5R5A1 = 0x1441,
+        B8G8R8A8 = 0x1450,
+        B8G8R8X8 = 0x1451,
+
+        // Floating point types
+        R32F = 0x2150,
+        R16G16F = 0x2250,
+        R32G32F = 0x2260,
+        R16G16B16A16F = 0x2460,
+        R32G32B32A32F = 0x2470,
+
+        // Block compression types (DX11 names)
+        BC1 = 0x3420,
+        BC2 = 0x3430,
+        BC3 = 0x3431,
+        BC5 = 0x6230,
+        BC7 = 0x6432
+    }
+
     public TexHeader Header;
-    public int HeaderLength => Unsafe.SizeOf<TexHeader>();
-    public readonly byte[] TextureBuffer;
+    public byte[] TextureBuffer;
 
     public TexFile(byte[] data) : this((ReadOnlySpan<byte>)data) { }
+
+    public TexFile(ReadOnlySpan<byte> data)
+    {
+        var reader = new SpanBinaryReader(data);
+        Header = reader.Read<TexHeader>();
+        TextureBuffer = reader.Read<byte>(data.Length - HeaderLength).ToArray();
+    }
+
+    public int HeaderLength => Unsafe.SizeOf<TexHeader>();
 
     public int SliceSize(int mipmapIndex, out int width, out int height)
     {
@@ -56,7 +135,7 @@ public class TexFile
                 throw new ArgumentOutOfRangeException(nameof(sliceIndex), sliceIndex, null);
         }
 
-        var offset = (sliceIndex * sliceSize);
+        var offset = sliceIndex * sliceSize;
         var mipOffset = (int)(Header.OffsetToSurface[mipmapIndex] - Header.OffsetToSurface[0]);
         offset += mipOffset;
         if (offset >= TextureBuffer.Length)
@@ -68,11 +147,46 @@ public class TexFile
         return TextureBuffer.AsSpan(offset, length);
     }
 
-    public TexFile(ReadOnlySpan<byte> data)
+    public static TexDimension GetTexDimensionFromAttribute(Attribute attribute)
     {
-        var reader = new SpanBinaryReader(data);
-        Header = reader.Read<TexHeader>();
-        TextureBuffer = reader.Read<byte>(data.Length - HeaderLength).ToArray();
+        var dimension = attribute switch
+        {
+            Attribute.TextureType1D => TexDimension.Tex1D,
+            Attribute.TextureType2D => TexDimension.Tex2D,
+            Attribute.TextureType3D => TexDimension.Tex3D,
+            Attribute.TextureType2DArray => TexDimension.Tex2D,
+            Attribute.TextureTypeCube => TexDimension.Tex2D,
+            _ => throw new NotImplementedException($"Unknown texture dimension: {attribute} [{attribute:X2}]")
+        };
+
+        return dimension;
+    }
+
+    public static DXGIFormat GetDxgiFormatFromTextureFormat(TextureFormat format)
+    {
+        var dxf = format switch
+        {
+            TextureFormat.Unknown => DXGIFormat.Unknown,
+            TextureFormat.A8 => DXGIFormat.A8UNorm,
+            TextureFormat.L8 => DXGIFormat.R8UNorm,
+            TextureFormat.B4G4R4A4 => DXGIFormat.B4G4R4A4UNorm,
+            TextureFormat.B5G5R5A1 => DXGIFormat.B5G5R5A1UNorm,
+            TextureFormat.B8G8R8A8 => DXGIFormat.B8G8R8A8UNorm,
+            TextureFormat.B8G8R8X8 => DXGIFormat.B8G8R8X8UNorm,
+            TextureFormat.R32F => DXGIFormat.R32Float,
+            TextureFormat.R16G16F => DXGIFormat.R16G16Float,
+            TextureFormat.R32G32F => DXGIFormat.R32G32Float,
+            TextureFormat.R16G16B16A16F => DXGIFormat.R16G16B16A16Float,
+            TextureFormat.R32G32B32A32F => DXGIFormat.R32G32B32A32Float,
+            TextureFormat.BC1 => DXGIFormat.BC1UNorm,
+            TextureFormat.BC2 => DXGIFormat.BC2UNorm,
+            TextureFormat.BC3 => DXGIFormat.BC3UNorm,
+            TextureFormat.BC5 => DXGIFormat.BC5UNorm,
+            TextureFormat.BC7 => DXGIFormat.BC7UNorm,
+            _ => throw new NotImplementedException($"Unknown texture format: {format} [{format:X2}]")
+        };
+
+        return dxf;
     }
 
     [StructLayout(LayoutKind.Explicit, Size = 80)]
@@ -121,7 +235,7 @@ public class TexFile
         private int CountMips()
         {
             var actualMips = 0;
-            for (int i = 0; i < MipLevels; i++)
+            for (var i = 0; i < MipLevels; i++)
             {
                 if (OffsetToSurface[i] > 0)
                 {
@@ -135,176 +249,5 @@ public class TexFile
 
             return actualMips;
         }
-    };
-
-    public byte[] ToPng()
-    {
-        var arraySize = Header.Type.HasFlag(Attribute.TextureTypeCube) ? 6 : Header.ArraySize;
-        if (arraySize == 0) arraySize = 1;
-
-        var mipLevels = 0;
-        unsafe
-        {
-            for (int i = 0; i < Header.MipLevels; i++)
-            {
-                if (Header.OffsetToSurface[i] > 0)
-                {
-                    mipLevels++;
-                }
-            }
-        }
-
-        var meta = new TexMeta
-        {
-            Width = Header.Width,
-            Height = Header.Height,
-            Depth = Header.Depth,
-            MipLevels = mipLevels,
-            ArraySize = arraySize,
-            Format = GetDxgiFormatFromTextureFormat(Header.Format),
-            Dimension = GetTexDimensionFromAttribute(Header.Type),
-            MiscFlags = Header.Type.HasFlag(Attribute.TextureTypeCube) ? D3DResourceMiscFlags.TextureCube : 0,
-            MiscFlags2 = 0
-        };
-
-        var si = ScratchImage.Initialize(meta);
-        unsafe
-        {
-            fixed (byte* data = si.Pixels)
-            {
-                var span = new Span<byte>(data, si.Pixels.Length);
-                TextureBuffer.CopyTo(span);
-            }
-        }
-
-        si.GetRGBA(out var rgba);
-
-        var image = new SKBitmap(new SKImageInfo(meta.Width, meta.Height, SKColorType.Rgba8888));
-        unsafe
-        {
-            var rgbaPixels = rgba.Pixels.ToArray();
-            fixed (void* ptr = rgbaPixels)
-            {
-                image.SetPixels((IntPtr)ptr);
-            }
-        }
-
-        using var stream = new MemoryStream();
-        image.Encode(stream, SKEncodedImageFormat.Png, 100);
-        return stream.ToArray();
-    }
-
-    [Flags]
-    public enum Attribute : uint
-    {
-        DiscardPerFrame = 0x1,
-        DiscardPerMap = 0x2,
-        Managed = 0x4,
-        UserManaged = 0x8,
-        CpuRead = 0x10,
-        LocationMain = 0x20,
-        NoGpuRead = 0x40,
-        AlignedSize = 0x80,
-        EdgeCulling = 0x100,
-        LocationOnion = 0x200,
-        ReadWrite = 0x400,
-        Immutable = 0x800,
-        TextureRenderTarget = 0x100000,
-        TextureDepthStencil = 0x200000,
-        TextureType1D = 0x400000,
-        TextureType2D = 0x800000,
-        TextureType3D = 0x1000000,
-        TextureTypeCube = 0x2000000,
-        TextureTypeMask = 0x3C00000,
-        TextureSwizzle = 0x4000000,
-        TextureNoTiled = 0x8000000,
-        TextureType2DArray = 0x10000000,
-        TextureNoSwizzle = 0x80000000
-    }
-
-    public static TexDimension GetTexDimensionFromAttribute(Attribute attribute)
-    {
-        var dimension = attribute switch
-        {
-            Attribute.TextureType1D => TexDimension.Tex1D,
-            Attribute.TextureType2D => TexDimension.Tex2D,
-            Attribute.TextureType3D => TexDimension.Tex3D,
-            Attribute.TextureType2DArray => TexDimension.Tex2D,
-            Attribute.TextureTypeCube => TexDimension.Tex2D,
-            _ => throw new NotImplementedException($"Unknown texture dimension: {attribute} [{attribute:X2}]")
-        };
-
-        return dimension;
-    }
-
-    public static DXGIFormat GetDxgiFormatFromTextureFormat(TextureFormat format)
-    {
-        var dxf = format switch
-        {
-            TextureFormat.Unknown => DXGIFormat.Unknown,
-            TextureFormat.A8 => DXGIFormat.A8UNorm,
-            TextureFormat.L8 => DXGIFormat.R8UNorm,
-            TextureFormat.B4G4R4A4 => DXGIFormat.B4G4R4A4UNorm,
-            TextureFormat.B5G5R5A1 => DXGIFormat.B5G5R5A1UNorm,
-            TextureFormat.B8G8R8A8 => DXGIFormat.B8G8R8A8UNorm,
-            TextureFormat.B8G8R8X8 => DXGIFormat.B8G8R8X8UNorm,
-            TextureFormat.R32F => DXGIFormat.R32Float,
-            TextureFormat.R16G16F => DXGIFormat.R16G16Float,
-            TextureFormat.R32G32F => DXGIFormat.R32G32Float,
-            TextureFormat.R16G16B16A16F => DXGIFormat.R16G16B16A16Float,
-            TextureFormat.R32G32B32A32F => DXGIFormat.R32G32B32A32Float,
-            TextureFormat.BC1 => DXGIFormat.BC1UNorm,
-            TextureFormat.BC2 => DXGIFormat.BC2UNorm,
-            TextureFormat.BC3 => DXGIFormat.BC3UNorm,
-            TextureFormat.BC5 => DXGIFormat.BC5UNorm,
-            TextureFormat.BC7 => DXGIFormat.BC7UNorm,
-            _ => throw new NotImplementedException($"Unknown texture format: {format} [{format:X2}]")
-        };
-
-        return dxf;
-    }
-
-    [Flags]
-    public enum TextureFormat
-    {
-        TypeShift = 0xC,
-        TypeMask = 0xF000,
-        ComponentShift = 0x8,
-        ComponentMask = 0xF00,
-        BppShift = 0x4,
-        BppMask = 0xF0,
-        EnumShift = 0x0,
-        EnumMask = 0xF,
-        TypeInteger = 0x1,
-        TypeFloat = 0x2,
-        TypeDxt = 0x3,
-        TypeBc123 = 0x3,
-        TypeDepthStencil = 0x4,
-        TypeSpecial = 0x5,
-        TypeBc57 = 0x6,
-
-        Unknown = 0x0,
-
-        // Integer types
-        L8 = 0x1130,
-        A8 = 0x1131,
-        B4G4R4A4 = 0x1440,
-        B5G5R5A1 = 0x1441,
-        B8G8R8A8 = 0x1450,
-        B8G8R8X8 = 0x1451,
-
-        // Floating point types
-        R32F = 0x2150,
-        R16G16F = 0x2250,
-        R32G32F = 0x2260,
-        R16G16B16A16F = 0x2460,
-        R32G32B32A32F = 0x2470,
-
-        // Block compression types (DX11 names)
-        BC1 = 0x3420,
-        BC2 = 0x3430,
-        BC3 = 0x3431,
-        BC5 = 0x6230,
-        BC7 = 0x6432,
     }
 }
