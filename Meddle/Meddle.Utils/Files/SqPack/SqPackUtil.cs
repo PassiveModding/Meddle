@@ -17,7 +17,10 @@ public static class SqPackUtil
         switch (header.Type)
         {
             case FileType.Empty:
-                throw new FileNotFoundException($"The file located at {datFilePath} at offset {offset} is empty");
+            {
+                var data = new byte[header.RawFileSize];
+                return new SqPackFile(header, data);
+            }
             case FileType.Texture:
             {
                 var data = ParseTexFile(offset, header, br);
@@ -43,6 +46,10 @@ public static class SqPackUtil
     {
         var buffer = new byte[(int)header.RawFileSize];
         using var ms = new MemoryStream(buffer);
+        if (header.NumberOfBlocks == 0)
+        {
+            return buffer;
+        }
         var blocks = br.Read<DatStdFileBlockInfos>((int)header.NumberOfBlocks);
         foreach (var block in blocks)
         {

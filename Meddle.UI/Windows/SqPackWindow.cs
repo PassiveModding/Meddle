@@ -507,6 +507,10 @@ public class SqPackWindow
                 return SelectedFileType.None;
         }
         
+        if (file.RawData.Length < 4)
+        {
+            return SelectedFileType.None;
+        }
         var reader = new SpanBinaryReader(file.RawData);
         var magic = reader.ReadUInt32();
         if (magic == 16973824) // known .mtrl file version value
