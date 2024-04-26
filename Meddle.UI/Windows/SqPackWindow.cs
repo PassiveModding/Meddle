@@ -18,6 +18,7 @@ public class SqPackWindow
         public readonly List<ParsedFilePath> ParsedPaths = new();
         public List<IGrouping<string, ParsedFilePath>> PathViewerCache = new();
         public readonly Dictionary<ulong, ParsedFilePath?> ParsedPathDict = new();
+        public readonly Dictionary<string, IGrouping<string, ParsedFilePath>[]> FolderCache = new();
         
         public ParsedFilePath? GetPath(ulong hash)
         {
@@ -187,6 +188,7 @@ public class SqPackWindow
                       .OrderBy(x => x.Path)
                       .GroupBy(x => x.Path.Split('/')[0])
                       .ToList();
+            pathManager.FolderCache.Clear();
         }
         else if (pathManager.PathViewerCache.Count == 0)
         {
@@ -194,6 +196,7 @@ public class SqPackWindow
                                   .OrderBy(x => x.Path)
                                   .GroupBy(x => x.Path.Split('/')[0])
                                   .ToList();
+            pathManager.FolderCache.Clear();
         }
 
         foreach (var group in pathManager.PathViewerCache)
@@ -206,19 +209,17 @@ public class SqPackWindow
         }
     }
 
-    // Recursively draw folders
-    private Dictionary<string, IGrouping<string, ParsedFilePath>[]> folderCache = new();
     private void DrawPathSet(string key, IEnumerable<ParsedFilePath> paths)
     {
         IGrouping<string, ParsedFilePath>[] groups;
-        if (folderCache.TryGetValue(key, out var cached))
+        if (pathManager.FolderCache.TryGetValue(key, out var cached))
         {
             groups = cached;
         }
         else
         {
             groups = paths.GroupBy(x => x.Path.Substring(key.Length + 1).Split('/')[0]).ToArray();
-            folderCache[key] = groups;
+            pathManager.FolderCache[key] = groups;
         }
 
         foreach (var group in groups)
@@ -393,12 +394,12 @@ public class SqPackWindow
         }
     }
 
-    private (Category category, IndexHashTableEntry hash, SqPackFile file)[]? DiscoverResults;
+    private (Category category, IndexHashTableEntry hash, SqPackFile file)[]? discoverResults;
     private void DrawFile(IndexHashTableEntry hash, SqPackFile file)
     {
-        if (DiscoverResults != null && DiscoverResults.All(x => x.hash.Hash != hash.Hash))
+        if (discoverResults != null && discoverResults.All(x => x.hash.Hash != hash.Hash))
         {
-            DiscoverResults = null;
+            discoverResults = null;
         }
         var path = pathManager.GetPath(hash.Hash);
         if (path != null)
@@ -407,15 +408,15 @@ public class SqPackWindow
             if (ImGui.Button("Discover all"))
             {
                 var files = sqPack.GetFiles(path.Path);
-                DiscoverResults = files;
+                discoverResults = files;
             }
             
-            if (DiscoverResults != null)
+            if (discoverResults != null)
             {
                 ImGui.Text("Discovered files:");
-                for (var i = 0; i < DiscoverResults.Length; i++)
+                for (var i = 0; i < discoverResults.Length; i++)
                 {
-                    var (category, sHash, sFile) = DiscoverResults[i];
+                    var (category, sHash, sFile) = discoverResults[i];
                     var repoName = category.Repository?.Path.Split(Path.DirectorySeparatorChar).Last();
                     if (ImGui.Selectable($"[{i}] - {repoName} {sHash.Hash:X16}"))
                     {
