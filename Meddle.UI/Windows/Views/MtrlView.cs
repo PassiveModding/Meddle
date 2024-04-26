@@ -47,7 +47,7 @@ public class MtrlView : IView
                 if (sqFile != null)
                 {
                     var texFile = new TexFile(sqFile.Value.file.RawData);
-                    texView = new TexView(sqFile.Value.hash, texFile, imageHandler);
+                    texView = new TexView(sqFile.Value.hash, texFile, imageHandler, value);
                     mtrlTextureCache.Add(value, texView);
                 }
             }

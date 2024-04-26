@@ -38,7 +38,7 @@ public class MdlFile
     public ModelResourceHandle.TerrainShadowSubmesh[] TerrainShadowSubmeshes;
     public uint[] MaterialNameOffsets;
     public uint[] BoneNameOffsets;
-    public ModelResourceHandle.BoneTable[] BoneTables;
+    public BoneTable[] BoneTables;
     public ModelResourceHandle.Shape[] Shapes;
     public ModelResourceHandle.ShapeMesh[] ShapeMeshes;
     public ModelResourceHandle.ShapeValue[] ShapeValues;
@@ -51,6 +51,15 @@ public class MdlFile
     public ModelResourceHandle.BoundingBox WaterBoundingBoxes;
     public ModelResourceHandle.BoundingBox VerticalFogBoundingBoxes;
     public ModelResourceHandle.BoundingBox[] BoneBoundingBoxes;
+    
+    // combine both types
+    public struct BoneTable
+    {
+        public ushort BoneCount;
+        public ushort Unk1;
+        public ushort? Unk2;
+        public ushort[] BoneIndex;
+    }
     
     public MdlFile(byte[] data) : this((ReadOnlySpan<byte>)data) { }
 
@@ -86,26 +95,63 @@ public class MdlFile
         TerrainShadowSubmeshes = reader.Read<ModelResourceHandle.TerrainShadowSubmesh>(ModelHeader.TerrainShadowSubmeshCount).ToArray();
         MaterialNameOffsets = reader.Read<uint>(ModelHeader.MaterialCount).ToArray();
         BoneNameOffsets = reader.Read<uint>(ModelHeader.BoneCount).ToArray();
-        BoneTables = reader.Read<ModelResourceHandle.BoneTable>(ModelHeader.BoneTableCount).ToArray();
+
+        BoneTables = new BoneTable[ModelHeader.BoneTableCount];
+        if (FileHeader.Version <= 16777221)
+        {
+            for (var i = 0; i < ModelHeader.BoneTableCount; i++)
+            {
+                unsafe
+                {
+                    var table = reader.Read<ModelResourceHandle.BoneTable>();
+                    BoneTables[i].BoneCount = table.BoneCount;
+                    var indexes = new ushort[table.BoneCount];
+                    for (var j = 0; j < table.BoneCount; j++)
+                    {
+                        indexes[j] = table.BoneIndex[j];
+                    }
+                    BoneTables[i].BoneIndex = indexes;
+                }
+            }
+        }
+        else
+        {
+            var boneTableIdx = new ushort[ModelHeader.BoneTableCount];
+            var boneTableSizes = new ushort[ModelHeader.BoneTableCount];
+            for (var i = 0; i < ModelHeader.BoneTableCount; i++)
+            {
+                boneTableIdx[i] = reader.ReadUInt16();
+                boneTableSizes[i] = reader.ReadUInt16();
+            }
+
+            BoneTables = new BoneTable[ModelHeader.BoneTableCount];
+            for (var i = 0; i < ModelHeader.BoneTableCount; i++)
+            {
+                BoneTables[i].Unk1 = boneTableIdx[i];
+                BoneTables[i].BoneCount = boneTableSizes[i];
+                BoneTables[i].BoneIndex = reader.Read<ushort>(boneTableSizes[i]).ToArray();
+                if (boneTableSizes[i] % 2 != 0)
+                {
+                    // Probably padding keeping for now
+                    BoneTables[i].Unk2 = reader.Read<ushort>();
+                }
+            }
+        }
+        
         Shapes = reader.Read<ModelResourceHandle.Shape>(ModelHeader.ShapeCount).ToArray();
         ShapeMeshes = reader.Read<ModelResourceHandle.ShapeMesh>(ModelHeader.ShapeMeshCount).ToArray();
         ShapeValues = reader.Read<ModelResourceHandle.ShapeValue>(ModelHeader.ShapeValueCount).ToArray();
         SubmeshBoneMapByteSize = reader.ReadUInt32();
-        
-        // Workaround for new models killing old impl
-        if (SubmeshBoneMapByteSize < byte.MaxValue)
-        {
-            var size = SubmeshBoneMapByteSize / Unsafe.SizeOf<ushort>();
-            SubmeshBoneMap = reader.Read<ushort>((int)size).ToArray();
+        var size = SubmeshBoneMapByteSize / Unsafe.SizeOf<ushort>();
+        SubmeshBoneMap = reader.Read<ushort>((int)size).ToArray();
 
-            var padding = reader.Read<byte>();
-            reader.Seek(padding, SeekOrigin.Current);
+        var padding = reader.Read<byte>();
+        reader.Seek(padding, SeekOrigin.Current);
 
-            BoundingBoxes = reader.Read<ModelResourceHandle.BoundingBox>();
-            ModelBoundingBoxes = reader.Read<ModelResourceHandle.BoundingBox>();
-            WaterBoundingBoxes = reader.Read<ModelResourceHandle.BoundingBox>();
-            VerticalFogBoundingBoxes = reader.Read<ModelResourceHandle.BoundingBox>();
-            BoneBoundingBoxes = reader.Read<ModelResourceHandle.BoundingBox>(ModelHeader.BoneCount).ToArray();
-        }
+        BoundingBoxes = reader.Read<ModelResourceHandle.BoundingBox>();
+        ModelBoundingBoxes = reader.Read<ModelResourceHandle.BoundingBox>();
+        WaterBoundingBoxes = reader.Read<ModelResourceHandle.BoundingBox>();
+        VerticalFogBoundingBoxes = reader.Read<ModelResourceHandle.BoundingBox>();
+        BoneBoundingBoxes = reader.Read<ModelResourceHandle.BoundingBox>(ModelHeader.BoneCount).ToArray();
     }
 }

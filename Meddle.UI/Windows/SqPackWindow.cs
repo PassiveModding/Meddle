@@ -207,9 +207,20 @@ public class SqPackWindow
     }
 
     // Recursively draw folders
+    private Dictionary<string, IGrouping<string, ParsedFilePath>[]> folderCache = new();
     private void DrawPathSet(string key, IEnumerable<ParsedFilePath> paths)
     {
-        var groups = paths.GroupBy(x => x.Path.Substring(key.Length + 1).Split('/')[0]);
+        IGrouping<string, ParsedFilePath>[] groups;
+        if (folderCache.TryGetValue(key, out var cached))
+        {
+            groups = cached;
+        }
+        else
+        {
+            groups = paths.GroupBy(x => x.Path.Substring(key.Length + 1).Split('/')[0]).ToArray();
+            folderCache[key] = groups;
+        }
+
         foreach (var group in groups)
         {
             if (group.Key.Contains('.'))
@@ -382,16 +393,58 @@ public class SqPackWindow
         }
     }
 
+    private (Category category, IndexHashTableEntry hash, SqPackFile file)[]? DiscoverResults;
     private void DrawFile(IndexHashTableEntry hash, SqPackFile file)
     {
+        if (DiscoverResults != null && DiscoverResults.All(x => x.hash.Hash != hash.Hash))
+        {
+            DiscoverResults = null;
+        }
         var path = pathManager.GetPath(hash.Hash);
         if (path != null)
         {
             ImGui.Text($"Path: {path.Path}"); 
+            if (ImGui.Button("Discover all"))
+            {
+                var files = sqPack.GetFiles(path.Path);
+                DiscoverResults = files;
+            }
+            
+            if (DiscoverResults != null)
+            {
+                ImGui.Text("Discovered files:");
+                for (var i = 0; i < DiscoverResults.Length; i++)
+                {
+                    var (category, sHash, sFile) = DiscoverResults[i];
+                    var repoName = category.Repository?.Path.Split(Path.DirectorySeparatorChar).Last();
+                    if (ImGui.Selectable($"[{i}] - {repoName} {sHash.Hash:X16}"))
+                    {
+                        selectedFile = (selectedFile!.Value.index, category, sHash, sFile);
+                        view = null;
+                        hash = sHash;
+                        file = sFile;
+                    }
+                }
+            }
         }
         else
         {
             ImGui.Text("Path: Unknown");
+        }
+        
+        var type = TryGetType(path?.Path, file);
+        if (ImGui.Button("Save raw file"))
+        {
+            var outFolder = Path.Combine(Program.DataDirectory, "SqPackFiles");
+            if (!Directory.Exists(outFolder))
+            {
+                Directory.CreateDirectory(outFolder);
+            }
+
+            var ext = GetExtensionFromType(type);
+            var outPath = Path.Combine(outFolder, $"{hash.Hash:X16}{ext}");
+            File.WriteAllBytes(outPath, file.RawData.ToArray());
+            Process.Start("explorer.exe", outFolder);
         }
 
         ImGui.Text($"DataFileIdx: {hash.DataFileId}");
@@ -408,30 +461,20 @@ public class SqPackWindow
         ImGui.Text($"Blocks: {file.FileHeader.NumberOfBlocks}");
         ImGui.SameLine();
         ImGui.Text($"Type: {file.FileHeader.Type}");
-        var type = TryGetType(path?.Path, file);
         ImGui.Text($"Parsed Type: {type}");
         
-        if (ImGui.Button("Save raw file"))
-        {
-            var outFolder = Path.Combine(Program.DataDirectory, "SqPackFiles");
-            if (!Directory.Exists(outFolder))
-            {
-                Directory.CreateDirectory(outFolder);
-            }
+        DrawFileView(hash, file, type, path?.Path);
+    }
 
-            var ext = GetExtensionFromType(type);
-            var outPath = Path.Combine(outFolder, $"{hash.Hash:X16}{ext}");
-            File.WriteAllBytes(outPath, file.RawData.ToArray());
-            Process.Start("explorer.exe", outFolder);
-        }
-
+    private void DrawFileView(IndexHashTableEntry hash, SqPackFile file, SelectedFileType type, string? path)
+    {
         switch (type)
         {
             case SelectedFileType.Texture:
                 if (view == null)
                 {
                     var parsedFile = new TexFile(file.RawData);
-                    view = new TexView(hash, parsedFile, imageHandler);
+                    view = new TexView(hash, parsedFile, imageHandler, path);
                 }
                 view.Draw();
                 break;

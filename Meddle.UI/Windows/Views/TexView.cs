@@ -9,11 +9,12 @@ namespace Meddle.UI.Windows.Views;
 
 public class TexView : IView
 {
-    public TexView(IndexHashTableEntry hash, TexFile texFile, ImageHandler imageHandler)
+    public TexView(IndexHashTableEntry hash, TexFile texFile, ImageHandler imageHandler, string? path)
     {
         this.hash = hash;
         this.texFile = texFile;
         this.imageHandler = imageHandler;
+        this.path = path;
     }
 
     private readonly IndexHashTableEntry hash;
@@ -23,6 +24,7 @@ public class TexView : IView
     private int mipLevel;
     private int slice;
     private readonly ImageHandler imageHandler;
+    private readonly string? path;
 
     public void Draw()
     {
@@ -46,7 +48,7 @@ public class TexView : IView
         }
 
         // keep aspect ratio and fit in the available space
-        if (ImGui.Button("Save frame as png"))
+        if (ImGui.Button($"Save frame as png##{hash.Hash:X8}"))
         {
             var data = ImageUtils.GetTexData(texFile, arrayLevel, mipLevel, slice);
             var outFolder = Path.Combine(Program.DataDirectory, "SqPackFiles");
@@ -55,7 +57,9 @@ public class TexView : IView
                 Directory.CreateDirectory(outFolder);
             }
 
-            var outPath = Path.Combine(outFolder, $"{hash.Hash:X16}.png");
+            string fileName = path != null ? Path.GetFileNameWithoutExtension(path) : hash.Hash.ToString();
+            
+            var outPath = Path.Combine(outFolder, $"{fileName}.png");
             File.WriteAllBytes(outPath, ImageUtils.ImageAsPng(data).ToArray());
         }
 

@@ -1,4 +1,5 @@
-﻿using ImGuiNET;
+﻿using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
+using ImGuiNET;
 using Meddle.Utils.Files;
 using Meddle.Utils.Models;
 
@@ -6,15 +7,15 @@ namespace Meddle.UI.Windows.Views;
 
 public class MdlView : IView
 {
-    private readonly Model model;
+    public readonly Model Model;
     public MdlView(MdlFile mdlFile)
     {
-        this.model = new Model(mdlFile);
+        this.Model = new Model(mdlFile);
     }
 
     public void Draw()
     {
-        var mdlFile = model.File;
+        var mdlFile = Model.File;
         ImGui.Text($"Version: {mdlFile.FileHeader.Version}");
         ImGui.Text($"Vertex Declarations: {mdlFile.FileHeader.VertexDeclarationCount}");
         ImGui.Text($"Lods: {mdlFile.FileHeader.LodCount}");
@@ -38,9 +39,48 @@ public class MdlView : IView
         ImGui.Text($"Extra Lods: {mdlFile.ExtraLods.Length}");
         
         ImGui.Text("Strings");
-        foreach (var (key, value) in model.Strings)
+        foreach (var (key, value) in Model.Strings)
         {
             ImGui.Text($"[{key:X4}] {value}");
         }
+        
+        ImGui.Text("BoneTables");
+        ImGui.Columns(Model.BoneTables.Length);
+        foreach (var boneTable in Model.BoneTables)
+        {
+            ImGui.Text($"Bone Count: {boneTable.Length}");
+            foreach (var t in boneTable)
+            {
+                ImGui.BulletText($"{t}");
+            }
+            ImGui.NextColumn();
+        }
+        ImGui.Columns(1);
+        
+        ImGui.Text("Bounding boxes");
+        ImGui.Text("Model");
+        DrawBoundingBox(Model.File.ModelBoundingBoxes);
+        ImGui.Text("Water");
+        DrawBoundingBox(Model.File.WaterBoundingBoxes);
+        ImGui.Text("Vertical Fog");
+        DrawBoundingBox(Model.File.VerticalFogBoundingBoxes);
+        for (var i = 0; i < Model.File.BoneBoundingBoxes.Length; i++)
+        {
+            var boneBoundingBox = Model.File.BoneBoundingBoxes[i];
+            ImGui.Text($"Bone {i}");
+            DrawBoundingBox(boneBoundingBox);
+        }
+    }
+    
+    private unsafe void DrawBoundingBox(ModelResourceHandle.BoundingBox bb)
+    {
+        ImGui.Columns(4);
+        for (int i = 0; i < 4; i++)
+        {
+            ImGui.Text($"Min: {bb.Min[i]}");
+            ImGui.Text($"Max: {bb.Max[i]}");
+            ImGui.NextColumn();
+        }
+        ImGui.Columns(1);
     }
 }

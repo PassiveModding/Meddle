@@ -115,6 +115,48 @@ public class SqPack
         return null;
     }
     
+    public (Category category, IndexHashTableEntry hash, SqPackFile file)[] GetFiles(string path)
+    {
+        var hash = GetFileHash(path);
+        var categoryName = path.Split('/')[0];
+
+        var files = new List<(Category category, IndexHashTableEntry hash, SqPackFile file)>();
+        byte? catId = null;
+        if (Category.CategoryNameToIdMap.TryGetValue(categoryName, out var id))
+        {
+            catId = id;
+        }
+
+        foreach (var repo in Repositories)
+        {
+            var catMatch = repo.Categories.ToArray();
+            if (catId != null)
+            {
+                catMatch = catMatch.Where(x => x.Key.category == catId.Value).ToArray();
+            }
+            
+            if (catMatch.Length == 0)
+            {
+                continue;
+            }
+
+            foreach (var (key, category) in catMatch)
+            {
+                if (category.TryGetFile(hash.IndexHash, out var data))
+                {
+                    files.Add((category, category.UnifiedIndexEntries[hash.IndexHash], data));
+                }
+                
+                if (category.TryGetFile(hash.Index2Hash, out var data2))
+                {
+                    files.Add((category, category.UnifiedIndexEntries[hash.Index2Hash], data2));
+                }
+            }
+        }
+
+        return files.ToArray();
+    }
+    
     public static ParsedFilePath GetFileHash(string path)
     {
         var pathParts = path.Split('/');
