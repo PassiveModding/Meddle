@@ -9,8 +9,10 @@ public static class BinaryReaderUtil
 {
     public static T[] Read<T>(this BinaryReader stream, int count) where T : struct
     {
-        if (count <= 0)
+        if (count < 0)
             throw new ArgumentOutOfRangeException(nameof(count), "Count must be greater than 0.");
+        if (count == 0)
+            return Array.Empty<T>();
         
         T[] ret = new T[count];
         var size = Unsafe.SizeOf<T>();

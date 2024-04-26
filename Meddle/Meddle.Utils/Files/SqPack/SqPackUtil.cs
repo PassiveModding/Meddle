@@ -10,35 +10,42 @@ public static class SqPackUtil
     {
         using var fileStream = File.OpenRead(datFilePath);
         using var br = new BinaryReader(fileStream);
-        fileStream.Seek(offset, SeekOrigin.Begin);
-
-        var header = br.Read<SqPackFileInfo>();
-
-        switch (header.Type)
+        try
         {
-            case FileType.Empty:
+            fileStream.Seek(offset, SeekOrigin.Begin);
+
+            var header = br.Read<SqPackFileInfo>();
+
+            switch (header.Type)
             {
-                var data = new byte[header.RawFileSize];
-                return new SqPackFile(header, data);
+                case FileType.Empty:
+                {
+                    var data = new byte[header.RawFileSize];
+                    return new SqPackFile(header, data);
+                }
+                case FileType.Texture:
+                {
+                    var data = ParseTexFile(offset, header, br);
+                    return new SqPackFile(header, data);
+                }
+                case FileType.Standard:
+                {
+                    var buffer = ParseStandardFile(offset, header, br);
+                    return new SqPackFile(header, buffer);
+                }
+                case FileType.Model:
+                {
+                    var data2 = ParseModelFile(offset, header, br);
+                    return new SqPackFile(header, data2);
+                }
+                default:
+                    throw new InvalidDataException($"Unknown file type {header.Type}");
             }
-            case FileType.Texture:
-            {
-                var data = ParseTexFile(offset, header, br);
-                return new SqPackFile(header, data);
-            }
-            case FileType.Standard:
-            {
-                var buffer = ParseStandardFile(offset, header, br);
-                return new SqPackFile(header, buffer);
-            }
-            case FileType.Model:
-            {
-                br.BaseStream.Position = offset;
-                var data = ParseModelFile(offset, header, br);
-                return new SqPackFile(header, data);
-            }
-            default:
-                throw new InvalidDataException($"Unknown file type {header.Type}");
+        }
+        finally
+        {
+            br.Close();
+            fileStream.Close();
         }
     }
 
@@ -60,132 +67,168 @@ public static class SqPackUtil
         return buffer;
     }
 
+    private struct ChunkInfo
+    {
+        public uint Size;
+        public uint Length;
+        public uint Offset;
+        public ushort BlockStart;
+        public ushort NumBlocks;
+    }
+    
     private static unsafe ReadOnlySpan<byte> ParseModelFile(long offset, SqPackFileInfo header, BinaryReader br)
     {
+        br.BaseStream.Position = offset;
         var modelBlock = br.Read<ModelBlock>();
+        
         var buffer = new byte[(int)header.RawFileSize];
-        var ms = new MemoryStream(buffer);
-        var headerSize = Unsafe.SizeOf<MdlFile.ModelFileHeader>();
-        ms.Seek(headerSize, SeekOrigin.Begin);
-
-        var origin = offset + modelBlock.Size;
-        var stackBlockOffsets = br.Read<ushort>(modelBlock.StackBlockNum);
-        var stackOrigin = origin + modelBlock.StackOffset;
-        var stackSize = 0;
-        for (var i = 0; i < modelBlock.StackBlockNum; i++)
+        using (var ms = new MemoryStream(buffer))
         {
-            var stackOffset = stackOrigin + (i > 0 ? stackBlockOffsets[i - 1] : 0);
-            var data = ReadFileBlock(stackOffset, br);
-            stackSize += data.Length;
-            ms.Write(data);
-        }
-
-        var runtimeBlockOffsets = br.Read<ushort>(modelBlock.RuntimeBlockNum);
-        var runtimeOrigin = origin + modelBlock.RuntimeOffset;
-        var runtimeSize = 0;
-        for (var i = 0; i < modelBlock.RuntimeBlockNum; i++)
-        {
-            var runtimeOffset = runtimeOrigin + (i > 0 ? runtimeBlockOffsets[i - 1] : 0);
-            var data = ReadFileBlock(runtimeOffset, br);
-            runtimeSize += data.Length;
-            ms.Write(data);
-        }
-
-        var vertexDataOffsets = new int[3];
-        var indexDataOffsets = new int[3];
-        var vertexBufferSizes = new int[3];
-        var indexBufferSizes = new int[3];
-
-        for (var i = 0; i < 3; i++)
-        {
-            var vertexBufferBlockNum = modelBlock.VertexBufferBlockNum[i];
-            var vertexOffsets = vertexBufferBlockNum != 0
-                                    ? br.Read<ushort>(vertexBufferBlockNum)
-                                    : Array.Empty<ushort>();
-
-            var edgeGeometryVertexBufferBlockNum = modelBlock.EdgeGeometryVertexBufferBlockNum[i];
-            var edgeOffsets = edgeGeometryVertexBufferBlockNum != 0
-                                  ? br.Read<ushort>(edgeGeometryVertexBufferBlockNum)
-                                  : Array.Empty<ushort>();
-
-            var indexBufferBlockNum = modelBlock.IndexBufferBlockNum[i];
-            var indexOffsets = indexBufferBlockNum != 0 ? br.Read<ushort>(indexBufferBlockNum) : Array.Empty<ushort>();
-
-            var vertexOffset = origin + modelBlock.VertexBufferOffset[i];
-            for (var j = 0; j < modelBlock.VertexBufferBlockNum[i]; j++)
+            // we're going to write the blocks first, then the header
+            var headerSize = Unsafe.SizeOf<MdlFile.ModelFileHeader>();
+            ms.Seek(headerSize, SeekOrigin.Begin);
+            
+            // keep note of the end of the header since all blocks are relative to this
+            var blockOrigin = offset + modelBlock.Size;
+                        var stackChunk = new ChunkInfo
             {
-                if (j > 0)
+                Size = modelBlock.StackSize,
+                Length = modelBlock.CompressedStackMemorySize,
+                Offset = modelBlock.StackOffset,
+                BlockStart = modelBlock.StackBlockIndex,
+                NumBlocks = modelBlock.StackBlockNum
+            };
+            
+            var runtimeChunk = new ChunkInfo
+            {
+                Size = modelBlock.RuntimeSize,
+                Length = modelBlock.CompressedRuntimeMemorySize,
+                Offset = modelBlock.RuntimeOffset,
+                BlockStart = modelBlock.RuntimeBlockIndex,
+                NumBlocks = modelBlock.RuntimeBlockNum
+            };
+            
+            var vertexChunks = new ChunkInfo[3];
+            var edgeChunks = new ChunkInfo[3];
+            var indexChunks = new ChunkInfo[3];
+            for (var i = 0; i < 3; i++)
+            {
+                vertexChunks[i] = new ChunkInfo
                 {
-                    vertexOffset += vertexOffsets[j - 1];
-                }
-
-                var data = ReadFileBlock(vertexOffset, br);
-                vertexBufferSizes[i] += data.Length;
-                if (j == 0)
+                    Size = modelBlock.VertexBufferSize[i],
+                    Length = modelBlock.CompressedVertexBufferSize[i],
+                    Offset = modelBlock.VertexBufferOffset[i],
+                    BlockStart = modelBlock.VertexBufferBlockIndex[i],
+                    NumBlocks = modelBlock.VertexBufferBlockNum[i]
+                };
+                edgeChunks[i] = new ChunkInfo
                 {
-                    vertexDataOffsets[i] = (int)ms.Position;
-                }
+                    Size = modelBlock.EdgeGeometryVertexBufferSize[i],
+                    Length = modelBlock.CompressedEdgeGeometryVertexBufferSize[i],
+                    Offset = modelBlock.EdgeGeometryVertexBufferOffset[i],
+                    BlockStart = modelBlock.EdgeGeometryVertexBufferBlockIndex[i],
+                    NumBlocks = modelBlock.EdgeGeometryVertexBufferBlockNum[i]
+                };
+                indexChunks[i] = new ChunkInfo
+                {
+                    Size = modelBlock.IndexBufferSize[i],
+                    Length = modelBlock.CompressedIndexBufferSize[i],
+                    Offset = modelBlock.IndexBufferOffset[i],
+                    BlockStart = modelBlock.IndexBufferBlockIndex[i],
+                    NumBlocks = modelBlock.IndexBufferBlockNum[i]
+                };
+            }
+            
+            var totalBlocks = 
+                stackChunk.NumBlocks + 
+                  runtimeChunk.NumBlocks + 
+                  vertexChunks.Sum(x => x.NumBlocks) + 
+                  edgeChunks.Sum(x => x.NumBlocks) + 
+                  indexChunks.Sum(x => x.NumBlocks);
+            
+            var blockSizes = br.Read<ushort>(totalBlocks);
 
+            br.BaseStream.Seek(blockOrigin + stackChunk.Offset, SeekOrigin.Begin);
+            var blockIndex = 0;
+            for (var i = 0; i < stackChunk.NumBlocks; i++)
+            {
+                var data = ReadFileBlock(br.BaseStream.Position, br);
                 ms.Write(data);
+                br.BaseStream.Seek(blockSizes[blockIndex++], SeekOrigin.Current);
+            }
+            
+            br.BaseStream.Seek(blockOrigin + runtimeChunk.Offset, SeekOrigin.Begin);
+            for (var i = 0; i < runtimeChunk.NumBlocks; i++)
+            {
+                var data = ReadFileBlock(br.BaseStream.Position, br);
+                ms.Write(data);
+                br.BaseStream.Seek(blockSizes[blockIndex++], SeekOrigin.Current);
+            }
+            
+            var vertexDataOffsets = new int[3];
+            var indexDataOffsets = new int[3];
+            var vertexBufferSizes = new int[3];
+            var indexBufferSizes = new int[3];
+            for (var i = 0; i < 3; i++)
+            {
+                br.BaseStream.Seek(blockOrigin + vertexChunks[i].Offset, SeekOrigin.Begin);
+                vertexDataOffsets[i] = (int)ms.Position;
+                for (var j = 0; j < vertexChunks[i].NumBlocks; j++)
+                {
+                    var data = ReadFileBlock(br.BaseStream.Position, br);
+                    ms.Write(data);
+                    br.BaseStream.Seek(blockSizes[blockIndex++], SeekOrigin.Current);
+                    vertexBufferSizes[i] += data.Length;
+                }
+                
+                br.BaseStream.Seek(blockOrigin + edgeChunks[i].Offset, SeekOrigin.Begin);
+                for (var j = 0; j < edgeChunks[i].NumBlocks; j++)
+                {
+                    var data = ReadFileBlock(br.BaseStream.Position, br);
+                    ms.Write(data);
+                    br.BaseStream.Seek(blockSizes[blockIndex++], SeekOrigin.Current);
+                }
+                
+                br.BaseStream.Seek(blockOrigin + indexChunks[i].Offset, SeekOrigin.Begin);
+                indexDataOffsets[i] = (int)ms.Position;
+                for (var j = 0; j < indexChunks[i].NumBlocks; j++)
+                {
+                    var data = ReadFileBlock(br.BaseStream.Position, br);
+                    ms.Write(data);
+                    br.BaseStream.Seek(blockSizes[blockIndex++], SeekOrigin.Current);
+                    indexBufferSizes[i] += data.Length;
+                }
             }
 
-            var edgeOffset = origin + modelBlock.EdgeGeometryVertexBufferOffset[i];
-            for (var j = 0; j < modelBlock.EdgeGeometryVertexBufferBlockNum[i]; j++)
+            ms.Seek(0, SeekOrigin.Begin);
+            var fileHeader = new MdlFile.ModelFileHeader
             {
-                if (j > 0)
-                {
-                    edgeOffset = edgeOffsets[j - 1];
-                }
-
-                var data = ReadFileBlock(edgeOffset, br);
-                ms.Write(data);
+                Version = modelBlock.Version,
+                VertexDeclarationCount = modelBlock.VertexDeclarationNum,
+                StackSize = modelBlock.StackSize,
+                RuntimeSize = modelBlock.RuntimeSize,
+                MaterialCount = modelBlock.MaterialNum,
+                LodCount = modelBlock.NumLods,
+                EnableIndexBufferStreaming = modelBlock.IndexBufferStreamingEnabled,
+                EnableEdgeGeometry = modelBlock.EdgeGeometryEnabled,
+            };
+            
+            var pVertexOffset = fileHeader.VertexOffset;
+            var pIndexOffset = fileHeader.IndexOffset;
+            var pVertexBufferSize = fileHeader.VertexBufferSize;
+            var pIndexBufferSize = fileHeader.IndexBufferSize;
+            for (var i = 0; i < 3; i++)
+            {
+                *pVertexOffset++ = (uint)vertexDataOffsets[i];
+                *pIndexOffset++ = (uint)indexDataOffsets[i];
+                *pVertexBufferSize++ = (uint)vertexBufferSizes[i];
+                *pIndexBufferSize++ = (uint)indexBufferSizes[i];
             }
 
-            var indexOffset = origin + modelBlock.IndexBufferOffset[i];
-            for (var j = 0; j < modelBlock.IndexBufferBlockNum[i]; j++)
-            {
-                if (j > 0)
-                {
-                    indexOffset += indexOffsets[j - 1];
-                }
 
-                var data = ReadFileBlock(indexOffset, br);
-                indexBufferSizes[i] += data.Length;
-                if (j == 0)
-                {
-                    indexDataOffsets[i] = (int)ms.Position;
-                }
-
-                ms.Write(data);
-            }
+            ms.Write(MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref fileHeader, 1)));
         }
 
-        ms.Seek(0, SeekOrigin.Begin);
-        var fileHeader = new MdlFile.ModelFileHeader
-        {
-            Version = modelBlock.Version,
-            StackSize = (uint)stackSize,
-            RuntimeSize = (uint)runtimeSize,
-            VertexDeclarationCount = modelBlock.VertexDeclarationNum,
-            MaterialCount = modelBlock.MaterialNum,
-            LodCount = modelBlock.NumLods,
-            EnableIndexBufferStreaming = modelBlock.IndexBufferStreamingEnabled,
-            EnableEdgeGeometry = modelBlock.EdgeGeometryEnabled
-        };
-        
-        var pVertexOffset = fileHeader.VertexOffset;
-        var pIndexOffset = fileHeader.IndexOffset;
-        var pVertexBufferSize = fileHeader.VertexBufferSize;
-        var pIndexBufferSize = fileHeader.IndexBufferSize;
-        for (var i = 0; i < 3; i++)
-        {
-            *pVertexOffset++ = (uint)vertexDataOffsets[i];
-            *pIndexOffset++ = (uint)indexDataOffsets[i];
-            *pVertexBufferSize++ = (uint)vertexBufferSizes[i];
-            *pIndexBufferSize++ = (uint)indexBufferSizes[i];
-        }
-        
-        ms.Write(MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref fileHeader, 1)));
         return buffer;
     }
 
@@ -202,28 +245,24 @@ public static class SqPackUtil
             }
             else
             {
-                using var zlibStream = new DeflateStream(br.BaseStream, CompressionMode.Decompress, true);
-
-                var ob = new byte[blockHeader.BlockDataSize];
-                var totalRead = 0;
-                while (totalRead < blockHeader.BlockDataSize)
+                var buffer = new byte[blockHeader.BlockDataSize];
+                var blockData = br.Read<byte>((int)blockHeader.DatBlockType);
+                using (var blockMs = new MemoryStream(blockData))
+                using (var deflateStream = new DeflateStream(blockMs, CompressionMode.Decompress, true))
                 {
-                    var bytesRead = zlibStream.Read(ob, totalRead, (int)blockHeader.BlockDataSize - totalRead);
-                    if (bytesRead == 0)
+                    var boff = 0;
+                    int totalRead;
+                    while ((totalRead = deflateStream.Read(buffer, boff, (int)blockHeader.BlockDataSize - boff)) > 0)
                     {
-                        break;
+                        boff += totalRead;
+                        if (totalRead == blockHeader.BlockDataSize)
+                        {
+                            break;
+                        }
                     }
-
-                    totalRead += bytesRead;
                 }
-
-                if (totalRead != (int)blockHeader.BlockDataSize)
-                {
-                    throw new InvalidDataException(
-                        $"Failed to read block data, expected {blockHeader.BlockDataSize} bytes, got {totalRead}");
-                }
-
-                return ob;
+                
+                return buffer;
             }
         } finally
         {
