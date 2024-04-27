@@ -23,6 +23,9 @@ public class MdlFile
         public bool EnableEdgeGeometry; 
     }
     
+    public const uint V5 = 0x01000005;
+    public const uint V6 = 0x01000006;
+    
     public readonly ModelFileHeader FileHeader;
     public readonly ModelResourceHandle.VertexDeclaration[] VertexDeclarations; // MeshCount total elements
     public readonly ushort StringCount;
@@ -56,17 +59,37 @@ public class MdlFile
     public readonly int RemainingOffset;
     public ReadOnlySpan<byte> RemainingData => RawData.AsSpan(RemainingOffset);
     
-    // combine both types
     public struct BoneTable
     {
-        public ushort BoneCount;
-        public ushort Unk1;
-        public ushort? Unk2;
+        public uint BoneCount;
         public ushort[] BoneIndex;
     }
     
     public MdlFile(byte[] data) : this((ReadOnlySpan<byte>)data) { }
 
+    private static BoneTable ReadV5BoneTable(ref SpanBinaryReader reader)
+    {
+        return new BoneTable
+        {
+            BoneIndex = reader.Read<ushort>(64).ToArray(),
+            BoneCount = reader.Read<uint>()
+        };
+    }
+    
+    private static BoneTable ReadV6BoneTable(ref SpanBinaryReader reader)
+    {
+        var table = new BoneTable();
+        var startPos = reader.Position;
+        var offset = reader.ReadUInt16();
+        var size = reader.ReadUInt16();
+        var retPos = reader.Position;
+        reader.Seek(startPos + offset * 4, SeekOrigin.Begin);
+        table.BoneIndex = reader.Read<ushort>(size).ToArray();
+        table.BoneCount = (uint)table.BoneIndex.Length;
+        reader.Seek(retPos, SeekOrigin.Begin);
+        return table;
+    }
+    
     public MdlFile(ReadOnlySpan<byte> data)
     {
         var reader = new SpanBinaryReader(data);
@@ -101,45 +124,24 @@ public class MdlFile
         BoneNameOffsets = reader.Read<uint>(ModelHeader.BoneCount).ToArray();
 
         BoneTables = new BoneTable[ModelHeader.BoneTableCount];
-        if (FileHeader.Version <= 16777221)
+        if (FileHeader.Version == V5)
         {
             for (var i = 0; i < ModelHeader.BoneTableCount; i++)
             {
-                unsafe
-                {
-                    var table = reader.Read<ModelResourceHandle.BoneTable>();
-                    BoneTables[i].BoneCount = table.BoneCount;
-                    var indexes = new ushort[table.BoneCount];
-                    for (var j = 0; j < table.BoneCount; j++)
-                    {
-                        indexes[j] = table.BoneIndex[j];
-                    }
-                    BoneTables[i].BoneIndex = indexes;
-                }
+                BoneTables[i] = ReadV5BoneTable(ref reader);
             }
+        }
+        else if (FileHeader.Version == V6)
+        {
+            for (var i = 0; i < ModelHeader.BoneTableCount; i++)
+            {
+                BoneTables[i] = ReadV6BoneTable(ref reader);
+            }
+            reader.Seek(ModelHeader.BoneTableArrayCountTotal * 2, SeekOrigin.Current);
         }
         else
         {
-            var boneTableIdx = new ushort[ModelHeader.BoneTableCount];
-            var boneTableSizes = new ushort[ModelHeader.BoneTableCount];
-            for (var i = 0; i < ModelHeader.BoneTableCount; i++)
-            {
-                boneTableIdx[i] = reader.ReadUInt16();
-                boneTableSizes[i] = reader.ReadUInt16();
-            }
-
-            BoneTables = new BoneTable[ModelHeader.BoneTableCount];
-            for (var i = 0; i < ModelHeader.BoneTableCount; i++)
-            {
-                BoneTables[i].Unk1 = boneTableIdx[i];
-                BoneTables[i].BoneCount = boneTableSizes[i];
-                BoneTables[i].BoneIndex = reader.Read<ushort>(boneTableSizes[i]).ToArray();
-                if (boneTableSizes[i] % 2 != 0)
-                {
-                    // Probably padding keeping for now
-                    BoneTables[i].Unk2 = reader.Read<ushort>();
-                }
-            }
+            throw new NotSupportedException($"Unsupported mdl version {FileHeader.Version}");
         }
         
         Shapes = reader.Read<ModelResourceHandle.Shape>(ModelHeader.ShapeCount).ToArray();
