@@ -23,8 +23,11 @@ public class MdlFile
         public bool EnableEdgeGeometry; 
     }
     
-    public const uint V5 = 0x01000005;
-    public const uint V6 = 0x01000006;
+    public enum MdlVersion : uint
+    {
+        V5 = 0x01000005,
+        V6 = 0x01000006
+    }
     
     public readonly ModelFileHeader FileHeader;
     public readonly ModelResourceHandle.VertexDeclaration[] VertexDeclarations; // MeshCount total elements
@@ -124,14 +127,14 @@ public class MdlFile
         BoneNameOffsets = reader.Read<uint>(ModelHeader.BoneCount).ToArray();
 
         BoneTables = new BoneTable[ModelHeader.BoneTableCount];
-        if (FileHeader.Version == V5)
+        if (FileHeader.Version == (uint)MdlVersion.V5)
         {
             for (var i = 0; i < ModelHeader.BoneTableCount; i++)
             {
                 BoneTables[i] = ReadV5BoneTable(ref reader);
             }
         }
-        else if (FileHeader.Version == V6)
+        else if (FileHeader.Version == (uint)MdlVersion.V6)
         {
             for (var i = 0; i < ModelHeader.BoneTableCount; i++)
             {
