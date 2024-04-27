@@ -84,17 +84,16 @@ public class MtrlView : IView
         {
             ImGui.Text("No dye table found.");
         }
+        
+        ImGui.Text($"Extended Color Table: {file.LargeColorTable}");
+        
         ImGui.Columns(9, "ColorTable", true);
-        ImGui.SetColumnWidth(0, 40);
         ImGui.Text("Row");
         ImGui.NextColumn();
-        ImGui.SetColumnWidth(1, 60);
         ImGui.Text("Diffuse");
         ImGui.NextColumn();
-        ImGui.SetColumnWidth(2, 65);
         ImGui.Text("Specular");
         ImGui.NextColumn();
-        ImGui.SetColumnWidth(3, 65);
         ImGui.Text("Emissive");
         ImGui.NextColumn();
         ImGui.Text("Material Repeat");
@@ -107,7 +106,7 @@ public class MtrlView : IView
         ImGui.NextColumn();
         ImGui.Text("Tile Set");
         ImGui.NextColumn();
-        //foreach (var row in file.ColorTable)
+        
         for (var i = 0; i < ColorTable.NumRows; i++)
         {
             ref var row = ref file.ColorTable[i];
@@ -141,21 +140,21 @@ public class MtrlView : IView
             ImGui.NextColumn();
             ImGui.Text($"{row.MaterialSkew}");
             ImGui.NextColumn();
-            ImGui.Text($"{row.SpecularStrength}");
             if (file.HasDyeTable)
             {
-                ImGui.SameLine();
                 var specStr = file.ColorDyeTable[i].SpecularStrength;
                 ImGui.Checkbox($"##rowspecstr", ref specStr);
+                ImGui.SameLine();
             }
+            ImGui.Text($"{row.SpecularStrength}");
             ImGui.NextColumn();
-            ImGui.Text($"{row.GlossStrength}");
             if (file.HasDyeTable)
             {
-                ImGui.SameLine();
                 var gloss = file.ColorDyeTable[i].Gloss;
                 ImGui.Checkbox($"##rowgloss", ref gloss);
+                ImGui.SameLine();
             }
+            ImGui.Text($"{row.GlossStrength}");
             ImGui.NextColumn();
             ImGui.Text($"{row.TileSet}");
             ImGui.NextColumn();
