@@ -1,5 +1,5 @@
-﻿using System.Runtime.InteropServices;
-using System.Text;
+﻿using System.Numerics;
+using Meddle.Utils.Files.Structs.Material;
 
 namespace Meddle.Utils.Files;
 
@@ -12,15 +12,19 @@ public class MtrlFile
     public byte[] Strings;
     public byte[] AdditionalData;
     
-    public ColorSetInfo ColorSetInfo;
-    public ColorSetDyeInfo ColorSetDyeInfo;
+    public bool LargeColorTable => AdditionalData.Length > 1 && AdditionalData[1] == 0x05 && (AdditionalData[0] & 0x30) == 0x30;
+    public bool HasTable => AdditionalData.Length > 0 && (AdditionalData[0] & 0x4) != 0;
+    public bool HasDyeTable => AdditionalData.Length > 0 && (AdditionalData[0] & 0x8) != 0;
+    
+    public ColorTable ColorTable;
+    public ColorDyeTable ColorDyeTable;
     
     public MaterialHeader MaterialHeader;
     
     public ShaderKey[] ShaderKeys;
     public Constant[] Constants;
     public Sampler[] Samplers;
-    public float[] ShaderValues;
+    public uint[] ShaderValues;
     
     public readonly byte[] RawData;
     public readonly int RemainingOffset;
@@ -50,9 +54,24 @@ public class MtrlFile
         {
             var dataSet = reader.Read<byte>(FileHeader.DataSetSize).ToArray();
             var dataSetReader = new SpanBinaryReader(dataSet);
-            ColorSetInfo = dataSetReader.Read<ColorSetInfo>();
-            if (FileHeader.DataSetSize > 512)
-                ColorSetDyeInfo = dataSetReader.Read<ColorSetDyeInfo>();
+            if (LargeColorTable)
+            {
+                if (HasTable)
+                    ColorTable = dataSetReader.Read<ColorTable>();
+                else
+                    ColorTable.SetDefault();
+                if (HasDyeTable)
+                    ColorDyeTable = dataSetReader.Read<ColorDyeTable>();
+            }
+            else
+            {
+                if (HasTable)
+                    ColorTable = new ColorTable(dataSetReader.Read<LegacyColorTable>());
+                else
+                    ColorTable.SetDefault();
+                if (HasDyeTable)
+                    ColorDyeTable = new ColorDyeTable(dataSetReader.Read<LegacyColorDyeTable>());
+            }
         }
         
         MaterialHeader = reader.Read<MaterialHeader>();
@@ -61,7 +80,7 @@ public class MtrlFile
         Constants = reader.Read<Constant>(MaterialHeader.ConstantCount).ToArray();
         Samplers = reader.Read<Sampler>(MaterialHeader.SamplerCount).ToArray();
         
-        ShaderValues = reader.Read<float>(MaterialHeader.ShaderValueListSize / 4).ToArray();
+        ShaderValues = reader.Read<uint>(MaterialHeader.ShaderValueListSize / 4).ToArray();
         
         RawData = data.ToArray();
         RemainingOffset = reader.Position;
@@ -87,16 +106,6 @@ public struct ShaderKey
 {
     public uint Category;
     public uint Value;
-}
-
-public unsafe struct ColorSetInfo
-{
-    public fixed ushort Data[256];
-}
-
-public unsafe struct ColorSetDyeInfo
-{
-    public fixed ushort Data[16];
 }
 
 public struct ColorSet
