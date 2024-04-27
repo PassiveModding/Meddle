@@ -34,6 +34,7 @@ public class Program
         Configuration = Configuration.Load();
         logger = logFactory.CreateLogger<Program>();
         logger.LogInformation("Kweh!");
+        gameDir = Configuration.GameDirectory;
     }
 
     private async Task RunAsync()
@@ -113,6 +114,7 @@ public class Program
 
     private static Task<SqPackWindow>? SqPackWindowTask;
     private static bool ShowSettings;
+    private string gameDir;
     private void Draw()
     {
         ImGui.SetNextWindowPos(Vector2.Zero);
@@ -134,13 +136,12 @@ public class Program
                 {
                     ImGui.Text("Game Directory");
                     ImGui.SameLine();
-                    var dir = Configuration.GameDirectory;
-                    ImGui.InputText("##GameDirectory", ref dir, 1024);
-                    Configuration.GameDirectory = dir;
+                    ImGui.InputText("##GameDirectory", ref gameDir, 1024);
                     if (ImGui.Button("OK"))
                     {
                         SqPackWindowTask = null;
                         ShowSettings = false;
+                        Configuration.GameDirectory = gameDir;
                         ImGui.CloseCurrentPopup();
                     }
                     ImGui.EndPopup();

@@ -4,7 +4,7 @@ namespace Meddle.UI;
 
 public class Configuration
 {
-    public string? GameDirectory { get; set; }
+    public string GameDirectory { get; set; } = string.Empty;
     public int WindowX { get; set; }
     public int WindowY { get; set; }
     
