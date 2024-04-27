@@ -43,8 +43,8 @@ public unsafe ref struct SpanBinaryReader
     public T Read<T>() where T : unmanaged
     {
         var size = Unsafe.SizeOf<T>();
-        if (Remaining < size)
-            throw new EndOfStreamException();
+        if (Remaining < size) 
+            throw new EndOfStreamException($"Requested {size} bytes for {typeof(T).Name}, but only {Remaining} bytes remain.");
 
         var ret = Unsafe.ReadUnaligned<T>(ref _pos);
         _pos      =  ref Unsafe.Add(ref _pos, size);
@@ -57,7 +57,7 @@ public unsafe ref struct SpanBinaryReader
     {
         var size = Unsafe.SizeOf<T>() * num;
         if (Remaining < size)
-            throw new EndOfStreamException();
+            throw new EndOfStreamException($"Requested {size} bytes for {typeof(T).Name} x {num}, but only {Remaining} bytes remain.");
 
         var ptr = Unsafe.AsPointer(ref _pos);
         _pos      =  ref Unsafe.Add(ref _pos, size);
@@ -71,26 +71,28 @@ public unsafe ref struct SpanBinaryReader
         if (origin == SeekOrigin.Begin)
         {
             if (offset < 0 || offset > Length)
-                throw new ArgumentOutOfRangeException();
+                throw new ArgumentOutOfRangeException($"Offset: {offset}, Length: {Length}");
             _pos      =  ref Unsafe.Add(ref _start, offset);
             Remaining =  Length - offset;
         }
         else if (origin == SeekOrigin.Current)
         {
             if (offset < 0 || offset > Remaining)
-                throw new ArgumentOutOfRangeException();
+                throw new ArgumentOutOfRangeException($"Offset: {offset}, Remaining: {Remaining}");
             _pos      =  ref Unsafe.Add(ref _pos, offset);
             Remaining -= offset;
         }
         else if (origin == SeekOrigin.End)
         {
             if (offset < 0 || offset > Length)
-                throw new ArgumentOutOfRangeException();
+                throw new ArgumentOutOfRangeException($"Offset: {offset}, Length: {Length}");
             _pos      =  ref Unsafe.Add(ref _start, Length - offset);
             Remaining =  offset;
         }
         else
-            throw new ArgumentOutOfRangeException();
+        {
+            throw new ArgumentOutOfRangeException($"Origin: {origin}");
+        }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
@@ -133,9 +135,9 @@ public unsafe ref struct SpanBinaryReader
     public readonly SpanBinaryReader SliceFrom(int position, int count)
     {
         if (position < 0 || count < 0)
-            throw new ArgumentOutOfRangeException();
+            throw new ArgumentOutOfRangeException($"Position: {position}, Count: {count}");
         if (position + count > Length)
-            throw new EndOfStreamException();
+            throw new EndOfStreamException($"Requested {count} bytes from position {position}, but only {Length - position} bytes remain.");
 
         return new SpanBinaryReader(ref Unsafe.Add(ref _pos, position), count);
     }
@@ -148,9 +150,9 @@ public unsafe ref struct SpanBinaryReader
     public SpanBinaryReader SliceFromHere(int count)
     {
         if (count < 0)
-            throw new ArgumentOutOfRangeException();
+            throw new ArgumentOutOfRangeException($"Count: {count}");
         if (Remaining < count)
-            throw new EndOfStreamException();
+            throw new EndOfStreamException($"Requested {count} bytes, but only {Remaining} bytes remain.");
 
         var ret = new SpanBinaryReader(ref _pos, count);
         Remaining -= count;
@@ -163,14 +165,14 @@ public unsafe ref struct SpanBinaryReader
     public readonly ReadOnlySpan<byte> ReadByteString(int offset = 0)
     {
         if (offset < 0)
-            throw new ArgumentOutOfRangeException();
+            throw new ArgumentOutOfRangeException($"Offset: {offset}");
         if (Length < offset)
-            throw new EndOfStreamException();
+            throw new EndOfStreamException($"Requested {offset} bytes, but only {Length} bytes remain.");
 
         var span = MemoryMarshal.CreateReadOnlySpan(ref Unsafe.Add(ref _start, offset), Length - offset);
         var idx  = span.IndexOf<byte>(0);
         if (idx < 0)
-            throw new EndOfStreamException();
+            throw new EndOfStreamException($"No null-terminator found in byte string at offset {offset}.");
 
         return span[..idx];
     }
@@ -180,9 +182,9 @@ public unsafe ref struct SpanBinaryReader
     public readonly ReadOnlySpan<byte> ReadByteString(int offset, int length)
     {
         if (offset < 0 || length < 0)
-            throw new ArgumentOutOfRangeException();
+            throw new ArgumentOutOfRangeException($"Offset: {offset}, Length: {length}");
         if (Length < offset + length)
-            throw new EndOfStreamException();
+            throw new EndOfStreamException($"Requested {length} bytes from offset {offset}, but only {Length - offset} bytes remain.");
 
         return MemoryMarshal.CreateReadOnlySpan(ref Unsafe.Add(ref _start, offset), length);
     }
