@@ -19,7 +19,7 @@ public class TexView : IView
 
     private readonly IndexHashTableEntry hash;
     private readonly TexFile texFile;
-    private Dictionary<(int arrayLevel, int mipLevel, int slice), (Image image, nint binding)> imageCache = new();
+    private readonly Dictionary<(int arrayLevel, int mipLevel, int slice), (Image image, nint binding)> imageCache = new();
     private int arrayLevel;
     private int mipLevel;
     private int slice;

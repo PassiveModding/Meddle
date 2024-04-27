@@ -78,8 +78,8 @@ public class TexFile
         BC7 = 0x6432
     }
 
-    public TexHeader Header;
-    public byte[] TextureBuffer;
+    public readonly TexHeader Header;
+    public readonly byte[] TextureBuffer;
 
     public TexFile(byte[] data) : this((ReadOnlySpan<byte>)data) { }
 
@@ -87,10 +87,8 @@ public class TexFile
     {
         var reader = new SpanBinaryReader(data);
         Header = reader.Read<TexHeader>();
-        TextureBuffer = reader.Read<byte>(data.Length - HeaderLength).ToArray();
+        TextureBuffer = reader.Read<byte>(reader.Remaining).ToArray();
     }
-
-    public int HeaderLength => Unsafe.SizeOf<TexHeader>();
 
     public int SliceSize(int mipmapIndex, out int width, out int height)
     {

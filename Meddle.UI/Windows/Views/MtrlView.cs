@@ -11,12 +11,14 @@ public class MtrlView : IView
     private readonly SqPack pack;
     private readonly ImageHandler imageHandler;
     private readonly Dictionary<string, TexView?> mtrlTextureCache = new();
+    private readonly HexView hexView;
 
     public MtrlView(MtrlFile file, SqPack pack, ImageHandler imageHandler)
     {
         this.file = file;
         this.pack = pack;
         this.imageHandler = imageHandler;
+        hexView = new HexView(file.RawData);
     }
     
     public void Draw()
@@ -36,23 +38,27 @@ public class MtrlView : IView
         {
             ImGui.Text($"[{key:X4}] {value}");
         }
-        
-        ImGui.Text("Textures:"); 
-        foreach (var (key, value) in material.TexturePaths)
-        {
-            ImGui.Text($"[{key:X4}] {value}");
-            if (!mtrlTextureCache.TryGetValue(value, out var texView))
-            {
-                var sqFile = pack.GetFile(value);
-                if (sqFile != null)
-                {
-                    var texFile = new TexFile(sqFile.Value.file.RawData);
-                    texView = new TexView(sqFile.Value.hash, texFile, imageHandler, value);
-                    mtrlTextureCache.Add(value, texView);
-                }
-            }
 
-            texView?.Draw();
+        if (ImGui.CollapsingHeader("Textures"))
+        {
+            foreach (var (key, value) in material.TexturePaths)
+            {
+                ImGui.Text($"[{key:X4}] {value}");
+                if (!mtrlTextureCache.TryGetValue(value, out var texView))
+                {
+                    var sqFile = pack.GetFile(value);
+                    if (sqFile != null)
+                    {
+                        var texFile = new TexFile(sqFile.Value.file.RawData);
+                        texView = new TexView(sqFile.Value.hash, texFile, imageHandler, value);
+                        mtrlTextureCache.Add(value, texView);
+                    }
+                }
+
+                texView?.Draw();
+            }
         }
+
+        hexView.DrawHexDump();
     }
 }

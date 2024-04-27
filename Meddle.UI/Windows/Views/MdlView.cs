@@ -5,17 +5,14 @@ using Meddle.Utils.Models;
 
 namespace Meddle.UI.Windows.Views;
 
-public class MdlView : IView
+public class MdlView(MdlFile mdlFile) : IView
 {
-    public readonly Model Model;
-    public MdlView(MdlFile mdlFile)
-    {
-        this.Model = new Model(mdlFile);
-    }
+    private readonly Model model = new(mdlFile);
+    private readonly HexView hexView = new(mdlFile.RawData);
 
     public void Draw()
     {
-        var mdlFile = Model.File;
+        var mdlFile = model.File;
         ImGui.Text($"Version: {mdlFile.FileHeader.Version}");
         ImGui.Text($"Vertex Declarations: {mdlFile.FileHeader.VertexDeclarationCount}");
         ImGui.Text($"Lods: {mdlFile.FileHeader.LodCount}");
@@ -37,39 +34,49 @@ public class MdlView : IView
         ImGui.Text($"Element Ids: {mdlFile.ElementIds.Length}");
         ImGui.Text($"Lods: {mdlFile.Lods.Length}");
         ImGui.Text($"Extra Lods: {mdlFile.ExtraLods.Length}");
-        
-        ImGui.Text("Strings");
-        foreach (var (key, value) in Model.Strings)
+
+        if (ImGui.CollapsingHeader("Strings"))
         {
-            ImGui.Text($"[{key:X4}] {value}");
-        }
-        
-        ImGui.Text("BoneTables");
-        ImGui.Columns(Model.BoneTables.Length);
-        foreach (var boneTable in Model.BoneTables)
-        {
-            ImGui.Text($"Bone Count: {boneTable.Length}");
-            foreach (var t in boneTable)
+            foreach (var (key, value) in model.Strings)
             {
-                ImGui.BulletText($"{t}");
+                ImGui.Text($"[{key:X4}] {value}");
             }
-            ImGui.NextColumn();
         }
-        ImGui.Columns(1);
-        
-        ImGui.Text("Bounding boxes");
-        ImGui.Text("Model");
-        DrawBoundingBox(Model.File.ModelBoundingBoxes);
-        ImGui.Text("Water");
-        DrawBoundingBox(Model.File.WaterBoundingBoxes);
-        ImGui.Text("Vertical Fog");
-        DrawBoundingBox(Model.File.VerticalFogBoundingBoxes);
-        for (var i = 0; i < Model.File.BoneBoundingBoxes.Length; i++)
+
+        if (ImGui.CollapsingHeader("Bone tables"))
         {
-            var boneBoundingBox = Model.File.BoneBoundingBoxes[i];
-            ImGui.Text($"Bone {i}");
-            DrawBoundingBox(boneBoundingBox);
+            ImGui.Columns(model.BoneTables.Length);
+            foreach (var boneTable in model.BoneTables)
+            {
+                ImGui.Text($"Bone Count: {boneTable.Length}");
+                foreach (var t in boneTable)
+                {
+                    ImGui.BulletText($"{t}");
+                }
+
+                ImGui.NextColumn();
+            }
+
+            ImGui.Columns(1);
         }
+
+        if (ImGui.CollapsingHeader("Bounding boxes"))
+        {
+            ImGui.Text("Model");
+            DrawBoundingBox(model.File.ModelBoundingBoxes);
+            ImGui.Text("Water");
+            DrawBoundingBox(model.File.WaterBoundingBoxes);
+            ImGui.Text("Vertical Fog");
+            DrawBoundingBox(model.File.VerticalFogBoundingBoxes);
+            for (var i = 0; i < model.File.BoneBoundingBoxes.Length; i++)
+            {
+                var boneBoundingBox = model.File.BoneBoundingBoxes[i];
+                ImGui.Text($"Bone {i}");
+                DrawBoundingBox(boneBoundingBox);
+            }
+        }
+
+        hexView.DrawHexDump();
     }
     
     private unsafe void DrawBoundingBox(ModelResourceHandle.BoundingBox bb)

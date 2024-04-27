@@ -20,37 +20,41 @@ public class MdlFile
         public fixed uint IndexBufferSize[3];
         public byte LodCount;
         public bool EnableIndexBufferStreaming;
-        public bool EnableEdgeGeometry;
+        public bool EnableEdgeGeometry; 
     }
     
-    public ModelFileHeader FileHeader;
-    public ModelResourceHandle.VertexDeclaration[] VertexDeclarations; // MeshCount total elements
-    public ushort StringCount;
-    public byte[] StringTable;
-    public ModelResourceHandle.ModelHeader ModelHeader;
-    public ModelResourceHandle.ElementId[] ElementIds;
-    public ModelResourceHandle.Lod[] Lods;
-    public ModelResourceHandle.ExtraLod[] ExtraLods;
-    public ModelResourceHandle.Mesh[] Meshes;
-    public uint[] AttributeNameOffsets;
-    public ModelResourceHandle.TerrainShadowMesh[] TerrainShadowMeshes;
-    public ModelResourceHandle.Submesh[] Submeshes;
-    public ModelResourceHandle.TerrainShadowSubmesh[] TerrainShadowSubmeshes;
-    public uint[] MaterialNameOffsets;
-    public uint[] BoneNameOffsets;
-    public BoneTable[] BoneTables;
-    public ModelResourceHandle.Shape[] Shapes;
-    public ModelResourceHandle.ShapeMesh[] ShapeMeshes;
-    public ModelResourceHandle.ShapeValue[] ShapeValues;
+    public readonly ModelFileHeader FileHeader;
+    public readonly ModelResourceHandle.VertexDeclaration[] VertexDeclarations; // MeshCount total elements
+    public readonly ushort StringCount;
+    public readonly byte[] StringTable;
+    public readonly ModelResourceHandle.ModelHeader ModelHeader;
+    public readonly ModelResourceHandle.ElementId[] ElementIds;
+    public readonly ModelResourceHandle.Lod[] Lods;
+    public readonly ModelResourceHandle.ExtraLod[] ExtraLods;
+    public readonly ModelResourceHandle.Mesh[] Meshes;
+    public readonly uint[] AttributeNameOffsets;
+    public readonly ModelResourceHandle.TerrainShadowMesh[] TerrainShadowMeshes;
+    public readonly ModelResourceHandle.Submesh[] Submeshes;
+    public readonly ModelResourceHandle.TerrainShadowSubmesh[] TerrainShadowSubmeshes;
+    public readonly uint[] MaterialNameOffsets;
+    public readonly uint[] BoneNameOffsets;
+    public readonly BoneTable[] BoneTables;
+    public readonly ModelResourceHandle.Shape[] Shapes;
+    public readonly ModelResourceHandle.ShapeMesh[] ShapeMeshes;
+    public readonly ModelResourceHandle.ShapeValue[] ShapeValues;
     
-    public uint SubmeshBoneMapByteSize;
-    public ushort[] SubmeshBoneMap;
+    public readonly uint SubmeshBoneMapByteSize;
+    public readonly ushort[] SubmeshBoneMap;
     
-    public ModelResourceHandle.BoundingBox BoundingBoxes;
-    public ModelResourceHandle.BoundingBox ModelBoundingBoxes;
-    public ModelResourceHandle.BoundingBox WaterBoundingBoxes;
-    public ModelResourceHandle.BoundingBox VerticalFogBoundingBoxes;
-    public ModelResourceHandle.BoundingBox[] BoneBoundingBoxes;
+    public readonly ModelResourceHandle.BoundingBox BoundingBoxes;
+    public readonly ModelResourceHandle.BoundingBox ModelBoundingBoxes;
+    public readonly ModelResourceHandle.BoundingBox WaterBoundingBoxes;
+    public readonly ModelResourceHandle.BoundingBox VerticalFogBoundingBoxes;
+    public readonly ModelResourceHandle.BoundingBox[] BoneBoundingBoxes;
+    
+    public readonly byte[] RawData;
+    public readonly int RemainingOffset;
+    public ReadOnlySpan<byte> RemainingData => RawData.AsSpan(RemainingOffset);
     
     // combine both types
     public struct BoneTable
@@ -153,5 +157,8 @@ public class MdlFile
         WaterBoundingBoxes = reader.Read<ModelResourceHandle.BoundingBox>();
         VerticalFogBoundingBoxes = reader.Read<ModelResourceHandle.BoundingBox>();
         BoneBoundingBoxes = reader.Read<ModelResourceHandle.BoundingBox>(ModelHeader.BoneCount).ToArray();
+        
+        RawData = data.ToArray();
+        RemainingOffset = reader.Position;
     }
 }

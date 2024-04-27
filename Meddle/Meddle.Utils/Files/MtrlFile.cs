@@ -22,6 +22,10 @@ public class MtrlFile
     public Sampler[] Samplers;
     public float[] ShaderValues;
     
+    public readonly byte[] RawData;
+    public readonly int RemainingOffset;
+    public ReadOnlySpan<byte> RemainingData => RawData.AsSpan(RemainingOffset);
+    
     public MtrlFile(byte[] data) : this((ReadOnlySpan<byte>)data) { }
     public MtrlFile(ReadOnlySpan<byte> data)
     {
@@ -58,6 +62,9 @@ public class MtrlFile
         Samplers = reader.Read<Sampler>(MaterialHeader.SamplerCount).ToArray();
         
         ShaderValues = reader.Read<float>(MaterialHeader.ShaderValueListSize / 4).ToArray();
+        
+        RawData = data.ToArray();
+        RemainingOffset = reader.Position;
     }
 }
 
