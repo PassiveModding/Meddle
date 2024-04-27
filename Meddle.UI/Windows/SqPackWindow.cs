@@ -38,6 +38,36 @@ public class SqPackWindow
 
     public void Draw()
     {
+        // menubar
+        if (ImGui.BeginMenuBar())
+        {
+            if (ImGui.BeginMenu("File"))
+            {
+                if (ImGui.MenuItem("Import paths"))
+                {
+                    pathManager.ImportFilePickerOpen = true;
+                }
+
+                if (ImGui.MenuItem("Export paths"))
+                {
+                    pathManager.ExportFilePickerOpen = true;
+                }
+                
+                if (ImGui.MenuItem("Discover texture paths"))
+                {
+                    pathManager.TextureDiscoveryOpen = true;
+                }
+
+                ImGui.EndMenu();
+            }
+
+            ImGui.EndMenuBar();
+        }
+        
+        pathManager.DrawImport();
+        pathManager.DrawExport();
+        pathManager.RunTextureDiscovery();
+        
         InternalDraw();
     }
 
@@ -115,11 +145,6 @@ public class SqPackWindow
 
     private void DrawPathViewer()
     {
-        pathManager.DrawImport();
-        ImGui.SameLine();
-        pathManager.DrawExport();
-        ImGui.SameLine();
-        pathManager.RunTextureDiscovery(sqPack, logger);
         ImGui.InputText("##AddPath", ref search, 100);
         ImGui.SameLine();
         if (ImGui.Button("Add"))

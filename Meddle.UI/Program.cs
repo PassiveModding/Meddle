@@ -119,12 +119,22 @@ public class Program
     {
         ImGui.SetNextWindowPos(Vector2.Zero);
         ImGui.SetNextWindowSize(new Vector2(Window.Width, Window.Height));
-        if (ImGui.Begin("Main", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove))
-        {            
-            if (ImGui.Button("Settings"))
+        if (ImGui.Begin("Main", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.MenuBar | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove))
+        {          
+            if (ImGui.BeginMenuBar())
             {
-                ShowSettings = true;
+                if (ImGui.BeginMenu("Settings"))
+                {
+                    if (ImGui.MenuItem("Set Game Directory"))
+                    {
+                        ShowSettings = true;
+                    }
+                    ImGui.EndMenu();
+                }
+                
+                ImGui.EndMenuBar();
             }
+            
             ImGui.Text("Meddle");
             ImGui.SameLine();
             ImGui.Text($"FPS: {ImGui.GetIO().Framerate}");
@@ -154,7 +164,7 @@ public class Program
                 SqPackWindowTask ??= Task.Run(() =>
                 {
                     var pack = new SqPack(Configuration.GameDirectory);
-                    var pathManager = new PathManager();
+                    var pathManager = new PathManager(pack, logFactory.CreateLogger<PathManager>());
                     var cacheFile = Path.Combine(DataDirectory, "parsed_paths.txt");
                     pathManager.RunImport(cacheFile);
                     return new SqPackWindow(pack, ImageHandler, pathManager, logFactory.CreateLogger<SqPackWindow>());

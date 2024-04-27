@@ -6,7 +6,7 @@ namespace Meddle.UI;
 //Based on https://gist.github.com/prime31/91d1582624eb2635395417393018016e
 public class FilePicker
 {
-    private static readonly Dictionary<object, FilePicker> FilePickers = new();
+    private static readonly Dictionary<string, FilePicker> FilePickers = new();
 
     public readonly string RootFolder;
     public string CurrentFolder;
@@ -23,9 +23,9 @@ public class FilePicker
         OnlyAllowFolders = onlyAllowFolders;
     }
 
-    public static FilePicker GetFolderPicker(object o, string startingPath) => GetFilePicker(o, startingPath, null, true);
+    public static FilePicker GetFolderPicker(string id, string startingPath) => GetFilePicker(id, startingPath, null, true);
 
-    public static FilePicker GetFilePicker(object o, string startingPath, string[]? allowedExtensions = null, bool onlyAllowFolders = false)
+    public static FilePicker GetFilePicker(string id, string startingPath, string[]? allowedExtensions = null, bool onlyAllowFolders = false)
     {
         if (File.Exists(startingPath))
         {
@@ -38,18 +38,17 @@ public class FilePicker
                 startingPath = AppContext.BaseDirectory;
         }
 
-        if (!FilePickers.TryGetValue(o, out var fp))
+        if (!FilePickers.TryGetValue(id, out var fp))
         {
             fp = new FilePicker(startingPath, startingPath, null, allowedExtensions, onlyAllowFolders);
-            FilePickers.Add(o, fp);
+            FilePickers.Add(id, fp);
         }
 
         return fp;
     }
 
-    public static void RemoveFilePicker(object o) => FilePickers.Remove(o);
+    public static void RemoveFilePicker(string id) => FilePickers.Remove(id);
 
-    private string newFileName = string.Empty;
     public bool DrawFileSaver()
     {
         // Draw browser, then file name input
