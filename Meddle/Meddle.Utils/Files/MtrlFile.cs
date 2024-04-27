@@ -5,6 +5,8 @@ namespace Meddle.Utils.Files;
 
 public class MtrlFile
 {
+    public const uint MtrlMagic = 0x1030000;
+    
     public MaterialFileHeader FileHeader;
     public TextureOffset[] TextureOffsets;
     public UvColorSet[] UvColorSets;
@@ -26,10 +28,9 @@ public class MtrlFile
     public Sampler[] Samplers;
     public uint[] ShaderValues;
     
-    public readonly byte[] RawData;
-    public readonly int RemainingOffset;
-    public ReadOnlySpan<byte> RemainingData => RawData.AsSpan(RemainingOffset);
-    
+    private readonly byte[] rawData;
+    public ReadOnlySpan<byte> RawData => rawData;
+
     public MtrlFile(byte[] data) : this((ReadOnlySpan<byte>)data) { }
     public MtrlFile(ReadOnlySpan<byte> data)
     {
@@ -82,8 +83,7 @@ public class MtrlFile
         
         ShaderValues = reader.Read<uint>(MaterialHeader.ShaderValueListSize / 4).ToArray();
         
-        RawData = data.ToArray();
-        RemainingOffset = reader.Position;
+        rawData = data.ToArray();
     }
 }
 

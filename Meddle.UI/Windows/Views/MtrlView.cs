@@ -74,18 +74,13 @@ public class MtrlView : IView
 
     private void DrawColorTable()
     {
+        ImGui.Text($"Color Table: {file.HasTable}");
+        ImGui.Text($"Dye Table: {file.HasDyeTable}");
+        ImGui.Text($"Extended Color Table: {file.LargeColorTable}");
         if (!file.HasTable)
         {
-            ImGui.Text("No color table found.");
             return;
         }
-
-        if (!file.HasDyeTable)
-        {
-            ImGui.Text("No dye table found.");
-        }
-        
-        ImGui.Text($"Extended Color Table: {file.LargeColorTable}");
         
         ImGui.Columns(9, "ColorTable", true);
         ImGui.Text("Row");

@@ -58,9 +58,10 @@ public class MdlFile
     public readonly ModelResourceHandle.BoundingBox VerticalFogBoundingBoxes;
     public readonly ModelResourceHandle.BoundingBox[] BoneBoundingBoxes;
     
-    public readonly byte[] RawData;
+    private readonly byte[] rawData;
     public readonly int RemainingOffset;
-    public ReadOnlySpan<byte> RemainingData => RawData.AsSpan(RemainingOffset);
+    public ReadOnlySpan<byte> RawData => rawData;
+    public ReadOnlySpan<byte> RemainingData => rawData.AsSpan(RemainingOffset);
     
     public struct BoneTable
     {
@@ -95,6 +96,7 @@ public class MdlFile
     
     public MdlFile(ReadOnlySpan<byte> data)
     {
+        rawData = data.ToArray();
         var reader = new SpanBinaryReader(data);
         FileHeader = reader.Read<ModelFileHeader>();
         VertexDeclarations = reader.Read<ModelResourceHandle.VertexDeclaration>(FileHeader.VertexDeclarationCount).ToArray();
@@ -162,8 +164,7 @@ public class MdlFile
         WaterBoundingBoxes = reader.Read<ModelResourceHandle.BoundingBox>();
         VerticalFogBoundingBoxes = reader.Read<ModelResourceHandle.BoundingBox>();
         BoneBoundingBoxes = reader.Read<ModelResourceHandle.BoundingBox>(ModelHeader.BoneCount).ToArray();
-        
-        RawData = data.ToArray();
+
         RemainingOffset = reader.Position;
     }
 }

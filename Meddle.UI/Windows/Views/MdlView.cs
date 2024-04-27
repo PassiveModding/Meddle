@@ -76,7 +76,10 @@ public class MdlView(MdlFile mdlFile) : IView
             }
         }
 
-        hexView.DrawHexDump();
+        if (ImGui.CollapsingHeader("Raw Data"))
+        {
+            hexView.DrawHexDump();
+        }
     }
     
     private unsafe void DrawBoundingBox(ModelResourceHandle.BoundingBox bb)

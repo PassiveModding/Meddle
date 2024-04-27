@@ -243,6 +243,7 @@ public class SqPackWindow
         Texture,
         Model,
         Material,
+        Sklb
     }
 
     private int sliceStartIndex;
@@ -494,45 +495,17 @@ public class SqPackWindow
 
     private void DrawFileView(IndexHashTableEntry hash, SqPackFile file, SelectedFileType type, string? path)
     {
-        switch (type)
+        view = type switch
         {
-            case SelectedFileType.Texture:
-                if (view == null)
-                {
-                    var parsedFile = new TexFile(file.RawData);
-                    view = new TexView(hash, parsedFile, imageHandler, path);
-                }
-
-                view.Draw();
-                break;
-            case SelectedFileType.Material:
-            {
-                if (view == null)
-                {
-                    var parsedFile = new MtrlFile(file.RawData);
-                    view = new MtrlView(parsedFile, sqPack, imageHandler);
-                }
-
-                view.Draw();
-                break;
-            }
-            case SelectedFileType.Model:
-            {
-                if (view == null)
-                {
-                    var parsedFile = new MdlFile(file.RawData);
-                    view = new MdlView(parsedFile);
-                }
-
-                view.Draw();
-                break;
-            }
-            case SelectedFileType.None:
-            default:
-                view ??= new DefaultView(hash, file);
-                view.Draw();
-                break;
-        }
+            SelectedFileType.Texture => view ?? new TexView(hash, new TexFile(file.RawData), imageHandler, path),
+            SelectedFileType.Material => view ?? new MtrlView(new MtrlFile(file.RawData), sqPack, imageHandler),
+            SelectedFileType.Model => view ?? new MdlView(new MdlFile(file.RawData)),
+            SelectedFileType.Sklb => view ?? new SklbView(new SklbFile(file.RawData)),
+            SelectedFileType.None => view ?? new DefaultView(hash, file),
+            _ => view ?? new DefaultView(hash, file)
+        };
+        
+        view?.Draw();
     }
 
     private string GetExtensionFromType(SelectedFileType type)
@@ -553,6 +526,7 @@ public class SqPackWindow
             ".tex" => SelectedFileType.Texture,
             ".mdl" => SelectedFileType.Model,
             ".mtrl" => SelectedFileType.Material,
+            ".sklb" => SelectedFileType.Sklb,
             _ => SelectedFileType.None
         };
     }
@@ -585,9 +559,13 @@ public class SqPackWindow
 
         var reader = new SpanBinaryReader(file.RawData);
         var magic = reader.ReadUInt32();
-        if (magic == 16973824) // known .mtrl file version value
+        if (magic == MtrlFile.MtrlMagic) // known .mtrl file version value
         {
             return SelectedFileType.Material;
+        }
+        else if (magic == SklbFile.SklbMagic)
+        {
+            return SelectedFileType.Sklb;
         }
 
         return SelectedFileType.None;
