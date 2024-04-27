@@ -153,15 +153,10 @@ public class Program
                 SqPackWindowTask ??= Task.Run(() =>
                 {
                     var pack = new SqPack(Configuration.GameDirectory);
-                    var pathManager = new SqPackWindow.PathManager();
+                    var pathManager = new PathManager();
                     var cacheFile = Path.Combine(DataDirectory, "parsed_paths.txt");
-                    if (Path.Exists(cacheFile))
-                    {
-                        var lines = File.ReadAllLines(cacheFile);
-                        var paths = PathUtils.ParsePaths(lines);
-                        pathManager.ParsedPaths.AddRange(paths);
-                    }
-                    return new SqPackWindow(pack, ImageHandler, pathManager);
+                    pathManager.RunImport(cacheFile);
+                    return new SqPackWindow(pack, ImageHandler, pathManager, logFactory.CreateLogger<SqPackWindow>());
                 });
                 if (SqPackWindowTask.IsCompletedSuccessfully)
                 {

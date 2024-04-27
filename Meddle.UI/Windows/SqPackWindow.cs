@@ -4,6 +4,7 @@ using Meddle.UI.Windows.Views;
 using Meddle.Utils;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
+using Microsoft.Extensions.Logging;
 using Category = Meddle.Utils.Files.SqPack.Category;
 using ParsedFilePath = Meddle.Utils.Files.SqPack.ParsedFilePath;
 using Repository = Meddle.Utils.Files.SqPack.Repository;
@@ -13,44 +14,26 @@ namespace Meddle.UI.Windows;
 
 public class SqPackWindow
 {
-    public class PathManager
-    {
-        public readonly List<ParsedFilePath> ParsedPaths = new();
-        public List<IGrouping<string, ParsedFilePath>> PathViewerCache = new();
-        public readonly Dictionary<ulong, ParsedFilePath?> ParsedPathDict = new();
-        public readonly Dictionary<string, IGrouping<string, ParsedFilePath>[]> FolderCache = new();
-        
-        public ParsedFilePath? GetPath(ulong hash)
-        {
-            if (ParsedPathDict.TryGetValue(hash, out var path))
-            {
-                return path;
-            }
-            
-            var match = ParsedPaths.FirstOrDefault(x => x.IndexHash == hash || x.Index2Hash == hash);
-            ParsedPathDict[hash] = match;
-            return match;
-        }
-    }
-    
     private readonly ImageHandler imageHandler;
     private readonly SqPack sqPack;
     private readonly PathManager pathManager;
+    private readonly ILogger<SqPackWindow> logger;
     private (int index, Category cat, IndexHashTableEntry hash, SqPackFile file)? selectedFile;
     private string filter = string.Empty;
     private string search = string.Empty;
     private Repository selectedRepository;
     private Category selectedCategory;
     private IView? view;
-    
 
-    public SqPackWindow(SqPack sqPack, ImageHandler imageHandler, PathManager pathManager)
+
+    public SqPackWindow(SqPack sqPack, ImageHandler imageHandler, PathManager pathManager, ILogger<SqPackWindow> logger)
     {
         this.imageHandler = imageHandler;
         this.sqPack = sqPack;
         selectedRepository = sqPack.Repositories.First();
         selectedCategory = selectedRepository.Categories.First().Value;
         this.pathManager = pathManager;
+        this.logger = logger;
     }
 
     public void Draw()
@@ -58,32 +41,36 @@ public class SqPackWindow
         InternalDraw();
     }
 
+    private bool isFirstDraw = true;
+
     private void InternalDraw()
     {
-        var cra = ImGui.GetContentRegionAvail();
-        if (ImGui.BeginChild("##SqPackWindow", cra with {X = 300}, ImGuiChildFlags.Border))
+        ImGui.Columns(3, "SqPackColumns", true);
+        if (isFirstDraw)
+        {
+            ImGui.SetColumnWidth(0, 250);
+
+            isFirstDraw = false;
+        }
+
+        if (ImGui.BeginChild("##SqPackWindow"))
         {
             DrawRepoCategory();
-            BrowseCategory(selectedCategory!);
+            BrowseCategory();
             ImGui.EndChild();
         }
 
-        ImGui.SameLine();
-        if (ImGui.BeginChild("##PathViewer", cra with {X = 300}, ImGuiChildFlags.Border))
+        ImGui.NextColumn();
+        if (ImGui.BeginChild("##PathViewer"))
         {
             DrawPathViewer();
             ImGui.EndChild();
         }
 
-        ImGui.SameLine();
-        
-        if (ImGui.BeginChild("##SqPackFile", cra with {X = cra.X - 620 }, ImGuiChildFlags.Border))
+        ImGui.NextColumn();
+        if (ImGui.BeginChild("##SqPackFile"))
         {
-            if (selectedFile.HasValue)
-            {
-                DrawSelectedFile();
-            }
-
+            DrawFile();
             ImGui.EndChild();
         }
     }
@@ -102,10 +89,12 @@ public class SqPackWindow
                     selectedCategory = repo.Categories.First().Value;
                 }
             }
+
             ImGui.EndCombo();
         }
-        
-        if (ImGui.BeginCombo("Category", Category.TryGetCategoryName(selectedCategory.Id) ?? $"0x{selectedCategory.Id:X2}"))
+
+        if (ImGui.BeginCombo(
+                "Category", Category.TryGetCategoryName(selectedCategory.Id) ?? $"{selectedCategory.Id:X2}"))
         {
             var categories = selectedRepository.Categories.GroupBy(x => x.Key.category);
             foreach (var cg in categories)
@@ -118,55 +107,19 @@ public class SqPackWindow
                     selectedCategory = cg.First().Value;
                 }
             }
+
             ImGui.EndCombo();
         }
     }
-    
-    private Task? importTask;
 
-    private void DrawImport()
-    {
-        if (importTask != null)
-        {
-            ImGui.Text("Importing...");
-            if (importTask.IsCompleted)
-            {
-                importTask = null;
-            }
-            return;
-        }
-        
-        if (ImGui.Button("Import"))
-        {
-            ImGui.OpenPopup("Import");
-        }
-        
-        if (ImGui.BeginPopup("Import", ImGuiWindowFlags.AlwaysAutoResize))
-        {
-            foreach (var file in Directory.GetFiles(Program.DataDirectory, "*.txt"))
-            {
-                if (ImGui.Selectable(file))
-                {
-                    var lines = File.ReadAllLines(file);
-                    importTask = Task.Run(() =>
-                    {
-                        var paths = PathUtils.ParsePaths(lines);
-                        foreach (var path in paths)
-                        {
-                            pathManager.ParsedPaths.Add(path);
-                        }
-                    });
-                }
-            }
-            
-            ImGui.EndPopup();
-        }
 
-    }
-    
     private void DrawPathViewer()
     {
-        DrawImport();
+        pathManager.DrawImport();
+        ImGui.SameLine();
+        pathManager.DrawExport();
+        ImGui.SameLine();
+        pathManager.RunTextureDiscovery(sqPack, logger);
         ImGui.InputText("##AddPath", ref search, 100);
         ImGui.SameLine();
         if (ImGui.Button("Add"))
@@ -180,22 +133,22 @@ public class SqPackWindow
                 pathManager.ParsedPaths.Add(hash);
             }
         }
-        
+
         if (ImGui.InputText("Filter", ref filter, 100))
         {
             pathManager.PathViewerCache = pathManager.ParsedPaths
-                      .Where(x => x.Path.Contains(filter))
-                      .OrderBy(x => x.Path)
-                      .GroupBy(x => x.Path.Split('/')[0])
-                      .ToList();
+                                                     .Where(x => x.Path.Contains(filter))
+                                                     .OrderBy(x => x.Path)
+                                                     .GroupBy(x => x.Path.Split('/')[0])
+                                                     .ToList();
             pathManager.FolderCache.Clear();
         }
         else if (pathManager.PathViewerCache.Count == 0)
         {
             pathManager.PathViewerCache = pathManager.ParsedPaths
-                                  .OrderBy(x => x.Path)
-                                  .GroupBy(x => x.Path.Split('/')[0])
-                                  .ToList();
+                                                     .OrderBy(x => x.Path)
+                                                     .GroupBy(x => x.Path.Split('/')[0])
+                                                     .ToList();
             pathManager.FolderCache.Clear();
         }
 
@@ -236,7 +189,7 @@ public class SqPackWindow
                         view = null;
                     }
                 }
-                
+
                 // right click copy path
                 if (ImGui.BeginPopupContextItem())
                 {
@@ -244,6 +197,7 @@ public class SqPackWindow
                     {
                         ImGui.SetClipboardText(key + "/" + group.Key);
                     }
+
                     ImGui.EndPopup();
                 }
 
@@ -269,11 +223,18 @@ public class SqPackWindow
     private int sliceStartIndex;
     private readonly int sliceSize = 200;
 
-    private void BrowseCategory(Category cat)
+    private void BrowseCategory()
     {
+        var cat = selectedCategory;
         ImGui.Text($"Index: {cat.Index}");
         ImGui.Text($"Index2: {cat.Index2}");
         ImGui.Text($"Entries: {cat.UnifiedIndexEntries.Count}");
+        foreach (var datFilePath in cat.DatFilePaths)
+        {
+            var name = Path.GetFileName(datFilePath);
+            ImGui.Text(name);
+        }
+
         var cra = ImGui.GetContentRegionAvail();
         if (ImGui.BeginChild("##SqPackCategoryEntries", cra with {Y = cra.Y - 50}))
         {
@@ -283,8 +244,8 @@ public class SqPackWindow
             {
                 var (hash, entry) = entries[i];
                 var entryName =
-                    $"{(displayDatFileIdx ? $"[{entry.DataFileId:00}]" : "")}[0x{entry.Offset:X8}] {hash:X16}##{hash:X16}";
-                
+                    $"{(displayDatFileIdx ? $"[{entry.DataFileId:00}]" : "")}[{entry.Offset:X8}] {hash:X16}##{hash:X16}";
+
                 var path = pathManager.GetPath(hash);
                 if (path != null)
                 {
@@ -298,6 +259,17 @@ public class SqPackWindow
                         var index = sliceStartIndex + i;
                         selectedFile = (index, cat, entry, data);
                         view = null;
+                    }
+                }
+
+                if (ImGui.IsItemHovered())
+                {
+                    // popup with path
+                    if (path != null)
+                    {
+                        ImGui.BeginTooltip();
+                        ImGui.Text(path.Path);
+                        ImGui.EndTooltip();
                     }
                 }
             }
@@ -385,54 +357,20 @@ public class SqPackWindow
         ImGui.Text(selectedFile.HasValue ? $"Selected: {selectedFile.Value.index}" : "No file selected");
     }
 
-    private void DrawSelectedFile()
-    {
-        if (selectedFile.HasValue)
-        {
-            var file = selectedFile.Value;
-            DrawFile(file.hash, file.file);
-        }
-    }
 
     private (Category category, IndexHashTableEntry hash, SqPackFile file)[]? discoverResults;
-    private void DrawFile(IndexHashTableEntry hash, SqPackFile file)
+
+    private void DrawFile()
     {
-        if (discoverResults != null && discoverResults.All(x => x.hash.Hash != hash.Hash))
+        if (selectedFile == null)
         {
-            discoverResults = null;
+            return;
         }
-        var path = pathManager.GetPath(hash.Hash);
-        if (path != null)
-        {
-            ImGui.Text($"Path: {path.Path}"); 
-            if (ImGui.Button("Discover all"))
-            {
-                var files = sqPack.GetFiles(path.Path);
-                discoverResults = files;
-            }
-            
-            if (discoverResults != null)
-            {
-                ImGui.Text("Discovered files:");
-                for (var i = 0; i < discoverResults.Length; i++)
-                {
-                    var (category, sHash, sFile) = discoverResults[i];
-                    var repoName = category.Repository?.Path.Split(Path.DirectorySeparatorChar).Last();
-                    if (ImGui.Selectable($"[{i}] - {repoName} {sHash.Hash:X16}"))
-                    {
-                        selectedFile = (selectedFile!.Value.index, category, sHash, sFile);
-                        view = null;
-                        hash = sHash;
-                        file = sFile;
-                    }
-                }
-            }
-        }
-        else
-        {
-            ImGui.Text("Path: Unknown");
-        }
-        
+
+        var hash = selectedFile.Value.hash;
+        var file = selectedFile.Value.file;
+
+        var path = DrawPathDiscovery(hash);
         var type = TryGetType(path?.Path, file);
         if (ImGui.Button("Save raw file"))
         {
@@ -448,23 +386,85 @@ public class SqPackWindow
             Process.Start("explorer.exe", outFolder);
         }
 
-        ImGui.Text($"DataFileIdx: {hash.DataFileId}");
+        // click to copy any of the info
+        DrawField("Hash", hash.Hash.ToString("X16"));
+        DrawField("DataFileIdx", hash.DataFileId.ToString());
+        DrawField("Offset", hash.Offset.ToString("X8"));
+        DrawField("Size", file.RawData.Length.ToString());
         ImGui.SameLine();
-        ImGui.Text($"Offset: 0x{hash.Offset:X8}");
+        DrawField("Raw File Size", file.FileHeader.RawFileSize.ToString());
         ImGui.SameLine();
-        ImGui.Text($"Hash: {hash.Hash:X16}");
+        DrawField("Header Size", file.FileHeader.Size.ToString());
+        DrawField("Blocks", file.FileHeader.NumberOfBlocks.ToString());
+        DrawField("Type", file.FileHeader.Type.ToString());
+        ImGui.SameLine();
+        DrawField("Parsed Type", type.ToString());
 
-        ImGui.Text($"Size: {file.RawData.Length} bytes");
-        ImGui.SameLine();
-        ImGui.Text($"Raw File Size: {file.FileHeader.RawFileSize} bytes");
-        ImGui.Text($"Header Size: {file.FileHeader.Size}");
-        ImGui.SameLine();
-        ImGui.Text($"Blocks: {file.FileHeader.NumberOfBlocks}");
-        ImGui.SameLine();
-        ImGui.Text($"Type: {file.FileHeader.Type}");
-        ImGui.Text($"Parsed Type: {type}");
-        
         DrawFileView(hash, file, type, path?.Path);
+    }
+
+    private ParsedFilePath? DrawPathDiscovery(IndexHashTableEntry hash)
+    {
+        // This is used to discover other files with the same path.
+        // Either between index and index2 or between different repositories (ie. copying the retail files to benchmark)
+        if (discoverResults != null && discoverResults.All(x => x.hash.Hash != hash.Hash))
+        {
+            discoverResults = null;
+        }
+
+        var path = pathManager.GetPath(hash.Hash);
+        if (path == null)
+        {
+            ImGui.Text("Path: Unknown");
+            return null;
+        }
+
+        ImGui.Text($"Path: {path.Path}");
+        if (ImGui.Button("Discover all"))
+        {
+            var files = sqPack.GetFiles(path.Path);
+            discoverResults = files;
+        }
+
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.BeginTooltip();
+            ImGui.Text("Discover any other files with the same path");
+            ImGui.EndTooltip();
+        }
+
+        if (discoverResults != null)
+        {
+            ImGui.Text("Discovered files:");
+            for (var i = 0; i < discoverResults.Length; i++)
+            {
+                var (category, sHash, sFile) = discoverResults[i];
+                var repoName = category.Repository?.Path.Split(Path.DirectorySeparatorChar).Last();
+                if (ImGui.Selectable($"[{i}] - {repoName} {sHash.Hash:X16}"))
+                {
+                    selectedFile = (selectedFile!.Value.index, category, sHash, sFile);
+                    view = null;
+                }
+            }
+        }
+
+        return path;
+    }
+
+    private void DrawField(string label, string value)
+    {
+        ImGui.Text($"{label}: {value}");
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.BeginTooltip();
+            ImGui.Text(value);
+            ImGui.EndTooltip();
+        }
+
+        if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
+        {
+            ImGui.SetClipboardText(value);
+        }
     }
 
     private void DrawFileView(IndexHashTableEntry hash, SqPackFile file, SelectedFileType type, string? path)
@@ -477,6 +477,7 @@ public class SqPackWindow
                     var parsedFile = new TexFile(file.RawData);
                     view = new TexView(hash, parsedFile, imageHandler, path);
                 }
+
                 view.Draw();
                 break;
             case SelectedFileType.Material:
@@ -486,7 +487,7 @@ public class SqPackWindow
                     var parsedFile = new MtrlFile(file.RawData);
                     view = new MtrlView(parsedFile, sqPack, imageHandler);
                 }
-                
+
                 view.Draw();
                 break;
             }
@@ -497,17 +498,18 @@ public class SqPackWindow
                     var parsedFile = new MdlFile(file.RawData);
                     view = new MdlView(parsedFile);
                 }
-                
+
                 view.Draw();
                 break;
             }
+            case SelectedFileType.None:
             default:
                 view ??= new DefaultView(hash, file);
                 view.Draw();
                 break;
         }
     }
-    
+
     private string GetExtensionFromType(SelectedFileType type)
     {
         return type switch
@@ -518,7 +520,7 @@ public class SqPackWindow
             _ => ""
         };
     }
-    
+
     private SelectedFileType GetTypeFromExtension(string extension)
     {
         return extension switch
@@ -540,7 +542,7 @@ public class SqPackWindow
                 return GetTypeFromExtension(extension);
             }
         }
-        
+
         switch (file.FileHeader.Type)
         {
             case FileType.Model:
@@ -550,18 +552,19 @@ public class SqPackWindow
             case FileType.Empty:
                 return SelectedFileType.None;
         }
-        
+
         if (file.RawData.Length < 4)
         {
             return SelectedFileType.None;
         }
+
         var reader = new SpanBinaryReader(file.RawData);
         var magic = reader.ReadUInt32();
         if (magic == 16973824) // known .mtrl file version value
         {
             return SelectedFileType.Material;
         }
-        
+
         return SelectedFileType.None;
     }
 }
