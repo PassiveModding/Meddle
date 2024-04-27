@@ -2,13 +2,24 @@
 
 public record ParsedFilePath
 {
-    /// <summary>
-    /// The repository (or expansion) that a file belongs to.
-    ///
-    /// e.g. ffxiv, ex1, ex2, ...
-    /// </summary>
-    public string Repository { get; internal set; }
+    public ParsedFilePath(string path)
+    {
+        Path = path;
+        var pathParts = path.Split('/');
+        var category = pathParts[0];
+        var fileName = pathParts[^1];
+        var folder = path.Substring(0, path.LastIndexOf('/'));
         
+        var folderHash = SqPack.GetHash(folder);
+        var fileHash = SqPack.GetHash(fileName);
+        var indexHash = ((ulong)folderHash << 32) | fileHash;
+
+        var index2Hash = SqPack.GetHash(path);
+        Category = category;
+        IndexHash = indexHash;
+        Index2Hash = index2Hash;
+    }
+    
     /// <summary>
     /// The category of the file, essentially it's 'container'
     ///

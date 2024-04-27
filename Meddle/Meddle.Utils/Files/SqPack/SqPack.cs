@@ -159,27 +159,10 @@ public class SqPack
     
     public static ParsedFilePath GetFileHash(string path)
     {
-        var pathParts = path.Split('/');
-        var category = pathParts[0];
-        var fileName = pathParts[^1];
-        var folder = path.Substring(0, path.LastIndexOf('/'));
-        
-        var folderHash = GetHash(folder);
-        var fileHash = GetHash(fileName);
-        var indexHash = ((ulong)folderHash << 32) | fileHash;
-
-        var index2Hash = GetHash(path);
-
-        return new ParsedFilePath
-        {
-            Category = category,
-            IndexHash = indexHash,
-            Index2Hash = index2Hash,
-            Path = path
-        };
+        return new ParsedFilePath(path);
     }
 
-    private static uint GetHash(string value)
+    public static uint GetHash(string value)
     {
         var data = Encoding.UTF8.GetBytes(value);
         var crcLocal = uint.MaxValue ^ 0U;
