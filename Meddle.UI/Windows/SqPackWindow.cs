@@ -17,6 +17,7 @@ public class SqPackWindow
     private readonly ImageHandler imageHandler;
     private readonly SqPack sqPack;
     private readonly PathManager pathManager;
+    private readonly Configuration config;
     private readonly ILogger<SqPackWindow> logger;
     private (int index, Category cat, IndexHashTableEntry hash, SqPackFile file)? selectedFile;
     private string filter = string.Empty;
@@ -26,13 +27,14 @@ public class SqPackWindow
     private IView? view;
 
 
-    public SqPackWindow(SqPack sqPack, ImageHandler imageHandler, PathManager pathManager, ILogger<SqPackWindow> logger)
+    public SqPackWindow(SqPack sqPack, ImageHandler imageHandler, PathManager pathManager, Configuration config, ILogger<SqPackWindow> logger)
     {
         this.imageHandler = imageHandler;
         this.sqPack = sqPack;
         selectedRepository = sqPack.Repositories.First();
         selectedCategory = selectedRepository.Categories.First().Value;
         this.pathManager = pathManager;
+        this.config = config;
         this.logger = logger;
     }
 
@@ -500,7 +502,7 @@ public class SqPackWindow
             SelectedFileType.Texture => view ?? new TexView(hash, new TexFile(file.RawData), imageHandler, path),
             SelectedFileType.Material => view ?? new MtrlView(new MtrlFile(file.RawData), sqPack, imageHandler),
             SelectedFileType.Model => view ?? new MdlView(new MdlFile(file.RawData)),
-            SelectedFileType.Sklb => view ?? new SklbView(new SklbFile(file.RawData)),
+            SelectedFileType.Sklb => view ?? new SklbView(new SklbFile(file.RawData), config),
             SelectedFileType.None => view ?? new DefaultView(hash, file),
             _ => view ?? new DefaultView(hash, file)
         };

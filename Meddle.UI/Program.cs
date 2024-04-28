@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Veldrid;
 using Veldrid.Sdl2;
 using Veldrid.StartupUtilities;
+using WebSocketSharp;
 
 namespace Meddle.UI;
 
@@ -23,6 +24,7 @@ public class Program
     public GraphicsDevice GraphicsDevice;
     public ImGuiHandler ImGuiHandler;
     public ImageHandler ImageHandler;
+    public SettingsWindow SettingsWindow;
     
     public Program()
     {        
@@ -34,7 +36,11 @@ public class Program
         Configuration = Configuration.Load();
         logger = logFactory.CreateLogger<Program>();
         logger.LogInformation("Kweh!");
-        gameDir = Configuration.GameDirectory;
+        SettingsWindow = new(Configuration);
+        SettingsWindow.RedrawBrowser += () =>
+        {
+            SqPackWindowTask = null;
+        };
     }
 
     private async Task RunAsync()
@@ -113,52 +119,14 @@ public class Program
     }
 
     private static Task<SqPackWindow>? SqPackWindowTask;
-    private static bool ShowSettings;
-    private string gameDir;
     private void Draw()
     {
         ImGui.SetNextWindowPos(Vector2.Zero);
         ImGui.SetNextWindowSize(new Vector2(Window.Width, Window.Height));
         if (ImGui.Begin("Main", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.MenuBar | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove))
         {          
-            if (ImGui.BeginMenuBar())
-            {
-                if (ImGui.BeginMenu("Settings"))
-                {
-                    if (ImGui.MenuItem("Set Game Directory"))
-                    {
-                        ShowSettings = true;
-                    }
-                    ImGui.EndMenu();
-                }
-                
-                ImGui.EndMenuBar();
-            }
+            SettingsWindow.Draw();
             
-            ImGui.Text("Meddle");
-            ImGui.SameLine();
-            ImGui.Text($"FPS: {ImGui.GetIO().Framerate}");
-            
-            if (ShowSettings)
-            {
-                ImGui.OpenPopup("Settings");
-                if (ImGui.BeginPopupModal("Settings"))
-                {
-                    ImGui.Text("Game Directory");
-                    ImGui.SameLine();
-                    ImGui.InputText("##GameDirectory", ref gameDir, 1024);
-                    if (ImGui.Button("OK"))
-                    {
-                        SqPackWindowTask = null;
-                        ShowSettings = false;
-                        Configuration.GameDirectory = gameDir;
-                        ImGui.CloseCurrentPopup();
-                    }
-                    ImGui.EndPopup();
-                }
-            }
-            
-
             if (!string.IsNullOrWhiteSpace(Configuration.GameDirectory))
             {
                 SqPackWindowTask ??= Task.Run(() =>
@@ -167,7 +135,7 @@ public class Program
                     var pathManager = new PathManager(pack, logFactory.CreateLogger<PathManager>());
                     var cacheFile = Path.Combine(DataDirectory, "parsed_paths.txt");
                     pathManager.RunImport(cacheFile);
-                    return new SqPackWindow(pack, ImageHandler, pathManager, logFactory.CreateLogger<SqPackWindow>());
+                    return new SqPackWindow(pack, ImageHandler, pathManager, Configuration, logFactory.CreateLogger<SqPackWindow>());
                 });
                 if (SqPackWindowTask.IsCompletedSuccessfully)
                 {

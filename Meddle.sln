@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meddle.Utils", "Meddle\Medd
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meddle.UI", "Meddle.UI\Meddle.UI.csproj", "{DB69D530-C36E-4747-958E-70E8BEA67A85}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meddle.UI.InteropPlugin", "Meddle.UI.InteropPlugin\Meddle.UI.InteropPlugin.csproj", "{33461975-83EF-41D9-BFB2-1C71A3909318}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -39,6 +41,10 @@ Global
 		{DB69D530-C36E-4747-958E-70E8BEA67A85}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DB69D530-C36E-4747-958E-70E8BEA67A85}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DB69D530-C36E-4747-958E-70E8BEA67A85}.Release|Any CPU.Build.0 = Release|Any CPU
+		{33461975-83EF-41D9-BFB2-1C71A3909318}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{33461975-83EF-41D9-BFB2-1C71A3909318}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{33461975-83EF-41D9-BFB2-1C71A3909318}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{33461975-83EF-41D9-BFB2-1C71A3909318}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
