@@ -40,6 +40,14 @@ public class MtrlView : IView
         {
             ImGui.Text($"[{key:X4}] {value}");
         }
+        
+        ImGui.Text("Texture Paths:");
+        for (var i = 0; i < material.File.TextureOffsets.Length; i++)
+        {
+            var off = material.File.TextureOffsets[i];
+            var path = material.TexturePaths[off.Offset];
+            ImGui.Text($"[{i}] {path}");
+        }
 
         if (ImGui.CollapsingHeader("Textures"))
         {
@@ -58,6 +66,46 @@ public class MtrlView : IView
                 }
 
                 texView?.Draw();
+            }
+        }
+        
+        if (ImGui.CollapsingHeader("Shader Values"))
+        {
+            ImGui.Text($"Shader Keys [{file.ShaderKeys.Length}]");
+            for (var i = 0; i < file.ShaderKeys.Length; i++)
+            {
+                var key = file.ShaderKeys[i];
+                ImGui.Text($"[{i}][{key.Category:X4}] {key.Value:X4}");
+            }
+
+            ImGui.Text($"Constants [{file.Constants.Length}]");
+            for (var i = 0; i < file.Constants.Length; i++)
+            {
+                var constant = file.Constants[i];
+                var index = constant.ValueOffset / 4;
+                var count = constant.ValueSize / 4;
+                var buf = new List<byte>();
+                for (var j = 0; j < count; j++)
+                {
+                    var value = file.ShaderValues[index + j];
+                    var bytes = BitConverter.GetBytes(value);
+                    buf.AddRange(bytes);
+                }
+                ImGui.Text($"[{i}][{constant.ConstantId:X4}|{constant.ConstantId}] off:{constant.ValueOffset:X2} size:{constant.ValueSize:X2} [{BitConverter.ToString(buf.ToArray())}]");
+            }
+
+            ImGui.Text($"Samplers [{file.Samplers.Length}]");
+            for (var i = 0; i < file.Samplers.Length; i++)
+            {
+                var sampler = file.Samplers[i];
+                ImGui.Text($"[{i}][{sampler.SamplerId:X4}|{sampler.SamplerId}] texIdx:{sampler.TextureIndex} flags:{sampler.Flags:X8}");
+            }
+
+            ImGui.Text($"Shader Values [{file.ShaderValues.Length}]");
+            for (var i = 0; i < file.ShaderValues.Length; i++)
+            {
+                var value = file.ShaderValues[i];
+                ImGui.Text($"[{i}]{value:X8}");
             }
         }
         
