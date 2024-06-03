@@ -59,6 +59,11 @@ public class SqPackWindow
                 {
                     pathManager.TextureDiscoveryOpen = true;
                 }
+                
+                if (ImGui.MenuItem("Discovery"))
+                {
+                    pathManager.DiscoveryOpen = true;
+                }
 
                 ImGui.EndMenu();
             }
@@ -69,6 +74,7 @@ public class SqPackWindow
         pathManager.DrawImport();
         pathManager.DrawExport();
         pathManager.RunTextureDiscovery();
+        pathManager.RunDiscovery();
         
         InternalDraw();
     }
@@ -500,7 +506,7 @@ public class SqPackWindow
         view = type switch
         {
             SelectedFileType.Texture => view ?? new TexView(hash, new TexFile(file.RawData), imageHandler, path),
-            SelectedFileType.Material => view ?? new MtrlView(new MtrlFile(file.RawData), sqPack, imageHandler),
+            SelectedFileType.Material => view ?? new MtrlView(file, new MtrlFile(file.RawData), sqPack, imageHandler),
             SelectedFileType.Model => view ?? new MdlView(new MdlFile(file.RawData)),
             SelectedFileType.Sklb => view ?? new SklbView(new SklbFile(file.RawData), config),
             SelectedFileType.None => view ?? new DefaultView(hash, file),

@@ -1,17 +1,45 @@
-﻿using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
+﻿using System.Numerics;
+using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using ImGuiNET;
+using Meddle.Utils;
 using Meddle.Utils.Files;
 using Meddle.Utils.Models;
+using SharpGLTF.Materials;
+using SharpGLTF.Scenes;
 
 namespace Meddle.UI.Windows.Views;
 
 public class MdlView(MdlFile mdlFile) : IView
 {
     private readonly Model model = new(mdlFile);
+    private Utils.Export.Model? fmodel;
     private readonly HexView hexView = new(mdlFile.RawData);
+    private readonly HexView remainingView = new(mdlFile.RemainingData);
 
     public void Draw()
     {
+        if (ImGui.Button("Test"))
+        {
+            fmodel = new Utils.Export.Model(this.model.File, "");
+            var materialCount = model.File.MaterialNameOffsets.Length; 
+            var materials = new MaterialBuilder[materialCount];
+            for (var i = 0; i < materialCount; i++)
+            {
+                var name = model.Strings[(int)model.File.MaterialNameOffsets[i]];
+                materials[i] = new MaterialBuilder(name);
+            }
+
+            var scene = new SceneBuilder();
+            var meshes = ModelBuilder.BuildMeshes(fmodel, materials, Array.Empty<BoneNodeBuilder>(), null);
+            foreach (var mesh in meshes)
+            {
+                scene.AddRigidMesh(mesh.Mesh, Matrix4x4.Identity);
+            }
+            
+            var sceneGraph = scene.ToGltf2();
+            sceneGraph.SaveGLB("test.glb");
+        }
+        
         var mdlFile = model.File;
         ImGui.Text($"Version: {mdlFile.FileHeader.Version}");
         ImGui.Text($"Vertex Declarations: {mdlFile.FileHeader.VertexDeclarationCount}");
@@ -79,6 +107,11 @@ public class MdlView(MdlFile mdlFile) : IView
         if (ImGui.CollapsingHeader("Raw Data"))
         {
             hexView.DrawHexDump();
+        }
+        
+        if (ImGui.CollapsingHeader("Remaining Data"))
+        {
+            remainingView.DrawHexDump();
         }
     }
     

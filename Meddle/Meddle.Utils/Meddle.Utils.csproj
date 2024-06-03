@@ -21,6 +21,8 @@
     </ItemGroup>
     
     <ItemGroup>
+      <PackageReference Include="SharpGLTF.Core" Version="1.0.0-alpha0031" />
+      <PackageReference Include="SharpGLTF.Toolkit" Version="1.0.0-alpha0031" />
       <PackageReference Include="SkiaSharp" Version="2.88.8" />
       <PackageReference Include="System.IO.Hashing" Version="8.0.0" />
     </ItemGroup>

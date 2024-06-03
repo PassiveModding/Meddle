@@ -119,6 +119,95 @@ public class PathManager : IDisposable
         }
     }
 
+    private Task? discoveryTask;
+    public bool DiscoveryOpen;
+    public Dictionary<string, List<string>> DiscoveredPaths = new();
+    public void RunDiscovery()
+    {
+        if (discoveryTask is {IsCompleted: true})
+        {
+            discoveryTask = null;
+        }
+
+        if (DiscoveryOpen)
+        {
+            ImGui.OpenPopup("Discovery");
+        }
+
+        if (ImGui.BeginPopupModal("Discovery", ref DiscoveryOpen, ImGuiWindowFlags.Modal))
+        {
+            if (discoveryTask != null)
+            {
+                ImGui.Text("Discovering...");
+            }
+
+            if (ImGui.Button($"Discover Stuff") && discoveryTask == null)
+            {
+                DiscoveredPaths.Clear();
+                var paths = ParsedPaths
+                            .Where(x => x.Path.EndsWith(".mtrl"))
+                            .Select(x => x.Path)
+                            .ToList();
+                discoveryTask = Task.Run(() =>
+                {
+                    foreach (var path in paths)
+                    {
+                        try
+                        {
+                            var hash = SqPack.GetFileHash(path);
+                            var file = sqPack.GetFile(hash);
+                            if (file == null) continue;
+                            var mtrlFile = new MtrlFile(file.Value.file.RawData);
+                            var material = new Material(mtrlFile);
+                            
+                            var pathTypes = new List<string>();
+                            foreach (var (_, texPath) in material.TexturePaths)
+                            {
+                                pathTypes.Add(texPath.Split('_').Last());
+                            }
+                            
+                            // order alphabetically
+                            pathTypes.Sort();
+                            var allPathStr = string.Join(", ", pathTypes);
+                            var str = $"{material.ShaderPackageName} - {allPathStr}";
+                            if (DiscoveredPaths.TryGetValue(str, out var list))
+                            {
+                                list.Add(path);
+                            }
+                            else
+                            {
+                                DiscoveredPaths.Add(str, [path]);
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            logger.LogError(e, "Failed to discover for {Path}", path);
+                        }
+                    }
+
+                    var discoverFile = Path.Combine(Program.DataDirectory, "discovered.txt");
+                    File.WriteAllLines(discoverFile, DiscoveredPaths.OrderBy(x => x.Key).Select(x => $"[{x.Value.Count}]{x.Key}"));
+                    var discoverFileExtended = Path.Combine(Program.DataDirectory, "discovered_extended.txt");
+                    File.WriteAllLines(discoverFileExtended, DiscoveredPaths.OrderBy(x => x.Key).Select(x => $"[{x.Value.Count}]{x.Key}\n{x.Value.Aggregate((x, y) => $"{x}\n{y}")}"));
+                });
+                
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.BeginTooltip();
+                    ImGui.Text("Parse all known .mtrl files and discover things.");
+                    ImGui.EndTooltip();
+                }
+            }
+            
+            foreach (var path in DiscoveredPaths.TakeLast(10))
+            {
+                ImGui.Text(path.Key);
+            }
+
+            ImGui.EndPopup();
+        }
+    }
+    
     public void DrawExport()
     {
         if (ExportFilePickerOpen)

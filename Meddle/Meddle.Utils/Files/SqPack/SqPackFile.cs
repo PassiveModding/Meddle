@@ -27,15 +27,19 @@ public class SqPackIndex2File
 
     public SqPackIndex2File(byte[] data)
     {
-        var reader = new SpanBinaryReader(data);
+        var reader = new BinaryReader(new MemoryStream(data));
         FileHeader = reader.Read<SqPackHeader>();
-
-        reader.Seek((int)FileHeader.size, SeekOrigin.Begin);
+        
+        reader.BaseStream.Seek(FileHeader.size, SeekOrigin.Begin);
         IndexHeader = reader.Read<SqPackIndexHeader>();
-
-        reader.Seek((int)IndexHeader.IndexDataOffset, SeekOrigin.Begin);
+        
+        reader.BaseStream.Seek(IndexHeader.IndexDataOffset, SeekOrigin.Begin);
         var entryCount = IndexHeader.IndexDataSize / Unsafe.SizeOf<Index2HashTableEntry>();
-        entries = reader.Read<Index2HashTableEntry>((int)entryCount).ToArray();
+        entries = new Index2HashTableEntry[entryCount];
+        for (var i = 0; i < entryCount; i++)
+        {
+            entries[i] = reader.Read<Index2HashTableEntry>();
+        }
     }
 }
 
@@ -48,14 +52,18 @@ public class SqPackIndexFile
 
     public SqPackIndexFile(byte[] data)
     {
-        var reader = new SpanBinaryReader(data);
+        var reader = new BinaryReader(new MemoryStream(data));
         FileHeader = reader.Read<SqPackHeader>();
-
-        reader.Seek((int)FileHeader.size, SeekOrigin.Begin);
+        
+        reader.BaseStream.Seek(FileHeader.size, SeekOrigin.Begin);
         IndexHeader = reader.Read<SqPackIndexHeader>();
-
-        reader.Seek((int)IndexHeader.IndexDataOffset, SeekOrigin.Begin);
+        
+        reader.BaseStream.Seek(IndexHeader.IndexDataOffset, SeekOrigin.Begin);
         var entryCount = IndexHeader.IndexDataSize / Unsafe.SizeOf<IndexHashTableEntry>();
-        entries = reader.Read<IndexHashTableEntry>((int)entryCount).ToArray();
+        entries = new IndexHashTableEntry[entryCount];
+        for (var i = 0; i < entryCount; i++)
+        {
+            entries[i] = reader.Read<IndexHashTableEntry>();
+        }
     }
 }

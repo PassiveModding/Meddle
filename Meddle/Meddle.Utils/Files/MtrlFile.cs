@@ -27,9 +27,6 @@ public class MtrlFile
     public Constant[] Constants;
     public Sampler[] Samplers;
     public uint[] ShaderValues;
-    
-    private readonly byte[] rawData;
-    public ReadOnlySpan<byte> RawData => rawData;
 
     public MtrlFile(byte[] data) : this((ReadOnlySpan<byte>)data) { }
     public MtrlFile(ReadOnlySpan<byte> data)
@@ -82,8 +79,71 @@ public class MtrlFile
         Samplers = reader.Read<Sampler>(MaterialHeader.SamplerCount).ToArray();
         
         ShaderValues = reader.Read<uint>(MaterialHeader.ShaderValueListSize / 4).ToArray();
+    }
+
+    public ReadOnlySpan<byte> Write()
+    {
+        var span = new MemoryStream();
+        var binaryWriter = new BinaryWriter(span);
+        binaryWriter.Write(FileHeader);
+        binaryWriter.Write(TextureOffsets.Select(x => (uint)(x.Offset | (x.Flags << 16))).ToArray());
+        binaryWriter.Write(UvColorSets);
+        binaryWriter.Write(ColorSets);
+        binaryWriter.Write(Strings);
+        binaryWriter.Write(AdditionalData);
         
-        rawData = data.ToArray();
+        if (FileHeader.DataSetSize > 0)
+        {
+            var dataSetSpan = new MemoryStream(new byte[FileHeader.DataSetSize]);
+            var dataSetWriter = new BinaryWriter(dataSetSpan);
+            if (LargeColorTable)
+            {
+                if (HasTable)
+                {
+                    foreach (var row in ColorTable)
+                    {
+                        dataSetWriter.Write(row);
+                    }
+                }
+
+                if (HasDyeTable)
+                {
+                    foreach (var row in ColorDyeTable)
+                    {
+                        dataSetWriter.Write(row);
+                    }
+                }
+            }
+            else
+            {
+                if (HasTable)
+                {
+                    var legacyColorTable = ColorTable.ToLegacy();
+                    foreach (var row in legacyColorTable)
+                    {
+                        dataSetWriter.Write(row);
+                    }
+                }
+
+                if (HasDyeTable)
+                {
+                    var legacyColorDyeTable = ColorDyeTable.ToLegacy();
+                    foreach (var row in legacyColorDyeTable)
+                    {
+                        dataSetWriter.Write(row);
+                    }
+                }
+            }
+            binaryWriter.Write(dataSetSpan.ToArray());
+        }
+        
+        binaryWriter.Write(MaterialHeader);
+        binaryWriter.Write(ShaderKeys);
+        binaryWriter.Write(Constants);
+        binaryWriter.Write(Samplers);
+        binaryWriter.Write(ShaderValues);
+        
+        return span.ToArray();
     }
 }
 

@@ -49,7 +49,7 @@ public class SklbFile
     public SklbFile(ReadOnlySpan<byte> data)
     {
         rawData = data.ToArray();
-        var reader = new SpanBinaryReader(data);
+        var reader = new BinaryReader(new MemoryStream(rawData));
         Header = reader.Read<SklbHeader>();
         if (Header.Magic != SklbMagic)
             throw new InvalidDataException("Invalid sklb magic");

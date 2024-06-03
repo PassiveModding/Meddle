@@ -85,9 +85,9 @@ public class TexFile
 
     public TexFile(ReadOnlySpan<byte> data)
     {
-        var reader = new SpanBinaryReader(data);
+        var reader = new BinaryReader(new MemoryStream(data.ToArray()));
         Header = reader.Read<TexHeader>();
-        TextureBuffer = reader.Read<byte>(reader.Remaining).ToArray();
+        TextureBuffer = reader.Read<byte>(reader.Remaining()).ToArray();
     }
 
     public int SliceSize(int mipmapIndex, out int width, out int height)
@@ -115,7 +115,7 @@ public class TexFile
         }
     }
 
-    public unsafe Span<byte> SliceSpan(
+    public unsafe ReadOnlySpan<byte> SliceSpan(
         int mipmapIndex, int sliceIndex, out int sliceSize, out int width, out int height)
     {
         sliceSize = SliceSize(mipmapIndex, out width, out height);

@@ -9,22 +9,45 @@ namespace Meddle.UI.Windows.Views;
 
 public class MtrlView : IView
 {
+    private readonly SqPackFile dat;
     private readonly MtrlFile file;
     private readonly SqPack pack;
     private readonly ImageHandler imageHandler;
     private readonly Dictionary<string, TexView?> mtrlTextureCache = new();
     private readonly HexView hexView;
 
-    public MtrlView(MtrlFile file, SqPack pack, ImageHandler imageHandler)
+    public MtrlView(SqPackFile dat, MtrlFile file, SqPack pack, ImageHandler imageHandler)
     {
+        this.dat = dat;
         this.file = file;
         this.pack = pack;
         this.imageHandler = imageHandler;
-        hexView = new HexView(file.RawData);
+        hexView = new HexView(dat.RawData);
     }
     
     public void Draw()
     {
+        if (ImGui.Button("Write"))
+        {
+            var data = file.Write();
+            var data2 = dat.RawData;
+            if (data.Length != data2.Length)
+            {
+                Console.WriteLine("Length mismatch");
+            }
+            else
+            {
+                for (var i = 0; i < data.Length; i++)
+                {
+                    if (data[i] != data2[i])
+                    {
+                        Console.WriteLine($"Mismatch at {i}");
+                        break;
+                    }
+                }
+            }
+        }
+        
         ImGui.Text($"Material Version: {file.FileHeader.Version}");
         var material = new Material(file);
         ImGui.Text($"Shader Package Name: {material.ShaderPackageName}");
