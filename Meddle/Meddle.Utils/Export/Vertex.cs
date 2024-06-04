@@ -25,8 +25,10 @@ public unsafe struct Vertex
         // 11 Doesn't exist!
         // 12 Doesn't exist!
         Half2 = 13, // => 50 => DXGI_FORMAT_R16G16_FLOAT
-        Half4 = 14  // => 52 => DXGI_FORMAT_R16G16B16A16_FLOAT
+        Half4 = 14,  // => 52 => DXGI_FORMAT_R16G16B16A16_FLOAT
         // 15 => 97 => ?? (doesn't exist, so it resolves to DXGI_FORMAT_UNKNOWN)
+
+        UShort4 = 17 // 8 byte array for bone weights/bone indexes; 0,4,1,5,2,6,3,7
     }
     
     public static KernelVertexType GetKernelVertexType(VertexType type) => type switch
@@ -37,6 +39,7 @@ public unsafe struct Vertex
         VertexType.ByteFloat4 => KernelVertexType.DXGI_FORMAT_R8G8B8A8_UNORM,
         VertexType.Half2 => KernelVertexType.DXGI_FORMAT_R16G16_FLOAT,
         VertexType.Half4 => KernelVertexType.DXGI_FORMAT_R16G16B16A16_FLOAT,
+        VertexType.UShort4 => KernelVertexType.DXGI_FORMAT_R16G16B16A16_SINT,
         _ => throw new ArgumentException($"Unknown type {type}"),
     };
     
@@ -191,8 +194,9 @@ public unsafe struct Vertex
     }
 
 
-    public static void Apply(
-        Vertex[] vertices, ReadOnlySpan<byte> buffer, VertexType type, VertexUsage usage, int offset, byte stride)
+    public static void Apply(Vertex[] vertices, ReadOnlySpan<byte> buffer, 
+        VertexType type, VertexUsage usage, 
+        int offset, byte stride)
     {
         for (var i = 0; i < vertices.Length; ++i)
         {
@@ -232,50 +236,6 @@ public unsafe struct Vertex
                 default:
                     Console.WriteLine(
                         $"Skipped usage {usage} [{type}] = {item}");
-                    break;
-            }
-        }
-    }
-
-    public static void Apply(Vertex[] vertices, ReadOnlySpan<byte> buffer, FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.VertexElement element, byte stride)
-    {
-        for (var i = 0; i < vertices.Length; ++i)
-        {
-            ref var vert = ref vertices[i];
-            var buf = buffer.Slice(i * stride, stride);
-
-            var item = VertexItem.GetElement(buf[element.Offset..], (KernelVertexType)element.Type);
-
-            switch ((KernelVertexUsage)element.Usage)
-            {
-                case KernelVertexUsage.POSITION0:
-                    vert.Position = VertexItem.ConvertTo<Vector4>(item);
-                    break;
-                case KernelVertexUsage.BLENDWEIGHT0:
-                    vert.BlendWeights = VertexItem.ConvertTo<Vector4>(item);
-                    break;
-                case KernelVertexUsage.BLENDINDICES0:
-                    var itemVector = VertexItem.ConvertTo<Vector4>(item);
-                    for (var j = 0; j < 4; ++j)
-                        vert.BlendIndices[j] = (byte)itemVector[j];
-                    break;
-                case KernelVertexUsage.NORMAL0:
-                    vert.Normal = VertexItem.ConvertTo<Vector3>(item);
-                    break;
-                case KernelVertexUsage.TEXCOORD0:
-                    vert.UV = VertexItem.ConvertTo<Vector4>(item);
-                    break;
-                case KernelVertexUsage.COLOR0:
-                    vert.Color = VertexItem.ConvertTo<Vector4>(item);
-                    break;
-                case KernelVertexUsage.TANGENT0:
-                    vert.Tangent2 = VertexItem.ConvertTo<Vector4>(item);
-                    break;
-                case KernelVertexUsage.BINORMAL0:
-                    vert.Tangent1 = VertexItem.ConvertTo<Vector4>(item);
-                    break;
-                default:
-                    Console.WriteLine($"Skipped usage {(KernelVertexUsage)element.Usage} [{(KernelVertexType)element.Type}] = {item}");
                     break;
             }
         }

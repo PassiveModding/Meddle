@@ -1,4 +1,5 @@
-﻿using Meddle.Utils.Files;
+﻿using System.Text.Json;
+using Meddle.Utils.Files;
 using Meddle.Utils.Models;
 
 namespace Meddle.Utils.Export;
@@ -68,20 +69,18 @@ public unsafe class Model
                         break;
 
                     var streamIdx = element.Stream;
-                    var vertexStreamStride = mesh.VertexBufferStride[streamIdx];
-                    var vertexStreamOffset = mesh.VertexBufferOffset[streamIdx];
-                    var vertexOffset = file.FileHeader.VertexOffset[lodIdx];
-                    var vertexBufferSize = file.FileHeader.VertexBufferSize[streamIdx];
-                    var vertexStreamBuffer = file.RawData.Slice((int)(vertexOffset + vertexStreamOffset), (int)vertexBufferSize);
+                    var stride = mesh.VertexBufferStride[streamIdx];
                     
+                    var vertexStreamBuffer = file.RawData.Slice((int)file.FileHeader.VertexOffset[lodIdx], 
+                                                                (int)file.FileHeader.VertexBufferSize[lodIdx]);
+                    vertexStreamBuffer = vertexStreamBuffer[(int)mesh.VertexBufferOffset[streamIdx]..];
+                        
                     Vertex.Apply(meshVertices, vertexStreamBuffer, (Vertex.VertexType)element.Type,
-                                 (Vertex.VertexUsage)element.Usage, element.Offset, vertexStreamStride);
+                                 (Vertex.VertexUsage)element.Usage, element.Offset, stride);
                 }
                 
                 foreach (var index in meshIndices)
                 {
-                    if (index < 0)
-                        throw new ArgumentException($"Mesh {i} has index {index}, which is negative");
                     if (index >= meshVertices.Length)
                         throw new ArgumentException($"Mesh {i} has index {index}, but only {meshVertices.Length} vertices exist");
                 }
@@ -96,12 +95,10 @@ public unsafe class Model
         
         Meshes = meshes;
         
-        var shapeMeshes = new ShapeMesh[file.ModelHeader.ShapeCount];
-        //var meshDict = Meshes.ToDictionary(x => hnd->Meshes[x.MeshIdx].StartIndex, x => x);
+        var shapeMeshes = new ShapeMesh[file.ModelHeader.ShapeMeshCount];
         for (var i = 0; i < shapeMeshes.Length; i++)
         {
             var shapeMesh = file.ShapeMeshes[i];
-            //if (!meshDict.TryGetValue(shapeMesh.MeshIndexOffset, out var meshMatch)) continue;
             var meshMatch = Meshes.FirstOrDefault(x => file.Meshes[x.MeshIdx].StartIndex == shapeMesh.MeshIndexOffset);
             if (meshMatch == null)
                 continue;

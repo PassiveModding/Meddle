@@ -507,7 +507,7 @@ public class SqPackWindow
         {
             SelectedFileType.Texture => view ?? new TexView(hash, new TexFile(file.RawData), imageHandler, path),
             SelectedFileType.Material => view ?? new MtrlView(file, new MtrlFile(file.RawData), sqPack, imageHandler),
-            SelectedFileType.Model => view ?? new MdlView(new MdlFile(file.RawData)),
+            SelectedFileType.Model => view ?? new MdlView(new MdlFile(file.RawData), path),
             SelectedFileType.Sklb => view ?? new SklbView(new SklbFile(file.RawData), config),
             SelectedFileType.None => view ?? new DefaultView(hash, file),
             _ => view ?? new DefaultView(hash, file)

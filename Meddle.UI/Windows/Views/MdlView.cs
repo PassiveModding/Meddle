@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using System.Diagnostics;
+using System.Numerics;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using ImGuiNET;
 using Meddle.Utils;
@@ -9,7 +10,7 @@ using SharpGLTF.Scenes;
 
 namespace Meddle.UI.Windows.Views;
 
-public class MdlView(MdlFile mdlFile) : IView
+public class MdlView(MdlFile mdlFile, string? path) : IView
 {
     private readonly Model model = new(mdlFile);
     private Utils.Export.Model? fmodel;
@@ -18,9 +19,9 @@ public class MdlView(MdlFile mdlFile) : IView
 
     public void Draw()
     {
-        if (ImGui.Button("Test"))
+        if (ImGui.Button("Export as GLTF"))
         {
-            fmodel = new Utils.Export.Model(this.model.File, "");
+            fmodel = new Utils.Export.Model(this.model.File, path ?? "");
             var materialCount = model.File.MaterialNameOffsets.Length; 
             var materials = new MaterialBuilder[materialCount];
             for (var i = 0; i < materialCount; i++)
@@ -37,7 +38,20 @@ public class MdlView(MdlFile mdlFile) : IView
             }
             
             var sceneGraph = scene.ToGltf2();
-            sceneGraph.SaveGLB("test.glb");
+            
+            var outputPath = Path.Combine("output", path ?? "model.mdl");
+            var folder = Path.GetDirectoryName(outputPath) ?? "output";
+            if (!Directory.Exists(folder))
+            {
+                Directory.CreateDirectory(folder);
+            }
+            
+            // replace extension with gltf
+            outputPath = Path.ChangeExtension(outputPath, ".gltf");
+            
+            sceneGraph.SaveGLTF(outputPath);
+            
+            Process.Start("explorer.exe", folder);
         }
         
         var mdlFile = model.File;
