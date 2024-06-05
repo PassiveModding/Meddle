@@ -23,7 +23,7 @@ public class ModelBuilder
             var useSkinning = mesh.BoneTable != null;
             MeshBuilder meshBuilder;
             var material = materials[mesh.MaterialIdx];
-            if (useSkinning)
+            if (useSkinning && boneMap.Count > 0)
             {
                 var jointIdMapping = new List<int>();
                 var jointLut = boneMap
