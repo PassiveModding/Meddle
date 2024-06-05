@@ -3,43 +3,32 @@ using Meddle.Utils.Files;
 
 namespace Meddle.Utils.Models;
 
-public class Model
-{
-    public MdlFile File { get; }
-    public IReadOnlyDictionary<int, string> Strings { get; }
-    public string[] BoneNames { get; }
-    public string[][] BoneTables { get; }
-    
-    public Model(MdlFile file)
+public static class Model
+{  
+    private static IReadOnlyDictionary<int, string> GetBoneNames(this MdlFile file)
     {
-        File = file;
-        Strings = GetStrings();
-        BoneNames = File.BoneNameOffsets.Select(x => Strings[(int)x]).ToArray();
-        BoneTables = GetBoneTables();
-    }
-
-    private IReadOnlyDictionary<int, string> GetBoneNames()
-    {
+        var strings = file.GetStrings();    
         var boneNames = new Dictionary<int, string>();
-        foreach (int offset in File.BoneNameOffsets)
+        foreach (int offset in file.BoneNameOffsets)
         {
-            var name = Strings[offset];
+            var name = strings[offset];
             boneNames.Add(offset, name);
         }
 
         return boneNames;
     }
 
-    private string[][] GetBoneTables()
+    public static string[][] GetBoneTables(this MdlFile file)
     {
-        var tables = new string[File.BoneTables.Length][];
-        for (int i = 0; i < File.BoneTables.Length; i++)
+        var boneNames = file.GetBoneNames().Select(x => x.Value).ToArray();
+        var tables = new string[file.BoneTables.Length][];
+        for (int i = 0; i < file.BoneTables.Length; i++)
         {
-            var table = File.BoneTables[i];
+            var table = file.BoneTables[i];
             var names = new string[table.BoneCount];
             for (int j = 0; j < table.BoneCount; j++)
             {
-                names[j] = BoneNames[table.BoneIndex[j]];
+                names[j] = boneNames[table.BoneIndex[j]];
             }
             tables[i] = names;
         }
@@ -47,12 +36,24 @@ public class Model
         return tables;
     }
     
-    private Dictionary<int, string> GetStrings()
+    public static string[] GetMaterialNames(this MdlFile file)
+    {
+        var strings = file.GetStrings();
+        var names = new string[file.MaterialNameOffsets.Length];
+        for (int i = 0; i < file.MaterialNameOffsets.Length; i++)
+        {
+            names[i] = strings[(int)file.MaterialNameOffsets[i]];
+        }
+
+        return names;
+    }
+    
+    public static Dictionary<int, string> GetStrings(this MdlFile file)
     {
         var strings = new Dictionary<int, string>();
-        var stringReader = new SpanBinaryReader(File.StringTable);
+        var stringReader = new SpanBinaryReader(file.StringTable);
         var offset = 0;
-        while (offset < File.StringTable.Length)
+        while (offset < file.StringTable.Length)
         {
             var str = stringReader.ReadByteString(offset);
             strings.Add(offset, Encoding.UTF8.GetString(str));

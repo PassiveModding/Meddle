@@ -9,7 +9,7 @@ public class SettingsWindow(Configuration configuration)
     private string gameDir = configuration.GameDirectory;
     private int interopPort = configuration.InteropPort;
     
-    public event RedrawBrowserEventHandler? RedrawBrowser;
+    public event RedrawBrowserEventHandler? OnRedrawBrowser;
     public delegate void RedrawBrowserEventHandler();
 
     public void Draw()
@@ -58,7 +58,7 @@ public class SettingsWindow(Configuration configuration)
                 
                 if (ImGui.Button("OK"))
                 {
-                    RedrawBrowser?.Invoke();
+                    OnRedrawBrowser?.Invoke();
                     showSettings = false;
                     configuration.GameDirectory = gameDir;
                     configuration.InteropPort = interopPort;

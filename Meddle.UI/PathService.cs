@@ -35,18 +35,17 @@ public static class PathUtils
             {
                 var file = pack.GetFile(path.Path);
                 if (file is null) continue;
-                Material material;
+                MtrlFile mtrl;
                 try
                 {
-                    var mtrl = new MtrlFile(file.Value.file.RawData);
-                    material = new Material(mtrl);
+                    mtrl = new MtrlFile(file.Value.file.RawData);
                 }
                 catch
                 {
                     continue;
                 }
                 
-                foreach (var (_, value) in material.TexturePaths)
+                foreach (var (_, value) in mtrl.GetTexturePaths())
                 {
                     yield return SqPack.GetFileHash(value);
                 }

@@ -23,7 +23,7 @@ public class ModelBuilder
             var useSkinning = mesh.BoneTable != null;
             MeshBuilder meshBuilder;
             var material = materials[mesh.MaterialIdx];
-            if (useSkinning && false)
+            if (useSkinning)
             {
                 var jointIdMapping = new List<int>();
                 var jointLut = boneMap
@@ -31,7 +31,10 @@ public class ModelBuilder
                                .ToArray();
                 foreach (var boneName in mesh.BoneTable!)
                 {
-                    jointIdMapping.Add(jointLut.First(x => x.BoneName.Equals(boneName, StringComparison.Ordinal)).i);
+                    var match = jointLut.FirstOrDefault(x => x.BoneName.Equals(boneName, StringComparison.Ordinal));
+                    if (match == default)
+                        throw new Exception($"Bone {boneName} not found in bone map.");
+                    jointIdMapping.Add(match.i);
                 }
 
                 meshBuilder = new MeshBuilder(mesh, true, jointIdMapping.ToArray(), material, deform);

@@ -48,9 +48,12 @@ public unsafe class Model
         
         // consolidate ranges
         var meshes = new List<Mesh>();
+        var vertexStreamBuffer = 
+            file.RawData.Slice((int)file.FileHeader.VertexOffset[lodIdx], (int)file.FileHeader.VertexBufferSize[lodIdx]);
+
         foreach (var range in meshRanges.AsConsolidated())
         {
-            for (int i = range.Start.Value; i < range.End.Value; i++)
+            for (var i = range.Start.Value; i < range.End.Value; i++)
             {
                 var mesh = file.Meshes[i];
                 var meshVertexDecls = file.VertexDeclarations[i];
@@ -70,13 +73,15 @@ public unsafe class Model
 
                     var streamIdx = element.Stream;
                     var stride = mesh.VertexBufferStride[streamIdx];
-                    
-                    var vertexStreamBuffer = file.RawData.Slice((int)file.FileHeader.VertexOffset[lodIdx], 
-                                                                (int)file.FileHeader.VertexBufferSize[lodIdx]);
-                    vertexStreamBuffer = vertexStreamBuffer[(int)mesh.VertexBufferOffset[streamIdx]..];
-                        
-                    Vertex.Apply(meshVertices, vertexStreamBuffer, (Vertex.VertexType)element.Type,
-                                 (Vertex.VertexUsage)element.Usage, element.Offset, stride);
+                    var bufferOffset = mesh.VertexBufferOffset[streamIdx];
+                    var offsetVertexStreamBuffer =
+                        vertexStreamBuffer.Slice((int)bufferOffset, stride * mesh.VertexCount);
+
+                    for (var j = 0; j < meshVertices.Length; ++j)
+                    {
+                        var buf = offsetVertexStreamBuffer.Slice(j * stride, stride);
+                        Vertex.Apply(ref meshVertices[j], buf, element);
+                    }
                 }
                 
                 foreach (var index in meshIndices)

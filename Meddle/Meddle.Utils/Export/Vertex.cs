@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using System.Text.Json.Serialization;
+using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 
 namespace Meddle.Utils.Export;
 
@@ -30,31 +31,6 @@ public unsafe struct Vertex
 
         UShort4 = 17 // 8 byte array for bone weights/bone indexes; 0,4,1,5,2,6,3,7
     }
-    
-    public static KernelVertexType GetKernelVertexType(VertexType type) => type switch
-    {
-        VertexType.Single3 => KernelVertexType.DXGI_FORMAT_R32G32B32_FLOAT,
-        VertexType.Single4 => KernelVertexType.DXGI_FORMAT_R32G32B32A32_FLOAT,
-        VertexType.UInt => KernelVertexType.DXGI_FORMAT_R8G8B8A8_UINT,
-        VertexType.ByteFloat4 => KernelVertexType.DXGI_FORMAT_R8G8B8A8_UNORM,
-        VertexType.Half2 => KernelVertexType.DXGI_FORMAT_R16G16_FLOAT,
-        VertexType.Half4 => KernelVertexType.DXGI_FORMAT_R16G16B16A16_FLOAT,
-        VertexType.UShort4 => KernelVertexType.DXGI_FORMAT_R16G16B16A16_SINT,
-        _ => throw new ArgumentException($"Unknown type {type}"),
-    };
-    
-    public static KernelVertexUsage GetKernelVertexUsage(VertexUsage usage) => usage switch
-    {
-        VertexUsage.Position => KernelVertexUsage.POSITION0,
-        VertexUsage.BlendWeights => KernelVertexUsage.BLENDWEIGHT0,
-        VertexUsage.BlendIndices => KernelVertexUsage.BLENDINDICES0,
-        VertexUsage.Normal => KernelVertexUsage.NORMAL0,
-        VertexUsage.UV => KernelVertexUsage.TEXCOORD0,
-        VertexUsage.Tangent2 => KernelVertexUsage.TANGENT0,
-        VertexUsage.Tangent1 => KernelVertexUsage.BINORMAL0,
-        VertexUsage.Color => KernelVertexUsage.COLOR0,
-        _ => throw new ArgumentException($"Unknown usage {usage}"),
-    };
 
     public enum VertexUsage : byte
     {
@@ -66,43 +42,6 @@ public unsafe struct Vertex
         Tangent2 = 5,     // => 14 => TANGENT0
         Tangent1 = 6,     // => 15 => BINORMAL0
         Color = 7,        // (UsageIndex +) 3 => COLOR0
-    }
-    
-    public enum KernelVertexType : byte
-    {
-        DXGI_FORMAT_R16G16_SNORM = 18,
-        DXGI_FORMAT_R16G16B16A16_SNORM = 20,
-        DXGI_FORMAT_R32_FLOAT = 33,
-        DXGI_FORMAT_R32G32_FLOAT = 34,
-        DXGI_FORMAT_R32G32B32_FLOAT = 35,
-        DXGI_FORMAT_R32G32B32A32_FLOAT = 36,
-        DXGI_FORMAT_R16G16_FLOAT = 50,
-        DXGI_FORMAT_R16G16B16A16_FLOAT = 52,
-        DXGI_FORMAT_R8G8B8A8_UNORM = 68,
-        DXGI_FORMAT_R16G16_SINT = 82,
-        DXGI_FORMAT_R16G16B16A16_SINT = 84,
-        DXGI_FORMAT_R8G8B8A8_UINT = 116
-    }
-
-    public enum KernelVertexUsage : byte
-    {
-        POSITION0,
-        BLENDWEIGHT0,
-        NORMAL0,
-        COLOR0,
-        COLOR1,
-        FOG0,
-        PSIZE0,
-        BLENDINDICES0,
-        TEXCOORD0,
-        TEXCOORD1,
-        TEXCOORD2,
-        TEXCOORD3,
-        TEXCOORD4,
-        TEXCOORD5,
-        TANGENT0,
-        BINORMAL0,
-        DEPTH0,
     }
 
     public Vector4? Position;
@@ -125,9 +64,6 @@ public unsafe struct Vertex
         }
     }
 
-    [JsonPropertyName("BlendIndices")]
-    public int[] BlendIndicesArray => BlendIndices.ToArray().Select(i => (int)i).ToArray();
-    
     private static class VertexItem
     {
         private static float FromSNorm(short value) =>
@@ -137,28 +73,28 @@ public unsafe struct Vertex
 
         private static float FromUNorm(byte value) =>
             value / 255.0f;
-        public static object GetElement(ReadOnlySpan<byte> buffer, KernelVertexType type)
+        
+        private static float FromUShort(ushort value) =>
+            value / 65535.0f;
+        
+        public static object GetElement(ReadOnlySpan<byte> buffer, VertexType type)
         {
             fixed (byte* b = buffer)
             {
                 var s = (short*)b;
+                var us = (ushort*)b;
                 var h = (Half*)b;
                 var f = (float*)b;
 
                 return type switch
                 {
-                    KernelVertexType.DXGI_FORMAT_R16G16_SNORM => new Vector2(FromSNorm(s[0]), FromSNorm(s[1])),
-                    KernelVertexType.DXGI_FORMAT_R16G16B16A16_SNORM => new Vector4(FromSNorm(s[0]), FromSNorm(s[1]), FromSNorm(s[2]), FromSNorm(s[3])),
-                    KernelVertexType.DXGI_FORMAT_R32_FLOAT => f[0],
-                    KernelVertexType.DXGI_FORMAT_R32G32_FLOAT => new Vector2(f[0], f[1]),
-                    KernelVertexType.DXGI_FORMAT_R32G32B32_FLOAT => new Vector3(f[0], f[1], f[2]),
-                    KernelVertexType.DXGI_FORMAT_R32G32B32A32_FLOAT => new Vector4(f[0], f[1], f[2], f[3]),
-                    KernelVertexType.DXGI_FORMAT_R16G16_FLOAT => new Vector2((float)h[0], (float)h[1]),
-                    KernelVertexType.DXGI_FORMAT_R16G16B16A16_FLOAT => new Vector4((float)h[0], (float)h[1], (float)h[2], (float)h[3]),
-                    KernelVertexType.DXGI_FORMAT_R8G8B8A8_UNORM => new Vector4(FromUNorm(b[0]), FromUNorm(b[1]), FromUNorm(b[2]), FromUNorm(b[3])),
-                    KernelVertexType.DXGI_FORMAT_R16G16_SINT => new Vector2(s[0], s[1]),
-                    KernelVertexType.DXGI_FORMAT_R16G16B16A16_SINT => new Vector4(s[0], s[1], s[2], s[3]),
-                    KernelVertexType.DXGI_FORMAT_R8G8B8A8_UINT => new Vector4(b[0], b[1], b[2], b[3]),
+                    VertexType.Single3 => new Vector3(f[0], f[1], f[2]),
+                    VertexType.Single4 => new Vector4(f[0], f[1], f[2], f[3]),
+                    VertexType.UInt => new Vector4(b[0], b[1], b[2], b[3]),
+                    VertexType.ByteFloat4 => new Vector4(FromUNorm(b[0]), FromUNorm(b[1]), FromUNorm(b[2]), FromUNorm(b[3])),
+                    VertexType.Half2 => new Vector2((float)h[0], (float)h[1]),
+                    VertexType.Half4 => new Vector4((float)h[0], (float)h[1], (float)h[2], (float)h[3]),
+                    VertexType.UShort4 => new Vector4(FromUShort(us[0]), FromUShort(us[1]), FromUShort(us[2]), FromUShort(us[3])),
                     _ => throw new ArgumentException($"Unknown type {type}"),
                 };
             }
@@ -193,51 +129,40 @@ public unsafe struct Vertex
         }
     }
 
-
-    public static void Apply(Vertex[] vertices, ReadOnlySpan<byte> buffer, 
-        VertexType type, VertexUsage usage, 
-        int offset, byte stride)
+    public static void Apply(ref Vertex vertex, ReadOnlySpan<byte> buffer, ModelResourceHandle.VertexElement element)
     {
-        for (var i = 0; i < vertices.Length; ++i)
+        var item = VertexItem.GetElement(buffer[element.Offset..], (VertexType)element.Type);
+        switch ((VertexUsage)element.Usage)
         {
-            ref var vert = ref vertices[i];
-            var buf = buffer.Slice(i * stride, stride);
-
-            var item = VertexItem.GetElement(buf[offset..], GetKernelVertexType(type));
-            var kernelUsage = GetKernelVertexUsage(usage);
-            switch (kernelUsage)
-            {
-                case KernelVertexUsage.POSITION0:
-                    vert.Position = VertexItem.ConvertTo<Vector4>(item);
-                    break;
-                case KernelVertexUsage.BLENDWEIGHT0:
-                    vert.BlendWeights = VertexItem.ConvertTo<Vector4>(item);
-                    break;
-                case KernelVertexUsage.BLENDINDICES0:
-                    var itemVector = VertexItem.ConvertTo<Vector4>(item);
-                    for (var j = 0; j < 4; ++j)
-                        vert.BlendIndices[j] = (byte)itemVector[j];
-                    break;
-                case KernelVertexUsage.NORMAL0:
-                    vert.Normal = VertexItem.ConvertTo<Vector3>(item);
-                    break;
-                case KernelVertexUsage.TEXCOORD0:
-                    vert.UV = VertexItem.ConvertTo<Vector4>(item);
-                    break;
-                case KernelVertexUsage.COLOR0:
-                    vert.Color = VertexItem.ConvertTo<Vector4>(item);
-                    break;
-                case KernelVertexUsage.TANGENT0:
-                    vert.Tangent2 = VertexItem.ConvertTo<Vector4>(item);
-                    break;
-                case KernelVertexUsage.BINORMAL0:
-                    vert.Tangent1 = VertexItem.ConvertTo<Vector4>(item);
-                    break;
-                default:
-                    Console.WriteLine(
-                        $"Skipped usage {usage} [{type}] = {item}");
-                    break;
-            }
+            case VertexUsage.Position:
+                vertex.Position = VertexItem.ConvertTo<Vector4>(item);
+                break;
+            case VertexUsage.BlendWeights:
+                vertex.BlendWeights = VertexItem.ConvertTo<Vector4>(item);
+                break;
+            case VertexUsage.BlendIndices:
+                var itemVector = VertexItem.ConvertTo<Vector4>(item);
+                for (var j = 0; j < 4; ++j)
+                    vertex.BlendIndices[j] = (byte)itemVector[j];
+                break;
+            case VertexUsage.Normal:
+                vertex.Normal = VertexItem.ConvertTo<Vector3>(item);
+                break;
+            case VertexUsage.UV:
+                vertex.UV = VertexItem.ConvertTo<Vector4>(item);
+                break;
+            case VertexUsage.Color:
+                vertex.Color = VertexItem.ConvertTo<Vector4>(item);
+                break;
+            case VertexUsage.Tangent2:
+                vertex.Tangent2 = VertexItem.ConvertTo<Vector4>(item);
+                break;
+            case VertexUsage.Tangent1:
+                vertex.Tangent1 = VertexItem.ConvertTo<Vector4>(item);
+                break;
+            default:
+                Console.WriteLine($"Skipped usage {element.Usage} [{element.Type}] = {item}");
+                break;
         }
     }
 }

@@ -153,47 +153,61 @@ public class SqPackWindow
 
     private void DrawPathViewer()
     {
-        ImGui.InputText("##AddPath", ref search, 100);
-        ImGui.SameLine();
-        if (ImGui.Button("Add"))
+        var cra = ImGui.GetContentRegionAvail();
+        if (ImGui.BeginChild("##SqPackCategoryEntries", cra with {Y = cra.Y - 50}))
         {
-            var hash = SqPack.GetFileHash(search);
-            var file = sqPack.GetFile(hash);
-            if (file != null)
+            ImGui.InputText("##AddPath", ref search, 100);
+            ImGui.SameLine();
+            if (ImGui.Button("Add"))
             {
-                selectedFile = (0, file.Value.category, file.Value.hash, file.Value.file);
-                view = null;
-                pathManager.ParsedPaths.Add(hash);
+                var hash = SqPack.GetFileHash(search);
+                var file = sqPack.GetFile(hash);
+                if (file != null)
+                {
+                    selectedFile = (0, file.Value.category, file.Value.hash, file.Value.file);
+                    view = null;
+                    pathManager.ParsedPaths.Add(hash);
+                }
             }
-        }
 
-        if (ImGui.InputText("Filter", ref filter, 100))
-        {
-            pathManager.PathViewerCache = pathManager.ParsedPaths
-                                                     .Where(x => x.Path.Contains(filter))
-                                                     .OrderBy(x => x.Path)
-                                                     .GroupBy(x => x.Path.Split('/')[0])
-                                                     .ToList();
-            pathManager.FolderCache.Clear();
-        }
-        else if (pathManager.PathViewerCache.Count == 0)
-        {
-            pathManager.PathViewerCache = pathManager.ParsedPaths
-                                                     .OrderBy(x => x.Path)
-                                                     .GroupBy(x => x.Path.Split('/')[0])
-                                                     .ToList();
-            pathManager.FolderCache.Clear();
-        }
-
-        foreach (var group in pathManager.PathViewerCache)
-        {
-            if (ImGui.TreeNode(group.Key))
+            if (ImGui.InputText("Filter", ref filter, 100))
             {
-                DrawPathSet(group.Key, group);
-                ImGui.TreePop();
+                pathManager.PathViewerCache = pathManager.ParsedPaths
+                                                         .Where(x => x.Path.Contains(filter))
+                                                         .OrderBy(x => x.Path)
+                                                         .GroupBy(x => x.Path.Split('/')[0])
+                                                         .ToList();
+                pathManager.FolderCache.Clear();
             }
+            else if (pathManager.PathViewerCache.Count == 0)
+            {
+                pathManager.PathViewerCache = pathManager.ParsedPaths
+                                                         .OrderBy(x => x.Path)
+                                                         .GroupBy(x => x.Path.Split('/')[0])
+                                                         .ToList();
+                pathManager.FolderCache.Clear();
+            }
+
+            foreach (var group in pathManager.PathViewerCache)
+            {
+                if (ImGui.TreeNode(group.Key))
+                {
+                    DrawPathSet(group.Key, group);
+                    ImGui.TreePop();
+                }
+            }
+            
+            ImGui.EndChild();
+        }
+        
+        if (ImGui.Button("Export Menu"))
+        {
+            exportView ??= new ExportView(sqPack, config, imageHandler);
+            view = exportView;
         }
     }
+
+    private ExportView? exportView;
 
     private void DrawPathSet(string key, IEnumerable<ParsedFilePath> paths)
     {
@@ -251,7 +265,8 @@ public class SqPackWindow
         Texture,
         Model,
         Material,
-        Sklb
+        Sklb,
+        Shpk
     }
 
     private int sliceStartIndex;
@@ -396,8 +411,13 @@ public class SqPackWindow
 
     private void DrawFile()
     {
-        if (selectedFile == null)
+        if (selectedFile == null && view is not ExportView)
         {
+            return;
+        }
+        else if (view is ExportView exportView)
+        {
+            exportView.Draw();
             return;
         }
 
@@ -506,9 +526,10 @@ public class SqPackWindow
         view = type switch
         {
             SelectedFileType.Texture => view ?? new TexView(hash, new TexFile(file.RawData), imageHandler, path),
-            SelectedFileType.Material => view ?? new MtrlView(file, new MtrlFile(file.RawData), sqPack, imageHandler),
+            SelectedFileType.Material => view ?? new MtrlView(new MtrlFile(file.RawData), sqPack, imageHandler),
             SelectedFileType.Model => view ?? new MdlView(new MdlFile(file.RawData), path),
             SelectedFileType.Sklb => view ?? new SklbView(new SklbFile(file.RawData), config),
+            SelectedFileType.Shpk => view ?? new ShpkView(new ShpkFile(file.RawData)),
             SelectedFileType.None => view ?? new DefaultView(hash, file),
             _ => view ?? new DefaultView(hash, file)
         };
@@ -535,6 +556,7 @@ public class SqPackWindow
             ".mdl" => SelectedFileType.Model,
             ".mtrl" => SelectedFileType.Material,
             ".sklb" => SelectedFileType.Sklb,
+            ".shpk" => SelectedFileType.Shpk,
             _ => SelectedFileType.None
         };
     }
@@ -571,9 +593,15 @@ public class SqPackWindow
         {
             return SelectedFileType.Material;
         }
-        else if (magic == SklbFile.SklbMagic)
+
+        if (magic == SklbFile.SklbMagic)
         {
             return SelectedFileType.Sklb;
+        }
+
+        if (magic == ShpkFile.ShPkMagic)
+        {
+            return SelectedFileType.Shpk;
         }
 
         return SelectedFileType.None;

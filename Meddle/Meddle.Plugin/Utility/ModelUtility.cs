@@ -1,7 +1,6 @@
 ﻿using Meddle.Plugin.Models;
 using Meddle.Plugin.Xande;
 using SharpGLTF.Scenes;
-using SharpGLTF.Transforms;
 
 namespace Meddle.Plugin.Utility;
 

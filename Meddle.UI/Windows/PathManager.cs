@@ -79,8 +79,7 @@ public class PathManager : IDisposable
                             var file = sqPack.GetFile(hash);
                             if (file == null) continue;
                             var mtrlFile = new MtrlFile(file.Value.file.RawData);
-                            var material = new Material(mtrlFile);
-                            foreach (var (_, texPath) in material.TexturePaths)
+                            foreach (var (_, texPath) in mtrlFile.GetTexturePaths())
                             {
                                 if (ParsedPaths.Any(x => x.Path == texPath))
                                 {
@@ -158,10 +157,8 @@ public class PathManager : IDisposable
                             var file = sqPack.GetFile(hash);
                             if (file == null) continue;
                             var mtrlFile = new MtrlFile(file.Value.file.RawData);
-                            var material = new Material(mtrlFile);
-                            
                             var pathTypes = new List<string>();
-                            foreach (var (_, texPath) in material.TexturePaths)
+                            foreach (var (_, texPath) in mtrlFile.GetTexturePaths())
                             {
                                 pathTypes.Add(texPath.Split('_').Last());
                             }
@@ -169,7 +166,7 @@ public class PathManager : IDisposable
                             // order alphabetically
                             pathTypes.Sort();
                             var allPathStr = string.Join(", ", pathTypes);
-                            var str = $"{material.ShaderPackageName} - {allPathStr}";
+                            var str = $"{mtrlFile.GetShaderPackageName()} - {allPathStr}";
                             if (DiscoveredPaths.TryGetValue(str, out var list))
                             {
                                 list.Add(path);

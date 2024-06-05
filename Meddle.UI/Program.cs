@@ -37,7 +37,7 @@ public class Program
         logger = logFactory.CreateLogger<Program>();
         logger.LogInformation("Kweh!");
         SettingsWindow = new(Configuration);
-        SettingsWindow.RedrawBrowser += () =>
+        SettingsWindow.OnRedrawBrowser += () =>
         {
             SqPackWindowTask = null;
         };

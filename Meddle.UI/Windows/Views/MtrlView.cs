@@ -9,72 +9,49 @@ namespace Meddle.UI.Windows.Views;
 
 public class MtrlView : IView
 {
-    private readonly SqPackFile dat;
     private readonly MtrlFile file;
     private readonly SqPack pack;
     private readonly ImageHandler imageHandler;
     private readonly Dictionary<string, TexView?> mtrlTextureCache = new();
     private readonly HexView hexView;
 
-    public MtrlView(SqPackFile dat, MtrlFile file, SqPack pack, ImageHandler imageHandler)
+    public MtrlView(MtrlFile file, SqPack pack, ImageHandler imageHandler)
     {
-        this.dat = dat;
         this.file = file;
         this.pack = pack;
         this.imageHandler = imageHandler;
-        hexView = new HexView(dat.RawData);
+        hexView = new HexView(file.RawData);
     }
     
     public void Draw()
     {
-        if (ImGui.Button("Write"))
-        {
-            var data = file.Write();
-            var data2 = dat.RawData;
-            if (data.Length != data2.Length)
-            {
-                Console.WriteLine("Length mismatch");
-            }
-            else
-            {
-                for (var i = 0; i < data.Length; i++)
-                {
-                    if (data[i] != data2[i])
-                    {
-                        Console.WriteLine($"Mismatch at {i}");
-                        break;
-                    }
-                }
-            }
-        }
-        
         ImGui.Text($"Material Version: {file.FileHeader.Version}");
-        var material = new Material(file);
-        ImGui.Text($"Shader Package Name: {material.ShaderPackageName}");
+        ImGui.Text($"Shader Package Name: {file.GetShaderPackageName()}");
 
         ImGui.Text("UV Color Sets:");
-        foreach (var (key, value) in material.UvColorSetStrings)
+        foreach (var (key, value) in file.GetUvColorSetStrings())
         {
             ImGui.Text($"[{key:X4}] {value}");
         }
 
         ImGui.Text("Color Sets:");
-        foreach (var (key, value) in material.ColorSetStrings)
+        foreach (var (key, value) in file.GetColorSetStrings())
         {
             ImGui.Text($"[{key:X4}] {value}");
         }
         
         ImGui.Text("Texture Paths:");
-        for (var i = 0; i < material.File.TextureOffsets.Length; i++)
+        var texturePaths = file.GetTexturePaths();
+        for (var i = 0; i < file.TextureOffsets.Length; i++)
         {
-            var off = material.File.TextureOffsets[i];
-            var path = material.TexturePaths[off.Offset];
+            var off = file.TextureOffsets[i];
+            var path = texturePaths[off.Offset];
             ImGui.Text($"[{i}] {path}");
         }
 
         if (ImGui.CollapsingHeader("Textures"))
         {
-            foreach (var (key, value) in material.TexturePaths)
+            foreach (var (key, value) in texturePaths)
             {
                 ImGui.Text($"[{key:X4}] {value}");
                 if (!mtrlTextureCache.TryGetValue(value, out var texView))

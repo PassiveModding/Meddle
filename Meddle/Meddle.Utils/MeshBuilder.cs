@@ -60,11 +60,11 @@ public class MeshBuilder
 
     public IReadOnlyList<IVertexBuilder> BuildVertices()
     {
-        //return Mesh.Vertices.Select(BuildVertex).ToList();
+        return Mesh.Vertices.Select(BuildVertex).ToList();
         // Parallel impl keep index
-        var vertices = new IVertexBuilder[Mesh.Vertices.Count];
-        Parallel.For(0, Mesh.Vertices.Count, i => { vertices[i] = BuildVertex(Mesh.Vertices[i]); });
-        return vertices;
+        //var vertices = new IVertexBuilder[Mesh.Vertices.Count];
+        //Parallel.For(0, Mesh.Vertices.Count, i => { vertices[i] = BuildVertex(Mesh.Vertices[i]); });
+        //return vertices;
     }
 
     /// <summary>Creates a mesh from the given sub mesh.</summary>
@@ -174,7 +174,7 @@ public class MeshBuilder
                 {
                     if (boneWeight == 0)
                         continue;
-                    throw new InvalidOperationException($"Bone index {boneIndex} is out of bounds! ({vertex.BlendWeights!.Value[k]})");
+                    throw new InvalidOperationException($"Bone index {boneIndex} is out of bounds! ({vertex.BlendWeights} blendIdx:{k} blendWeight:{boneWeight} jointLut:{string.Join(", ", JointLut)})");
                 }
                 var mappedBoneIndex = JointLut[boneIndex];
 

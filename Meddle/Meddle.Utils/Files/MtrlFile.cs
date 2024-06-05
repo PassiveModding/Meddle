@@ -27,10 +27,14 @@ public class MtrlFile
     public Constant[] Constants;
     public Sampler[] Samplers;
     public uint[] ShaderValues;
+    
+    private byte[] _data;
+    public ReadOnlySpan<byte> RawData => _data;
 
     public MtrlFile(byte[] data) : this((ReadOnlySpan<byte>)data) { }
     public MtrlFile(ReadOnlySpan<byte> data)
     {
+        _data = data.ToArray();
         var reader = new SpanBinaryReader(data);
         FileHeader = reader.Read<MaterialFileHeader>();
         TextureOffsets = new TextureOffset[FileHeader.TextureCount];
