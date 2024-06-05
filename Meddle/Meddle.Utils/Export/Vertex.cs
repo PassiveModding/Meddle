@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Text.Json.Serialization;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 
@@ -70,21 +71,18 @@ public unsafe struct Vertex
             value != short.MinValue ?
                 value / 32767.0f :
                 -1.0f;
-
+        
         private static float FromUNorm(byte value) =>
             value / 255.0f;
-        
-        private static float FromUShort(ushort value) =>
-            value / 65535.0f;
         
         public static object GetElement(ReadOnlySpan<byte> buffer, VertexType type)
         {
             fixed (byte* b = buffer)
             {
                 var s = (short*)b;
-                var us = (ushort*)b;
                 var h = (Half*)b;
                 var f = (float*)b;
+                var us = (ushort*)b;
 
                 return type switch
                 {
@@ -94,9 +92,24 @@ public unsafe struct Vertex
                     VertexType.ByteFloat4 => new Vector4(FromUNorm(b[0]), FromUNorm(b[1]), FromUNorm(b[2]), FromUNorm(b[3])),
                     VertexType.Half2 => new Vector2((float)h[0], (float)h[1]),
                     VertexType.Half4 => new Vector4((float)h[0], (float)h[1], (float)h[2], (float)h[3]),
-                    VertexType.UShort4 => new Vector4(FromUShort(us[0]), FromUShort(us[1]), FromUShort(us[2]), FromUShort(us[3])),
+                    VertexType.UShort4 => HandleUshort4(buffer),
                     _ => throw new ArgumentException($"Unknown type {type}"),
                 };
+            }
+        }
+
+        public static Vector4 HandleUshort4(ReadOnlySpan<byte> buffer)
+        {
+            fixed (byte* b = buffer)
+            {
+                var buf = new byte[8];
+                buf[0] = b[0]; buf[1] = b[4];
+                buf[2] = b[1]; buf[3] = b[5];
+                buf[4] = b[2]; buf[5] = b[6];
+                buf[6] = b[3]; buf[7] = b[7];
+                // to ushort[4]
+                var us = MemoryMarshal.Cast<byte, ushort>(buf);
+                return new Vector4(us[0] / 255.0f, us[1] / 255.0f, us[2] / 255.0f, us[3] / 255.0f);
             }
         }
 
