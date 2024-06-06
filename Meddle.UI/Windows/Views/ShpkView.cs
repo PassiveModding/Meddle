@@ -37,8 +37,8 @@ public class ShpkView : IView
             ImGui.Text($"Constant Count: {shader.Definition.ConstantCount}");
             ImGui.Text($"Sampler Count: {shader.Definition.SamplerCount}");
             ImGui.Text($"Uav Count: {shader.Definition.UavCount}");
-            ImGui.Text($"Pad: {shader.Definition.Pad}");
-            ImGui.Text($"Blob Offset?: {shader.Definition.BlobOffset}");
+            ImGui.Text($"Texture Count: {shader.Definition.TextureCount}");
+            ImGui.Text($"Blob Offset: {shader.Definition.BlobOffset}");
             ImGui.Text($"Blob Size: {shader.Definition.BlobSize}");
         }
         
@@ -73,6 +73,16 @@ public class ShpkView : IView
                 DrawResource(uav, ref stringReader);
             }
         }
+        
+        if (ImGui.CollapsingHeader($"Textures ({shader.Textures.Length})##{shader.GetHashCode()}"))
+        {
+            for (var i = 0; i < shader.Textures.Length; i++)
+            {
+                var uav = shader.Textures[i];
+                ImGui.Text($"Texture {i}");
+                DrawResource(uav, ref stringReader);
+            }
+        }
     }
     
     public void Draw()
@@ -86,8 +96,11 @@ public class ShpkView : IView
         ImGui.Text($"Pixel Shader Count: {file.FileHeader.PixelShaderCount}");
         ImGui.Text($"Material Params Size: {file.FileHeader.MaterialParamsSize}");
         ImGui.Text($"Material Param Count: {file.FileHeader.MaterialParamCount}");
+        ImGui.Text($"Has Mat Param Defaults: {file.FileHeader.HasMatParamDefaults}");
         ImGui.Text($"Constant Count: {file.FileHeader.ConstantCount}");
+        ImGui.Text($"Unk1: {file.FileHeader.Unk1}");
         ImGui.Text($"Sampler Count: {file.FileHeader.SamplerCount}");
+        ImGui.Text($"Texture Count: {file.FileHeader.TextureCount}");
         ImGui.Text($"Uav Count: {file.FileHeader.UavCount}");
         ImGui.Text($"System Key Count: {file.FileHeader.SystemKeyCount}");
         ImGui.Text($"Scene Key Count: {file.FileHeader.SceneKeyCount}");

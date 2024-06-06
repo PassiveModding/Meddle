@@ -16,14 +16,17 @@ public class ShpkFile
     public Shader[] VertexShaders;
     public Shader[] PixelShaders;
     public MaterialParam[] MaterialParams;
+    public float[] MaterialParamDefaults;
     public Resource[] Constants;
     public Resource[] Samplers;
+    public Resource[] Textures;
     public Resource[] Uavs;
     public Key[] SystemKeys;
     public Key[] SceneKeys;
     public Key[] MaterialKeys;
     public Key[] SubViewKeys;
     public Node[] Nodes;
+    public NodeAlias[] NodeAliases;
     
     public enum DxVersion : uint
     {
@@ -66,9 +69,15 @@ public class ShpkFile
         }
 
         MaterialParams = reader.Read<MaterialParam>((int)FileHeader.MaterialParamCount).ToArray();
+        if (FileHeader.HasMatParamDefaults != 0)
+        {
+            var size = FileHeader.MaterialParamsSize >> 2;
+            MaterialParamDefaults = reader.Read<float>((int)size).ToArray();
+        }
         
         Constants = reader.Read<Resource>((int)FileHeader.ConstantCount).ToArray();
         Samplers = reader.Read<Resource>((int)FileHeader.SamplerCount).ToArray();
+        Textures = reader.Read<Resource>((int)FileHeader.TextureCount).ToArray();
         Uavs = reader.Read<Resource>((int)FileHeader.UavCount).ToArray();
         
         SystemKeys = reader.Read<Key>((int)FileHeader.SystemKeyCount).ToArray();
@@ -107,20 +116,19 @@ public class ShpkFile
             };
         }
         
+        NodeAliases = reader.Read<NodeAlias>((int)FileHeader.NodeAliasCount).ToArray();
+        
         remainingOffset = reader.Position;
     }
 
     public Shader ReadShader(ref SpanBinaryReader r, ReadOnlySpan<byte> blob, Shader.ShaderType type)
     {
         var definition = r.Read<Shader.ShaderDefinition>();
-        if (definition.Pad != 0)
-        {
-            throw new NotImplementedException();
-        }
-        
+
         var constants = r.Read<Resource>(definition.ConstantCount).ToArray();
         var samplers = r.Read<Resource>(definition.SamplerCount).ToArray();
         var uavs = r.Read<Resource>(definition.UavCount).ToArray();
+        var textures = r.Read<Resource>(definition.TextureCount).ToArray();
         
         var rawBlob = blob.Slice((int)definition.BlobOffset, (int)definition.BlobSize);
         var extraHeaderSize = type switch {
@@ -142,6 +150,7 @@ public class ShpkFile
             Constants = constants,
             Samplers = samplers,
             Uavs = uavs,
+            Textures = textures,
             AdditionalHeader = additionalHeader.ToArray(),
             Blob = shaderBlob.ToArray()
         };
@@ -171,6 +180,12 @@ public class ShpkFile
         public Pass[] Passes;
     }
     
+    public struct NodeAlias
+    {
+        public uint Selector;
+        public uint Alias;
+    }
+    
     public struct Resource
     {
         public uint Id;
@@ -195,13 +210,14 @@ public class ShpkFile
             public ushort ConstantCount;
             public ushort SamplerCount;
             public ushort UavCount;
-            public ushort Pad;
+            public ushort TextureCount;
         }
         
         public ShaderDefinition Definition;
         public Resource[] Constants;
         public Resource[] Samplers;
         public Resource[] Uavs;
+        public Resource[] Textures;
         public byte[] AdditionalHeader;
         public byte[] Blob;
     }
@@ -223,10 +239,13 @@ public class ShpkFile
         public uint VertexShaderCount;
         public uint PixelShaderCount;
         public uint MaterialParamsSize;
-        public uint MaterialParamCount;
-        public uint ConstantCount;
-        public uint SamplerCount;
-        public uint UavCount;
+        public ushort MaterialParamCount;
+        public ushort HasMatParamDefaults;
+        public ushort ConstantCount;
+        public ushort Unk1;
+        public ushort SamplerCount;
+        public ushort TextureCount;
+        public ushort UavCount;
         public uint SystemKeyCount;
         public uint SceneKeyCount;
         public uint MaterialKeyCount;
