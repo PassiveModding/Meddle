@@ -74,6 +74,10 @@ public class ShpkFile
             var size = FileHeader.MaterialParamsSize >> 2;
             MaterialParamDefaults = reader.Read<float>((int)size).ToArray();
         }
+        else
+        {
+            MaterialParamDefaults = Array.Empty<float>();
+        }
         
         Constants = reader.Read<Resource>((int)FileHeader.ConstantCount).ToArray();
         Samplers = reader.Read<Resource>((int)FileHeader.SamplerCount).ToArray();
