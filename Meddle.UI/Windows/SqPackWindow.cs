@@ -523,17 +523,25 @@ public class SqPackWindow
 
     private void DrawFileView(IndexHashTableEntry hash, SqPackFile file, SelectedFileType type, string? path)
     {
-        view = type switch
+        try
         {
-            SelectedFileType.Texture => view ?? new TexView(hash, new TexFile(file.RawData), imageHandler, path),
-            SelectedFileType.Material => view ?? new MtrlView(new MtrlFile(file.RawData), sqPack, imageHandler),
-            SelectedFileType.Model => view ?? new MdlView(new MdlFile(file.RawData), path),
-            SelectedFileType.Sklb => view ?? new SklbView(new SklbFile(file.RawData), config),
-            SelectedFileType.Shpk => view ?? new ShpkView(new ShpkFile(file.RawData)),
-            SelectedFileType.None => view ?? new DefaultView(hash, file),
-            _ => view ?? new DefaultView(hash, file)
-        };
-        
+            view = type switch
+            {
+                SelectedFileType.Texture => view ?? new TexView(hash, new TexFile(file.RawData), imageHandler, path),
+                SelectedFileType.Material => view ?? new MtrlView(new MtrlFile(file.RawData), sqPack, imageHandler),
+                SelectedFileType.Model => view ?? new MdlView(new MdlFile(file.RawData), path),
+                SelectedFileType.Sklb => view ?? new SklbView(new SklbFile(file.RawData), config),
+                SelectedFileType.Shpk => view ?? new ShpkView(new ShpkFile(file.RawData)),
+                SelectedFileType.None => view ?? new DefaultView(hash, file),
+                _ => view ?? new DefaultView(hash, file)
+            };
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Error drawing file view");
+            view = new DefaultView(hash, file, e.ToString());
+        }
+
         view?.Draw();
     }
 

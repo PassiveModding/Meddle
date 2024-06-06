@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using ImGuiNET;
+using Meddle.Utils;
 using Meddle.Utils.Files;
 using Meddle.Utils.Havok;
 
@@ -20,31 +21,57 @@ public class ShpkView : IView
 
     private void DrawShader(ShpkFile.Shader shader)
     {
-        for (var i = 0; i < shader.Constants.Length; i++)
+        void DrawResource(ShpkFile.Resource resource, ref SpanBinaryReader r)
         {
-            var constant = shader.Constants[i];
-            ImGui.Text($"Constant {i}");
-            ImGui.Text($"  Name: {constant.String}");
-            ImGui.Text($"  Slot: {constant.Slot}");
-            ImGui.Text($"  Id: {constant.Id}");
+            // ignore string size because wtf
+            ImGui.Text($"Name: {r.ReadString((int)resource.StringOffset)}");
+            ImGui.Text($"Slot: {resource.Slot}");
+            ImGui.Text($"Id: {resource.Id}");
+            ImGui.Text($"Size: {resource.Size}");
+            ImGui.Text($"String Offset: {resource.StringOffset}");
+            ImGui.Text($"String Size: {resource.StringSize}");
+        }
+
+        if (ImGui.CollapsingHeader($"Definition##{shader.GetHashCode()}"))
+        {
+            ImGui.Text($"Constant Count: {shader.Definition.ConstantCount}");
+            ImGui.Text($"Sampler Count: {shader.Definition.SamplerCount}");
+            ImGui.Text($"Uav Count: {shader.Definition.UavCount}");
+            ImGui.Text($"Pad: {shader.Definition.Pad}");
+            ImGui.Text($"Blob Offset?: {shader.Definition.BlobOffset}");
+            ImGui.Text($"Blob Size: {shader.Definition.BlobSize}");
         }
         
-        for (var i = 0; i < shader.Samplers.Length; i++)
+        var stringReader = new SpanBinaryReader(file.Strings);
+        
+        if (ImGui.CollapsingHeader($"Constants ({shader.Constants.Length})##{shader.GetHashCode()}"))
         {
-            var sampler = shader.Samplers[i];
-            ImGui.Text($"Sampler {i}");
-            ImGui.Text($"  Name: {sampler.String}");
-            ImGui.Text($"  Slot: {sampler.Slot}");
-            ImGui.Text($"  Id: {sampler.Id}");
+            for (var i = 0; i < shader.Constants.Length; i++)
+            {
+                var constant = shader.Constants[i];
+                ImGui.Text($"Constant {i}");
+                DrawResource(constant, ref stringReader);
+            }
         }
         
-        for (var i = 0; i < shader.Uavs.Length; i++)
+        if (ImGui.CollapsingHeader($"Samplers ({shader.Samplers.Length})##{shader.GetHashCode()}"))
         {
-            var uav = shader.Uavs[i];
-            ImGui.Text($"Uav {i}");
-            ImGui.Text($"  Name: {uav.String}");
-            ImGui.Text($"  Slot: {uav.Slot}");
-            ImGui.Text($"  Id: {uav.Id}");
+            for (var i = 0; i < shader.Samplers.Length; i++)
+            {
+                var sampler = shader.Samplers[i];
+                ImGui.Text($"Sampler {i}");
+                DrawResource(sampler, ref stringReader);
+            }
+        }
+        
+        if (ImGui.CollapsingHeader($"Uavs ({shader.Uavs.Length})##{shader.GetHashCode()}"))
+        {
+            for (var i = 0; i < shader.Uavs.Length; i++)
+            {
+                var uav = shader.Uavs[i];
+                ImGui.Text($"Uav {i}");
+                DrawResource(uav, ref stringReader);
+            }
         }
     }
     

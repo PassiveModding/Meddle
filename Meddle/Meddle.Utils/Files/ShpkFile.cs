@@ -25,14 +25,20 @@ public class ShpkFile
     public Key[] SubViewKeys;
     public Node[] Nodes;
     
+    public enum DxVersion : uint
+    {
+        Dx9 = Dx9Magic,
+        Dx11 = Dx11Magic
+    }
     
-    private byte[] _data;
-    public ReadOnlySpan<byte> RawData => _data;
-    private int _remainingOffset;
-    public ReadOnlySpan<byte> RemainingData => _data[_remainingOffset..];
+    
+    private readonly byte[] data;
+    public ReadOnlySpan<byte> RawData => data;
+    private readonly int remainingOffset;
+    public ReadOnlySpan<byte> RemainingData => data.AsSpan()[remainingOffset..];
     public ShpkFile(ReadOnlySpan<byte> data)
     {
-        _data = data.ToArray();
+        this.data = data.ToArray();
         var reader = new SpanBinaryReader(data);
         var magic = reader.ReadUInt32();
         if (magic != ShPkMagic)
@@ -42,14 +48,24 @@ public class ShpkFile
         Blobs = data[(int)FileHeader.BlobsOffset..(int)FileHeader.StringsOffset].ToArray();
         Strings = data[(int)FileHeader.StringsOffset..].ToArray();
         
-        VertexShaders = ReadShaders(ref reader, (int)FileHeader.VertexShaderCount, Blobs, Shader.ShaderType.Vertex, FileHeader.DxVersion, Strings);
-        PixelShaders = ReadShaders(ref reader, (int)FileHeader.PixelShaderCount, Blobs, Shader.ShaderType.Pixel, FileHeader.DxVersion, Strings);
-        
+        VertexShaders = new Shader[FileHeader.VertexShaderCount];
+        PixelShaders = new Shader[FileHeader.PixelShaderCount];
+
+        for (var i = 0; i < FileHeader.VertexShaderCount; i++)
+        {
+            VertexShaders[i] = ReadShader(ref reader, Blobs);
+        }
+
+        for (var i = 0; i < FileHeader.PixelShaderCount; i++)
+        {
+            PixelShaders[i] = ReadShader(ref reader, Blobs);
+        }
+
         MaterialParams = reader.Read<MaterialParam>((int)FileHeader.MaterialParamCount).ToArray();
         
-        Constants = ReadResources(ref reader, (int)FileHeader.ConstantCount, Strings);
-        Samplers = ReadResources(ref reader, (int)FileHeader.SamplerCount, Strings);
-        Uavs = ReadResources(ref reader, (int)FileHeader.UavCount, Strings);
+        Constants = reader.Read<Resource>((int)FileHeader.ConstantCount).ToArray();
+        Samplers = reader.Read<Resource>((int)FileHeader.SamplerCount).ToArray();
+        Uavs = reader.Read<Resource>((int)FileHeader.UavCount).ToArray();
         
         SystemKeys = reader.Read<Key>((int)FileHeader.SystemKeyCount).ToArray();
         SceneKeys = reader.Read<Key>((int)FileHeader.SceneKeyCount).ToArray();
@@ -87,19 +103,29 @@ public class ShpkFile
             };
         }
         
-        _remainingOffset = reader.Position;
-    }
-    
-    public Shader[] ReadShaders(ref SpanBinaryReader r, int count, ReadOnlySpan<byte> blobs, Shader.ShaderType type, uint directXVersion, ReadOnlySpan<byte> strings)
-    {
-        var shaders = new Shader[count];
-        for (var i = 0; i < count; ++i)
-        {
-            shaders[i] = new Shader(ref r, blobs, type, directXVersion, strings);
-        }
-        return shaders;
+        remainingOffset = reader.Position;
     }
 
+    public Shader ReadShader(ref SpanBinaryReader r, ReadOnlySpan<byte> blob)
+    {
+        var definition = r.Read<Shader.ShaderDefinition>();
+        if (definition.Pad != 0)
+        {
+            throw new NotImplementedException();
+        }
+        
+        var constants = r.Read<Resource>(definition.ConstantCount).ToArray();
+        var samplers = r.Read<Resource>(definition.SamplerCount).ToArray();
+        var uavs = r.Read<Resource>(definition.UavCount).ToArray();
+
+        return new Shader
+        {
+            Definition = definition,
+            Constants = constants,
+            Samplers = samplers,
+            Uavs = uavs
+        };
+    }
     
     public struct Pass
     {
@@ -132,8 +158,6 @@ public class ShpkFile
         public uint StringSize;
         public ushort Slot;
         public ushort Size;
-        
-        public string String;
     }
     
     public struct Shader
@@ -158,56 +182,7 @@ public class ShpkFile
         public Resource[] Constants;
         public Resource[] Samplers;
         public Resource[] Uavs;
-        public byte[] AdditionalHeader;
-        public byte[] Blob;
-        
-        public Shader (ref SpanBinaryReader r, ReadOnlySpan<byte> blobs, ShaderType type, uint directXVersion, ReadOnlySpan<byte> strings)
-        {
-            Definition = r.Read<ShaderDefinition>();
-            if (Definition.Pad != 0)
-            {
-                throw new NotImplementedException();
-            }
-
-            var headerPad = type switch
-            {
-                ShaderType.Vertex => directXVersion switch
-                {
-                    Dx9Magic => 4,
-                    Dx11Magic => 8,
-                    _ => throw new Exception("Invalid DX version")
-                },
-                _ => 0
-            };
-            
-            var rawBlob = blobs.Slice((int)Definition.BlobOffset, (int)Definition.BlobSize);
-            Constants = ReadResources(ref r, Definition.ConstantCount, strings);
-            Samplers = ReadResources(ref r, Definition.SamplerCount, strings);
-            Uavs = ReadResources(ref r, Definition.UavCount, strings);
-            Blob = rawBlob[headerPad..].ToArray();
-        }
     }
-    
-    public static Resource[] ReadResources(ref SpanBinaryReader r, int count, ReadOnlySpan<byte> strings)
-    {
-        var resources = new Resource[count];
-        var stringReader = new SpanBinaryReader(strings);
-        for (var i = 0; i < count; ++i)
-        {
-            resources[i] = new Resource
-            {
-                Id = r.ReadUInt32(),
-                StringOffset = r.ReadUInt32(),
-                StringSize = r.ReadUInt32(),
-                Slot = r.ReadUInt16(),
-                Size = r.ReadUInt16()
-            };
-            var str = stringReader.ReadString((int)resources[i].StringOffset, (int)resources[i].StringSize);
-            resources[i].String = str;
-        }
-        return resources;
-    }
-    
 
     public struct MaterialParam
     {
@@ -219,7 +194,7 @@ public class ShpkFile
     public struct ShpkHeader
     {
         public uint Version;
-        public uint DxVersion;
+        public DxVersion DxVersion;
         public uint Length;
         public uint BlobsOffset;
         public uint StringsOffset;
