@@ -1,8 +1,7 @@
-﻿using FFXIVClientStructs.Interop;
-using Meddle.Plugin.Models;
+﻿using System.Text.Json.Serialization;
 using Meddle.Utils.Files;
-using CSMaterial = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Material;
-using CSTexture = FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Texture;
+using Meddle.Utils.Files.Structs.Material;
+using Meddle.Utils.Models;
 
 namespace Meddle.Utils.Export;
 
@@ -11,9 +10,10 @@ public unsafe class Material
     public string HandlePath { get; }
     public uint ShaderFlags { get; }
     public IReadOnlyList<ShaderKey> ShaderKeys { get; }
-    public ShaderPackage ShaderPackage { get; }
+    public string ShaderPackageName { get; }
+    //public ShaderPackage ShaderPackage { get; }
     public IReadOnlyList<Texture> Textures { get; }
-    public MaterialParameters MaterialParameters { get; }
+    //public MaterialParameters MaterialParameters { get; }
     
     public bool TryGetTexture(TextureUsage usage, out Texture texture)
     {
@@ -35,116 +35,41 @@ public unsafe class Material
         return texture!;
     }
     
-    //[JsonIgnore]
-    //public ColorTable? ColorTable { get; }
+    [JsonIgnore]
+    public ColorTable? ColorTable { get; }
 
-
-    public Material(MtrlFile file, string handlePath)
+    public Material(MtrlFile file, string handlePath, IReadOnlyDictionary<string, TexFile> texFiles)
     {
         HandlePath = handlePath;
-        ShaderFlags = 0;
+        ShaderFlags = 0; // TODO
+        ShaderPackageName = file.GetShaderPackageName();
 
         var shaderKeys = new ShaderKey[file.ShaderValues.Length];
-        for (var i = 0; i < file.ShaderValues.Length; ++i)
+        for (var i = 0; i < file.ShaderKeys.Length; ++i)
         {
             shaderKeys[i] = new ShaderKey
             {
                 Category = file.ShaderKeys[i].Category,
-                Value = file.ShaderValues[i]
-            };
-        }
-    }
-    
-    public Material(Pointer<CSMaterial> material, Pointer<CSTexture> colorTable) : this(material.Value, colorTable.Value)
-    {
-
-    }
-    
-    public Material(CSMaterial* material, CSTexture* colorTable)
-    {
-        HandlePath = material->MaterialResourceHandle->ResourceHandle.FileName.ToString();
-        ShaderFlags = material->ShaderFlags;
-
-        var shaderKeyCategories =
-            material->MaterialResourceHandle->ShaderPackageResourceHandle->ShaderPackage->MaterialKeysSpan;
-        var shaderKeyValues = material->ShaderKeyValuesSpan;
-        var shaderKeys = new ShaderKey[shaderKeyValues.Length];
-        for (var i = 0; i < shaderKeyValues.Length; ++i)
-        {
-            shaderKeys[i] = new ShaderKey
-            {
-                Category = shaderKeyCategories[i],
-                Value = shaderKeyValues[i]
+                Value = file.ShaderKeys[i].Value
             };
         }
         
         ShaderKeys = shaderKeys;
         
-        
         var textures = new List<Texture>();
-        for (var i = 0; i < material->MaterialResourceHandle->TextureCount; ++i)
+        var texturePaths = file.GetTexturePaths();
+        for (int i = 0; i < file.TextureOffsets.Length; i++)
         {
-            var handleTexture = &material->MaterialResourceHandle->Textures[i];
-            CSMaterial.TextureEntry* matEntry = null;
-            if (handleTexture->Index1 != 0x1F)
-                matEntry = &material->Textures[handleTexture->Index1];
-            else if (handleTexture->Index2 != 0x1F)
-                matEntry = &material->Textures[handleTexture->Index2];
-            else if (handleTexture->Index3 != 0x1F)
-                matEntry = &material->Textures[handleTexture->Index3];
-            else
-            {
-                foreach (var tex in material->TexturesSpan)
-                {
-                    if (tex.Texture == handleTexture->TextureResourceHandle)
-                    {
-                        matEntry = &tex;
-                        break;
-                    }
-                }
-            }
-            textures.Add(new Texture(matEntry, material->MaterialResourceHandle->Strings, handleTexture, ShaderPackage));
+            var texture = file.TextureOffsets[i];
+            var path = texturePaths[texture.Offset];
+            var texFile = texFiles[path];
+            var texObj = new Texture(texFile, path, (uint)texture.Flags, (uint)i);
+            
+            textures.Add(texObj);
         }
         
         Textures = textures;
-
-        if (colorTable != null)
-        {
-            //ColorTable = new ColorTable(colorTable);
-        }
-        else
-        {
-            Console.WriteLine($"[{ShaderPackage.Name}] No color table for {HandlePath}");
-        }
-
-        /*var matParams = material->MaterialParameterCBuffer;
-        if (matParams != null)
-        {
-            if (MaterialParameters.ValidShaders.Contains(ShaderPackage.Name))
-            {
-                var m = matParams->LoadBuffer<Vector4>(0, 6);
-                if (m != null && m.Length == 6)
-                {
-                    MaterialParameters = new MaterialParameters(m);
-                }
-                else if (m == null)
-                {
-                    Console.WriteLine($"No material parameters for {HandlePath}");
-                }
-                else
-                {
-                    Console.WriteLine($"Invalid material parameters for {HandlePath}, expected 6 but got {m.Length}");
-                }
-            }
-            else
-            {
-                Console.WriteLine($"[{ShaderPackage.Name}] Skipping material parameters for {HandlePath}");
-            }
-        }
-        else
-        {
-            Service.Log.Warning($"No material parameters for {HandlePath}");
-        }*/
+        ColorTable = file.ColorTable;
     }
     
     // https://github.com/Shaderlayan/Ouroboros

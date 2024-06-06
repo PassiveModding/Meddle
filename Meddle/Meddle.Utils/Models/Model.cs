@@ -36,13 +36,16 @@ public static class Model
         return tables;
     }
     
-    public static string[] GetMaterialNames(this MdlFile file)
+    public static Dictionary<int, string> GetMaterialNames(this MdlFile file)
     {
         var strings = file.GetStrings();
-        var names = new string[file.MaterialNameOffsets.Length];
-        for (int i = 0; i < file.MaterialNameOffsets.Length; i++)
+        var names = new Dictionary<int, string>();
+        for (var i = 0; i < file.MaterialNameOffsets.Length; i++)
         {
-            names[i] = strings[(int)file.MaterialNameOffsets[i]];
+            //names[i] = strings[(int)file.MaterialNameOffsets[i]];
+            var offset = (int)file.MaterialNameOffsets[i];
+            var name = strings[offset];
+            names[offset] = name;
         }
 
         return names;

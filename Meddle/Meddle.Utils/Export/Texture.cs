@@ -1,7 +1,8 @@
 ﻿using System.Text.Json.Serialization;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using FFXIVClientStructs.Interop;
-using Meddle.Plugin.Models;
+using Meddle.Utils.Files;
+using OtterTex;
 using CSTextureEntry = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Material.TextureEntry;
 
 namespace Meddle.Utils.Export;
@@ -45,28 +46,37 @@ public unsafe class Texture
     public uint? Id { get; }
     public uint? SamplerFlags { get; }
     
-    //[JsonIgnore]
-    //public TextureHelper.TextureResource Resource { get; }
-    
-    public Texture(Pointer<CSTextureEntry> matEntry, Pointer<byte> matHndStrings, 
-                   Pointer<MaterialResourceHandle.TextureEntry> hndEntry, ShaderPackage shader) : 
-        this(matEntry.Value, matHndStrings.Value, hndEntry.Value, shader)
+    [JsonIgnore]
+    public TextureResource Resource { get; }
+
+    public TexMeta Meta { get; }
+
+    public Texture(TexFile file, string path, uint? samplerFlags, uint? id)
     {
-
-    }
-
-    public Texture(CSTextureEntry* matEntry, byte* matHndStrings, MaterialResourceHandle.TextureEntry* hndEntry, ShaderPackage shader)
-    {
-        //HandlePath = MemoryHelper.ReadStringNullTerminated((nint)matHndStrings + hndEntry->PathOffset);
-
-        if (matEntry != null)
+        SamplerFlags = samplerFlags;
+        Id = id;
+        HandlePath = path;
+        var h = file.Header;
+        var dimension = h.Type switch
         {
-            Id = matEntry->Id;
-            SamplerFlags = matEntry->SamplerFlags;
-            if (shader.TextureLookup.TryGetValue(Id.Value, out var usage))
-                Usage = usage;
+            TexFile.Attribute.TextureType1D => TexDimension.Tex1D,
+            TexFile.Attribute.TextureType2D => TexDimension.Tex2D,
+            TexFile.Attribute.TextureType3D => TexDimension.Tex3D,
+            _ => TexDimension.Tex2D
+        };
+        D3DResourceMiscFlags flags = 0;
+        if (h.Type.HasFlag(TexFile.Attribute.TextureTypeCube))
+            flags |= D3DResourceMiscFlags.TextureCube;
+        Resource = new TextureResource(h.Format.ToDXGIFormat(), h.Width, h.Height, h.MipLevels, h.ArraySize, dimension, flags, file.TextureBuffer);
+        Meta = ImageUtils.GetTexMeta(file);
+        
+        if (path.Contains("_d")) Usage = TextureUsage.SamplerDiffuse;
+        else if (path.Contains("_n")) Usage = TextureUsage.SamplerNormal;
+        else if (path.Contains("_s")) Usage = TextureUsage.SamplerSpecular;
+        else if (path.Contains("_m")) Usage = TextureUsage.SamplerMask;
+        else
+        {
+            Console.WriteLine($"Unknown texture usage for {path}");
         }
-
-        //Resource = DXHelper.ExportTextureResource(hndEntry->TextureResourceHandle->Texture);
     }
 }

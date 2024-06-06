@@ -19,10 +19,20 @@ public unsafe class Model
     public IReadOnlyList<string> EnabledShapes { get; private set; }
     public IReadOnlyList<string> EnabledAttributes { get; private set; }
     
-    public Model(MdlFile file, string handlePath)
+    public Model(MdlFile file, string handlePath, Dictionary<string, MtrlFile> materialFiles, Dictionary<string, TexFile> textureFiles)
     {
         HandlePath = handlePath;
         RaceCode = RaceDeformer.ParseRaceCode(Path);
+        
+        var materials = new Material[file.ModelHeader.MaterialCount];
+        var materialNames = file.GetMaterialNames();
+        for (var i = 0; i < file.ModelHeader.MaterialCount; ++i)
+        {
+            var materialName = materialNames[(int)file.MaterialNameOffsets[i]];
+            if (!materialFiles.TryGetValue(materialName, out var mtrlFile))
+                throw new ArgumentException($"Material {materialName} not found");
+            materials[i] = new Material(mtrlFile, materialName, textureFiles);
+        }
         
         const int lodIdx = 0;
         var lod = file.Lods[lodIdx];

@@ -46,9 +46,11 @@ public class MdlView(MdlFile mdlFile, string? path) : IView
         if (ImGui.CollapsingHeader("Materials"))
         {
             var materialNames = mdlFile.GetMaterialNames();
-            for (var i = 0; i < materialNames.Length; i++)
+            
+            for (var i = 0; i < mdlFile.MaterialNameOffsets.Length; i++)
             {
-                ImGui.Text($"Material {i}: {materialNames[i]}");
+                var material = materialNames[(int)mdlFile.MaterialNameOffsets[i]];
+                ImGui.Text($"Material {i}: {material}");
             }
         }
 

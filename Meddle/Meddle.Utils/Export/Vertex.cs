@@ -100,6 +100,7 @@ public unsafe struct Vertex
 
         public static Vector4 HandleUshort4(ReadOnlySpan<byte> buffer)
         {
+            // No clue how correct/incorrect this is I'm tired
             fixed (byte* b = buffer)
             {
                 var buf = new byte[8];

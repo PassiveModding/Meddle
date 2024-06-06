@@ -3,87 +3,95 @@ using System.Numerics;
 using System.Text.RegularExpressions;
 using ImGuiNET;
 using Meddle.Utils;
+using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
 using Meddle.Utils.Havok;
 using Meddle.Utils.Models;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
+using SkiaSharp;
 
 namespace Meddle.UI.Windows.Views;
 
 public class ExportView(SqPack pack, Configuration configuration, ImageHandler imageHandler) : IView
 {
+    private record TexGroup(TexFile File, string Path);
+    private record MtrlGroup(MtrlFile File, string ResolvedPath, string OriginalPath, List<TexGroup> Textures);
+    private record MdlGroup(MdlFile File, string Path, List<MtrlGroup> Mtrls);
+    private record SklbGroup(SklbFile File, string Path);
+    private readonly Dictionary<string, MdlGroup> models = new();
+    private readonly Dictionary<string, SklbGroup> skeletons = new();
+    private Dictionary<string, IView> views = new();
+    
+    
     private string input = "";
-    private readonly Dictionary<string, (MdlFile file, MdlView view, Dictionary<string, (MtrlFile file, MtrlView view)?> mtrls)?> mdlViews = new();
-    private readonly Dictionary<string, (SklbFile file, SklbView view)?> sklbViews = new();
 
-    private void HandleMdlViews()
+    private void HandleMdls()
     {
-        mdlViews.Clear();
-            
-        var lines = input.Split('\n');
-        var mdlLines = lines.Where(x => x.Contains(".mdl")).ToList();
-        foreach (var line in mdlLines)
+        var mdlLines = input.Split('\n')
+                            .Select(x => x.Trim())
+                            .Where(x => x.EndsWith(".mdl")).ToList();
+        foreach (var mdlPath in mdlLines)
         {
-            var path = line.Trim();
-            if (mdlViews.TryGetValue(line, out var res))
-            {
-                continue;
-            }
-            
-            var lookupResult = pack.GetFile(path);
+            var lookupResult = pack.GetFile(mdlPath);
             if (lookupResult == null)
             {
-                ImGui.Text($"File not found: {path}");
-                mdlViews[path] = null;
                 continue;
             }
-
-            var mdlFile = new MdlFile(lookupResult.Value.file.RawData);
-            var view = new MdlView(mdlFile, path);
             
+            var mdlFile = new MdlFile(lookupResult.Value.file.RawData);
+            var mtrlGroups = new List<MtrlGroup>();
             var mtrlNames = mdlFile.GetMaterialNames();
-            var mtrlViews = new Dictionary<string, (MtrlFile file, MtrlView view)?>();
-            mdlViews[path] = (mdlFile, view, mtrlViews);
-
-            foreach (var unresolvedMtrlName in mtrlNames)
+            foreach (var (offset, originalPath) in mtrlNames)
             {
-                var mtrlPath = unresolvedMtrlName.StartsWith('/') ? Resolve(path, unresolvedMtrlName) : unresolvedMtrlName;
-
-                var added = false;
+                var mtrlPath = originalPath.StartsWith('/') ? Resolve(mdlPath, originalPath) : originalPath;
                 var mtrlLookupResult = pack.GetFile(mtrlPath);
                 if (mtrlLookupResult == null)
                 {
+                    // versioning
                     var prefix = mtrlPath[..mtrlPath.LastIndexOf('/')];
-
                     for (var j = 1; j < 10; j++)
                     {
                         // 1 -> v0001
                         var version = j.ToString("D4");
-                        var versionedPath = $"{prefix}/v{version}{unresolvedMtrlName}";
+                        var versionedPath = $"{prefix}/v{version}{originalPath}";
                         var versionedLookupResult = pack.GetFile(versionedPath);
                         if (versionedLookupResult != null)
                         {
-                            var mtrlFile = new MtrlFile(versionedLookupResult.Value.file.RawData);
-                            var mtrlView = new MtrlView(mtrlFile, pack, imageHandler);
-                            mtrlViews[versionedPath] = (mtrlFile, mtrlView);
-                            added = true;
+                            mtrlLookupResult = versionedLookupResult;
+                            break;
                         }
                     }
-
-                    if (!added)
+                    
+                    if (mtrlLookupResult == null)
                     {
-                        mtrlViews[unresolvedMtrlName] = null;
+                        continue;
                     }
                 }
-                else
+
+                var mtrlFile = new MtrlFile(mtrlLookupResult.Value.file.RawData);
+                var textures = mtrlFile.GetTexturePaths();
+                var texGroups = new List<TexGroup>();
+                foreach (var (texOffset, texPath) in textures)
                 {
-                    var mtrlFile = new MtrlFile(mtrlLookupResult.Value.file.RawData);
-                    var mtrlView = new MtrlView(mtrlFile, pack, imageHandler);
-                    mtrlViews[mtrlPath] = (mtrlFile, mtrlView);
+                    var texLookupResult = pack.GetFile(texPath);
+                    if (texLookupResult == null)
+                    {
+                        continue;
+                    }
+
+                    var texFile = new TexFile(texLookupResult.Value.file.RawData);
+                    texGroups.Add(new TexGroup(texFile, texPath));
+                    views[texPath] = new TexView(texLookupResult.Value.hash, texFile, imageHandler, texPath);
                 }
+
+                mtrlGroups.Add(new MtrlGroup(mtrlFile, mtrlPath, originalPath, texGroups));
+                views[mtrlPath] = new MtrlView(mtrlFile, pack, imageHandler);
             }
+            
+            models[mdlPath] = new MdlGroup(mdlFile, mdlPath, mtrlGroups);
+            views[mdlPath] = new MdlView(mdlFile, mdlPath);
         }
     }
     
@@ -151,30 +159,22 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
         throw new Exception($"Unsupported mdl path {mdlPath}");
     }
 
-    private void HandleSklbViews()
+    private void HandleSklbs()
     {
-        sklbViews.Clear();
-        
         var lines = input.Split('\n');
-        var mdlLines = lines.Where(x => x.Contains(".sklb")).ToList();
-        foreach (var line in mdlLines)
+        var mdlLines = lines.Select(x => x.Trim()).Where(x => x.EndsWith(".sklb")).ToList();
+        foreach (var sklbPath in mdlLines)
         {
-            var path = line.Trim();
-            if (sklbViews.TryGetValue(line, out var res))
+            var lookupResult = pack.GetFile(sklbPath);
+            if (lookupResult == null)
             {
                 continue;
             }
             
-            var lookupResult = pack.GetFile(path);
-            if (lookupResult == null)
-            {
-                sklbViews[path] = null;
-                continue;
-            }
-
             var sklbFile = new SklbFile(lookupResult.Value.file.RawData);
-            var view = new SklbView(sklbFile, configuration);
-            sklbViews[path] = (sklbFile, view);
+            skeletons[sklbPath] = new SklbGroup(sklbFile, sklbPath);
+            views[sklbPath] = new SklbView(sklbFile, configuration);
+
         }
     }
     
@@ -182,55 +182,62 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
     {
         if (ImGui.InputTextMultiline("##Input", ref input, 1000, new Vector2(500, 500)))
         {
-            HandleMdlViews();
-            HandleSklbViews();
+            models.Clear();
+            HandleMdls();
+            HandleSklbs();
         }
 
         ImGui.SeparatorText("Models");
-        foreach (var (path, value) in mdlViews.Where(x => x.Value != null))
+        foreach (var (path, mdlGroup) in models)
         {
             if (ImGui.CollapsingHeader(path))
             {
-                if (value == null) continue;
                 Indent(() =>
                 {
-                    var mdlInfo = value.Value;
-
-                    foreach (var (mtrlPath, mtrlValue) in mdlInfo.mtrls)
+                    ImGui.SeparatorText("Materials");
+                    foreach (var mtrlGroup in mdlGroup.Mtrls)
                     {
-                        if (mtrlValue == null)
+                        if (ImGui.CollapsingHeader(mtrlGroup.ResolvedPath))
                         {
-                            ImGui.Text($"Mtrl {mtrlPath} not found");
-                        }
-                        else
-                        {
-                            if (ImGui.CollapsingHeader(mtrlPath))
+                            views[mtrlGroup.ResolvedPath].Draw();
+                            
+                            ImGui.SeparatorText("Textures");
+                            Indent(() =>
                             {
-                                Indent(() => mtrlValue.Value.view.Draw());
-                            }
+                                foreach (var texGroup in mtrlGroup.Textures)
+                                {
+                                    if (ImGui.CollapsingHeader(texGroup.Path))
+                                    {
+                                        views[texGroup.Path].Draw();
+                                    }
+                                }
+                            });
                         }
                     }
 
                     ImGui.SeparatorText("Model Info");
-                    mdlInfo.view.Draw();
+                    Indent(() =>
+                    {
+                        views[path].Draw();
+                    });
                 });
             }
         }
         
         ImGui.SeparatorText("Skeletons");
-        foreach (var (path, value) in sklbViews.Where(x => x.Value != null))
+        foreach (var (path, value) in skeletons)
         {
             if (ImGui.CollapsingHeader(path))
             {
-                value?.view.Draw();
+                views[path].Draw();
             }
         }
         
         if (ImGui.Button("Export as GLTF"))
         {
             var scene = new SceneBuilder();
-            var skeletons = sklbViews.Select(x => x.Value?.view).Where(x => x != null).Cast<SklbView>().ToArray();
-            var havokXmls = skeletons.Select(x => x.Resolve().GetAwaiter().GetResult()).Select(x => new HavokXml(x))
+            var sklbTasks = this.skeletons.Select(x => views[x.Key] as SklbView).Select(x => x.Resolve()).ToArray();
+            var havokXmls = sklbTasks.Select(x => x.GetAwaiter().GetResult()).Select(x => new HavokXml(x))
                                      .ToArray();
             var bones = XmlUtils.GetBoneMap(havokXmls, out var root).ToArray();
             var boneNodes = bones.Cast<NodeBuilder>().ToArray();
@@ -240,22 +247,25 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                 scene.AddNode(root);
             }
 
-            foreach (var (path, value) in mdlViews)
+            foreach (var (path, mdlGroup) in models)
             {
-                if (value == null)
+                var mtrlDict = mdlGroup.Mtrls
+                                       .DistinctBy(x => x.OriginalPath)
+                                       .ToDictionary(x => x.OriginalPath, x => x.File);
+                var texDict = mdlGroup.Mtrls.SelectMany(x => x.Textures)
+                                      .DistinctBy(x => x.Path)
+                                      .ToDictionary(x => x.Path, x => x.File);
+                var model = new Utils.Export.Model(mdlGroup.File, path, mtrlDict, texDict);
+                
+                var materials = new List<MaterialBuilder>();
+                foreach (var mtrlGroup in mdlGroup.Mtrls)
                 {
-                    continue;
-                }
-
-                var mdlFile = value.Value.file;
-                var model = new Utils.Export.Model(mdlFile, path ?? "");
-                var materialCount = mdlFile.MaterialNameOffsets.Length; 
-                var materials = new MaterialBuilder[materialCount];
-                var materialNames = mdlFile.GetMaterialNames();
-                for (var i = 0; i < materialNames.Length; i++)
-                {
-                    var name = materialNames[i];
-                    materials[i] = new MaterialBuilder(name);
+                    var textures = mtrlGroup.Textures
+                                            .DistinctBy(x => x.Path)
+                                            .ToDictionary(x => x.Path, x => x.File);
+                    var material = new Material(mtrlGroup.File, mtrlGroup.ResolvedPath, textures);
+                    var builder = MaterialUtility.ParseMaterial(material);
+                    materials.Add(builder);
                 }
                 
                 var meshes = ModelBuilder.BuildMeshes(model, materials, bones, null);
@@ -280,11 +290,46 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
             {
                 Directory.CreateDirectory(folder);
             }
+            else
+            {
+                // delete and recreate
+                Directory.Delete(folder, true);
+                Directory.CreateDirectory(folder);
+            }
             
             // replace extension with gltf
             outputPath = Path.ChangeExtension(outputPath, ".gltf");
             
             sceneGraph.SaveGLTF(outputPath);
+            
+            // save all raw textures
+            foreach (var mdlGroup in models)
+            {
+                foreach (var mtrlGroup in mdlGroup.Value.Mtrls)
+                {
+                    foreach (var texGroup in mtrlGroup.Textures)
+                    {
+                        var texPath = texGroup.Path;
+                        var fileName = Path.GetFileName(texPath);
+                        var texOutputPath = Path.Combine("output", "textures", fileName);
+                        var texFolder = Path.GetDirectoryName(texOutputPath) ?? "output";
+                        if (!Directory.Exists(texFolder))
+                        {
+                            Directory.CreateDirectory(texFolder);
+                        }
+
+                        var texture = new Texture(texGroup.File, texPath, null, null);
+                        var skTex = texture.ToBitmap();
+                        
+                        var str = new SKDynamicMemoryWStream();
+                        skTex.Encode(str, SKEncodedImageFormat.Png, 100);
+                        
+                        var data = str.DetachAsData().AsSpan();
+                        
+                        File.WriteAllBytes(texOutputPath + ".png", data.ToArray());
+                    }
+                }
+            }
             
             Process.Start("explorer.exe", folder);
         }

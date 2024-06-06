@@ -103,6 +103,36 @@ public unsafe struct ColorTable : IEnumerable<ColorTable.Row>
     public const  int  NumRows     = 32;
     private fixed byte rowData[NumRows * Row.Size];
 
+    public (Row prev, Row next, TableRow row) Lookup(float index)
+    {
+        var row = TableRow.GetTableRowIndices(index);
+        return (this[row.Previous], this[row.Next], row);
+    }
+    
+    public struct TableRow
+    {
+        public int   Stepped;
+        public int   Previous;
+        public int   Next;
+        public float Weight;
+        
+        public static TableRow GetTableRowIndices(float index)
+        {
+            var vBase = index * 15f;
+            var vOffFilter = (index * 7.5f) % 1.0f;
+            var smoothed = float.Lerp(vBase, float.Floor(vBase + 0.5f), vOffFilter * 2);
+            var stepped = float.Floor(smoothed + 0.5f);
+
+            return new TableRow
+            {
+                Stepped  = (int)stepped,
+                Previous = (int)MathF.Floor(smoothed),
+                Next     = (int)MathF.Ceiling(smoothed),
+                Weight   = smoothed % 1,
+            };
+        }
+    }
+    
     public ref Row this[int i]
     {
         get
