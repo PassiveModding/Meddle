@@ -421,10 +421,11 @@ public class SqPackWindow
             return;
         }
 
-        var hash = selectedFile.Value.hash;
-        var file = selectedFile.Value.file;
 
+        var hash = selectedFile.Value.hash;
         var path = DrawPathDiscovery(hash);
+        hash = selectedFile.Value.hash;
+        var file = selectedFile.Value.file;
         var type = TryGetType(path?.Path, file);
         if (ImGui.Button("Save raw file"))
         {
@@ -504,7 +505,7 @@ public class SqPackWindow
 
         return path;
     }
-
+    
     private void DrawField(string label, string value)
     {
         ImGui.Text($"{label}: {value}");
