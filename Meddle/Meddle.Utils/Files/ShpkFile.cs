@@ -11,8 +11,8 @@ public class ShpkFile
     }
     
     public ShpkHeader FileHeader;
-    public byte[] Blobs;
-    public byte[] Strings;
+    //public byte[] Blobs;
+    //public byte[] Strings;
     public Shader[] VertexShaders;
     public Shader[] PixelShaders;
     public MaterialParam[] MaterialParams;
@@ -45,20 +45,24 @@ public class ShpkFile
             throw new Exception("Invalid SHPK magic");
         
         FileHeader = reader.Read<ShpkHeader>();
-        Blobs = data[(int)FileHeader.BlobsOffset..(int)FileHeader.StringsOffset].ToArray();
-        Strings = data[(int)FileHeader.StringsOffset..].ToArray();
+        
+        if (data.Length != FileHeader.Length)
+            throw new Exception("Invalid SHPK length");
+        
+        var blobs = data[(int)FileHeader.BlobsOffset..(int)FileHeader.StringsOffset];
+        var strings = data[(int)FileHeader.StringsOffset..];
         
         VertexShaders = new Shader[FileHeader.VertexShaderCount];
         PixelShaders = new Shader[FileHeader.PixelShaderCount];
 
         for (var i = 0; i < FileHeader.VertexShaderCount; i++)
         {
-            VertexShaders[i] = ReadShader(ref reader, Blobs);
+            VertexShaders[i] = ReadShader(ref reader, blobs, Shader.ShaderType.Vertex);
         }
 
         for (var i = 0; i < FileHeader.PixelShaderCount; i++)
         {
-            PixelShaders[i] = ReadShader(ref reader, Blobs);
+            PixelShaders[i] = ReadShader(ref reader, blobs, Shader.ShaderType.Pixel);
         }
 
         MaterialParams = reader.Read<MaterialParam>((int)FileHeader.MaterialParamCount).ToArray();
@@ -106,7 +110,7 @@ public class ShpkFile
         remainingOffset = reader.Position;
     }
 
-    public Shader ReadShader(ref SpanBinaryReader r, ReadOnlySpan<byte> blob)
+    public Shader ReadShader(ref SpanBinaryReader r, ReadOnlySpan<byte> blob, Shader.ShaderType type)
     {
         var definition = r.Read<Shader.ShaderDefinition>();
         if (definition.Pad != 0)
@@ -117,13 +121,29 @@ public class ShpkFile
         var constants = r.Read<Resource>(definition.ConstantCount).ToArray();
         var samplers = r.Read<Resource>(definition.SamplerCount).ToArray();
         var uavs = r.Read<Resource>(definition.UavCount).ToArray();
+        
+        var rawBlob = blob.Slice((int)definition.BlobOffset, (int)definition.BlobSize);
+        var extraHeaderSize = type switch {
+            Shader.ShaderType.Vertex => FileHeader.DxVersion switch {
+                DxVersion.Dx9 => 4,
+                DxVersion.Dx11 => 8,
+                _ => throw new NotImplementedException()
+            },
+            Shader.ShaderType.Pixel => 0,
+            _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
+        };
+        
+        var additionalHeader = rawBlob.Slice(0, extraHeaderSize);
+        var shaderBlob = rawBlob.Slice(extraHeaderSize);
 
         return new Shader
         {
             Definition = definition,
             Constants = constants,
             Samplers = samplers,
-            Uavs = uavs
+            Uavs = uavs,
+            AdditionalHeader = additionalHeader.ToArray(),
+            Blob = shaderBlob.ToArray()
         };
     }
     
@@ -182,6 +202,8 @@ public class ShpkFile
         public Resource[] Constants;
         public Resource[] Samplers;
         public Resource[] Uavs;
+        public byte[] AdditionalHeader;
+        public byte[] Blob;
     }
 
     public struct MaterialParam

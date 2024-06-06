@@ -42,7 +42,7 @@ public class ShpkView : IView
             ImGui.Text($"Blob Size: {shader.Definition.BlobSize}");
         }
         
-        var stringReader = new SpanBinaryReader(file.Strings);
+        var stringReader = new SpanBinaryReader(file.RawData[(int)file.FileHeader.StringsOffset..]);
         
         if (ImGui.CollapsingHeader($"Constants ({shader.Constants.Length})##{shader.GetHashCode()}"))
         {
@@ -79,6 +79,21 @@ public class ShpkView : IView
     {
         ImGui.Text($"Version: {file.FileHeader.Version} [{(uint)file.FileHeader.Version:X8}]");
         ImGui.Text($"DX: {file.FileHeader.DxVersion}");
+        ImGui.Text($"Length: {file.FileHeader.Length}");
+        ImGui.Text($"Blobs Offset: {file.FileHeader.BlobsOffset:X8}");
+        ImGui.Text($"Strings Offset: {file.FileHeader.StringsOffset:X8}");
+        ImGui.Text($"Vertex Shader Count: {file.FileHeader.VertexShaderCount}");
+        ImGui.Text($"Pixel Shader Count: {file.FileHeader.PixelShaderCount}");
+        ImGui.Text($"Material Params Size: {file.FileHeader.MaterialParamsSize}");
+        ImGui.Text($"Material Param Count: {file.FileHeader.MaterialParamCount}");
+        ImGui.Text($"Constant Count: {file.FileHeader.ConstantCount}");
+        ImGui.Text($"Sampler Count: {file.FileHeader.SamplerCount}");
+        ImGui.Text($"Uav Count: {file.FileHeader.UavCount}");
+        ImGui.Text($"System Key Count: {file.FileHeader.SystemKeyCount}");
+        ImGui.Text($"Scene Key Count: {file.FileHeader.SceneKeyCount}");
+        ImGui.Text($"Material Key Count: {file.FileHeader.MaterialKeyCount}");
+        ImGui.Text($"Node Count: {file.FileHeader.NodeCount}");
+        ImGui.Text($"Node Alias Count: {file.FileHeader.NodeAliasCount}");
         
         if (ImGui.CollapsingHeader("Vertex Shaders"))
         {
