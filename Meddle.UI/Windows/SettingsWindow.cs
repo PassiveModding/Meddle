@@ -62,6 +62,7 @@ public class SettingsWindow(Configuration configuration)
                     showSettings = false;
                     configuration.GameDirectory = gameDir;
                     configuration.InteropPort = interopPort;
+                    configuration.Save();
                     ImGui.CloseCurrentPopup();
                 }
                 ImGui.EndPopup();
