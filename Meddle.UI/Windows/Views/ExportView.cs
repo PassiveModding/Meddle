@@ -135,6 +135,20 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
             return $"chara/weapon/{weaponCode}/obj/{subCategoryName}/{subcategory}/material{mtrlPath}";
         }
 
+        if (mdlPath.StartsWith("chara/monster/"))
+        {
+            var monsterCode = mtrlPathMatches[0].Value;
+            var subcategory = mtrlPathMatches[1].Value;
+            
+            var subCategoryName = subcategory[0] switch
+            {
+                'b' => "body",
+                _ => throw new Exception($"Unknown subcategory {subcategory}")
+            };
+            
+            return $"chara/monster/{monsterCode}/obj/{subCategoryName}/{subcategory}/material{mtrlPath}";
+        }
+
         if (mdlPath.StartsWith("chara/equipment/"))
         {
             var characterCode = mtrlPathMatches[0].Value;
@@ -183,6 +197,7 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
         if (ImGui.InputTextMultiline("##Input", ref input, 1000, new Vector2(500, 500)))
         {
             models.Clear();
+            skeletons.Clear();
             HandleMdls();
             HandleSklbs();
         }
