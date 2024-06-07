@@ -11,7 +11,7 @@ public static class PathUtils
     public static List<ParsedFilePath> ParsePaths(IEnumerable<string> paths)
     {
         var parsedPaths = new ConcurrentBag<ParsedFilePath>();
-        Parallel.ForEach(paths, new ParallelOptions
+        /*Parallel.ForEach(paths, new ParallelOptions
         {
             MaxDegreeOfParallelism = 50
         }, line =>
@@ -19,7 +19,13 @@ public static class PathUtils
             if (!line.Contains('/')) return;
             var hash = SqPack.GetFileHash(line);
             parsedPaths.Add(hash);
-        });
+        });*/
+        foreach (var line in paths)
+        {
+            if (!line.Contains('/')) continue;
+            var hash = SqPack.GetFileHash(line);
+            parsedPaths.Add(hash);
+        }
         
         return parsedPaths.ToList();
     }

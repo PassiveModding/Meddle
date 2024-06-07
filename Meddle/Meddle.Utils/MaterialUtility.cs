@@ -14,25 +14,25 @@ public static class MaterialUtility
     
     public static MaterialBuilder BuildCharacter(Material material, string name)
     {
-        var normal = material.GetTexture(TextureUsage.SamplerNormal);
+        var normal = material.GetTexture(TextureUsage.g_SamplerNormal);
         
         var operation = new ProcessCharacterNormalOperation(normal.ToTexture(), material.ColorTable!.Value).Run();
         
         var baseColor = operation.BaseColor;
-        if (material.TryGetTexture(TextureUsage.SamplerDiffuse, out var diffuseTexture))
+        if (material.TryGetTexture(TextureUsage.g_SamplerDiffuse, out var diffuseTexture))
         {
             var diffuse = diffuseTexture.ToTexture((baseColor.Width, baseColor.Height));
             baseColor = MultiplyBitmaps(baseColor, diffuse);
         }
         
         var specular = operation.Specular;
-        if (material.TryGetTexture(TextureUsage.SamplerSpecular, out var specularTexture))
+        if (material.TryGetTexture(TextureUsage.g_SamplerSpecular, out var specularTexture))
         {
             var spec = specularTexture.ToTexture((specular.Width, specular.Height));
             specular = MultiplyBitmaps(spec, specular);
         }
         
-        if (material.TryGetTexture(TextureUsage.SamplerMask, out var mask))
+        if (material.TryGetTexture(TextureUsage.g_SamplerMask, out var mask))
         {
             var maskImage = mask.ToTexture((baseColor.Width, baseColor.Height));
 
@@ -68,8 +68,8 @@ public static class MaterialUtility
         var isFace = material.ShaderKeys
             .Any(key => key is { Category: categoryHairType, Value: valueFace });
         
-        var normalTexture = material.GetTexture(TextureUsage.SamplerNormal);
-        var maskTexture   = material.GetTexture(TextureUsage.SamplerSpecular);
+        var normalTexture = material.GetTexture(TextureUsage.g_SamplerNormal);
+        var maskTexture   = material.GetTexture(TextureUsage.g_SamplerMask);
         
         var normal = normalTexture.ToTexture();
         var mask   = maskTexture.ToTexture((normal.Width, normal.Height));
@@ -104,11 +104,11 @@ public static class MaterialUtility
     
     public static MaterialBuilder BuildIris(Material material, string name)
     {
-        var normalTexture = material.GetTexture(TextureUsage.SamplerNormal);
-        //var maskTexture   = material.GetTexture(TextureUsage.SamplerMask);
+        var normalTexture = material.GetTexture(TextureUsage.g_SamplerNormal);
+        var maskTexture   = material.GetTexture(TextureUsage.g_SamplerMask);
         
         var normal = normalTexture.ToTexture();
-        //var mask   = maskTexture.Resource.ToTexture((normal.Width, normal.Height));
+        var mask   = maskTexture.ToTexture((normal.Width, normal.Height));
         
         var baseColor = new SKTexture(normal.Width, normal.Height);
         for (var x = 0; x < normal.Width; x++)
@@ -142,9 +142,9 @@ public static class MaterialUtility
         var isFace = !material.ShaderKeys
                               .Any(key => key.Category == categorySkinType && key.Value != valueFace);
 
-        var diffuse = material.GetTexture(TextureUsage.SamplerDiffuse).ToTexture();
-        var normal = material.GetTexture(TextureUsage.SamplerNormal).ToTexture();
-        var mask = material.GetTexture(TextureUsage.SamplerSpecular).ToTexture();
+        var diffuse = material.GetTexture(TextureUsage.g_SamplerDiffuse).ToTexture();
+        var normal = material.GetTexture(TextureUsage.g_SamplerNormal).ToTexture();
+        var mask = material.GetTexture(TextureUsage.g_SamplerMask).ToTexture();
 
         
         var resizedNormal = normal.Resize(diffuse.Width, diffuse.Height);
@@ -169,10 +169,10 @@ public static class MaterialUtility
                               .WithMetallicRoughnessShader()
                               .WithBaseColor(Vector4.One);
 
-        if (material.TryGetTexture(TextureUsage.SamplerDiffuse, out var diffuse))
+        if (material.TryGetTexture(TextureUsage.g_SamplerDiffuse, out var diffuse))
             materialBuilder.WithBaseColor(BuildImage(diffuse.ToTexture(), name, "basecolor"));
 
-        if (material.TryGetTexture(TextureUsage.SamplerNormal, out var normal))
+        if (material.TryGetTexture(TextureUsage.g_SamplerNormal, out var normal))
             materialBuilder.WithNormal(BuildImage(normal.ToTexture(), name, "normal"));
 
         return materialBuilder;

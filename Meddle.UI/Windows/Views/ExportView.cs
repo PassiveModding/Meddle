@@ -17,7 +17,8 @@ namespace Meddle.UI.Windows.Views;
 public class ExportView(SqPack pack, Configuration configuration, ImageHandler imageHandler) : IView
 {
     private record TexGroup(TexFile File, string Path);
-    private record MtrlGroup(MtrlFile File, string ResolvedPath, string OriginalPath, List<TexGroup> Textures);
+    private record ShpkGroup(ShpkFile File, string Path);
+    private record MtrlGroup(MtrlFile File, string ResolvedPath, string OriginalPath, ShpkGroup Shpk, List<TexGroup> Textures);
     private record MdlGroup(MdlFile File, string Path, List<MtrlGroup> Mtrls);
     private record SklbGroup(SklbFile File, string Path);
     private readonly Dictionary<string, MdlGroup> models = new();
@@ -71,6 +72,14 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                 }
 
                 var mtrlFile = new MtrlFile(mtrlLookupResult.Value.file.RawData);
+                var shpkPath = $"shader/sm5/shpk/{mtrlFile.GetShaderPackageName()}";
+                var shpkLookupResult = pack.GetFile(shpkPath);
+                if (shpkLookupResult == null)
+                {
+                    continue;
+                }
+                
+                var shpkFile = new ShpkFile(shpkLookupResult.Value.file.RawData);
                 var textures = mtrlFile.GetTexturePaths();
                 var texGroups = new List<TexGroup>();
                 foreach (var (texOffset, texPath) in textures)
@@ -86,7 +95,7 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                     views[texPath] = new TexView(texLookupResult.Value.hash, texFile, imageHandler, texPath);
                 }
 
-                mtrlGroups.Add(new MtrlGroup(mtrlFile, mtrlPath, originalPath, texGroups));
+                mtrlGroups.Add(new MtrlGroup(mtrlFile, mtrlPath, originalPath, new ShpkGroup(shpkFile, shpkPath), texGroups));
                 views[mtrlPath] = new MtrlView(mtrlFile, pack, imageHandler);
             }
             
@@ -267,10 +276,14 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                 var mtrlDict = mdlGroup.Mtrls
                                        .DistinctBy(x => x.OriginalPath)
                                        .ToDictionary(x => x.OriginalPath, x => x.File);
+                var shpkDict = mdlGroup.Mtrls
+                                       .Select(x => x.Shpk)
+                                       .DistinctBy(x => x.Path)
+                                       .ToDictionary(x => x.Path, x => x.File);
                 var texDict = mdlGroup.Mtrls.SelectMany(x => x.Textures)
                                       .DistinctBy(x => x.Path)
                                       .ToDictionary(x => x.Path, x => x.File);
-                var model = new Utils.Export.Model(mdlGroup.File, path, mtrlDict, texDict);
+                var model = new Utils.Export.Model(mdlGroup.File, path, shpkDict, mtrlDict, texDict);
                 
                 var materials = new List<MaterialBuilder>();
                 foreach (var mtrlGroup in mdlGroup.Mtrls)
@@ -278,7 +291,8 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                     var textures = mtrlGroup.Textures
                                             .DistinctBy(x => x.Path)
                                             .ToDictionary(x => x.Path, x => x.File);
-                    var material = new Material(mtrlGroup.File, mtrlGroup.ResolvedPath, textures);
+                    var shpk = mtrlGroup.Shpk;
+                    var material = new Material(mtrlGroup.File, mtrlGroup.ResolvedPath, shpk.File, textures);
                     var builder = MaterialUtility.ParseMaterial(material);
                     materials.Add(builder);
                 }
@@ -333,7 +347,7 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                             Directory.CreateDirectory(texFolder);
                         }
 
-                        var texture = new Texture(texGroup.File, texPath, null, null);
+                        var texture = new Texture(texGroup.File, texPath, null, null, null);
                         var skTex = texture.ToBitmap();
                         
                         var str = new SKDynamicMemoryWStream();

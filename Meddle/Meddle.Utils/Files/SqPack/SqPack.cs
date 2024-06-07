@@ -162,10 +162,14 @@ public class SqPack
         return new ParsedFilePath(path);
     }
 
-    public static uint GetHash(string value)
+    private static uint[]? _crcTable;
+    private static uint[] GetCrcTable()
     {
-        var data = Encoding.UTF8.GetBytes(value);
-        var crcLocal = uint.MaxValue ^ 0U;
+        if (_crcTable != null)
+        {
+            return _crcTable;
+        }
+        
         var table = new uint[16 * 256];
         const uint poly = 0xedb88320u;
         for (uint i = 0; i < 256; i++)
@@ -181,11 +185,20 @@ public class SqPack
                 table[(t * 256) + i] = res;
             }
         }
-
+        
+        _crcTable = table;
+        return table;
+    }
+    public static uint GetHash(string value)
+    {
+        var data = Encoding.UTF8.GetBytes(value);
+        var crcLocal = uint.MaxValue ^ 0U;
+        var table = GetCrcTable();
         foreach (var ch in data) {
             crcLocal = table[(byte)(crcLocal ^ ch)] ^ (crcLocal >> 8);
         }
         
-        return ~(crcLocal ^ uint.MaxValue);
+        var ret = ~(crcLocal ^ uint.MaxValue);
+        return ret;
     }
 }

@@ -1,22 +1,23 @@
-﻿using System.Numerics;
-using ImGuiNET;
+﻿using ImGuiNET;
 using Meddle.Utils;
+using Meddle.Utils.Export;
 using Meddle.Utils.Files;
-using Meddle.Utils.Havok;
 
 namespace Meddle.UI.Windows.Views;
 
 public class ShpkView : IView
 {
     private readonly ShpkFile file;
+    private readonly ShaderPackage shaderPackage;
     private readonly HexView hexView;
     private readonly HexView remainingView;
 
-    public ShpkView(ShpkFile file)
+    public ShpkView(ShpkFile file, string? path)
     {
         this.file = file;
         this.hexView = new(file.RawData);
         this.remainingView = new(file.RemainingData);
+        shaderPackage = new(file, path != null ? Path.GetFileName(path) : "Unknown");
     }
 
     private void DrawShader(ShpkFile.Shader shader)
@@ -108,6 +109,20 @@ public class ShpkView : IView
         ImGui.Text($"Node Count: {file.FileHeader.NodeCount}");
         ImGui.Text($"Node Alias Count: {file.FileHeader.NodeAliasCount}");
         
+        ImGui.Text($"Shader Package Name: {shaderPackage.Name}");
+        foreach (var texture in shaderPackage.TextureLookup)
+        {
+            ImGui.Text($"[{texture.Key:X8}] {texture.Value}");
+        }
+
+        if (shaderPackage.ResourceKeys != null)
+        {
+            foreach (var resource in shaderPackage.ResourceKeys)
+            {
+                ImGui.Text($"[{resource.Key:X8}] {resource.Value}");
+            }
+        }
+
         if (ImGui.CollapsingHeader("Vertex Shaders"))
         {
             for (var i = 0; i < file.VertexShaders.Length; i++)

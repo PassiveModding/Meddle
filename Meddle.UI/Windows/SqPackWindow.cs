@@ -1,7 +1,9 @@
 ﻿using System.Diagnostics;
+using System.Text;
 using ImGuiNET;
 using Meddle.UI.Windows.Views;
 using Meddle.Utils;
+using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
 using Microsoft.Extensions.Logging;
@@ -204,6 +206,65 @@ public class SqPackWindow
         {
             exportView ??= new ExportView(sqPack, config, imageHandler);
             view = exportView;
+        }
+        
+        if (ImGui.Button("ShpkDump"))
+        {
+            var shpkPaths = pathManager.ParsedPaths.Where(x => x.Path.EndsWith(".shpk")).ToList();
+            var sb = new StringBuilder();
+            var distinctCrc = new Dictionary<uint, string>();
+            foreach (var path in shpkPaths)
+            {
+                var file = sqPack.GetFile(path.Path);
+                if (file == null) continue;
+                
+                var shpk = new ShpkFile(file.Value.file.RawData);
+                var stringReader = new SpanBinaryReader(shpk.RawData[(int)shpk.FileHeader.StringsOffset..]);
+                foreach (var sampler in shpk.Samplers)
+                {
+                    if (sampler.Slot != 2)
+                        continue;
+            
+                    var resName = stringReader.ReadString((int)sampler.StringOffset);
+                    // compute crc
+                    var crc = Crc32.GetHash(resName);
+                    sb.AppendLine($"{path.Path}: SAMPLER {resName} - {crc}");
+                    distinctCrc[crc] = resName;
+                }
+                    
+                foreach (var constant in shpk.Constants)
+                {
+                    if (constant.Slot != 2)
+                        continue;
+                    var resName = stringReader.ReadString((int)constant.StringOffset);  
+                    var crc = Crc32.GetHash(resName);
+                    sb.AppendLine($"{path.Path}: CONSTANT {resName} - {crc}");
+                    distinctCrc[crc] = resName;
+                }
+                    
+                foreach (var texture in shpk.Textures)
+                {
+                    if (texture.Slot != 2)
+                        continue;
+                    var resName = stringReader.ReadString((int)texture.StringOffset);
+                    var crc = Crc32.GetHash(resName);
+                    sb.AppendLine($"{path.Path}: TEXTURE {resName} - {crc}");
+                    distinctCrc[crc] = resName;
+                }
+                    
+                foreach (var uav in shpk.Uavs)
+                {
+                    if (uav.Slot != 2)
+                        continue;
+                    var resName = stringReader.ReadString((int)uav.StringOffset);
+                    var crc = Crc32.GetHash(resName);
+                    sb.AppendLine($"{path.Path}: UAV {resName} - {crc}");
+                    distinctCrc[crc] = resName;
+                }
+            }
+            
+            File.WriteAllText("shpk_dump.txt", sb.ToString());
+            File.WriteAllLines("shpk_distinct.txt", distinctCrc.Select(x => $"{x.Value} = 0x{x.Key:X8},"));
         }
     }
 
@@ -532,7 +593,7 @@ public class SqPackWindow
                 SelectedFileType.Material => view ?? new MtrlView(new MtrlFile(file.RawData), sqPack, imageHandler),
                 SelectedFileType.Model => view ?? new MdlView(new MdlFile(file.RawData), path),
                 SelectedFileType.Sklb => view ?? new SklbView(new SklbFile(file.RawData), config),
-                SelectedFileType.Shpk => view ?? new ShpkView(new ShpkFile(file.RawData)),
+                SelectedFileType.Shpk => view ?? new ShpkView(new ShpkFile(file.RawData), path),
                 SelectedFileType.None => view ?? new DefaultView(hash, file),
                 _ => view ?? new DefaultView(hash, file)
             };

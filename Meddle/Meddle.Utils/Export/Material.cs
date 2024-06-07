@@ -38,7 +38,7 @@ public unsafe class Material
     [JsonIgnore]
     public ColorTable? ColorTable { get; }
 
-    public Material(MtrlFile file, string handlePath, IReadOnlyDictionary<string, TexFile> texFiles)
+    public Material(MtrlFile file, string handlePath, ShpkFile shaderFile, IReadOnlyDictionary<string, TexFile> texFiles)
     {
         HandlePath = handlePath;
         ShaderFlags = 0; // TODO
@@ -58,12 +58,13 @@ public unsafe class Material
         
         var textures = new List<Texture>();
         var texturePaths = file.GetTexturePaths();
-        for (int i = 0; i < file.TextureOffsets.Length; i++)
+        for (int i = 0; i < file.Samplers.Length; i++)
         {
-            var texture = file.TextureOffsets[i];
+            var sampler = file.Samplers[i];
+            var texture = file.TextureOffsets[sampler.TextureIndex];
             var path = texturePaths[texture.Offset];
             var texFile = texFiles[path];
-            var texObj = new Texture(texFile, path, (uint)texture.Flags, (uint)i);
+            var texObj = new Texture(texFile, path, sampler.Flags, sampler.SamplerId, shaderFile);
             
             textures.Add(texObj);
         }

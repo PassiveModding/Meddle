@@ -1,42 +1,42 @@
-﻿using System.Text.Json.Serialization;
-using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
-using FFXIVClientStructs.Interop;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Text.Json.Serialization;
 using Meddle.Utils.Files;
 using OtterTex;
-using CSTextureEntry = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Material.TextureEntry;
 
 namespace Meddle.Utils.Export;
 
-/**
- * These values are actually CRC values used by SE in order to
- * coordinate mappings to shaders. Textures do not actually store
- * whether they are diffuse, specular, etc. They store the shader
- * that this texture is input for, in CRC form.
- *
- * That was my long way of explaining "these are linked manually."
- */
+[SuppressMessage("ReSharper", "InconsistentNaming")]
 public enum TextureUsage : uint
 {
-    Sampler = 0x88408C04,
-    Sampler0 = 0x213CB439,
-    Sampler1 = 0x563B84AF,
-    SamplerCatchlight = 0xFEA0F3D2,
-    SamplerColorMap0 = 0x1E6FEF9C,
-    SamplerColorMap1 = 0x6968DF0A,
-    SamplerDiffuse = 0x115306BE,
-    SamplerEnvMap = 0xF8D7957A,
-    SamplerMask = 0x8A4E82B6,
-    SamplerNormal = 0x0C5EC1F1,
-    SamplerNormalMap0 = 0xAAB4D9E9,
-    SamplerNormalMap1 = 0xDDB3E97F,
-    SamplerReflection = 0x87F6474D,
-    SamplerSpecular = 0x2B99E025,
-    SamplerSpecularMap0 = 0x1BBC2F12,
-    SamplerSpecularMap1 = 0x6CBB1F84,
-    SamplerWaveMap = 0xE6321AFC,
-    SamplerWaveletMap0 = 0x574E22D6,
-    SamplerWaveletMap1 = 0x20491240,
-    SamplerWhitecapMap = 0x95E1F64D
+    g_SamplerNormal = 0x0C5EC1F1,
+    g_SamplerMask = 0x8A4E82B6,
+    g_SamplerIndex = 0x565F8FD8,
+    g_SamplerDiffuse = 0x115306BE,
+    g_SamplerFlow = 0xA7E197F6,
+    g_SamplerWaveMap = 0xE6321AFC,
+    g_SamplerWaveMap1 = 0xE5338C17,
+    g_SamplerWhitecapMap = 0x95E1F64D,
+    g_SamplerWaveletMap0 = 0x574E22D6,
+    g_SamplerWaveletMap1 = 0x20491240,
+    g_SamplerColorMap0 = 0x1E6FEF9C,
+    g_SamplerNormalMap0 = 0xAAB4D9E9,
+    g_SamplerSpecularMap0 = 0x1BBC2F12,
+    g_SamplerColorMap1 = 0x6968DF0A,
+    g_SamplerNormalMap1 = 0xDDB3E97F,
+    g_SamplerSpecularMap1 = 0x6CBB1F84,
+    g_SamplerSpecular = 0x2B99E025,
+    g_SamplerColorMap = 0x6E1DF4A2,
+    g_SamplerNormalMap = 0xBE95B65E,
+    g_SamplerSpecularMap = 0xBD8A6965,
+    g_SamplerEnvMap = 0xF8D7957A,
+    g_SamplerSphareMapCustum = 0xD7837FCE,
+    g_Sampler0 = 0x213CB439,
+    g_Sampler1 = 0x563B84AF,
+    g_SamplerCatchlight = 0xFEA0F3D2,
+    g_Sampler = 0x88408C04,
+    g_SamplerGradationMap = 0x5F726C11,
+    g_SamplerNormal2 = 0x0261CDCB,
+    g_SamplerWrinklesMask = 0xB3F13975,
 }
 
 public unsafe class Texture
@@ -51,7 +51,7 @@ public unsafe class Texture
 
     public TexMeta Meta { get; }
 
-    public Texture(TexFile file, string path, uint? samplerFlags, uint? id)
+    public Texture(TexFile file, string path, uint? samplerFlags, uint? id, ShpkFile? shpkFile)
     {
         SamplerFlags = samplerFlags;
         Id = id;
@@ -69,14 +69,12 @@ public unsafe class Texture
             flags |= D3DResourceMiscFlags.TextureCube;
         Resource = new TextureResource(h.Format.ToDXGIFormat(), h.Width, h.Height, h.MipLevels, h.ArraySize, dimension, flags, file.TextureBuffer);
         Meta = ImageUtils.GetTexMeta(file);
-        
-        if (path.Contains("_d")) Usage = TextureUsage.SamplerDiffuse;
-        else if (path.Contains("_n")) Usage = TextureUsage.SamplerNormal;
-        else if (path.Contains("_s")) Usage = TextureUsage.SamplerSpecular;
-        else if (path.Contains("_m")) Usage = TextureUsage.SamplerMask;
-        else
+
+        if (shpkFile != null)
         {
-            Console.WriteLine($"Unknown texture usage for {path}");
+            var shaderPackage = new ShaderPackage(shpkFile, null!);
+            if (Id.HasValue && shaderPackage.TextureLookup.TryGetValue(Id.Value, out var usage))
+                Usage = usage;
         }
     }
 }
