@@ -46,7 +46,7 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
             var mtrlNames = mdlFile.GetMaterialNames();
             foreach (var (offset, originalPath) in mtrlNames)
             {
-                var mtrlPath = originalPath.StartsWith('/') ? Resolve(mdlPath, originalPath) : originalPath;
+                var mtrlPath = originalPath.StartsWith('/') ? PathUtil.Resolve(mdlPath, originalPath) : originalPath;
                 var mtrlLookupResult = pack.GetFile(mtrlPath);
                 if (mtrlLookupResult == null)
                 {
@@ -103,84 +103,6 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
         }
     }
     
-    public static string Resolve(string mdlPath, string mtrlPath)
-    {
-        var mtrlPathRegex = new Regex(@"[a-z]\d{4}");
-        var mtrlPathMatches = mtrlPathRegex.Matches(mtrlPath);
-        if (mtrlPathMatches.Count != 2)
-        {
-            throw new Exception($"Invalid mdl path {mdlPath}");
-        }
-
-        if (mdlPath.StartsWith("chara/human/"))
-        {
-            var characterCode = mtrlPathMatches[0].Value;
-            var subcategory = mtrlPathMatches[1].Value;
-            
-            var subCategoryName = subcategory[0] switch
-            {
-                'b' => "body",
-                'f' => "face",
-                'h' => "hair",
-                't' => "tail",
-                _ => throw new Exception($"Unknown subcategory {subcategory}")
-            };
-
-            return $"chara/human/{characterCode}/obj/{subCategoryName}/{subcategory}/material{mtrlPath}";
-        }
-
-        if (mdlPath.StartsWith("chara/weapon/"))
-        {
-            var weaponCode = mtrlPathMatches[0].Value;
-            var subcategory = mtrlPathMatches[1].Value;
-            
-            var subCategoryName = subcategory[0] switch
-            {
-                'b' => "body",
-                _ => throw new Exception($"Unknown subcategory {subcategory}")
-            };
-
-            return $"chara/weapon/{weaponCode}/obj/{subCategoryName}/{subcategory}/material{mtrlPath}";
-        }
-
-        if (mdlPath.StartsWith("chara/monster/"))
-        {
-            var monsterCode = mtrlPathMatches[0].Value;
-            var subcategory = mtrlPathMatches[1].Value;
-            
-            var subCategoryName = subcategory[0] switch
-            {
-                'b' => "body",
-                _ => throw new Exception($"Unknown subcategory {subcategory}")
-            };
-            
-            return $"chara/monster/{monsterCode}/obj/{subCategoryName}/{subcategory}/material{mtrlPath}";
-        }
-
-        if (mdlPath.StartsWith("chara/equipment/"))
-        {
-            var characterCode = mtrlPathMatches[0].Value;
-            var equipmentCode = mtrlPathMatches[1].Value;
-            if (equipmentCode.StartsWith('e'))
-            {
-                return $"chara/equipment/{equipmentCode}/material{mtrlPath}";
-            }
-
-            var subCategoryName = equipmentCode[0] switch
-            {
-                'b' => "body",
-                'f' => "face",
-                'h' => "hair",
-                't' => "tail",
-                _ => throw new Exception($"Unknown subcategory {equipmentCode}")
-            };
-                
-            return $"chara/human/{characterCode}/obj/{subCategoryName}/{equipmentCode}/material{mtrlPath}";
-        }
-        
-        throw new Exception($"Unsupported mdl path {mdlPath}");
-    }
-
     private void HandleSklbs()
     {
         var lines = input.Split('\n');

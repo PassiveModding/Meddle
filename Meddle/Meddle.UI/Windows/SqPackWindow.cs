@@ -186,6 +186,10 @@ public class SqPackWindow
                     view = null;
                     pathManager.ParsedPaths.Add(hash);
                 }
+                else
+                {
+                    logger.LogWarning("File not found: {Path}", search);
+                }
             }
 
             if (ImGui.InputText("Filter", ref filter, 100))
