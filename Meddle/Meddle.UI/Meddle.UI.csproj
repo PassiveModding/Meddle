@@ -32,12 +32,12 @@
     </ItemGroup>
     
     <ItemGroup>
-      <ProjectReference Include="..\Meddle\Meddle.Utils\Meddle.Utils.csproj" />
+      <ProjectReference Include="..\Meddle.Utils\Meddle.Utils.csproj" />
     </ItemGroup>
     
     <ItemGroup>
       <Reference Include="OtterTex">
-        <HintPath>..\Meddle\Meddle.Plugin\Lib\OtterTex.dll</HintPath>
+        <HintPath>..\Meddle.Plugin\Lib\OtterTex.dll</HintPath>
       </Reference>
     </ItemGroup>
 </Project>

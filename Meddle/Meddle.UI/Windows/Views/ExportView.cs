@@ -55,8 +55,7 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                     for (var j = 1; j < 10; j++)
                     {
                         // 1 -> v0001
-                        var version = j.ToString("D4");
-                        var versionedPath = $"{prefix}/v{version}{originalPath}";
+                        var versionedPath = $"{prefix}/v{j:D4}{originalPath}";
                         var versionedLookupResult = pack.GetFile(versionedPath);
                         if (versionedLookupResult != null)
                         {

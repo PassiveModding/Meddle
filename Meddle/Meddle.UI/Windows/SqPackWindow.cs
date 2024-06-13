@@ -27,6 +27,8 @@ public class SqPackWindow
     private Repository selectedRepository;
     private Category selectedCategory;
     private IView? view;
+    private ExportView exportView;
+    private DiscoverView discoverView;
 
 
     public SqPackWindow(SqPack sqPack, ImageHandler imageHandler, PathManager pathManager, Configuration config, ILogger<SqPackWindow> logger)
@@ -38,6 +40,8 @@ public class SqPackWindow
         this.pathManager = pathManager;
         this.config = config;
         this.logger = logger;
+        exportView = new ExportView(sqPack, config, imageHandler);
+        discoverView = new DiscoverView(sqPack, config, pathManager);
     }
 
     public void Draw()
@@ -110,7 +114,19 @@ public class SqPackWindow
         ImGui.NextColumn();
         if (ImGui.BeginChild("##SqPackFile"))
         {
-            DrawFile();
+            if (view is ExportView ev)
+            {
+                ev.Draw();
+            }
+            else if (view is DiscoverView dv)
+            {
+                dv.Draw();
+            }
+            else
+            {
+                DrawFile();
+            }
+            
             ImGui.EndChild();
         }
     }
@@ -204,71 +220,15 @@ public class SqPackWindow
         
         if (ImGui.Button("Export Menu"))
         {
-            exportView ??= new ExportView(sqPack, config, imageHandler);
             view = exportView;
         }
-        
-        if (ImGui.Button("ShpkDump"))
+
+        ImGui.SameLine();
+        if (ImGui.Button("Test view"))
         {
-            var shpkPaths = pathManager.ParsedPaths.Where(x => x.Path.EndsWith(".shpk")).ToList();
-            var sb = new StringBuilder();
-            var distinctCrc = new Dictionary<uint, string>();
-            foreach (var path in shpkPaths)
-            {
-                var file = sqPack.GetFile(path.Path);
-                if (file == null) continue;
-                
-                var shpk = new ShpkFile(file.Value.file.RawData);
-                var stringReader = new SpanBinaryReader(shpk.RawData[(int)shpk.FileHeader.StringsOffset..]);
-                foreach (var sampler in shpk.Samplers)
-                {
-                    if (sampler.Slot != 2)
-                        continue;
-            
-                    var resName = stringReader.ReadString((int)sampler.StringOffset);
-                    // compute crc
-                    var crc = Crc32.GetHash(resName);
-                    sb.AppendLine($"{path.Path}: SAMPLER {resName} - {crc}");
-                    distinctCrc[crc] = resName;
-                }
-                    
-                foreach (var constant in shpk.Constants)
-                {
-                    if (constant.Slot != 2)
-                        continue;
-                    var resName = stringReader.ReadString((int)constant.StringOffset);  
-                    var crc = Crc32.GetHash(resName);
-                    sb.AppendLine($"{path.Path}: CONSTANT {resName} - {crc}");
-                    distinctCrc[crc] = resName;
-                }
-                    
-                foreach (var texture in shpk.Textures)
-                {
-                    if (texture.Slot != 2)
-                        continue;
-                    var resName = stringReader.ReadString((int)texture.StringOffset);
-                    var crc = Crc32.GetHash(resName);
-                    sb.AppendLine($"{path.Path}: TEXTURE {resName} - {crc}");
-                    distinctCrc[crc] = resName;
-                }
-                    
-                foreach (var uav in shpk.Uavs)
-                {
-                    if (uav.Slot != 2)
-                        continue;
-                    var resName = stringReader.ReadString((int)uav.StringOffset);
-                    var crc = Crc32.GetHash(resName);
-                    sb.AppendLine($"{path.Path}: UAV {resName} - {crc}");
-                    distinctCrc[crc] = resName;
-                }
-            }
-            
-            File.WriteAllText("shpk_dump.txt", sb.ToString());
-            File.WriteAllLines("shpk_distinct.txt", distinctCrc.Select(x => $"{x.Value} = 0x{x.Key:X8},"));
+            view = discoverView;
         }
     }
-
-    private ExportView? exportView;
 
     private void DrawPathSet(string key, IEnumerable<ParsedFilePath> paths)
     {
@@ -472,16 +432,10 @@ public class SqPackWindow
 
     private void DrawFile()
     {
-        if (selectedFile == null && view is not ExportView)
+        if (selectedFile == null)
         {
             return;
         }
-        else if (view is ExportView exportView)
-        {
-            exportView.Draw();
-            return;
-        }
-
 
         var hash = selectedFile.Value.hash;
         var path = DrawPathDiscovery(hash);
