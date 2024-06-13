@@ -43,9 +43,9 @@ public unsafe class Material
         HandlePath = handlePath;
         ShaderFlags = 0; // TODO
         ShaderPackageName = file.GetShaderPackageName();
-
-        var shaderKeys = new ShaderKey[file.ShaderValues.Length];
-        for (var i = 0; i < file.ShaderKeys.Length; ++i)
+        
+        var shaderKeys = new ShaderKey[file.ShaderKeys.Length];
+        for (var i = 0; i < file.ShaderKeys.Length; i++)
         {
             shaderKeys[i] = new ShaderKey
             {
@@ -53,9 +53,9 @@ public unsafe class Material
                 Value = file.ShaderKeys[i].Value
             };
         }
-        
+
         ShaderKeys = shaderKeys;
-        
+
         var textures = new List<Texture>();
         var texturePaths = file.GetTexturePaths();
         for (int i = 0; i < file.Samplers.Length; i++)
