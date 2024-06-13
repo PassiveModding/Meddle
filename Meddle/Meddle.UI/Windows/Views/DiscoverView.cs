@@ -92,6 +92,20 @@ public class DiscoverView(SqPack pack, Configuration configuration, PathManager 
                 
             return $"chara/human/{characterCode}/obj/{subCategoryName}/{equipmentCode}/material{mtrlPath}";
         }
+
+        if (mdlPath.StartsWith("chara/demihuman/"))
+        {
+            var demiHumanCode = mtrlPathMatches[0].Value;
+            var subcategory = mtrlPathMatches[1].Value;
+            
+            var subCategoryName = subcategory[0] switch
+            {
+                'e' => "equipment",
+                _ => throw new Exception($"Unknown subcategory {subcategory} for {mdlPath} -> {mtrlPath}")
+            };
+            
+            return $"chara/demihuman/{demiHumanCode}/obj/{subCategoryName}/{subcategory}/material{mtrlPath}";
+        }
         
         throw new Exception($"Unsupported mdl path {mdlPath} -> {mtrlPath}");
     }
@@ -106,48 +120,68 @@ public class DiscoverView(SqPack pack, Configuration configuration, PathManager 
     private readonly Dictionary<string, DiscoveredTexture> discoveredTextures = new();
     private readonly HashSet<string> discoveredShaders = new();
 
+    public void HandlePath(ParsedFilePath pathInfo)
+    {
+        try 
+        { 
+            if (pathInfo.Path.EndsWith(".mdl"))
+            {
+                HandleMdlFile(pathInfo.Path);
+            }
+            else if (pathInfo.Path.EndsWith(".mtrl"))
+            {
+                var file = pack.GetFile(pathInfo.Path);
+                if (file is null)
+                {
+                    log.Add($"Failed to get mtrl file {pathInfo.Path}");
+                    return;
+                }
+                var mtrl = new MtrlFile(file.Value.file.RawData);
+                DiscoverShaders(mtrl);
+                DiscoverTextures(mtrl, pathInfo.Path);
+            }
+        }
+        catch (Exception ex)
+        {
+            log.Add($"[{pathInfo.Path}] Exception: {ex}");
+        }
+    }
+    
+    private int progress;
+    private int count;
+    public async Task DiscoverAsync(CancellationToken token)
+    {
+        discoveredMtrls.Clear();
+        discoveredTextures.Clear();
+        discoveredShaders.Clear();
+        log.Clear();
+        var initPaths = pathManager.ParsedPaths.ToArray();
+        progress = 0;
+        count = initPaths.Length;
+
+        await Parallel.ForEachAsync(initPaths, token, (path, tkn) =>
+        {
+            if (tkn.IsCancellationRequested)
+            {
+                return ValueTask.CompletedTask;
+            }
+            
+            HandlePath(path);
+            Interlocked.Increment(ref progress);
+            return ValueTask.CompletedTask;
+        });
+                    
+        await File.WriteAllLinesAsync("discovered_mtrls.txt", discoveredMtrls.Select(x => x.Value.ResolvedPath), token);
+        await File.WriteAllLinesAsync("discovered_textures.txt", discoveredTextures.Select(x => x.Key), token);
+        await File.WriteAllLinesAsync("discovered_shaders.txt", discoveredShaders, token);
+    }
+    
     public void Draw()
     {
         if (ImGui.Button("RunDiscovery"))
         {
             cts = new CancellationTokenSource();
-            discoverTask = Task.Run(() =>
-            {
-                discoveredMtrls.Clear();
-                log.Clear();
-                    var initPaths = pathManager.ParsedPaths.ToArray();
-                    foreach (var pathInfo in initPaths)
-                    {
-                        if (cts.Token.IsCancellationRequested)
-                        {
-                            break;
-                        }
-                        try 
-                        { 
-                            if (pathInfo.Path.EndsWith(".mdl"))
-                            {
-                                HandleMdlFile(pathInfo.Path);
-                            }
-                            else if (pathInfo.Path.EndsWith(".mtrl"))
-                            {
-                                var file = pack.GetFile(pathInfo.Path);
-                                if (file is null)
-                                {
-                                    log.Add($"Failed to get mtrl file {pathInfo.Path}");
-                                    continue;
-                                }
-                                var mtrl = new MtrlFile(file.Value.file.RawData);
-                                DiscoverShaders(mtrl);
-                                DiscoverTextures(mtrl, pathInfo.Path);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            log.Add($"Exception: {ex}");
-                        }
-                    }
-
-            }, cts.Token);
+            discoverTask = Task.Run(async () => await DiscoverAsync(cts.Token));
         }
         
         
@@ -168,15 +202,19 @@ public class DiscoverView(SqPack pack, Configuration configuration, PathManager 
             ShpkDump();
         }
         
+        // progress bar
+        ImGui.ProgressBar(progress / (float)count, new Vector2(0, 0));
+        
         // scroll box of discovered files
         ImGui.SeparatorText("Discovered Files");
-        ImGui.BeginChild("Discovered Files", new Vector2(0, 300));
+        var availableSize = ImGui.GetContentRegionAvail();
+        ImGui.BeginChild("Discovered Files", new Vector2(0, availableSize.Y - 350));
         try
         {
             // show all paths not present in parsed paths
             foreach (var (key, value) in discoveredMtrls.ToArray())
             {
-                ImGui.Text($"[{value.MdlPath}] {key} -> {value.ResolvedPath}");
+                ImGui.Text($"[{value.MdlPath}] {value.SourcePath} -> {value.ResolvedPath}");
             }
             
             foreach (var (key, value) in discoveredTextures.ToArray())
@@ -268,6 +306,80 @@ public class DiscoverView(SqPack pack, Configuration configuration, PathManager 
         File.WriteAllText("shpk_dump.txt", sb.ToString());
         File.WriteAllLines("shpk_distinct.txt", distinctCrc.Select(x => $"{x.Value} = 0x{x.Key:X8},"));
     }
+
+    public void HandleMtrlPath(string mdlPath, string mtrlPath)
+    {
+        if (!mtrlPath.StartsWith('/'))
+        {
+            var file = pack.GetFile(mtrlPath);
+            if (file is null)
+            {
+                log.Add($"Failed to find {mdlPath} -> {mtrlPath}");
+                return;
+            }
+
+            var mtrlFile = new MtrlFile(file.Value.file.RawData);
+            DiscoverShaders(mtrlFile);
+            DiscoverTextures(mtrlFile, mtrlPath);
+            return;
+        }
+        
+        var resolvedPath = Resolve(mdlPath, mtrlPath);
+        var lookupResult = pack.GetFile(resolvedPath);
+        var foundCount = 0;
+        if (lookupResult is null)
+        {
+            var prefix = resolvedPath[..resolvedPath.LastIndexOf('/')];
+            
+            // in chunks of 5, try and find each mtrlPath, if none in group, break, otherwise continue
+            var chunkSize = 5;
+            var offset = 0;
+
+            while (true)
+            {
+                var found = false;
+
+                for (var i = offset; i < offset + chunkSize; i++)
+                {
+                    var newResolvedPath = $"{prefix}/v{i:D4}{mtrlPath}";
+                    var newLookupResult = pack.GetFile(newResolvedPath);
+                    if (newLookupResult is not null)
+                    {
+                        var mtrlFile = new MtrlFile(newLookupResult.Value.file.RawData);
+                        discoveredMtrls[newResolvedPath] = new DiscoveredMtrl(mtrlPath, newResolvedPath, mdlPath);
+                        DiscoverShaders(mtrlFile);
+                        DiscoverTextures(mtrlFile, newResolvedPath);
+                        Interlocked.Increment(ref foundCount);
+                        found = true;
+                    }
+                }
+                
+                if (!found)
+                {
+                    break;
+                }
+                
+                offset += chunkSize;
+            }
+        }
+        else
+        {
+            var mtrlFile = new MtrlFile(lookupResult.Value.file.RawData);
+            discoveredMtrls[resolvedPath] = new DiscoveredMtrl(mtrlPath, resolvedPath, mdlPath);
+            DiscoverShaders(mtrlFile);
+            DiscoverTextures(mtrlFile, mtrlPath);
+            foundCount = 1;
+        }
+
+        if (foundCount == 0)
+        {
+            log.Add($"Failed to find {mdlPath} -> {mtrlPath}");
+        }
+        else if (foundCount > 1)
+        {
+            log.Add($"Found multiple ({foundCount}) {mdlPath} -> {mtrlPath}");
+        }
+    }
     
     public void HandleMdlFile(string path)
     {
@@ -281,60 +393,7 @@ public class DiscoverView(SqPack pack, Configuration configuration, PathManager 
         var mdl = new MdlFile(mdlFile.Value.file.RawData);
         foreach (var (offset, mtrlPath) in mdl.GetMaterialNames())
         {
-            if (mtrlPath.StartsWith('/'))
-            {
-                var resolvedPath = Resolve(path, mtrlPath);
-                var lookupResultPath = resolvedPath;
-                var lookupResult = pack.GetFile(resolvedPath);
-                if (lookupResult is null)
-                {
-                    var prefix = resolvedPath[..resolvedPath.LastIndexOf('/')];
-                    for (var i = 0; i < 10; i++)
-                    {
-                        var newResolvedPath = $"{prefix}/v{i:D4}{mtrlPath}";
-                        lookupResult = pack.GetFile(newResolvedPath);
-                        lookupResultPath = newResolvedPath;
-                        if (lookupResult is not null)
-                        {
-                            var mtrlFile = new MtrlFile(lookupResult.Value.file.RawData);
-                            discoveredMtrls[mtrlPath] = new DiscoveredMtrl(path, lookupResultPath, path);
-                            DiscoverShaders(mtrlFile);
-                            DiscoverTextures(mtrlFile, mtrlPath);
-                        }
-                    }
-                }
-                else
-                {
-                    var mtrlFile = new MtrlFile(lookupResult.Value.file.RawData);
-                    discoveredMtrls[mtrlPath] = new DiscoveredMtrl(path, lookupResultPath, path);
-                    DiscoverShaders(mtrlFile);
-                    DiscoverTextures(mtrlFile, mtrlPath);
-                }
-                
-                if (lookupResult is null)
-                {
-                    log.Add($"Failed to find {path} -> {mtrlPath}");
-                    continue;
-                }
-                
-                //var mtrlFile = new MtrlFile(lookupResult.Value.file.RawData);
-              //  discoveredMtrls[mtrlPath] = new DiscoveredMtrl(path, lookupResultPath, path);
-              //  DiscoverShaders(mtrlFile);
-              //  DiscoverTextures(mtrlFile, mtrlPath);
-            }
-            else
-            {
-                var lookupResult = pack.GetFile(mtrlPath);
-                if (lookupResult is null)
-                {
-                    log.Add($"Failed to find {path} -> {mtrlPath}");
-                    continue;
-                }
-                
-                var mtrlFile = new MtrlFile(lookupResult.Value.file.RawData);
-                DiscoverShaders(mtrlFile);
-                DiscoverTextures(mtrlFile, mtrlPath);
-            }
+            HandleMtrlPath(path, mtrlPath);
         }
     }
     public void DiscoverTextures(MtrlFile mtrlFile, string mtrlPath)
