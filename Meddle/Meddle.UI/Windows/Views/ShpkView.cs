@@ -25,6 +25,8 @@ public class ShpkView : IView
     
     private readonly Dictionary<ShpkFile.Shader, string> decompiledShader = new();
 
+    
+    
     private void DrawShader(ShpkFile.Shader shader)
     {
         void DrawResourceTable(ShpkFile.Resource[] resources, ref SpanBinaryReader stringReader)
@@ -36,19 +38,26 @@ public class ShpkView : IView
                 {
                     var name = stringReader.ReadString((int)resource.StringOffset);
                     ImGui.Text(name);
+                    if (ImGui.BeginPopupContextItem($"Copy##{resource.GetHashCode()}"))
+                    {
+                        if (ImGui.Selectable($"Copy Name ({name})"))
+                        {
+                            ImGui.SetClipboardText(name);
+                        }
+                        if (ImGui.Selectable($"Copy Id ({resource.Id})"))
+                        {
+                            ImGui.SetClipboardText(resource.Id.ToString());
+                        }
+                        if (ImGui.Selectable($"Copy Id (0x{resource.Id:X8})"))
+                        {
+                            ImGui.SetClipboardText($"0x{resource.Id:X8}");
+                        }
+                        ImGui.EndPopup();
+                    }
                     ImGui.NextColumn();
                     ImGui.Text(resource.Slot.ToString());
                     ImGui.NextColumn();
-                    ImGui.Text(resource.Id.ToString());
-                    // click to copy
-                    if (ImGui.IsItemHovered())
-                    {
-                        ImGui.SetTooltip("Right click to copy");
-                    }
-                    if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
-                    {
-                        ImGui.SetClipboardText(resource.Id.ToString());
-                    }
+                    ImGui.Text($"{resource.Id} (0x{resource.Id:X8})");
                     ImGui.NextColumn();
                     ImGui.Text($"Size: {resource.StringSize} Offset: {resource.StringOffset}");
                     ImGui.NextColumn();
