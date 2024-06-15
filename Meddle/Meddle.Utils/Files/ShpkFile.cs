@@ -145,8 +145,8 @@ public class ShpkFile
             _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
         };
         
-        var additionalHeader = rawBlob.Slice(0, extraHeaderSize);
-        var shaderBlob = rawBlob.Slice(extraHeaderSize);
+        var additionalHeader = rawBlob[..extraHeaderSize];
+        var shaderBlob = rawBlob[extraHeaderSize..];
 
         return new Shader
         {

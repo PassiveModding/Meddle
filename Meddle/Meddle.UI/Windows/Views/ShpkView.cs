@@ -1,7 +1,9 @@
-﻿using ImGuiNET;
+﻿using System.Numerics;
+using ImGuiNET;
 using Meddle.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
+using Meddle.Utils.Models;
 
 namespace Meddle.UI.Windows.Views;
 
@@ -11,6 +13,7 @@ public class ShpkView : IView
     private readonly ShaderPackage shaderPackage;
     private readonly HexView hexView;
     private readonly HexView remainingView;
+    private Dictionary<ShpkFile.Shader, HexView> blobViews = new();
 
     public ShpkView(ShpkFile file, string? path)
     {
@@ -19,71 +22,116 @@ public class ShpkView : IView
         this.remainingView = new(file.RemainingData);
         shaderPackage = new(file, path != null ? Path.GetFileName(path) : "Unknown");
     }
+    
+    private readonly Dictionary<ShpkFile.Shader, string> decompiledShader = new();
 
     private void DrawShader(ShpkFile.Shader shader)
     {
-        void DrawResource(ShpkFile.Resource resource, ref SpanBinaryReader r)
+        void DrawResourceTable(ShpkFile.Resource[] resources, ref SpanBinaryReader stringReader)
         {
-            // ignore string size because wtf
-            ImGui.Text($"Name: {r.ReadString((int)resource.StringOffset)}");
-            ImGui.Text($"Slot: {resource.Slot}");
-            ImGui.Text($"Id: {resource.Id}");
-            ImGui.Text($"Size: {resource.Size}");
-            ImGui.Text($"String Offset: {resource.StringOffset}");
-            ImGui.Text($"String Size: {resource.StringSize}");
+            try
+            {
+                ImGui.Columns(4);
+                foreach (var resource in resources)
+                {
+                    var name = stringReader.ReadString((int)resource.StringOffset);
+                    ImGui.Text(name);
+                    ImGui.NextColumn();
+                    ImGui.Text(resource.Slot.ToString());
+                    ImGui.NextColumn();
+                    ImGui.Text(resource.Id.ToString());
+                    // click to copy
+                    if (ImGui.IsItemHovered())
+                    {
+                        ImGui.SetTooltip("Right click to copy");
+                    }
+                    if (ImGui.IsItemClicked(ImGuiMouseButton.Right))
+                    {
+                        ImGui.SetClipboardText(resource.Id.ToString());
+                    }
+                    ImGui.NextColumn();
+                    ImGui.Text($"Size: {resource.StringSize} Offset: {resource.StringOffset}");
+                    ImGui.NextColumn();
+                }
+            } finally
+            {
+                ImGui.Columns(1);
+            }
+        }
+        
+        if (ImGui.CollapsingHeader($"Blob##{shader.GetHashCode()}"))
+        {
+            if (ImGui.Button($"Disassemble##btn_{shader.GetHashCode()}"))
+            {
+                decompiledShader[shader] = ShaderUtils.Disassemble(shader.Blob);
+            }
+                    
+            if (decompiledShader.TryGetValue(shader, out var value))
+            {
+                // multiline textbox
+                ImGui.InputTextMultiline($"##{shader.GetHashCode()}", ref value, 0, new Vector2(0, 600));
+                // copy button
+                if (ImGui.Button($"Copy##{shader.GetHashCode()}"))
+                {
+                    ImGui.SetClipboardText(value);
+                }
+            }
+            
+            if (ImGui.CollapsingHeader($"Hex Dump##{shader.GetHashCode()}"))
+            {
+                if (!blobViews.TryGetValue(shader, out var view))
+                {
+                    view = new HexView(shader.Blob);
+                    blobViews[shader] = view;
+                }
+                view.DrawHexDump();
+            }
         }
 
-        if (ImGui.CollapsingHeader($"Definition##{shader.GetHashCode()}"))
+        try
         {
-            ImGui.Text($"Constant Count: {shader.Definition.ConstantCount}");
-            ImGui.Text($"Sampler Count: {shader.Definition.SamplerCount}");
-            ImGui.Text($"Uav Count: {shader.Definition.UavCount}");
-            ImGui.Text($"Texture Count: {shader.Definition.TextureCount}");
-            ImGui.Text($"Blob Offset: {shader.Definition.BlobOffset}");
-            ImGui.Text($"Blob Size: {shader.Definition.BlobSize}");
-        }
-        
-        var stringReader = new SpanBinaryReader(file.RawData[(int)file.FileHeader.StringsOffset..]);
-        
-        if (ImGui.CollapsingHeader($"Constants ({shader.Constants.Length})##{shader.GetHashCode()}"))
-        {
-            for (var i = 0; i < shader.Constants.Length; i++)
+            ImGui.Columns(4);
+            ImGui.Text("Name");
+            ImGui.NextColumn();
+            ImGui.Text("Slot");
+            ImGui.NextColumn();
+            ImGui.Text("Id");
+            ImGui.NextColumn();
+            ImGui.Text("String");
+            ImGui.NextColumn();
+            ImGui.Columns(1);
+            
+            var stringReader = new SpanBinaryReader(file.RawData[(int)file.FileHeader.StringsOffset..]);
+
+            if (shader.Constants.Length > 0)
             {
-                var constant = shader.Constants[i];
-                ImGui.Text($"Constant {i}");
-                DrawResource(constant, ref stringReader);
+                ImGui.SeparatorText($"Constants ({shader.Definition.ConstantCount})");
+                DrawResourceTable(shader.Constants, ref stringReader);
             }
+
+            if (shader.Samplers.Length > 0)
+            {
+                ImGui.SeparatorText($"Samplers ({shader.Definition.SamplerCount})");
+                DrawResourceTable(shader.Samplers, ref stringReader);
+            }
+
+            if (shader.Uavs.Length > 0)
+            {
+                ImGui.SeparatorText($"UAVs ({shader.Definition.UavCount})");
+                DrawResourceTable(shader.Uavs, ref stringReader);
+            }
+
+            if (shader.Textures.Length > 0)
+            {
+                ImGui.SeparatorText($"Textures ({shader.Definition.TextureCount})");
+                DrawResourceTable(shader.Textures, ref stringReader);
+            }
+        } 
+        finally
+        {
+            ImGui.Columns(1);
         }
         
-        if (ImGui.CollapsingHeader($"Samplers ({shader.Samplers.Length})##{shader.GetHashCode()}"))
-        {
-            for (var i = 0; i < shader.Samplers.Length; i++)
-            {
-                var sampler = shader.Samplers[i];
-                ImGui.Text($"Sampler {i}");
-                DrawResource(sampler, ref stringReader);
-            }
-        }
-        
-        if (ImGui.CollapsingHeader($"Uavs ({shader.Uavs.Length})##{shader.GetHashCode()}"))
-        {
-            for (var i = 0; i < shader.Uavs.Length; i++)
-            {
-                var uav = shader.Uavs[i];
-                ImGui.Text($"Uav {i}");
-                DrawResource(uav, ref stringReader);
-            }
-        }
-        
-        if (ImGui.CollapsingHeader($"Textures ({shader.Textures.Length})##{shader.GetHashCode()}"))
-        {
-            for (var i = 0; i < shader.Textures.Length; i++)
-            {
-                var uav = shader.Textures[i];
-                ImGui.Text($"Texture {i}");
-                DrawResource(uav, ref stringReader);
-            }
-        }
     }
     
     public void Draw()
@@ -125,22 +173,44 @@ public class ShpkView : IView
 
         if (ImGui.CollapsingHeader("Vertex Shaders"))
         {
+            ImGui.Indent();
             for (var i = 0; i < file.VertexShaders.Length; i++)
             {
                 var shader = file.VertexShaders[i];
-                ImGui.Text($"Vertex Shader {i}");
-                DrawShader(shader);
+                if (ImGui.CollapsingHeader($"Vertex Shader {i}"))
+                {
+                    try
+                    {
+                        ImGui.Indent();
+                        DrawShader(shader);
+                    } finally
+                    {
+                        ImGui.Unindent();
+                    }
+                }
             }
+            ImGui.Unindent();
         }
         
         if (ImGui.CollapsingHeader("Pixel Shaders"))
         {
+            ImGui.Indent();
             for (var i = 0; i < file.PixelShaders.Length; i++)
             {
                 var shader = file.PixelShaders[i];
-                ImGui.Text($"Pixel Shader {i}");
-                DrawShader(shader);
+                if (ImGui.CollapsingHeader($"Pixel Shader {i}"))
+                {
+                    try
+                    {
+                        ImGui.Indent();
+                        DrawShader(shader);
+                    } finally
+                    {
+                        ImGui.Unindent();
+                    }
+                }
             }
+            ImGui.Unindent();
         }
         
         if (ImGui.CollapsingHeader("Raw Data"))

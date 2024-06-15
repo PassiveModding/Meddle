@@ -3,7 +3,7 @@ using Meddle.Utils.Files;
 
 namespace Meddle.Utils.Models;
 
-public static class Model
+public static class ModelUtils
 {  
     private static IReadOnlyDictionary<int, string> GetBoneNames(this MdlFile file)
     {
