@@ -36,12 +36,12 @@ public unsafe class Material
     }
     
     [JsonIgnore]
-    public ColorTable? ColorTable { get; }
+    public ColorTable ColorTable { get; }
 
     public Material(MtrlFile file, string handlePath, ShpkFile shaderFile, IReadOnlyDictionary<string, TexFile> texFiles)
     {
         HandlePath = handlePath;
-        ShaderFlags = 0; // TODO
+        ShaderFlags = file.ShaderHeader.Flags;
         ShaderPackageName = file.GetShaderPackageName();
         
         var shaderKeys = new ShaderKey[file.ShaderKeys.Length];

@@ -181,7 +181,7 @@ public class TexFile
             TextureFormat.BC3 => DXGIFormat.BC3UNorm,
             TextureFormat.BC5 => DXGIFormat.BC5UNorm,
             TextureFormat.BC7 => DXGIFormat.BC7UNorm,
-            _ => throw new NotImplementedException($"Unknown texture format: {format} [{format:X2}]")
+            _ => throw new NotImplementedException($"Unknown texture format: {format}")
         };
 
         return dxf;

@@ -21,7 +21,7 @@ public class MtrlFile
     public ColorTable ColorTable;
     public ColorDyeTable ColorDyeTable;
     
-    public MaterialHeader MaterialHeader;
+    public MaterialShaderHeader ShaderHeader;
     
     public ShaderKey[] ShaderKeys;
     public Constant[] Constants;
@@ -58,96 +58,25 @@ public class MtrlFile
             var dataSetReader = new SpanBinaryReader(dataSet);
             if (LargeColorTable)
             {
-                if (HasTable)
-                    ColorTable = dataSetReader.Read<ColorTable>();
-                else
-                    ColorTable.SetDefault();
+                ColorTable = HasTable ? ColorTable.Load(ref dataSetReader) : ColorTable.Default();
                 if (HasDyeTable)
                     ColorDyeTable = dataSetReader.Read<ColorDyeTable>();
             }
             else
             {
-                if (HasTable)
-                    ColorTable = new ColorTable(dataSetReader.Read<LegacyColorTable>());
-                else
-                    ColorTable.SetDefault();
+                ColorTable = HasTable ? ColorTable.LoadLegacy(ref dataSetReader) : ColorTable.DefaultLegacy();
                 if (HasDyeTable)
                     ColorDyeTable = new ColorDyeTable(dataSetReader.Read<LegacyColorDyeTable>());
             }
         }
         
-        MaterialHeader = reader.Read<MaterialHeader>();
+        ShaderHeader = reader.Read<MaterialShaderHeader>();
 
-        ShaderKeys = reader.Read<ShaderKey>(MaterialHeader.ShaderKeyCount).ToArray();
-        Constants = reader.Read<Constant>(MaterialHeader.ConstantCount).ToArray();
-        Samplers = reader.Read<Sampler>(MaterialHeader.SamplerCount).ToArray();
+        ShaderKeys = reader.Read<ShaderKey>(ShaderHeader.ShaderKeyCount).ToArray();
+        Constants = reader.Read<Constant>(ShaderHeader.ConstantCount).ToArray();
+        Samplers = reader.Read<Sampler>(ShaderHeader.SamplerCount).ToArray();
         
-        ShaderValues = reader.Read<uint>(MaterialHeader.ShaderValueListSize / 4).ToArray();
-    }
-
-    public ReadOnlySpan<byte> Write()
-    {
-        var span = new MemoryStream();
-        var binaryWriter = new BinaryWriter(span);
-        binaryWriter.Write(FileHeader);
-        binaryWriter.Write(TextureOffsets.Select(x => (uint)(x.Offset | (x.Flags << 16))).ToArray());
-        binaryWriter.Write(UvColorSets);
-        binaryWriter.Write(ColorSets);
-        binaryWriter.Write(Strings);
-        binaryWriter.Write(AdditionalData);
-        
-        if (FileHeader.DataSetSize > 0)
-        {
-            var dataSetSpan = new MemoryStream(new byte[FileHeader.DataSetSize]);
-            var dataSetWriter = new BinaryWriter(dataSetSpan);
-            if (LargeColorTable)
-            {
-                if (HasTable)
-                {
-                    foreach (var row in ColorTable)
-                    {
-                        dataSetWriter.Write(row);
-                    }
-                }
-
-                if (HasDyeTable)
-                {
-                    foreach (var row in ColorDyeTable)
-                    {
-                        dataSetWriter.Write(row);
-                    }
-                }
-            }
-            else
-            {
-                if (HasTable)
-                {
-                    var legacyColorTable = ColorTable.ToLegacy();
-                    foreach (var row in legacyColorTable)
-                    {
-                        dataSetWriter.Write(row);
-                    }
-                }
-
-                if (HasDyeTable)
-                {
-                    var legacyColorDyeTable = ColorDyeTable.ToLegacy();
-                    foreach (var row in legacyColorDyeTable)
-                    {
-                        dataSetWriter.Write(row);
-                    }
-                }
-            }
-            binaryWriter.Write(dataSetSpan.ToArray());
-        }
-        
-        binaryWriter.Write(MaterialHeader);
-        binaryWriter.Write(ShaderKeys);
-        binaryWriter.Write(Constants);
-        binaryWriter.Write(Samplers);
-        binaryWriter.Write(ShaderValues);
-        
-        return span.ToArray();
+        ShaderValues = reader.Read<uint>(ShaderHeader.ShaderValueListSize / 4).ToArray();
     }
 }
 
@@ -206,12 +135,11 @@ public struct MaterialFileHeader
     public byte AdditionalDataSize;
 }
     
-public struct MaterialHeader
+public struct MaterialShaderHeader
 {
     public ushort ShaderValueListSize;
     public ushort ShaderKeyCount;
     public ushort ConstantCount;
     public ushort SamplerCount;
-    public ushort Unknown1;
-    public ushort Unknown2;
+    public uint Flags;
 }

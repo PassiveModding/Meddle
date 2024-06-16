@@ -22,7 +22,7 @@ public class MtrlView : IView
         this.imageHandler = imageHandler;
         hexView = new HexView(file.RawData);
     }
-    
+
     public void Draw()
     {
         ImGui.Text($"Material Version: {file.FileHeader.Version}");
@@ -39,7 +39,7 @@ public class MtrlView : IView
         {
             ImGui.Text($"[{key:X4}] {value}");
         }
-        
+
         ImGui.Text("Texture Paths:");
         var texturePaths = file.GetTexturePaths();
         for (var i = 0; i < file.TextureOffsets.Length; i++)
@@ -68,7 +68,7 @@ public class MtrlView : IView
                 texView?.Draw();
             }
         }
-        
+
         if (ImGui.CollapsingHeader("Shader Values"))
         {
             ImGui.Text($"Shader Keys [{file.ShaderKeys.Length}]");
@@ -91,14 +91,17 @@ public class MtrlView : IView
                     var bytes = BitConverter.GetBytes(value);
                     buf.AddRange(bytes);
                 }
-                ImGui.Text($"[{i}][{constant.ConstantId:X4}|{constant.ConstantId}] off:{constant.ValueOffset:X2} size:{constant.ValueSize:X2} [{BitConverter.ToString(buf.ToArray())}]");
+
+                ImGui.Text(
+                    $"[{i}][{constant.ConstantId:X4}|{constant.ConstantId}] off:{constant.ValueOffset:X2} size:{constant.ValueSize:X2} [{BitConverter.ToString(buf.ToArray())}]");
             }
 
             ImGui.Text($"Samplers [{file.Samplers.Length}]");
             for (var i = 0; i < file.Samplers.Length; i++)
             {
                 var sampler = file.Samplers[i];
-                ImGui.Text($"[{i}][{sampler.SamplerId:X4}|{sampler.SamplerId}] texIdx:{sampler.TextureIndex} flags:{sampler.Flags:X8}");
+                ImGui.Text(
+                    $"[{i}][{sampler.SamplerId:X4}|{sampler.SamplerId}] texIdx:{sampler.TextureIndex} flags:{sampler.Flags:X8}");
             }
 
             ImGui.Text($"Shader Values [{file.ShaderValues.Length}]");
@@ -108,12 +111,12 @@ public class MtrlView : IView
                 ImGui.Text($"[{i}]{value:X8}");
             }
         }
-        
+
         if (ImGui.CollapsingHeader("Color Table"))
         {
             DrawColorTable();
         }
-        
+
         if (ImGui.CollapsingHeader("Raw Data"))
         {
             hexView.DrawHexDump();
@@ -129,7 +132,7 @@ public class MtrlView : IView
         {
             return;
         }
-        
+
         ImGui.Columns(9, "ColorTable", true);
         ImGui.Text("Row");
         ImGui.NextColumn();
@@ -149,60 +152,135 @@ public class MtrlView : IView
         ImGui.NextColumn();
         ImGui.Text("Tile Set");
         ImGui.NextColumn();
-        
-        for (var i = 0; i < ColorTable.NumRows; i++)
+
+        for (var i = 0; i < (file.LargeColorTable ? ColorTable.NumRows : ColorTable.LegacyNumRows); i++)
         {
-            ref var row = ref file.ColorTable[i];
-            ImGui.Text($"{i}");
-            ImGui.NextColumn();
-            ImGui.ColorButton($"##rowdiff", new Vector4(row.Diffuse, 1f), ImGuiColorEditFlags.NoAlpha);
-            if (file.HasDyeTable)
+            if (file.LargeColorTable)
             {
-                ImGui.SameLine();
-                var diff = file.ColorDyeTable[i].Diffuse;
-                ImGui.Checkbox($"##rowdiff", ref diff);
+                DrawRow(i);
             }
-            ImGui.NextColumn();
-            ImGui.ColorButton($"##rowspec", new Vector4(row.Specular, 1f), ImGuiColorEditFlags.NoAlpha);
-            if (file.HasDyeTable)
+            else
             {
-                ImGui.SameLine();
-                var spec = file.ColorDyeTable[i].Specular;
-                ImGui.Checkbox($"##rowspec", ref spec);
+                DrawLegacyRow(i);
             }
-            ImGui.NextColumn();
-            ImGui.ColorButton($"##rowemm", new Vector4(row.Emissive, 1f), ImGuiColorEditFlags.NoAlpha);
-            if (file.HasDyeTable)
-            {
-                ImGui.SameLine();
-                var emm = file.ColorDyeTable[i].Emissive;
-                ImGui.Checkbox($"##rowemm", ref emm);
-            }
-            ImGui.NextColumn();
-            ImGui.Text($"{row.MaterialRepeat}");
-            ImGui.NextColumn();
-            ImGui.Text($"{row.MaterialSkew}");
-            ImGui.NextColumn();
-            if (file.HasDyeTable)
-            {
-                var specStr = file.ColorDyeTable[i].SpecularStrength;
-                ImGui.Checkbox($"##rowspecstr", ref specStr);
-                ImGui.SameLine();
-            }
-            ImGui.Text($"{row.SpecularStrength}");
-            ImGui.NextColumn();
-            if (file.HasDyeTable)
-            {
-                var gloss = file.ColorDyeTable[i].Gloss;
-                ImGui.Checkbox($"##rowgloss", ref gloss);
-                ImGui.SameLine();
-            }
-            ImGui.Text($"{row.GlossStrength}");
-            ImGui.NextColumn();
-            ImGui.Text($"{row.TileSet}");
-            ImGui.NextColumn();
         }
-        
+
         ImGui.Columns(1);
+    }
+
+    private void DrawRow(int i)
+    {
+        ref var row = ref file.ColorTable.GetRow(i);
+        ImGui.Text($"{i}");
+        ImGui.NextColumn();
+        ImGui.ColorButton($"##rowdiff", new Vector4(row.Diffuse, 1f), ImGuiColorEditFlags.NoAlpha);
+        if (file.HasDyeTable)
+        {
+            ImGui.SameLine();
+            var diff = file.ColorDyeTable[i].Diffuse;
+            ImGui.Checkbox($"##rowdiff", ref diff);
+        }
+
+        ImGui.NextColumn();
+        ImGui.ColorButton($"##rowspec", new Vector4(row.Specular, 1f), ImGuiColorEditFlags.NoAlpha);
+        if (file.HasDyeTable)
+        {
+            ImGui.SameLine();
+            var spec = file.ColorDyeTable[i].Specular;
+            ImGui.Checkbox($"##rowspec", ref spec);
+        }
+
+        ImGui.NextColumn();
+        ImGui.ColorButton($"##rowemm", new Vector4(row.Emissive, 1f), ImGuiColorEditFlags.NoAlpha);
+        if (file.HasDyeTable)
+        {
+            ImGui.SameLine();
+            var emm = file.ColorDyeTable[i].Emissive;
+            ImGui.Checkbox($"##rowemm", ref emm);
+        }
+
+        ImGui.NextColumn();
+        ImGui.Text($"{row.MaterialRepeat}");
+        ImGui.NextColumn();
+        ImGui.Text($"{row.MaterialSkew}");
+        ImGui.NextColumn();
+        if (file.HasDyeTable)
+        {
+            var specStr = file.ColorDyeTable[i].SpecularStrength;
+            ImGui.Checkbox($"##rowspecstr", ref specStr);
+            ImGui.SameLine();
+        }
+
+        ImGui.Text($"{row.SpecularStrength}");
+        ImGui.NextColumn();
+        if (file.HasDyeTable)
+        {
+            var gloss = file.ColorDyeTable[i].Gloss;
+            ImGui.Checkbox($"##rowgloss", ref gloss);
+            ImGui.SameLine();
+        }
+
+        ImGui.Text($"{row.GlossStrength}");
+        ImGui.NextColumn();
+        ImGui.Text($"{row.TileSet}");
+        ImGui.NextColumn();
+    }
+
+    private void DrawLegacyRow(int i)
+    {
+        ref var row = ref file.ColorTable.GetLegacyRow(i);
+        ImGui.Text($"{i}");
+        ImGui.NextColumn();
+        ImGui.ColorButton($"##rowdiff", new Vector4(row.Diffuse, 1f), ImGuiColorEditFlags.NoAlpha);
+        if (file.HasDyeTable)
+        {
+            ImGui.SameLine();
+            var diff = file.ColorDyeTable[i].Diffuse;
+            ImGui.Checkbox($"##rowdiff", ref diff);
+        }
+
+        ImGui.NextColumn();
+        ImGui.ColorButton($"##rowspec", new Vector4(row.Specular, 1f), ImGuiColorEditFlags.NoAlpha);
+        if (file.HasDyeTable)
+        {
+            ImGui.SameLine();
+            var spec = file.ColorDyeTable[i].Specular;
+            ImGui.Checkbox($"##rowspec", ref spec);
+        }
+
+        ImGui.NextColumn();
+        ImGui.ColorButton($"##rowemm", new Vector4(row.Emissive, 1f), ImGuiColorEditFlags.NoAlpha);
+        if (file.HasDyeTable)
+        {
+            ImGui.SameLine();
+            var emm = file.ColorDyeTable[i].Emissive;
+            ImGui.Checkbox($"##rowemm", ref emm);
+        }
+
+        ImGui.NextColumn();
+        ImGui.Text($"{row.MaterialRepeat}");
+        ImGui.NextColumn();
+        ImGui.Text($"{row.MaterialSkew}");
+        ImGui.NextColumn();
+        if (file.HasDyeTable)
+        {
+            var specStr = file.ColorDyeTable[i].SpecularStrength;
+            ImGui.Checkbox($"##rowspecstr", ref specStr);
+            ImGui.SameLine();
+        }
+
+        ImGui.Text($"{row.SpecularStrength}");
+        ImGui.NextColumn();
+        if (file.HasDyeTable)
+        {
+            var gloss = file.ColorDyeTable[i].Gloss;
+            ImGui.Checkbox($"##rowgloss", ref gloss);
+            ImGui.SameLine();
+        }
+
+        ImGui.Text($"{row.GlossStrength}");
+        ImGui.NextColumn();
+        ImGui.Text($"{row.TileSet}");
+        ImGui.NextColumn();
     }
 }

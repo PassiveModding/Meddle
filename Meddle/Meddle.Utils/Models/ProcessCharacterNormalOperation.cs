@@ -1,10 +1,11 @@
 ﻿using System.Numerics;
 using Meddle.Utils.Files.Structs.Material;
+using Meddle.Utils.Materials;
 
 namespace Meddle.Utils.Models;
 
 
-public class ProcessCharacterNormalOperation(SKTexture normal, ColorTable table)
+/*public class ProcessCharacterNormalOperation(SKTexture normal, ColorTable table)
 {
     public SKTexture Normal    { get; } = normal.Copy();
     public SKTexture BaseColor { get; } = new(normal.Width, normal.Height);
@@ -41,3 +42,4 @@ public class ProcessCharacterNormalOperation(SKTexture normal, ColorTable table)
         return this;
     }
 }
+*/

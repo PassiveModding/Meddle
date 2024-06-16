@@ -1,12 +1,12 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
-using System.Text.RegularExpressions;
 using ImGuiNET;
 using Meddle.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
 using Meddle.Utils.Havok;
+using Meddle.Utils.Materials;
 using Meddle.Utils.Models;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
@@ -24,6 +24,16 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
     private readonly Dictionary<string, MdlGroup> models = new();
     private readonly Dictionary<string, SklbGroup> skeletons = new();
     private Dictionary<string, IView> views = new();
+    private Task LoadTask = Task.CompletedTask;
+    
+    private MaterialUtility.MaterialParameters materialParameters = new MaterialUtility.MaterialParameters()
+    {
+        SkinColor = new Vector3(1, 0.8f, 0.6f),
+        HairColor = new Vector3(0.6f, 0.4f, 0.2f),
+        LipColor = new Vector3(0.8f, 0.4f, 0.4f),
+        HighlightColor = new Vector3(0.8f, 0.6f, 0.4f),
+        TattooColor = null
+    };
     
     
     private string input = "";
@@ -126,10 +136,26 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
     {
         if (ImGui.InputTextMultiline("##Input", ref input, 1000, new Vector2(500, 500)))
         {
-            models.Clear();
-            skeletons.Clear();
-            HandleMdls();
-            HandleSklbs();
+            LoadTask = Task.Run(() =>
+            {
+                models.Clear();
+                skeletons.Clear();
+                HandleMdls();
+                HandleSklbs();
+            });
+        }
+        
+        if (!LoadTask.IsCompleted)
+        {
+            ImGui.Text("Loading...");
+            return;
+        }
+
+        if (LoadTask.IsFaulted)
+        {
+            var ex = LoadTask.Exception;
+            ImGui.Text($"Error: {ex}");
+            return;
         }
 
         ImGui.SeparatorText("Models");
@@ -178,6 +204,75 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
             }
         }
         
+        ImGui.SeparatorText("Parameters");
+
+        var hairColor = materialParameters.HairColor;
+        if (ImGui.ColorEdit3("Hair Color", ref hairColor))
+        {
+            materialParameters.HairColor = hairColor;
+        }
+        
+        if (materialParameters.HighlightColor != null)
+        {
+            var highlightColor = materialParameters.HighlightColor.Value;
+            if (ImGui.ColorEdit3("Highlight Color", ref highlightColor))
+            {
+                materialParameters.HighlightColor = highlightColor;
+            }
+            
+            // clear highlight button
+            ImGui.SameLine();
+            if (ImGui.Button("Clear"))
+            {
+                materialParameters.HighlightColor = null;
+            }
+        }
+        else
+        {
+            // set highlight button
+            if (ImGui.Button("Set Highlight Color"))
+            {
+                materialParameters.HighlightColor = new Vector3(0.8f, 0.6f, 0.4f);
+            }
+        }
+
+        var skinColor = materialParameters.SkinColor;
+        if (ImGui.ColorEdit3("Skin Color", ref skinColor))
+        {
+            materialParameters.SkinColor = skinColor;
+        }
+        
+        var lipColor = materialParameters.LipColor;
+        if (ImGui.ColorEdit3("Lip Color", ref lipColor))
+        {
+            materialParameters.LipColor = lipColor;
+        }
+        
+        var tattooColor = materialParameters.TattooColor;
+        if (tattooColor != null)
+        {
+            var tattooColorValue = tattooColor.Value;
+            if (ImGui.ColorEdit3("Tattoo Color", ref tattooColorValue))
+            {
+                materialParameters.TattooColor = tattooColorValue;
+            }
+            
+            // clear tattoo button
+            ImGui.SameLine();
+            if (ImGui.Button("Clear"))
+            {
+                materialParameters.TattooColor = null;
+            }
+        }
+        else
+        {
+            // set tattoo button
+            if (ImGui.Button("Set Tattoo Color"))
+            {
+                materialParameters.TattooColor = new Vector3(0.8f, 0.6f, 0.4f);
+            }
+        }
+        
         if (ImGui.Button("Export as GLTF"))
         {
             var scene = new SceneBuilder();
@@ -214,7 +309,22 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                                             .ToDictionary(x => x.Path, x => x.File);
                     var shpk = mtrlGroup.Shpk;
                     var material = new Material(mtrlGroup.File, mtrlGroup.ResolvedPath, shpk.File, textures);
-                    var builder = MaterialUtility.ParseMaterial(material);
+                    //var builder = MaterialUtility.ParseMaterial(material);
+                    
+                    var name = $"{Path.GetFileNameWithoutExtension(material.HandlePath)}_{Path.GetFileNameWithoutExtension(material.ShaderPackageName)}";
+
+                    var builder = material.ShaderPackageName switch
+                    {
+                        "bg.shpk" => MaterialUtility.BuildBg(material, name),
+                        "bgprop.shpk" => MaterialUtility.BuildBgProp(material, name),
+                        "character.shpk" => MaterialUtility.BuildCharacter(material, name),
+                        "characterlegacy.shpk" => MaterialUtility.BuildCharacterLegacy(material, name),
+                        "hair.shpk" => MaterialUtility.BuildHair(material, name, materialParameters),
+                        "skin.shpk" => MaterialUtility.BuildSkin(material, name, materialParameters),
+                        "iris.shpk" => MaterialUtility.BuildIris(material, name),
+                        _ => MaterialUtility.BuildFallback(material, name)
+                    };
+                    
                     materials.Add(builder);
                 }
                 
