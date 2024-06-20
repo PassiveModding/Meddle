@@ -19,7 +19,7 @@ public static partial class MaterialUtility
         public Vector3? HighlightColor; // hair highlight color / fur pattern color
         
         // Hair
-        public Vector3? TattooColor;    // tattoo color
+        public Vector4? DecalColor;    // tattoo color
     }
 
     
@@ -28,6 +28,7 @@ public static partial class MaterialUtility
     private static readonly Vector4 DefaultHighlightColor = new Vector4(77,  126, 240, 255) / 255f;
     public static MaterialBuilder BuildFallback(Material material, string name)
     {
+        Console.WriteLine($"Building fallback for {name}, {material.ShaderPackageName}");
         var output = BuildSharedBase(material, name)
                               .WithMetallicRoughnessShader()
                               .WithBaseColor(Vector4.One);

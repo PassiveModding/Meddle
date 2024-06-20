@@ -26,13 +26,13 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
     private Dictionary<string, IView> views = new();
     private Task LoadTask = Task.CompletedTask;
     
-    private MaterialUtility.MaterialParameters materialParameters = new MaterialUtility.MaterialParameters()
+    private MaterialUtility.MaterialParameters materialParameters = new()
     {
         SkinColor = new Vector3(1, 0.8f, 0.6f),
         HairColor = new Vector3(0.6f, 0.4f, 0.2f),
         LipColor = new Vector3(0.8f, 0.4f, 0.4f),
         HighlightColor = new Vector3(0.8f, 0.6f, 0.4f),
-        TattooColor = null
+        DecalColor = new Vector4(0.8f, 0.6f, 0.4f, 1.0f)
     };
     
     
@@ -248,28 +248,28 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
             materialParameters.LipColor = lipColor;
         }
         
-        var tattooColor = materialParameters.TattooColor;
-        if (tattooColor != null)
+        var decalColor = materialParameters.DecalColor;
+        if (decalColor != null)
         {
-            var tattooColorValue = tattooColor.Value;
-            if (ImGui.ColorEdit3("Tattoo Color", ref tattooColorValue))
+            var decalColorValue = decalColor.Value;
+            if (ImGui.ColorEdit4("Decal Color", ref decalColorValue))
             {
-                materialParameters.TattooColor = tattooColorValue;
+                materialParameters.DecalColor = decalColorValue;
             }
             
             // clear tattoo button
             ImGui.SameLine();
             if (ImGui.Button("Clear"))
             {
-                materialParameters.TattooColor = null;
+                materialParameters.DecalColor = null;
             }
         }
         else
         {
             // set tattoo button
-            if (ImGui.Button("Set Tattoo Color"))
+            if (ImGui.Button("Set Decal Color"))
             {
-                materialParameters.TattooColor = new Vector3(0.8f, 0.6f, 0.4f);
+                materialParameters.DecalColor = new Vector4(0.8f, 0.6f, 0.4f, 1.0f);
             }
         }
         
@@ -318,7 +318,9 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                         "bg.shpk" => MaterialUtility.BuildBg(material, name),
                         "bgprop.shpk" => MaterialUtility.BuildBgProp(material, name),
                         "character.shpk" => MaterialUtility.BuildCharacter(material, name),
+                        "characterocclusion.shpk" => MaterialUtility.BuildCharacterOcclusion(material, name),
                         "characterlegacy.shpk" => MaterialUtility.BuildCharacterLegacy(material, name),
+                        "charactertattoo.shpk" => MaterialUtility.BuildCharacterTattoo(material, name, materialParameters),
                         "hair.shpk" => MaterialUtility.BuildHair(material, name, materialParameters),
                         "skin.shpk" => MaterialUtility.BuildSkin(material, name, materialParameters),
                         "iris.shpk" => MaterialUtility.BuildIris(material, name),

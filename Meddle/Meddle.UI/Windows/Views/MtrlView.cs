@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using ImGuiNET;
+using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
 using Meddle.Utils.Files.Structs.Material;
@@ -10,9 +11,13 @@ namespace Meddle.UI.Windows.Views;
 public class MtrlView : IView
 {
     private readonly MtrlFile file;
+    private readonly Material material;
     private readonly SqPack pack;
     private readonly ImageHandler imageHandler;
-    private readonly Dictionary<string, TexView?> mtrlTextureCache = new();
+    private readonly ShpkFile shpkFile;
+    private readonly ShpkView shpkView;
+    private readonly Dictionary<string, TexFile> texFiles = new();
+    private readonly Dictionary<string, TexView> texViews = new();
     private readonly HexView hexView;
 
     public MtrlView(MtrlFile file, SqPack pack, ImageHandler imageHandler)
@@ -21,6 +26,44 @@ public class MtrlView : IView
         this.pack = pack;
         this.imageHandler = imageHandler;
         hexView = new HexView(file.RawData);
+        foreach (var (key, value) in file.GetTexturePaths())
+        {        
+            try
+            {
+                var sqFile = pack.GetFile(value);
+                if (sqFile != null)
+                {
+                    var texFile = new TexFile(sqFile.Value.file.RawData);
+                    texFiles.Add(value, texFile);
+                    var texView = new TexView(sqFile.Value.hash, texFile, imageHandler, value);
+                    texViews.Add(value, texView);
+                }
+                else
+                {
+                    Console.WriteLine($"Failed to load texture {value}");
+                }        
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Failed to load texture {value}: {e.Message}");
+            }
+        }
+        
+        try
+        {
+            var path = $"shader/sm5/shpk/{file.GetShaderPackageName()}";
+            var shpkSqFile = pack.GetFile(path);
+            if (shpkSqFile != null)
+            {
+                shpkFile = new ShpkFile(shpkSqFile.Value.file.RawData);
+                shpkView = new ShpkView(shpkFile, path);
+                material = new Material(file, file.GetShaderPackageName(), shpkFile, texFiles);
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Failed to load shader package {file.GetShaderPackageName()}: {e.Message}");
+        }
     }
 
     public void Draw()
@@ -48,24 +91,43 @@ public class MtrlView : IView
             var path = texturePaths[off.Offset];
             ImGui.Text($"[{i}] {path}");
         }
-
         if (ImGui.CollapsingHeader("Textures"))
-        {
-            foreach (var (key, value) in texturePaths)
+        {                    
+            try
             {
-                ImGui.Text($"[{key:X4}] {value}");
-                if (!mtrlTextureCache.TryGetValue(value, out var texView))
+                ImGui.Indent();
+                foreach (var (path, view) in texViews)
                 {
-                    var sqFile = pack.GetFile(value);
-                    if (sqFile != null)
+                    if (ImGui.CollapsingHeader(path))
                     {
-                        var texFile = new TexFile(sqFile.Value.file.RawData);
-                        texView = new TexView(sqFile.Value.hash, texFile, imageHandler, value);
-                        mtrlTextureCache.Add(value, texView);
+                        ImGui.Text(path);
+
+                            // get usage from material
+                            var tex = material.Textures.FirstOrDefault(x => x.HandlePath == path);
+                            if (tex != null)
+                            {
+                                ImGui.Text($"Usage: {tex.Usage}");
+                            }
+
+                            view.Draw();
                     }
                 }
-
-                texView?.Draw();
+            } finally
+            {
+                ImGui.Unindent();
+            }
+        }
+        
+        if (ImGui.CollapsingHeader("Shader Package"))
+        {
+            try
+            {
+                ImGui.Indent();
+                shpkView?.Draw();
+            }
+            finally
+            {
+                ImGui.Unindent();
             }
         }
 

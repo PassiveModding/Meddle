@@ -6,6 +6,8 @@ public class ShpkFile
     private const uint Dx9Magic  = 0x00395844u; // bytes of DX9\0
     private const uint Dx11Magic = 0x31315844u; // bytes of DX11
     
+    public const uint MaterialParamsConstantId = 0x64D12851u; // g_MaterialParameter is a cbuffer filled from the ad hoc section of the mtrl
+    
     public ShpkFile(byte[] data) : this(new Span<byte>(data))
     {
     }

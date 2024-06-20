@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using ImGuiNET;
 using Meddle.Utils;
@@ -17,7 +18,7 @@ namespace Meddle.UI.Windows.Views;
 
 public class DiscoverView(SqPack pack, Configuration configuration, PathManager pathManager) : IView
 {
-    private CancellationTokenSource? cts;
+    private CancellationTokenSource? discoverCts;
     private Task? discoverTask;
     private readonly List<string> log = new();
     
@@ -87,15 +88,14 @@ public class DiscoverView(SqPack pack, Configuration configuration, PathManager 
     {
         if (ImGui.Button("RunDiscovery"))
         {
-            cts = new CancellationTokenSource();
-            discoverTask = Task.Run(async () => await DiscoverAsync(cts.Token));
+            discoverCts = new CancellationTokenSource();
+            discoverTask = Task.Run(async () => await DiscoverAsync(discoverCts.Token));
         }
         
-        
         ImGui.SameLine();
-        if (ImGui.Button("Cancel"))
+        if (ImGui.Button("Cancel Discovery"))
         {
-            cts?.Cancel();
+            discoverCts?.Cancel();
         }
         
         if (discoverTask is not null && discoverTask.IsCompleted)
@@ -107,6 +107,12 @@ public class DiscoverView(SqPack pack, Configuration configuration, PathManager 
         if (ImGui.Button("ShpkDump"))
         {
             ShpkDump();
+        }
+        
+        ImGui.SameLine();
+        if (ImGui.Button("ShpkDump2"))
+        {
+            ShpkDump2();
         }
         
         // progress bar
@@ -155,6 +161,136 @@ public class DiscoverView(SqPack pack, Configuration configuration, PathManager 
         }
     }
 
+    private record ShaderInfo(float[] Defaults, int index);
+    public void ShpkDump2()
+    {
+        var shpkPaths = pathManager.ParsedPaths.Where(x => x.Path.EndsWith(".shpk")).ToList();
+        var distinctCrc = new Dictionary<uint, (string name, HashSet<string> shaders, HashSet<string> types)>();
+        var materialParams = new Dictionary<uint, Dictionary<string, ShaderInfo>>();
+        foreach (var path in shpkPaths)
+        {
+            var file = pack.GetFile(path.Path);
+            if (file == null) continue;
+            
+            var shpk = new ShpkFile(file.Value.file.RawData);
+            var stringReader = new SpanBinaryReader(shpk.RawData[(int)shpk.FileHeader.StringsOffset..]);
+            foreach (var sampler in shpk.Samplers)
+            {
+                var resName = stringReader.ReadString((int)sampler.StringOffset);
+                // compute crc
+                var crc = Crc32.GetHash(resName);
+                if (!distinctCrc.TryGetValue(crc, out var entry))
+                {
+                    entry = (resName, new HashSet<string>(), new HashSet<string>());
+                    distinctCrc[crc] = entry;
+                }
+                
+                entry.shaders.Add(path.Path);
+                entry.types.Add("SAMPLER");
+            }
+                
+            foreach (var constant in shpk.Constants)
+            {
+                var resName = stringReader.ReadString((int)constant.StringOffset);  
+                var crc = Crc32.GetHash(resName);
+                
+                if (!distinctCrc.TryGetValue(crc, out var entry))
+                {
+                    entry = (resName, new HashSet<string>(), new HashSet<string>());
+                    distinctCrc[crc] = entry;
+                }
+                
+                entry.shaders.Add(path.Path);
+                entry.types.Add("CONSTANT");
+            }
+                
+            foreach (var texture in shpk.Textures)
+            {
+                var resName = stringReader.ReadString((int)texture.StringOffset);
+                var crc = Crc32.GetHash(resName);
+                
+                if (!distinctCrc.TryGetValue(crc, out var entry))
+                {
+                    entry = (resName, new HashSet<string>(), new HashSet<string>());
+                    distinctCrc[crc] = entry;
+                }
+                
+                entry.shaders.Add(path.Path);
+                entry.types.Add("TEXTURE");
+            }
+                
+            foreach (var uav in shpk.Uavs)
+            {
+                var resName = stringReader.ReadString((int)uav.StringOffset);
+                var crc = Crc32.GetHash(resName);
+                
+                if (!distinctCrc.TryGetValue(crc, out var entry))
+                {
+                    entry = (resName, new HashSet<string>(), new HashSet<string>());
+                    distinctCrc[crc] = entry;
+                }
+                
+                entry.shaders.Add(path.Path);
+                entry.types.Add("UAV");
+            }
+
+            for (int i = 0; i < shpk.MaterialParams.Length; i++)
+            {
+                var materialParam = shpk.MaterialParams[i];
+                var defaults = shpk.MaterialParamDefaults.Skip(materialParam.ByteOffset / 4).Take(materialParam.ByteSize / 4).ToArray();
+                
+                if (!materialParams.TryGetValue(materialParam.Id, out var entry))
+                {
+                    entry = new Dictionary<string, ShaderInfo>();
+                    materialParams[materialParam.Id] = entry;
+                }
+                
+                entry[path.Path] = new ShaderInfo(defaults, i);
+            }
+        }
+        
+        var outputMaterialParamsList = new List<string>();
+        outputMaterialParamsList.Add("ID\tIndex\tDefaults\tShader");
+        foreach (var (id, shaders) in materialParams)
+        {
+            // group by defaults
+            var groupedShaders = shaders.GroupBy(x => x.Value.Defaults, new FloatArrayComparer());
+            foreach (var group in groupedShaders)
+            {
+                foreach (var (shader, info) in group)
+                {
+                    outputMaterialParamsList.Add($"0x{id:X8}\t{info.index}\t{string.Join(",", group.Key)}\t{shader}");
+                }
+            }
+        }
+        
+        File.WriteAllLines("material_params.txt", outputMaterialParamsList);
+        
+        // another but ordered by shader
+        var outputMaterialParamsList2 = new List<string>();
+        outputMaterialParamsList2.Add("Shader\tID\tIndex\tDefaults");
+        var flattenedMaterialParams = materialParams.SelectMany(x => x.Value.Select(y => (x.Key, y.Key, y.Value.Defaults, y.Value.index)));
+        foreach (var (id, shader, defaults, index) in flattenedMaterialParams.OrderBy(x => x.Item2))
+        {
+            outputMaterialParamsList2.Add($"{shader}\t0x{id:X8}\t{index}\t{string.Join(",", defaults)}");
+        }
+        
+        File.WriteAllLines("material_params2.txt", outputMaterialParamsList2);
+    }
+    
+    private class FloatArrayComparer : IEqualityComparer<float[]>
+    {
+        public bool Equals(float[] x, float[] y)
+        {
+            return x.SequenceEqual(y);
+        }
+
+        public int GetHashCode(float[] obj)
+        {
+            return obj.Aggregate(0, (acc, val) => acc ^ val.GetHashCode());
+        }
+    }
+    
     public void ShpkDump()
     {
         var shpkPaths = pathManager.ParsedPaths.Where(x => x.Path.EndsWith(".shpk")).ToList();

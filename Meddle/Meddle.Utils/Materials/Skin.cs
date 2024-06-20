@@ -7,32 +7,14 @@ namespace Meddle.Utils.Materials;
 
 public static partial class MaterialUtility
 {
-    private enum SkinType
-    {
-        Face,
-        Hrothgar,
-        Other
-    }
-    
     public static MaterialBuilder BuildSkin(Material material, string name, MaterialParameters parameters)
     {
         const uint categorySkinType = 0x380CAED0;
         const uint valueFace = 0xF5673524;
         const uint valueHrothgar = 0x57FF3B64;
 
-        SkinType skinType = SkinType.Face;
-        foreach (var shaderKey in material.ShaderKeys)
-        {
-            if (shaderKey.Category == categorySkinType)
-            {
-                skinType = shaderKey.Value switch
-                {
-                    valueFace => SkinType.Face,
-                    valueHrothgar => SkinType.Hrothgar,
-                    _ => SkinType.Other
-                };
-            }
-        }
+        var isFace = material.ShaderKeys.Any(x => x is {Category: categorySkinType, Value: valueFace});
+        var isHrothgar = material.ShaderKeys.Any(x => x is {Category: categorySkinType, Value: valueHrothgar});
         
         SKTexture mask = material.GetTexture(TextureUsage.g_SamplerMask).ToTexture(); // spec, roughness, thickness
         SKTexture normal = material.GetTexture(TextureUsage.g_SamplerNormal).ToTexture();
@@ -62,48 +44,32 @@ public static partial class MaterialUtility
                 diffusePixel = Vector4.Lerp(diffusePixel, skin, skinColorInfluence);
             }
             
-            if (skinType == SkinType.Face)
+            if (isFace)
             {
-                var lipColorInfluence = normalPixel.W;
-                var lip = new Vector4(parameters.LipColor, diffusePixel.W);
-                diffusePixel = Vector4.Lerp(diffusePixel, lip, lipColorInfluence);
-            }
-            else if (skinType == SkinType.Hrothgar)
-            {
-                var furColorInfluence = normalPixel.W;
-                if (skinColorInfluence == 0)
+                if (normalPixel.W != 0)
                 {
+                    var lipColorInfluence = normalPixel.W;
+                    var lip = new Vector4(parameters.LipColor, diffusePixel.W);
+                    diffusePixel = Vector4.Lerp(diffusePixel, lip, lipColorInfluence);
+                }
+            }
+            
+            if (isHrothgar)
+            {
+                if (skinColorInfluence == 0 && normalPixel.W != 0)
+                {
+                    var furColorInfluence = normalPixel.W;
                     var fur = new Vector4(parameters.HairColor, diffusePixel.W);
                     diffusePixel = Vector4.Lerp(diffusePixel, fur, furColorInfluence);
                 }
 
-                if (parameters.HighlightColor != null)
+                if (parameters.HighlightColor != null && maskPixel.W != 0)
                 {
                     var furPatternColorInfluence = maskPixel.W;
                     var furPattern = new Vector4(parameters.HighlightColor.Value, diffusePixel.W);
                     diffusePixel = Vector4.Lerp(diffusePixel, furPattern, furPatternColorInfluence);
                 }
             }
-            else
-            {
-                throw new NotImplementedException($"Unknown skin type {skinType} (0x{skinType:X})");
-            }
-
-            /*if (parameters is HrothgarSkinParameters hrothgarSkinParameters)
-            {
-                var furColorInfluence = normalPixel.W;
-
-                if (skinColorInfluence == 0)
-                {
-                    var fur = new Vector4(hrothgarSkinParameters.FurColor, diffusePixel.W);
-                    diffusePixel = Vector4.Lerp(diffusePixel, fur, furColorInfluence);
-                }
-                else
-                {
-                    var skin = new Vector4(hrothgarSkinParameters.SkinColor, diffusePixel.W);
-                    diffusePixel = Vector4.Lerp(diffusePixel, skin, skinColorInfluence);
-                }
-            }*/
 
             outDiffuse[x, y] = diffusePixel.ToSkColor();
             outSpecRough[x, y] = refMask[x, y];

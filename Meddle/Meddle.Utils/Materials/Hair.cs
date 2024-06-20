@@ -35,10 +35,10 @@ public static partial class MaterialUtility
             if (isFace)
             {        
                 var tattooColorIntensity = normalPixel.Z;        
-                if (parameters.TattooColor.HasValue && tattooColorIntensity != 0)
+                if (parameters.DecalColor.HasValue && tattooColorIntensity != 0)
                 {
-                    var highlightColor = parameters.TattooColor.Value;
-                    hairColor = Vector3.Lerp(hairColor, highlightColor, tattooColorIntensity);
+                    var highlightColor = parameters.DecalColor.Value;
+                    hairColor = Vector3.Lerp(hairColor, new Vector3(highlightColor.X, highlightColor.Y, highlightColor.Z), tattooColorIntensity);
                 }
             }
             else

@@ -1,4 +1,6 @@
 ﻿using System.Numerics;
+using System.Text;
+using System.Text.RegularExpressions;
 using ImGuiNET;
 using Meddle.Utils;
 using Meddle.Utils.Export;
@@ -25,54 +27,62 @@ public class ShpkView : IView
     
     private readonly Dictionary<ShpkFile.Shader, string> decompiledShader = new();
 
-    
+    private void DrawResourceTable(ShpkFile.Resource[] resources, ref SpanBinaryReader stringReader)
+    {
+        try
+        {
+            ImGui.Columns(4);
+            foreach (var resource in resources)
+            {
+                var name = stringReader.ReadString((int)resource.StringOffset);
+                ImGui.Text(name);
+                if (ImGui.BeginPopupContextItem($"Copy##{resource.GetHashCode()}"))
+                {
+                    if (ImGui.Selectable($"Copy Name ({name})"))
+                    {
+                        ImGui.SetClipboardText(name);
+                    }
+                    if (ImGui.Selectable($"Copy Id ({resource.Id})"))
+                    {
+                        ImGui.SetClipboardText(resource.Id.ToString());
+                    }
+                    if (ImGui.Selectable($"Copy Id (0x{resource.Id:X8})"))
+                    {
+                        ImGui.SetClipboardText($"0x{resource.Id:X8}");
+                    }
+                    ImGui.EndPopup();
+                }
+                ImGui.NextColumn();
+                ImGui.Text(resource.Slot.ToString());
+                ImGui.NextColumn();
+                ImGui.Text($"{resource.Id} (0x{resource.Id:X8})");
+                ImGui.NextColumn();
+                ImGui.Text($"Size: {resource.StringSize} Offset: {resource.StringOffset}");
+                ImGui.NextColumn();
+            }
+        } finally
+        {
+            ImGui.Columns(1);
+        }
+    }
     
     private void DrawShader(ShpkFile.Shader shader)
     {
-        void DrawResourceTable(ShpkFile.Resource[] resources, ref SpanBinaryReader stringReader)
-        {
-            try
-            {
-                ImGui.Columns(4);
-                foreach (var resource in resources)
-                {
-                    var name = stringReader.ReadString((int)resource.StringOffset);
-                    ImGui.Text(name);
-                    if (ImGui.BeginPopupContextItem($"Copy##{resource.GetHashCode()}"))
-                    {
-                        if (ImGui.Selectable($"Copy Name ({name})"))
-                        {
-                            ImGui.SetClipboardText(name);
-                        }
-                        if (ImGui.Selectable($"Copy Id ({resource.Id})"))
-                        {
-                            ImGui.SetClipboardText(resource.Id.ToString());
-                        }
-                        if (ImGui.Selectable($"Copy Id (0x{resource.Id:X8})"))
-                        {
-                            ImGui.SetClipboardText($"0x{resource.Id:X8}");
-                        }
-                        ImGui.EndPopup();
-                    }
-                    ImGui.NextColumn();
-                    ImGui.Text(resource.Slot.ToString());
-                    ImGui.NextColumn();
-                    ImGui.Text($"{resource.Id} (0x{resource.Id:X8})");
-                    ImGui.NextColumn();
-                    ImGui.Text($"Size: {resource.StringSize} Offset: {resource.StringOffset}");
-                    ImGui.NextColumn();
-                }
-            } finally
-            {
-                ImGui.Columns(1);
-            }
-        }
         
         if (ImGui.CollapsingHeader($"Blob##{shader.GetHashCode()}"))
         {
+            // export blob to file button
+            if (ImGui.Button($"Export##btn_{shader.GetHashCode()}"))
+            {
+                var path = Path.Combine("blobs", $"{shader.GetHashCode()}.blob");
+                Directory.CreateDirectory("blobs");
+                File.WriteAllBytes(path, shader.Blob);
+            }
+            
             if (ImGui.Button($"Disassemble##btn_{shader.GetHashCode()}"))
             {
-                decompiledShader[shader] = ShaderUtils.Disassemble(shader.Blob);
+                var disassembled = ShaderUtils.Disassemble(shader.Blob);
+                decompiledShader[shader] = disassembled;
             }
                     
             if (decompiledShader.TryGetValue(shader, out var value))
@@ -140,7 +150,6 @@ public class ShpkView : IView
         {
             ImGui.Columns(1);
         }
-        
     }
     
     public void Draw()
@@ -167,12 +176,16 @@ public class ShpkView : IView
         ImGui.Text($"Node Alias Count: {file.FileHeader.NodeAliasCount}");
         
         ImGui.Text($"Shader Package Name: {shaderPackage.Name}");
-        foreach (var texture in shaderPackage.TextureLookup)
+
+        if (ImGui.CollapsingHeader("Texture Lookup"))
         {
-            ImGui.Text($"[{texture.Key:X8}] {texture.Value}");
+            foreach (var texture in shaderPackage.TextureLookup)
+            {
+                ImGui.Text($"[{texture.Key:X8}] {texture.Value}");
+            }
         }
 
-        if (shaderPackage.ResourceKeys != null)
+        if (shaderPackage.ResourceKeys != null && ImGui.CollapsingHeader("Resource Keys"))
         {
             foreach (var resource in shaderPackage.ResourceKeys)
             {
@@ -180,6 +193,26 @@ public class ShpkView : IView
             }
         }
 
+        // disassemble all button
+        if (ImGui.Button("Disassemble All"))
+        {
+            var disassembledVertexShaders = new Dictionary<int, string>();
+            for (var i = 0; i < file.VertexShaders.Length; i++)
+            {
+                disassembledVertexShaders[i] = ShaderUtils.Disassemble(file.VertexShaders[i].Blob);
+            }
+            
+            File.WriteAllText("vertex_shaders.txt", string.Join("\n\n", disassembledVertexShaders.Values));
+            
+            var disassembledPixelShaders = new Dictionary<int, string>();
+            for (var i = 0; i < file.PixelShaders.Length; i++)
+            {
+                disassembledPixelShaders[i] = ShaderUtils.Disassemble(file.PixelShaders[i].Blob);
+            }
+            
+            File.WriteAllText("pixel_shaders.txt", string.Join("\n\n", disassembledPixelShaders.Values));
+        }
+        
         if (ImGui.CollapsingHeader("Vertex Shaders"))
         {
             ImGui.Indent();
@@ -222,6 +255,120 @@ public class ShpkView : IView
             ImGui.Unindent();
         }
         
+        try
+        {
+            ImGui.Columns(4);
+            ImGui.Text("Name");
+            ImGui.NextColumn();
+            ImGui.Text("Slot");
+            ImGui.NextColumn();
+            ImGui.Text("Id");
+            ImGui.NextColumn();
+            ImGui.Text("String");
+            ImGui.NextColumn();
+            ImGui.Columns(1);
+            
+            var stringReader = new SpanBinaryReader(file.RawData[(int)file.FileHeader.StringsOffset..]);
+
+            if (file.Constants.Length > 0)
+            {
+                ImGui.SeparatorText($"Constants ({file.Constants.Length})");
+                DrawResourceTable(file.Constants, ref stringReader);
+            }
+
+            if (file.Samplers.Length > 0)
+            {
+                ImGui.SeparatorText($"Samplers ({file.Samplers.Length})");
+                DrawResourceTable(file.Samplers, ref stringReader);
+            }
+            
+            if (file.Uavs.Length > 0)
+            {
+                ImGui.SeparatorText($"UAVs ({file.Uavs.Length})");
+                DrawResourceTable(file.Uavs, ref stringReader);
+            }
+            
+            if (file.Textures.Length > 0)
+            {
+                ImGui.SeparatorText($"Textures ({file.Textures.Length})");
+                DrawResourceTable(file.Textures, ref stringReader);
+            }
+        } 
+        finally
+        {
+            ImGui.Columns(1);
+        }
+        
+
+        if (ImGui.CollapsingHeader("Keys"))
+        {
+            ImGui.Columns(2);
+            ImGui.Text("Id");
+            ImGui.NextColumn();
+            ImGui.Text("DefaultValue");
+            ImGui.NextColumn();
+            ImGui.Columns(1);
+            ImGui.SeparatorText($"SystemKeys ({file.SystemKeys.Length})");
+            DrawKeys(file.SystemKeys);
+            
+            ImGui.SeparatorText($"SceneKeys ({file.SceneKeys.Length})");
+            DrawKeys(file.SceneKeys);
+            
+            ImGui.SeparatorText($"MaterialKeys ({file.MaterialKeys.Length})");
+            DrawKeys(file.MaterialKeys);
+            
+            ImGui.SeparatorText($"SubViewKeys ({file.SubViewKeys.Length})");
+            DrawKeys(file.SubViewKeys);
+        }
+        
+        if (ImGui.CollapsingHeader("Material Params"))
+        {
+            if (ImGui.BeginTable("MaterialParams", 5, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable | ImGuiTableFlags.SizingFixedFit))
+            {
+                ImGui.TableSetupColumn("Idx", ImGuiTableColumnFlags.WidthFixed);
+                ImGui.TableSetupColumn("Id", ImGuiTableColumnFlags.WidthFixed);
+                ImGui.TableSetupColumn("ByteOffset", ImGuiTableColumnFlags.WidthFixed);
+                ImGui.TableSetupColumn("ByteSize", ImGuiTableColumnFlags.WidthFixed);
+                ImGui.TableSetupColumn("Defaults", ImGuiTableColumnFlags.WidthStretch);
+                ImGui.TableHeadersRow();
+                var orderedMaterialParams = file.MaterialParams.Select((x, idx) => (x, idx)).OrderBy(x => x.x.ByteOffset).ToArray();
+                foreach (var (materialParam, i) in orderedMaterialParams)
+                {
+                    // get defaults from byteoffset -> byteoffset + bytesize
+                    var defaults = file.MaterialParamDefaults.Skip((int)materialParam.ByteOffset / 4).Take((int)materialParam.ByteSize / 4).ToArray();
+                    ImGui.TableNextRow();
+                    ImGui.TableNextColumn();
+                    ImGui.Text(i.ToString());
+                    ImGui.TableNextColumn();
+                    ImGui.Text($"0x{materialParam.Id:X8}");
+                    ImGui.TableNextColumn();
+                    ImGui.Text(materialParam.ByteOffset.ToString());
+                    ImGui.TableNextColumn();
+                    ImGui.Text(materialParam.ByteSize.ToString());
+                    ImGui.TableNextColumn();
+                    var msg = defaults.Length switch
+                    {
+                        0 => "None",
+                        1 => $"{defaults[0]} (0x{BitConverter.SingleToInt32Bits(defaults[0]):X8})",
+                        _ => $"[{string.Join(", ", defaults.Select(x => $"{x}"))}] ({string.Join(", ", defaults.Select(x => $"0x{BitConverter.SingleToInt32Bits(x):X8}"))})"
+                    };
+                    ImGui.Text(msg);
+                }
+                ImGui.EndTable();
+            }
+        }
+
+        if (ImGui.CollapsingHeader("Material Params (cbuf)"))
+        {
+            var defaults = file.MaterialParamDefaults;
+            for (var i = 0; i < defaults.Length / 4; i++)
+            {
+                var elements = defaults.Skip(i * 4).Take(4).ToArray();
+                var v4 = new Vector4(elements[0], elements[1], elements[2], elements[3]);
+                ImGui.Text($"[{i}] {v4}");
+            }
+        }
+        
         if (ImGui.CollapsingHeader("Raw Data"))
         {
             hexView.DrawHexDump();
@@ -229,6 +376,19 @@ public class ShpkView : IView
         if (ImGui.CollapsingHeader("Remaining Data"))
         {
             remainingView.DrawHexDump();
+        }
+    }
+    
+    private void DrawKeys(ShpkFile.Key[] keys)
+    {
+        foreach (var key in keys)
+        {
+            ImGui.Columns(2);
+            ImGui.Text(key.Id.ToString());
+            ImGui.NextColumn();
+            ImGui.Text($"{key.DefaultValue} (0x{key.DefaultValue:X8})");
+            ImGui.NextColumn();
+            ImGui.Columns(1);
         }
     }
 }

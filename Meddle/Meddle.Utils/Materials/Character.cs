@@ -144,6 +144,56 @@ public static partial class MaterialUtility
         return output;
     }
 
+    public static MaterialBuilder BuildCharacterOcclusion(Material material, string name)
+    {
+        // this is purely guesswork
+        SKTexture normal = material.GetTexture(TextureUsage.g_SamplerNormal).ToTexture();
+        
+        // fully transparent
+        var baseTexture = new SKTexture(normal.Width, normal.Height);
+        for (var x = 0; x < baseTexture.Width; x++)
+        for (var y = 0; y < baseTexture.Height; y++)
+        {
+            // black, use transparency from normal
+            var normalPixel = normal[x, y].ToVector4();
+            baseTexture[x, y] = new Vector4(0, 0, 0, normalPixel.Z).ToSkColor();
+        }
+        
+        var output = new MaterialBuilder(name)
+                     .WithDoubleSide(true)
+                     .WithBaseColor(BuildImage(baseTexture, name, "diffuse"));
+        var doubleSided = (material.ShaderFlags & 0x1) == 0;
+        output.WithDoubleSide(doubleSided);
+        
+        return output;
+    }
+    
+    public static MaterialBuilder BuildCharacterTattoo(
+        Material material, string name, MaterialParameters parameters)
+    {
+        var normal = material.GetTexture(TextureUsage.g_SamplerNormal).ToTexture();
+        var baseTexture = new SKTexture(normal.Width, normal.Height);
+        for (var x = 0; x < baseTexture.Width; x++)
+        for (var y = 0; y < baseTexture.Height; y++)
+        {
+            var normalSample = normal[x, y].ToVector4();
+            var meshColor = new Vector4(parameters.SkinColor, normalSample.W);
+            var decalColor = parameters.DecalColor ?? new Vector4(1,1,1, normalSample.W);
+            
+            var finalColor = meshColor * decalColor;
+            baseTexture[x, y] = (finalColor with {W = normalSample.W }).ToSkColor();
+        }
+        
+        var output = new MaterialBuilder(name)
+                     .WithBaseColor(BuildImage(baseTexture, name, "diffuse"))
+                     .WithNormal(BuildImage(normal, name, "normal"));
+        
+        var doubleSided = (material.ShaderFlags & 0x1) == 0;
+        output.WithDoubleSide(doubleSided);
+        
+        return output;
+    }
+    
     public static MaterialBuilder BuildCharacterLegacy(Material material, string name)
     {
         SKTexture? normal = null;
