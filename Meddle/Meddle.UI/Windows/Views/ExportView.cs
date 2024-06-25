@@ -62,7 +62,7 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                 {
                     // versioning
                     var prefix = mtrlPath[..mtrlPath.LastIndexOf('/')];
-                    for (var j = 1; j < 10; j++)
+                    for (var j = 1; j < 9999; j++)
                     {
                         // 1 -> v0001
                         var versionedPath = $"{prefix}/v{j:D4}{originalPath}";
