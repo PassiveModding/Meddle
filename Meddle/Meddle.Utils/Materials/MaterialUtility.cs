@@ -102,10 +102,13 @@ public static partial class MaterialUtility
                 //TextureUsage.g_SamplerGradationMap => KnownChannel.Unknown,
                 TextureUsage.g_SamplerNormal2 => KnownChannel.Normal,
                 //TextureUsage.g_SamplerWrinklesMask => KnownChannel.Unknown,
-                _ => throw new ArgumentOutOfRangeException()
+                _ => (KnownChannel)999
             };
             
-            output.WithChannelImage(knownChannel, BuildImage(image, name, channelName));
+            if (knownChannel != (KnownChannel)999)
+            {
+                output.WithChannelImage(knownChannel, BuildImage(image, name, channelName));
+            }
         }
         
         return output;
