@@ -21,9 +21,11 @@ public static partial class MaterialUtility
         
         // rgb -> color data
         SKTexture diffuse;
+        bool hasDiffuse = false;
         if (material.TryGetTexture(TextureUsage.g_SamplerDiffuse, out var diffuseTexture))
         {
             diffuse = diffuseTexture.ToTexture();
+            hasDiffuse = true;
         }
         else
         {
@@ -65,6 +67,7 @@ public static partial class MaterialUtility
 
         var baseTexture = diffuse;
         var baseNormal = normal.Resize(diffuse.Width, diffuse.Height);
+        SKTexture? baseEmissive = null;
         if (material.TryGetTexture(TextureUsage.g_SamplerIndex, out var indexTexture))
         {
             // used to apply colortable
@@ -74,9 +77,9 @@ public static partial class MaterialUtility
             //      if green is 0, then row 2 will be used
             //      if green is 255, row 1 will be used
             //      intermediate value will create a blend between row 1 and 2
-            var index = indexTexture.ToTexture();
+            var index = indexTexture.ToTexture((diffuse.Width, diffuse.Height));
             var table = material.ColorTable;
-            
+            baseEmissive = new SKTexture(diffuse.Width, diffuse.Height);
             var weightArr = new byte[] { 
                 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 
                 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF 
@@ -96,9 +99,23 @@ public static partial class MaterialUtility
                 // 0x00 = pair1
                 var blend = indexPixel.Green / 255f;
                 var pairDiffuse = Vector3.Lerp(pair1.Diffuse, pair0.Diffuse, blend);
+                var normalPixel = baseNormal[x, y].ToVector4();
+                
+                var pairEmis = Vector3.Lerp(pair1.Emissive, pair0.Emissive, blend);
+                baseEmissive[x, y] = pairEmis.ToSkColor();
                 
                 // apply to diffuse
-                baseTexture[x, y] = new Vector4(pairDiffuse, 1).ToSkColor();
+                if (hasDiffuse)
+                {
+                    var diffusePixel = baseTexture[x, y].ToVector4();
+                    // multiply diffuse by pairDiffuse
+                    diffusePixel *= new Vector4(pairDiffuse, normalPixel.Z);
+                    baseTexture[x, y] = (diffusePixel with {W = normalPixel.Z}).ToSkColor();
+                }
+                else
+                {
+                    baseTexture[x, y] = new Vector4(pairDiffuse, normalPixel.Z).ToSkColor();
+                }
             }
         }
         
@@ -112,6 +129,11 @@ public static partial class MaterialUtility
         }
 
         output.WithBaseColor(BuildImage(baseTexture, name, "diffuse"));
+        if (baseEmissive != null)
+        {
+            output.WithEmissive(BuildImage(baseEmissive, name, "emissive"));
+        }
+
         output.WithNormal(BuildImage(baseNormal, name, "normal"));
         if (orm != null)
         {
