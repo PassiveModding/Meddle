@@ -74,10 +74,24 @@ public static class PathUtil
                 'f' => "face",
                 'h' => "hair",
                 't' => "tail",
+                'z' => "zear",
                 _ => throw new Exception($"Unknown subcategory {equipmentCode} for {mdlPath} -> {mtrlPath}")
             };
                 
             return $"chara/human/{characterCode}/obj/{subCategoryName}/{equipmentCode}/material{mtrlPath}";
+        }
+        
+        
+        if (mdlPath.StartsWith("chara/accessory/"))
+        {
+            var characterCode = mtrlPathMatches[0].Value;
+            var accessoryCode = mtrlPathMatches[1].Value;
+            if (accessoryCode.StartsWith('a'))
+            {
+                return $"chara/accessory/{accessoryCode}/material{mtrlPath}";
+            }
+            
+            throw new Exception($"Unknown accessory code {accessoryCode} for {mdlPath} -> {mtrlPath}");
         }
 
         if (mdlPath.StartsWith("chara/demihuman/"))
