@@ -40,7 +40,7 @@ public class SqPackWindow
         this.pathManager = pathManager;
         this.config = config;
         this.logger = logger;
-        exportView = new ExportView(sqPack, config, imageHandler);
+        exportView = new ExportView(sqPack, config, imageHandler, pathManager);
         discoverView = new DiscoverView(sqPack, config, pathManager);
     }
 
