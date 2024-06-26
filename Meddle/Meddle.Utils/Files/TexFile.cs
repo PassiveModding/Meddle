@@ -215,7 +215,9 @@ public class TexFile
         public fixed uint LodOffset[3];
 
         [FieldOffset(28)]
-        public fixed uint OffsetToSurface[13];
+        public fixed uint OffsetToSurface[OffsetToSurfaceLength];
+        
+        public const int OffsetToSurfaceLength = 13;
 
         public int CalculatedArraySize => CalculateArraySize();
         public int CalculatedMips => CountMips();
@@ -233,7 +235,7 @@ public class TexFile
         private int CountMips()
         {
             var actualMips = 0;
-            for (var i = 0; i < MipLevels && i < 13; i++)
+            for (var i = 0; i < MipLevels && i < OffsetToSurfaceLength; i++)
             {
                 if (OffsetToSurface[i] > 0)
                 {
