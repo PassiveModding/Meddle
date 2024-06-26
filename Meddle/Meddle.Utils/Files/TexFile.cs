@@ -233,7 +233,7 @@ public class TexFile
         private int CountMips()
         {
             var actualMips = 0;
-            for (var i = 0; i < MipLevels; i++)
+            for (var i = 0; i < MipLevels && i < 13; i++)
             {
                 if (OffsetToSurface[i] > 0)
                 {
