@@ -67,7 +67,8 @@ public static partial class MaterialUtility
 
         var baseTexture = diffuse;
         var baseNormal = normal.Resize(diffuse.Width, diffuse.Height);
-        SKTexture? baseEmissive = null;
+        SKTexture? baseGloss = null;
+        SKTexture? baseSpecular = null;
         if (material.TryGetTexture(TextureUsage.g_SamplerIndex, out var indexTexture))
         {
             // used to apply colortable
@@ -79,42 +80,29 @@ public static partial class MaterialUtility
             //      intermediate value will create a blend between row 1 and 2
             var index = indexTexture.ToTexture((diffuse.Width, diffuse.Height));
             var table = material.ColorTable;
-            baseEmissive = new SKTexture(diffuse.Width, diffuse.Height);
-            var weightArr = new byte[] { 
-                0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 
-                0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF 
-            };
+            baseGloss = new SKTexture(diffuse.Width, diffuse.Height);
+            baseSpecular = new SKTexture(diffuse.Width, diffuse.Height);
             for (var x = 0; x < index.Width; x++)
             for (var y = 0; y < index.Height; y++)
             {
                 var indexPixel = index[x, y];
-
-                var nearestPair = weightArr.MinBy(v => Math.Abs(v - indexPixel.Red));
-                var pairIdx = Array.IndexOf(weightArr, nearestPair) * 2;
-                
-                var pair0 = table.GetRow(pairIdx);
-                var pair1 = table.GetRow(pairIdx + 1);
-                
-                // 0xFF = pair0
-                // 0x00 = pair1
-                var blend = indexPixel.Green / 255f;
-                var pairDiffuse = Vector3.Lerp(pair1.Diffuse, pair0.Diffuse, blend);
+                var blended = table.GetBlendedPair(indexPixel.Red, indexPixel.Green);
                 var normalPixel = baseNormal[x, y].ToVector4();
                 
-                var pairEmis = Vector3.Lerp(pair1.Emissive, pair0.Emissive, blend);
-                baseEmissive[x, y] = pairEmis.ToSkColor();
+                baseGloss[x, y] = new Vector4(blended.Emissive, blended.GlossStrength).ToSkColor();
+                baseSpecular[x, y] = new Vector4(blended.Specular, blended.SpecularStrength).ToSkColor();
                 
                 // apply to diffuse
                 if (hasDiffuse)
                 {
                     var diffusePixel = baseTexture[x, y].ToVector4();
                     // multiply diffuse by pairDiffuse
-                    diffusePixel *= new Vector4(pairDiffuse, normalPixel.Z);
+                    diffusePixel *= new Vector4(blended.Diffuse, normalPixel.Z);
                     baseTexture[x, y] = (diffusePixel with {W = normalPixel.Z}).ToSkColor();
                 }
                 else
                 {
-                    baseTexture[x, y] = new Vector4(pairDiffuse, normalPixel.Z).ToSkColor();
+                    baseTexture[x, y] = new Vector4(blended.Diffuse, normalPixel.Z).ToSkColor();
                 }
             }
         }
@@ -129,9 +117,14 @@ public static partial class MaterialUtility
         }
 
         output.WithBaseColor(BuildImage(baseTexture, name, "diffuse"));
-        if (baseEmissive != null)
+        if (baseGloss != null)
         {
-            output.WithEmissive(BuildImage(baseEmissive, name, "emissive"));
+            output.WithEmissive(BuildImage(baseGloss, name, "emissive"));
+        }
+        
+        if (baseSpecular != null)
+        {
+            output.WithSpecularFactor(BuildImage(baseSpecular, name, "specular"), 1);
         }
 
         output.WithNormal(BuildImage(baseNormal, name, "normal"));
@@ -218,40 +211,99 @@ public static partial class MaterialUtility
     
     public static MaterialBuilder BuildCharacterLegacy(Material material, string name)
     {
-        SKTexture? normal = null;
-        SKTexture? mask = null;
-        SKTexture? index = null;
+        SKTexture normal = material.GetTexture(TextureUsage.g_SamplerNormal).ToTexture();
         SKTexture? diffuse = null;
-        
-        if (material.TryGetTexture(TextureUsage.g_SamplerNormal, out var normalTexture))
-        {
-            normal = normalTexture.ToTexture();
-        }
-        
-        if (material.TryGetTexture(TextureUsage.g_SamplerMask, out var maskTexture))
-        {
-            mask = maskTexture.ToTexture();
-        }
-        
-        if (material.TryGetTexture(TextureUsage.g_SamplerIndex, out var indexTexture))
-        {
-            index = indexTexture.ToTexture();
-        }
+        bool hasDiffuse = false;
         
         if (material.TryGetTexture(TextureUsage.g_SamplerDiffuse, out var diffuseTexture))
         {
-            diffuse = diffuseTexture.ToTexture();
+            hasDiffuse = true;
+            diffuse = diffuseTexture.ToTexture((normal.Width, normal.Height));
+        }
+
+        var baseNormal = normal;
+        SKTexture baseTexture = diffuse ?? new SKTexture(normal.Width, normal.Height);
+        SKTexture? baseGloss = null;
+        SKTexture? baseSpecular = null;
+        if (material.TryGetTexture(TextureUsage.g_SamplerIndex, out var indexTexture))
+        {
+            var index = indexTexture.ToTexture((normal.Width, normal.Height));
+            baseSpecular = new SKTexture(normal.Width, normal.Height);
+            baseGloss = new SKTexture(normal.Width, normal.Height);
+            var table = material.ColorTable;
+
+            for (var x = 0; x < index.Width; x++)
+            for (var y = 0; y < index.Height; y++)
+            {
+                var indexPixel = index[x, y];
+                var blended = table.GetBlendedPair(indexPixel.Red, indexPixel.Green);
+                var normalPixel = baseNormal[x, y].ToVector4();
+                
+                baseGloss[x, y] = new Vector4(blended.Emissive, blended.GlossStrength).ToSkColor();
+                baseSpecular[x, y] = new Vector4(blended.Specular, blended.SpecularStrength).ToSkColor();
+                
+                // apply to diffuse
+                if (hasDiffuse)
+                {
+                    var diffusePixel = baseTexture[x, y].ToVector4();
+                    // multiply diffuse by pairDiffuse
+                    diffusePixel *= new Vector4(blended.Diffuse, normalPixel.Z);
+                    baseTexture[x, y] = (diffusePixel with {W = normalPixel.Z}).ToSkColor();
+                }
+                else
+                {
+                    baseTexture[x, y] = new Vector4(blended.Diffuse, normalPixel.Z).ToSkColor();
+                }
+            }
+        }
+        
+        
+        if (material.TryGetTexture(TextureUsage.g_SamplerMask, out var maskTexture))
+        {
+            var mask = maskTexture.ToTexture((normal.Width, normal.Height));
+            // red -> diffuse mask
+            // green -> specular mask
+            // blue -> gloss mask
+            
+            for (var x = 0; x < mask.Width; x++)
+            for (var y = 0; y < mask.Height; y++)
+            {
+                var maskPixel = mask[x, y].ToVector4();
+                var normalPixel = baseNormal[x, y].ToVector4();
+                var diffusePixel = baseTexture[x, y].ToVector4();
+                
+                // apply diffuse mask
+                diffusePixel *= new Vector4(maskPixel.X);
+                baseTexture[x, y] = (diffusePixel with {W = normalPixel.Z}).ToSkColor();
+                
+                // apply specular mask
+                if (baseSpecular != null)
+                {
+                    var specPixel = baseSpecular[x, y].ToVector4();
+                    var specAlpha = specPixel.W;
+                    specPixel *= new Vector4(maskPixel.Y);
+                    baseSpecular[x, y] = (specPixel with {W = specAlpha}).ToSkColor();
+                }
+
+                // apply gloss mask
+                if (baseGloss != null)
+                {
+                    var glossPixel = baseGloss[x, y].ToVector4();
+                    var glossAlpha = glossPixel.W;
+                    glossPixel *= new Vector4(maskPixel.Z);
+                    baseGloss[x, y] = (glossPixel with {W = glossAlpha}).ToSkColor();
+                }
+            }
         }
         
         var output = new MaterialBuilder(name)
-                     .WithDoubleSide(true)
-                     .WithMetallicRoughnessShader()
-                     .WithBaseColor(Vector4.One);
+                     .WithDoubleSide(true);
         
-        if (diffuse != null) output.WithBaseColor(BuildImage(diffuse, name, "diffuse"));
-        if (normal != null) output.WithNormal(BuildImage(normal, name, "normal"));
-        if (mask != null) output.WithSpecularFactor(BuildImage(mask, name, "mask"), 1);
-        if (index != null) output.WithSpecularColor(BuildImage(index, name, "index"));
+        output.WithBaseColor(BuildImage(baseTexture, name, "diffuse"));
+        output.WithNormal(BuildImage(normal, name, "normal"));
+        
+        if (baseGloss != null) output.WithSpecularColor(BuildImage(baseGloss, name, "gloss"));
+        if (baseSpecular != null) output.WithSpecularFactor(BuildImage(baseSpecular, name, "specular"), 1);
         
         return output;
     }

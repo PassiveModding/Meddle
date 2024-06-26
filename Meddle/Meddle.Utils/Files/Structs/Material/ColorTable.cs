@@ -9,7 +9,40 @@ public unsafe struct ColorTable
     public const int RowSize = 32;
     public const int LegacyNumRows = 16;
     public const int NumRows = 32;
-    
+
+    public (ColorRow row0, ColorRow row1) GetPair(int weight)
+    {
+        var weightArr = new byte[] { 
+            0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 
+            0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF 
+        };
+        
+        var nearestPair = weightArr.MinBy(v => Math.Abs(v - weight));
+        var pairIdx = Array.IndexOf(weightArr, nearestPair) * 2;
+        var pair0 = GetRow(pairIdx);
+        var pair1 = GetRow(pairIdx + 1);
+        
+        return (pair0, pair1);
+    }
+
+    public ColorRow GetBlendedPair(int weight, int blend)
+    {
+        var (row1, row0) = GetPair(weight);
+        var prioRow = weight < 128 ? row0 : row1;
+        var row = new ColorRow
+        {
+            Diffuse = Vector3.Lerp(row0.Diffuse, row1.Diffuse, blend / 255f),
+            Specular = Vector3.Lerp(row0.Specular, row1.Specular, blend / 255f),
+            Emissive = Vector3.Lerp(row0.Emissive, row1.Emissive, blend / 255f),
+            MaterialRepeat = prioRow.MaterialRepeat,
+            MaterialSkew = prioRow.MaterialSkew,
+            SpecularStrength = float.Lerp(row0.SpecularStrength, row1.SpecularStrength, blend / 255f),
+            GlossStrength = float.Lerp(row0.GlossStrength, row1.GlossStrength, blend / 255f),
+            TileSet = prioRow.TileSet
+        };
+        return row;
+    }
+
     public ref ColorRow GetRow(int idx)
     {
         fixed (ushort* ptr = Data)
