@@ -23,12 +23,30 @@
         "resolved": "1.0.1",
         "contentHash": "knoinAv31vbdxXdypnzN2MPX5hyntVLWceq6OdWRXkr9zzqp/RWbxSuLFGbkW8De1061URgNAN43BUTlgMx1CA=="
       },
+      "JetBrains.Annotations": {
+        "type": "Transitive",
+        "resolved": "2021.2.0",
+        "contentHash": "kKSyoVfndMriKHLfYGmr0uzQuI4jcc3TKGyww7buJFCYeHb/X0kodYBPL7n9454q7v6ASiRmDgpPGaDGerg/Hg=="
+      },
       "Microsoft.Extensions.DependencyInjection.Abstractions": {
         "type": "Transitive",
         "resolved": "8.0.1",
         "contentHash": "fGLiCRLMYd00JYpClraLjJTNKLmMJPnqxMaiRzEBIIvevlzxz33mXy39Lkd48hu1G+N21S7QpaO5ZzKsI6FRuA=="
       },
       "ffxivclientstructs": {
+        "type": "Project",
+        "dependencies": {
+          "InteropGenerator.Runtime": "[1.0.0, )",
+          "JetBrains.Annotations": "[2021.2.0, )"
+        }
+      },
+      "ffxivclientstructs.generators": {
+        "type": "Project"
+      },
+      "interopgenerator": {
+        "type": "Project"
+      },
+      "interopgenerator.runtime": {
         "type": "Project"
       }
     }

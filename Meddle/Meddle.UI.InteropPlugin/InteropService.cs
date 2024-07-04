@@ -1,6 +1,7 @@
 ﻿using Dalamud.Game;
 using Dalamud.Hooking;
 using Dalamud.Utility.Signatures;
+using InteropGenerator.Runtime;
 
 namespace Meddle.UI.InteropPlugin;
 
@@ -16,8 +17,8 @@ public class InteropService(ISigScanner sigScanner) : IDisposable
         if (IsResolved)
             return;
         
-        FFXIVClientStructs.Interop.Resolver.GetInstance.SetupSearchSpace(sigScanner.SearchBase);
-        FFXIVClientStructs.Interop.Resolver.GetInstance.Resolve();
+        Resolver.GetInstance.Setup(sigScanner.SearchBase);
+        Resolver.GetInstance.Resolve();
         IsResolved = true;
     }
 

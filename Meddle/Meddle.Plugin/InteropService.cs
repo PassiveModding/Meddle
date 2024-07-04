@@ -1,8 +1,9 @@
 ﻿using Dalamud.Game;
 using Dalamud.Hooking;
 using Dalamud.Utility.Signatures;
+using InteropGenerator.Runtime;
 
-namespace Meddle.Plugin.Services;
+namespace Meddle.Plugin;
 
 // https://github.com/Caraxi/SimpleTweaksPlugin/blob/2b7c105d1671fd6a344edb5c621632b8825a81c5/SimpleTweaksPlugin.cs#L101C13-L103C75
 public class InteropService(ISigScanner sigScanner) : IDisposable
@@ -17,8 +18,8 @@ public class InteropService(ISigScanner sigScanner) : IDisposable
         if (IsResolved)
             return;
         
-        FFXIVClientStructs.Interop.Resolver.GetInstance.SetupSearchSpace(sigScanner.SearchBase);
-        FFXIVClientStructs.Interop.Resolver.GetInstance.Resolve();
+        Resolver.GetInstance.Setup(sigScanner.SearchBase);
+        Resolver.GetInstance.Resolve();
         IsResolved = true;
     }
 

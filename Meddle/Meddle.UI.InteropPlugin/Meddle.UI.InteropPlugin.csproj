@@ -35,7 +35,9 @@
         </Reference>
     </ItemGroup>
     <ItemGroup>
+      <ProjectReference Include="..\..\FFXIVClientStructs\FFXIVClientStructs.Generators\FFXIVClientStructs.Generators.csproj" />
       <ProjectReference Include="..\..\FFXIVClientStructs\FFXIVClientStructs\FFXIVClientStructs.csproj" />
+      <ProjectReference Include="..\..\FFXIVClientStructs\InteropGenerator\InteropGenerator.csproj" />
     </ItemGroup>
 
 </Project>

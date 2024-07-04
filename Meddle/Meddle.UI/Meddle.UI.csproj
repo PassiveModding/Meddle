@@ -37,7 +37,7 @@
     
     <ItemGroup>
       <Reference Include="OtterTex">
-        <HintPath>..\Meddle.Plugin\Lib\OtterTex.dll</HintPath>
+        <HintPath>..\Meddle.Utils\Lib\OtterTex.dll</HintPath>
       </Reference>
     </ItemGroup>
 </Project>

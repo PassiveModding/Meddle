@@ -1,17 +1,11 @@
-using Dalamud.Game;
 using Dalamud.Game.Command;
-using Dalamud.Hooking;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
-using Dalamud.Utility.Signatures;
-using Meddle.Plugin.Models.Config;
-using Meddle.Plugin.Services;
 using Meddle.Plugin.UI;
+using Meddle.Utils;
 //using Meddle.Plugin.UI.Shared;
-using Meddle.Plugin.Utility;
 using Microsoft.Extensions.DependencyInjection;
-using Meddle.Plugin.Xande;
 
 namespace Meddle.Plugin;
 
@@ -25,16 +19,10 @@ public sealed class Plugin : IDalamudPlugin
 
     public Plugin(IDalamudPluginInterface pluginInterface)
     {
-        var config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
-        config.Initialize(pluginInterface);
-        config.Save();
-
         var services = new ServiceCollection()
             .AddDalamud(pluginInterface)
             .AddUi()
             .AddSingleton(pluginInterface)
-            .AddSingleton(config)
-            .AddSingleton<ExportManager>()
             .AddSingleton<ModelBuilder>()
             .AddSingleton<InteropService>()
             .BuildServiceProvider();
@@ -49,14 +37,6 @@ public sealed class Plugin : IDalamudPlugin
         this.pluginInterface.UiBuilder.Draw += WindowSystem.Draw;
         this.pluginInterface.UiBuilder.OpenMainUi += OpenUi;
         this.pluginInterface.UiBuilder.OpenConfigUi += OpenUi;
-        this.pluginInterface.UiBuilder.DisableGposeUiHide = config.DisableGposeUiHide;
-        this.pluginInterface.UiBuilder.DisableCutsceneUiHide = config.DisableCutsceneUiHide;
-        config.OnChange += () =>
-        {
-            this.pluginInterface.UiBuilder.DisableGposeUiHide = config.DisableGposeUiHide;
-            this.pluginInterface.UiBuilder.DisableCutsceneUiHide = config.DisableCutsceneUiHide;
-        };
-
         mainWindow = services.GetRequiredService<MainWindow>();
         WindowSystem.AddWindow(mainWindow);
         

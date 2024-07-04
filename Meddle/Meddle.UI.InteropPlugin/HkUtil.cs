@@ -1,5 +1,9 @@
 ﻿using System.Text;
 using FFXIVClientStructs.Havok;
+using FFXIVClientStructs.Havok.Common.Base.System.IO.OStream;
+using FFXIVClientStructs.Havok.Common.Base.Types;
+using FFXIVClientStructs.Havok.Common.Serialize.Resource;
+using FFXIVClientStructs.Havok.Common.Serialize.Util;
 
 namespace Meddle.UI.InteropPlugin;
 

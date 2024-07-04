@@ -1,9 +1,9 @@
+using System.Reflection;
 using Dalamud.Plugin;
 using Meddle.Plugin.UI;
 using Microsoft.Extensions.DependencyInjection;
-using System.Reflection;
 
-namespace Meddle.Plugin.Utility;
+namespace Meddle.Plugin;
 
 public static class ServiceUtility
 {
