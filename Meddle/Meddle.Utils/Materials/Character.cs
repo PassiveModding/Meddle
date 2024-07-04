@@ -48,9 +48,13 @@ public static partial class MaterialUtility
             {
                 mask = maskTexture.ToTexture();
             }
+            else if (maskTexture.HandlePath.EndsWith("_s.tex"))
+            {
+                mask = maskTexture.ToTexture();
+            }
             else
             {
-                throw new NotImplementedException("Unknown mask texture");
+                throw new NotImplementedException($"Unknown mask texture, {maskTexture.HandlePath}");
             }
         }
         
