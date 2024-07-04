@@ -385,7 +385,8 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
             var model = new Utils.Export.Model(mdlGroup.File, path, shpkDict, mtrlDict, texDict);
 
             var materials = new List<MaterialBuilder>();
-            foreach (var mtrlGroup in mdlGroup.Mtrls)
+            //foreach (var mtrlGroup in mdlGroup.Mtrls)
+            Parallel.ForEach(mdlGroup.Mtrls, mtrlGroup =>
             {
                 if (token.IsCancellationRequested)
                 {
@@ -425,7 +426,7 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                     Console.WriteLine($"Error parsing material {mtrlGroup.ResolvedPath}: {ex}");
                     throw;
                 }
-            }
+            });
 
             var meshes = ModelBuilder.BuildMeshes(model, materials, bones, null);
             foreach (var mesh in meshes)
