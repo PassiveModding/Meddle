@@ -19,13 +19,13 @@ public sealed class Plugin : IDalamudPlugin
     public class Service
     {
         [PluginService] public IFramework Framework { get; set; } = null!;
-        [PluginService] public DalamudPluginInterface PluginInterface { get; set; } = null!;
+        [PluginService] public IDalamudPluginInterface PluginInterface { get; set; } = null!;
         [PluginService] public ICommandManager CommandManager { get; set; } = null!;
         [PluginService] public ISigScanner SigScanner { get; set; } = null!;
         [PluginService] public IPluginLog Log { get; set; } = null!;
     }
 
-    public Plugin(DalamudPluginInterface pluginInterface)
+    public Plugin(IDalamudPluginInterface pluginInterface)
     {
         Services = new Service();
         pluginInterface.Inject(Services);
