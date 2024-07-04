@@ -21,9 +21,9 @@ public sealed class Plugin : IDalamudPlugin
     public static readonly string TempDirectory = Path.Combine(Path.GetTempPath(), "Meddle.Export");
     private readonly MainWindow? mainWindow;
     private readonly ICommandManager commandManager;
-    private readonly DalamudPluginInterface pluginInterface;
+    private readonly IDalamudPluginInterface pluginInterface;
 
-    public Plugin(DalamudPluginInterface pluginInterface)
+    public Plugin(IDalamudPluginInterface pluginInterface)
     {
         var config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         config.Initialize(pluginInterface);
@@ -45,7 +45,7 @@ public sealed class Plugin : IDalamudPlugin
             HelpMessage = "Open the menu"
         });
         
-        this.pluginInterface = services.GetRequiredService<DalamudPluginInterface>();
+        this.pluginInterface = services.GetRequiredService<IDalamudPluginInterface>();
         this.pluginInterface.UiBuilder.Draw += WindowSystem.Draw;
         this.pluginInterface.UiBuilder.OpenMainUi += OpenUi;
         this.pluginInterface.UiBuilder.OpenConfigUi += OpenUi;

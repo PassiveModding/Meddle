@@ -7,7 +7,7 @@ namespace Meddle.Plugin.Models.Config;
 [Serializable]
 public class Configuration : IPluginConfiguration
 {
-    private DalamudPluginInterface PluginInterface { get; set; } = null!;
+    private IDalamudPluginInterface PluginInterface { get; set; } = null!;
 
     public int Version { get; set; }
 
@@ -18,7 +18,7 @@ public class Configuration : IPluginConfiguration
     public bool OpenFolderAfterExport { get; set; } = true;
     public bool IncludeReaperEyeInExport { get; set; }
 
-    public void Initialize(DalamudPluginInterface pluginInterface)
+    public void Initialize(IDalamudPluginInterface pluginInterface)
     {
         PluginInterface = pluginInterface;
     }

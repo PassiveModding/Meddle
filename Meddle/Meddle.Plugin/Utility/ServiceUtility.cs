@@ -7,7 +7,7 @@ namespace Meddle.Plugin.Utility;
 
 public static class ServiceUtility
 {
-    public static IServiceCollection AddDalamud(this IServiceCollection services, DalamudPluginInterface pi)
+    public static IServiceCollection AddDalamud(this IServiceCollection services, IDalamudPluginInterface pi)
     {
         var dalamud = new Service(pi);
         dalamud.AddServices(services);

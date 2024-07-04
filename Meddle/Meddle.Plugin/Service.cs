@@ -8,7 +8,7 @@ namespace Meddle.Plugin;
 
 public class Service
 {
-    public Service(DalamudPluginInterface pluginInterface)
+    public Service(IDalamudPluginInterface pluginInterface)
     {
         pluginInterface.Inject(this);
         Log = PrivLog;
@@ -27,7 +27,7 @@ public class Service
         services.AddSingleton(DataManager);
     }
 
-    [PluginService] private DalamudPluginInterface PluginInterface { get; set; } = null!;
+    [PluginService] private IDalamudPluginInterface PluginInterface { get; set; } = null!;
 
     [PluginService] private IFramework Framework { get; set; } = null!;
 
