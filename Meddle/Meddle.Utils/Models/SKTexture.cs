@@ -1,5 +1,4 @@
-﻿using System.Numerics;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using SkiaSharp;
 
 namespace Meddle.Utils.Models;
@@ -66,7 +65,7 @@ public sealed class SKTexture
         
         public SKTexture Resize(int width, int height)
         {
-            var info = new SKImageInfo(width, height);
+            var info = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
             var bitmapCopy = Bitmap.Copy();
             var resize = bitmapCopy.Resize(info, SKFilterQuality.High);
             

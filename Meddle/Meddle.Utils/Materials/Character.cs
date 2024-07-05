@@ -1,4 +1,6 @@
 ﻿using System.Numerics;
+using FFXIVClientStructs.FFXIV.Client.Game.Character;
+using FFXIVClientStructs.FFXIV.Shader;
 using Meddle.Utils.Export;
 using Meddle.Utils.Models;
 using SharpGLTF.Materials;
@@ -175,32 +177,55 @@ public static partial class MaterialUtility
         {
             // black, use transparency from normal
             var normalPixel = normal[x, y].ToVector4();
-            baseTexture[x, y] = new Vector4(0, 0, 0, normalPixel.Z).ToSkColor();
         }
-        
-        var output = new MaterialBuilder(name)
-                     .WithDoubleSide(true)
-                     .WithBaseColor(BuildImage(baseTexture, name, "diffuse"));
+
+        var output = new MaterialBuilder(name);
         var doubleSided = (material.ShaderFlags & 0x1) == 0;
         output.WithDoubleSide(doubleSided);
+        output.WithBaseColor(new Vector4(1, 1, 1, 0f));
+        
+        output.WithAlpha(AlphaMode.BLEND, 0.5f);
         
         return output;
     }
     
     public static MaterialBuilder BuildCharacterTattoo(
-        Material material, string name, MaterialParameters parameters)
+        Material material, string name, CustomizeParameter parameters, CustomizeData data)
     {
+        // face or hair
+        const uint categoryHairType = 0x24826489;
+        HairType? hairType = null;
+        if (material.ShaderKeys.Any(x => x.Category == categoryHairType))
+        {
+            var key = material.ShaderKeys.First(x => x.Category == categoryHairType);
+            hairType = (HairType)key.Value;
+        }
+        
+        // face = tattoo color
+        // hair = highlight color
+        Vector3 color = hairType switch
+        {
+            HairType.Face => parameters.OptionColor,
+            HairType.Hair => parameters.MeshColor,
+            _ => Vector3.Zero
+        };
+        
         var normal = material.GetTexture(TextureUsage.g_SamplerNormal).ToTexture();
         var baseTexture = new SKTexture(normal.Width, normal.Height);
         for (var x = 0; x < baseTexture.Width; x++)
         for (var y = 0; y < baseTexture.Height; y++)
         {
             var normalSample = normal[x, y].ToVector4();
-            var meshColor = new Vector4(parameters.SkinColor, normalSample.W);
-            var decalColor = parameters.DecalColor ?? new Vector4(1,1,1, normalSample.W);
             
-            var finalColor = meshColor * decalColor;
-            baseTexture[x, y] = (finalColor with {W = normalSample.W }).ToSkColor();
+            // apply color to normal
+            if (normalSample.Z != 0)
+            {
+                baseTexture[x, y] = new Vector4(color, normalSample.W).ToSkColor();
+            }
+            else
+            {
+                baseTexture[x, y] = new Vector4(0, 0, 0, normalSample.W).ToSkColor();
+            }
         }
         
         var output = new MaterialBuilder(name)
@@ -209,6 +234,12 @@ public static partial class MaterialUtility
         
         var doubleSided = (material.ShaderFlags & 0x1) == 0;
         output.WithDoubleSide(doubleSided);
+        
+        var alphaThreshold = material.GetConstantOrDefault(MaterialConstant.g_AlphaThreshold, 0.0f);
+        if (alphaThreshold > 0)
+            output.WithAlpha(AlphaMode.BLEND, alphaThreshold);
+        else
+            output.WithAlpha(AlphaMode.BLEND);
         
         return output;
     }

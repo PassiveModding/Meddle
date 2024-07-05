@@ -45,10 +45,12 @@ public class ModelBuilder
             }
             
             meshBuilder.BuildVertices();
+            var modelPathName = Path.GetFileNameWithoutExtension(model.Path);
             
             if (mesh.SubMeshes.Count == 0)
             {
                 var mb = meshBuilder.BuildMesh();
+                mb.Name = $"{modelPathName}_{mesh.MeshIdx}_{material.Name}";
                 meshes.Add(new MeshExport(mb, useSkinning, null, null));
                 continue;
             }
@@ -57,7 +59,7 @@ public class ModelBuilder
             {
                 var modelSubMesh = mesh.SubMeshes[i];
                 var subMesh = meshBuilder.BuildSubMesh(modelSubMesh);
-                subMesh.Name = $"{model.Path}_{mesh.MeshIdx}.{i}";
+                subMesh.Name = $"{modelPathName}_{mesh.MeshIdx}_{material.Name}.{i}";
                 if (modelSubMesh.Attributes.Count > 0)
                 {
                     subMesh.Name += $";{string.Join(";", modelSubMesh.Attributes)}";
@@ -72,7 +74,7 @@ public class ModelBuilder
                 meshes.Add(new MeshExport(subMesh, useSkinning, modelSubMesh, shapeNames.ToArray()));
             }
         }
-        
+
         return meshes;
     }
 }

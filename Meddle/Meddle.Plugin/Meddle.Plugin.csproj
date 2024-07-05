@@ -40,7 +40,7 @@
             <Private>False</Private>
         </Reference>
         <Reference Include="OtterTex">
-          <HintPath>Lib\OtterTex.dll</HintPath>
+          <HintPath>..\Meddle.Utils\Lib\OtterTex.dll</HintPath>
         </Reference>
     </ItemGroup>
 

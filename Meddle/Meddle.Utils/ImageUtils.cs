@@ -9,6 +9,16 @@ namespace Meddle.Utils;
 
 public static class ImageUtils
 {
+    public static System.Numerics.Vector4 ToVector4(this Vector4 vec)
+    {
+        return new System.Numerics.Vector4(vec.X, vec.Y, vec.Z, vec.W);
+    }
+    
+    public static System.Numerics.Vector3 ToVector3(this Vector3 vec)
+    {
+        return new System.Numerics.Vector3(vec.X, vec.Y, vec.Z);
+    }
+    
     public static SKColor ToSkColor(this Vector3 vec)
     {
         return new SKColor((byte)(vec.X * 255), (byte)(vec.Y * 255), (byte)(vec.Z * 255));
@@ -170,14 +180,14 @@ public static class ImageUtils
         var bitmap = tex.ToBitmap();
         if (resize != null)
         {
-            bitmap = bitmap.Resize(new SKImageInfo(resize.Value.width, resize.Value.height), SKFilterQuality.High);
+            bitmap = bitmap.Resize(new SKImageInfo(resize.Value.width, resize.Value.height, SKColorType.Rgba8888, SKAlphaType.Unpremul), SKFilterQuality.High);
         }
         
         return new SKTexture(bitmap);
     }
 
     private static readonly object LockObj = new();
-    public static unsafe SKBitmap ToBitmap(this Texture resource)
+    private static unsafe SKBitmap ToBitmap(this Texture resource)
     {
         lock (LockObj)
         {
@@ -208,10 +218,15 @@ public static class ImageUtils
             {
                 bitmap.InstallPixels(bitmap.Info, (nint)data, rgba.Meta.Width * 4);
             }
-            
-            // I have trust issues
-            var copy = new SKBitmap(bitmap.Info);
-            bitmap.CopyTo(copy, bitmap.Info.ColorType);
+
+            // return copy, retaining unpremultiplied alpha
+            var copy = new SKBitmap(rgba.Meta.Width, rgba.Meta.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
+            var pixelBuf = copy.GetPixelSpan().ToArray();
+            bitmap.GetPixelSpan().CopyTo(pixelBuf);
+            fixed (byte* data = pixelBuf)
+            {
+                copy.InstallPixels(copy.Info, (nint)data, copy.Info.RowBytes);
+            }
             
             return copy;
         }

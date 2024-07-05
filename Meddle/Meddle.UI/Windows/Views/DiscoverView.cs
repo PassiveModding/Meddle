@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Numerics;
 using System.Text;
 using System.Text.Json;
@@ -84,10 +85,12 @@ public class DiscoverView(SqPack pack, Configuration configuration, PathManager 
         await File.WriteAllLinesAsync("discovered_shaders.txt", discoveredShaders, token);
     }
     
+    private string searchHash = "";
     public void Draw()
     {
         if (ImGui.Button("RunDiscovery"))
         {
+            discoverCts?.Cancel();
             discoverCts = new CancellationTokenSource();
             discoverTask = Task.Run(async () => await DiscoverAsync(discoverCts.Token));
         }
@@ -113,6 +116,45 @@ public class DiscoverView(SqPack pack, Configuration configuration, PathManager 
         if (ImGui.Button("ShpkDump2"))
         {
             ShpkDump2();
+        }
+        
+        ImGui.SameLine();
+        if (ImGui.Button("MtrlDump"))
+        {
+            discoverCts?.Cancel();
+            // iterate all .mtrl files and find the one with stocking in it
+            discoverCts = new CancellationTokenSource();
+            discoverTask = Task.Run(async () => await MtrlDump(discoverCts.Token));
+        }
+        
+        ImGui.SameLine();
+        if (ImGui.Button("Discover New"))
+        {
+            discoverCts?.Cancel();
+            discoverCts = new CancellationTokenSource();
+            discoverTask = Task.Run(async () => await DiscoverNew(discoverCts.Token));
+        }
+        
+        // search by hash
+        ImGui.SameLine();
+        searchHash ??= "";
+        if (ImGui.InputText("Search by hash", ref searchHash, 100))
+        {
+            searchHash = Regex.Replace(searchHash, "[^0-9]", "");
+            var hash = ulong.Parse(searchHash);
+            foreach (var repo in pack.Repositories)
+            {
+                foreach (var category in repo.Categories)
+                {
+                    if (category.Value.TryGetFile(hash, out var file))
+                    {
+                        var tmp = new MtrlFile(file.RawData);
+                        
+                        var strings = tmp.GetStrings();
+                        Console.WriteLine($"Found val in {category.Key}");
+                    }
+                }
+            }
         }
         
         // progress bar
@@ -150,7 +192,7 @@ public class DiscoverView(SqPack pack, Configuration configuration, PathManager 
         ImGui.BeginChild("Logs", new Vector2(0, 300));
         try
         {
-            foreach (var line in log)
+            foreach (var line in log.ToArray())
             {
                 ImGui.Text(line);
             }
@@ -289,6 +331,64 @@ public class DiscoverView(SqPack pack, Configuration configuration, PathManager 
         {
             return obj.Aggregate(0, (acc, val) => acc ^ val.GetHashCode());
         }
+    }
+
+    public async Task MtrlDump(CancellationToken token)
+    {
+        var stats = new ConcurrentDictionary<string, HashSet<ulong>>();
+        foreach (var repo in pack.Repositories)
+        {
+            foreach (var category in repo.Categories)
+            {
+                //foreach (var hash in category.Value.UnifiedIndexEntries)
+                await Parallel.ForEachAsync(category.Value.UnifiedIndexEntries, token, (hash, lTok) =>
+                {
+                    try
+                    {
+                        if (category.Value.TryGetFile(hash.Key, out var packFile))
+                        {
+                            var shpkName = TryParseFileFromHash(category.Value, hash, packFile);
+                            if (shpkName is not null)
+                            {
+                                Console.WriteLine($"Found {shpkName} on {category.Key}");
+                                stats.GetOrAdd(shpkName, _ => []).Add(hash.Key);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error while processing {category.Key}: {ex}");
+                    }
+
+                    return ValueTask.CompletedTask;
+                });
+            }
+        }
+        
+        var sb = new StringBuilder();
+        foreach (var (key, value) in stats)
+        {
+            sb.AppendLine($"{key}: {value.Count}");
+        }
+        
+        await File.WriteAllTextAsync("mtrl_dump.txt", sb.ToString(), token);
+        shpkStats = stats.ToDictionary(x => x.Key, x => x.Value);
+    }
+
+    private Dictionary<string, HashSet<ulong>> shpkStats = new();
+    
+    public string? TryParseFileFromHash(Category category, KeyValuePair<ulong, IndexHashTableEntry> hash, SqPackFile packFile)
+    {
+        // if data starts with mtrlMagic
+        var fileReader = new SpanBinaryReader(packFile.RawData);
+        if (fileReader.ReadUInt32() == MtrlFile.MtrlMagic)
+        {
+            var mtrl = new MtrlFile(packFile.RawData);
+            var shaderPackageName = mtrl.GetShaderPackageName();
+            return shaderPackageName;
+        }
+        
+        return null;
     }
     
     public void ShpkDump()
@@ -489,5 +589,440 @@ public class DiscoverView(SqPack pack, Configuration configuration, PathManager 
         {
             log.Add($"Failed to find {shpkName}");
         }
+    }
+
+    public Task DiscoverNew(CancellationToken token)
+    {
+        var textureNames = new ConcurrentDictionary<string, bool>();
+        var mtrlNamesFull = new ConcurrentDictionary<string, bool>();
+        var mtrlNames = new ConcurrentDictionary<string, bool>();
+        var mdlnames = new ConcurrentDictionary<string, bool>();
+        var shpkNames = new ConcurrentDictionary<string, bool>();
+        foreach (var repository in pack.Repositories)
+        {
+            if (repository.ExpansionId != null) continue;
+            foreach (var category in repository.Categories)
+            {
+                if (Category.TryGetCategoryName(category.Key.category) != "chara")
+                {
+                    continue;
+                }
+                
+                if (token.IsCancellationRequested)
+                {
+                    return Task.CompletedTask;
+                }
+                
+                Console.WriteLine($"Processing {category.Key}");
+                
+                Parallel.ForEach(category.Value.UnifiedIndexEntries, (hash, tk) =>
+                {
+                    if (token.IsCancellationRequested)
+                    {
+                        return;
+                    }
+                    
+                    try
+                    {
+                        if (category.Value.TryGetFile(hash.Value.Hash, out var data))
+                        {
+                            if (data.FileHeader.Type == FileType.Model)
+                            {
+                                var mdlFile = new MdlFile(data.RawData);
+                                var mtrlPaths = mdlFile.GetMaterialNames();
+                                foreach (var (_, mtrlPath) in mtrlPaths)
+                                {
+                                    if (mtrlPath.StartsWith("/"))
+                                    {
+                                        if (mtrlNames.TryAdd(mtrlPath, true))
+                                        {
+                                            //Console.WriteLine($"[MTRL] Found {mtrlPath} on {category.Key}");
+                                        }
+                                    }
+                                    else
+                                    {
+                                        if (mtrlNamesFull.TryAdd(mtrlPath, true))
+                                        {
+                                            //Console.WriteLine($"[MTRL] Found {mtrlPath} on {category.Key}");
+                                        }
+                                    }
+                                }
+                            }
+                            else if (data.FileHeader.Type == FileType.Standard)
+                            {
+                                if (data.RawData.Length < 4)
+                                {
+                                    return;
+                                }
+
+                                var reader = new SpanBinaryReader(data.RawData);
+                                var magic = reader.ReadUInt32();
+                                if (magic == MtrlFile.MtrlMagic)
+                                {
+                                    var mtrl = new MtrlFile(data.RawData);
+                                    var shaderPackageName = mtrl.GetShaderPackageName();
+                                    if (shpkNames.TryAdd(shaderPackageName, true))
+                                    {
+                                        //Console.WriteLine($"[SHPK] Found {shaderPackageName} on {category.Key}");
+                                    }
+
+                                    var texturePaths = mtrl.GetTexturePaths();
+                                    foreach (var (_, texPath) in texturePaths)
+                                    {
+                                        if (texPath == "dummy.tex")
+                                        {
+                                            continue;
+                                        }
+
+                                        if (textureNames.TryAdd(texPath, true))
+                                        {
+                                            //Console.WriteLine($"[TEX] Found {texPath} on {category.Key}");
+                                            var mdlPath = ResolveMdlFromTexPath(texPath);
+                                            if (mdlPath is not null && mdlnames.TryAdd(mdlPath, true))
+                                            {
+                                                //Console.WriteLine($"[MDL] Found {mdlPath} on {category.Key}");
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                // skip for now
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        log.Add($"Error while processing {category.Key}: {ex}");
+                        Console.WriteLine($"Error while processing {category.Key}: {ex}");
+                    }
+                });
+            }
+        }
+        
+        Parallel.ForEach(mdlnames.Keys, (mdlPath, tk) =>
+        {
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+            
+            try
+            {
+                var mdlFile = pack.GetFile(mdlPath);
+                if (mdlFile is null)
+                {
+                    log.Add($"Failed to get mdl file {mdlPath}");
+                    return;
+                }
+                
+                var mdl = new MdlFile(mdlFile.Value.file.RawData);
+                var newPaths = DiscoverMtrlsFromMdl(mdl, mdlPath);
+                foreach (var mtrlPath in newPaths.mtrlPaths)
+                {
+                    if (mtrlNames.TryAdd(mtrlPath, true))
+                    {
+                        Console.WriteLine($"[MTRL] Found {mtrlPath} from {mdlPath}");
+                    }
+                }
+                
+                foreach (var texPath in newPaths.texPaths)
+                {
+                    if (textureNames.TryAdd(texPath, true))
+                    {
+                        Console.WriteLine($"[TEX] Found {texPath} from {mdlPath}");
+                    }
+                }
+                
+                foreach (var shpkName in newPaths.shpkNames)
+                {
+                    if (shpkNames.TryAdd(shpkName, true))
+                    {
+                        Console.WriteLine($"[SHPK] Found {shpkName} from {mdlPath}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                log.Add($"Error while processing {mdlPath}: {ex}");
+            }
+        });
+        
+        Console.WriteLine("Writing discovered files");
+        File.WriteAllLines("discovered_mtrls.txt", mtrlNames.Keys.OrderBy(x => x).ToArray());
+        File.WriteAllLines("discovered_mtrls_full.txt", mtrlNamesFull.Keys.OrderBy(x => x).ToArray());
+        File.WriteAllLines("discovered_textures.txt", textureNames.Keys.OrderBy(x => x).ToArray());
+        File.WriteAllLines("discovered_mdls.txt", mdlnames.Keys.OrderBy(x => x).ToArray());
+        File.WriteAllLines("discovered_shpk.txt", shpkNames.Keys.OrderBy(x => x).ToArray());
+        
+        return Task.CompletedTask;
+    }
+
+    private (List<string> mtrlPaths, List<string> texPaths, List<string> shpkNames) DiscoverMtrlsFromMdl(MdlFile file, string mdlPath)
+    {
+        var mtrlResolvedPaths = new List<string>();
+        var texPaths = new List<string>();
+        var shpkNames = new List<string>();
+        var mtrlNames = file.GetMaterialNames();
+        foreach (var (offset, originalPath) in mtrlNames)
+        {
+            var mtrlPath = originalPath.StartsWith('/') ? PathUtil.Resolve(mdlPath, originalPath) : originalPath;
+            var mtrlLookupResult = pack.GetFile(mtrlPath);
+            if (mtrlLookupResult == null)
+            {
+                // versioning
+                var prefix = mtrlPath[..mtrlPath.LastIndexOf('/')];
+                for (var j = 1; j < 9999; j++)
+                {
+                    // 1 -> v0001
+                    var versionedPath = $"{prefix}/v{j:D4}{originalPath}";
+                    var versionedLookupResult = pack.GetFile(versionedPath);
+                    if (versionedLookupResult != null)
+                    {
+                        mtrlLookupResult = versionedLookupResult;
+                        break;
+                    }
+                }
+
+                if (mtrlLookupResult == null)
+                {
+                    continue;
+                }
+            }
+
+            var mtrlFile = new MtrlFile(mtrlLookupResult.Value.file.RawData);
+            var texturePaths = mtrlFile.GetTexturePaths();
+            foreach (var (_, texPath) in texturePaths)
+            {
+                if (texPath == "dummy.tex")
+                {
+                    continue;
+                }
+
+                texPaths.Add(texPath);
+            }
+            
+            mtrlResolvedPaths.Add(mtrlPath);
+            shpkNames.Add(mtrlFile.GetShaderPackageName());
+        }
+        
+        return (mtrlResolvedPaths, texPaths, shpkNames);
+    }
+
+    private string? ResolveMdlFromTexPath(string texPath)
+    {
+        if (texPath.StartsWith("chara/demihuman/"))
+        {
+            var regex = new Regex(@"chara/demihuman/(\w+)/obj/equipment/(\w+)/texture/(\w+)\.tex");
+            var match = regex.Match(texPath);
+            if (match.Success)
+            {
+                var demihuman = match.Groups[1].Value;
+                var equipment = match.Groups[2].Value;
+                var texture = match.Groups[3].Value;
+                var textureRegex = new Regex(@"v\d+_(\w+)_(\w+)_(\w+)");
+                var textureMatch = textureRegex.Match(texture);
+                if (textureMatch.Success)
+                {
+                    var mainPart = textureMatch.Groups[1].Value;
+                    var subPart = textureMatch.Groups[2].Value;
+                    var mdlPath = $"chara/demihuman/{demihuman}/obj/equipment/{equipment}/model/{mainPart}_{subPart}.mdl";
+                    var file = pack.GetFile(mdlPath);
+                    if (file is not null)
+                    {
+                        return mdlPath;
+                    }
+                }
+            }
+
+            return null;
+        }
+        else if (texPath.StartsWith("chara/equipment/"))
+        {
+            var regex = new Regex(@"chara/equipment/(\w+)/texture/(\w+)\.tex");
+            var match = regex.Match(texPath);
+            if (match.Success)
+            {
+                var equipment = match.Groups[1].Value;
+                var texture = match.Groups[2].Value;
+                var textureRegex = new Regex(@"v\d+_(\w+)_(\w+)_(\w+)");
+                var textureMatch = textureRegex.Match(texture);
+                if (textureMatch.Success)
+                {
+                    var mainPart = textureMatch.Groups[1].Value;
+                    var subPart = textureMatch.Groups[2].Value;
+                    var mdlPath = $"chara/equipment/{equipment}/model/{mainPart}_{subPart}.mdl";
+                    var file = pack.GetFile(mdlPath);
+                    if (file is not null)
+                    {
+                        return mdlPath;
+                    }
+                }
+            }
+
+            return null;
+        }
+        else if (texPath.StartsWith("chara/human/"))
+        {
+            var bodyTexRegex = new Regex(@"chara/human/(\w+)/obj/body/(\w+)/texture/(\w+)\.tex");
+            var bodyMatch = bodyTexRegex.Match(texPath);
+            if (bodyMatch.Success)
+            {
+                var human = bodyMatch.Groups[1].Value;
+                var body = bodyMatch.Groups[2].Value;
+                var texture = bodyMatch.Groups[3].Value;
+                var textureRegex = new Regex(@"(\w+)_.+");
+                var textureMatch = textureRegex.Match(texture);
+                if (textureMatch.Success)
+                {
+                    var mainPart = textureMatch.Groups[1].Value;
+                    var mdlPath = $"chara/human/{human}/obj/body/{body}/model/{mainPart}.mdl";
+                    var file = pack.GetFile(mdlPath);
+                    if (file is not null)
+                    {
+                        return mdlPath;
+                    }
+                }
+            }
+            
+            var faceTexRegex = new Regex(@"chara/human/(\w+)/obj/face/(\w+)/texture/(\w+)\.tex");
+            var faceMatch = faceTexRegex.Match(texPath);
+            if (faceMatch.Success)
+            {
+                var human = faceMatch.Groups[1].Value;
+                var face = faceMatch.Groups[2].Value;
+                var texture = faceMatch.Groups[3].Value;
+                var textureRegex = new Regex(@"v\d+_(\w+)_.+");
+                var textureMatch = textureRegex.Match(texture);
+                if (textureMatch.Success)
+                {
+                    var mainPart = textureMatch.Groups[1].Value;
+                    var mdlPath = $"chara/human/{human}/obj/face/{face}/model/{mainPart}_fac.mdl";
+                    var file = pack.GetFile(mdlPath);
+                    if (file is not null)
+                    {
+                        return mdlPath;
+                    }
+                }
+            }
+            
+            var hairTexRegex = new Regex(@"chara/human/(\w+)/obj/hair/(\w+)/texture/(\w+)\.tex");
+            var hairMatch = hairTexRegex.Match(texPath);
+            if (hairMatch.Success)
+            {
+                var human = hairMatch.Groups[1].Value;
+                var hair = hairMatch.Groups[2].Value;
+                var texture = hairMatch.Groups[3].Value;
+                var textureRegex = new Regex(@"(\w+)_.+\.tex");
+                var textureMatch = textureRegex.Match(texture);
+                if (textureMatch.Success)
+                {
+                    var mainPart = textureMatch.Groups[1].Value;
+                    var mdlPath = $"chara/human/{human}/obj/hair/{hair}/model/{mainPart}_hir.mdl";
+                    var file = pack.GetFile(mdlPath);
+                    if (file is not null)
+                    {
+                        return mdlPath;
+                    }
+                }
+            }
+            
+            var tailTexRegex = new Regex(@"chara/human/(\w+)/obj/tail/(\w+)/texture/(\w+)\.tex");
+            var tailMatch = tailTexRegex.Match(texPath);
+            if (tailMatch.Success)
+            {
+                var human = tailMatch.Groups[1].Value;
+                var tail = tailMatch.Groups[2].Value;
+                var texture = tailMatch.Groups[3].Value;
+                var textureRegex = new Regex(@"(\w+)_.+");
+                var textureMatch = textureRegex.Match(texture);
+                if (textureMatch.Success)
+                {
+                    var mainPart = textureMatch.Groups[1].Value;
+                    var mdlPath = $"chara/human/{human}/obj/tail/{tail}/model/{mainPart}_til.mdl";
+                    var file = pack.GetFile(mdlPath);
+                    if (file is not null)
+                    {
+                        return mdlPath;
+                    }
+                }
+            }
+            
+            var zearTexRegex = new Regex(@"chara/human/(\w+)/obj/zear/(\w+)/texture/(\w+)\.tex");
+            var zearMatch = zearTexRegex.Match(texPath);
+            if (zearMatch.Success)
+            {
+                var human = zearMatch.Groups[1].Value;
+                var zear = zearMatch.Groups[2].Value;
+                var texture = zearMatch.Groups[3].Value;
+                var textureRegex = new Regex(@"(\w+)_.+");
+                var textureMatch = textureRegex.Match(texture);
+                if (textureMatch.Success)
+                {
+                    var mainPart = textureMatch.Groups[1].Value;
+                    var mdlPath = $"chara/human/{human}/obj/zear/{zear}/model/{mainPart}_ear.mdl";
+                    var file = pack.GetFile(mdlPath);
+                    if (file is not null)
+                    {
+                        return mdlPath;
+                    }
+                }
+            }
+
+            return null;
+        }
+        else if (texPath.StartsWith("chara/monster/"))
+        {
+            var monsterTexRegex = new Regex(@"chara/monster/(\w+)/obj/body/(\w+)/texture/(\w+)\.tex");
+            var monsterMatch = monsterTexRegex.Match(texPath);
+            if (monsterMatch.Success)
+            {
+                var monster = monsterMatch.Groups[1].Value;
+                var body = monsterMatch.Groups[2].Value;
+                var texture = monsterMatch.Groups[3].Value;
+                var textureRegex = new Regex(@"v\d+_(\w+)_(\w+)");
+                var textureMatch = textureRegex.Match(texture);
+                if (textureMatch.Success)
+                {
+                    var mainPart = textureMatch.Groups[1].Value;
+                    var mdlPath = $"chara/monster/{monster}/obj/body/{body}/model/{mainPart}.mdl";
+                    var file = pack.GetFile(mdlPath);
+                    if (file is not null)
+                    {
+                        return mdlPath;
+                    }
+                }
+            }
+            
+            return null;
+        }
+        else if (texPath.StartsWith("chara/weapon/"))
+        {
+            var weaponTexRegex = new Regex(@"chara/weapon/(\w+)/obj/body/(\w+)/texture/(\w+)\.tex");
+            var weaponMatch = weaponTexRegex.Match(texPath);
+            if (weaponMatch.Success)
+            {
+                var weapon = weaponMatch.Groups[1].Value;
+                var body = weaponMatch.Groups[2].Value;
+                var texture = weaponMatch.Groups[3].Value;
+                var textureRegex = new Regex(@"v\d+_(\w+)_(\w+)");
+                var textureMatch = textureRegex.Match(texture);
+                if (textureMatch.Success)
+                {
+                    var mainPart = textureMatch.Groups[1].Value;
+                    var mdlPath = $"chara/weapon/{weapon}/obj/body/{body}/model/{mainPart}.mdl";
+                    var file = pack.GetFile(mdlPath);
+                    if (file is not null)
+                    {
+                        return mdlPath;
+                    }
+                }
+            }
+            
+            return null;
+        }
+        
+        return null;
     }
 }

@@ -1,4 +1,6 @@
 ﻿using System.Numerics;
+using FFXIVClientStructs.FFXIV.Client.Game.Character;
+using FFXIVClientStructs.FFXIV.Shader;
 using Meddle.Utils.Export;
 using Meddle.Utils.Models;
 using SharpGLTF.Materials;
@@ -7,35 +9,39 @@ namespace Meddle.Utils.Materials;
 
 public static partial class MaterialUtility
 {
-    public static MaterialBuilder BuildIris(Material material, string name)
+    public static MaterialBuilder BuildIris(Material material, string name, CustomizeParameter parameters, CustomizeData data)
     {
-        SKTexture? normal = null;
-        SKTexture? mask = null;
-        SKTexture? catchLight = null;
+        SKTexture normal = material.GetTexture(TextureUsage.g_SamplerNormal).ToTexture(); 
+        SKTexture diffuse = material.GetTexture(TextureUsage.g_SamplerDiffuse).ToTexture((normal.Width, normal.Height));
+        SKTexture mask = material.GetTexture(TextureUsage.g_SamplerMask).ToTexture((normal.Width, normal.Height)); // emissive, reflection/cubemap, iris
+
+        var leftIrisColor = parameters.LeftColor.ToVector4();
+        //var rightIrisColor = parameters.RightColor.ToVector4(); // based on vertex color, not texture
         
-        if (material.TryGetTexture(TextureUsage.g_SamplerNormal, out var normalTexture))
+        var outDiffuse = new SKTexture(normal.Width, normal.Height);
+        var outNormal = new SKTexture(normal.Width, normal.Height);
+        for (var x = 0; x < outDiffuse.Width; x++)
+        for (var y = 0; y < outDiffuse.Height; y++)
         {
-            normal = normalTexture.ToTexture();
+            var maskPixel = mask[x, y].ToVector4();
+            var normalPixel = normal[x, y].ToVector4();
+            var diffusePixel = diffuse[x, y].ToVector4();
+
+            outDiffuse[x, y] = diffusePixel.ToSkColor();
+            outNormal[x, y] = normalPixel.ToSkColor();
         }
         
-        if (material.TryGetTexture(TextureUsage.g_SamplerMask, out var maskTexture))
-        {
-            mask = maskTexture.ToTexture();
-        }
         
-        if (material.TryGetTexture(TextureUsage.g_SamplerCatchlight, out var catchLightTexture))
-        {
-            catchLight = catchLightTexture.ToTexture();
-        }
+        var output = new MaterialBuilder(name);
+        var doubleSided = (material.ShaderFlags & 0x1) == 0;
+        output.WithDoubleSide(doubleSided);
+
+        output.WithBaseColor(BuildImage(outDiffuse, name, "diffuse"))
+              .WithNormal(BuildImage(outNormal, name, "normal"));
         
-        var output = new MaterialBuilder(name)
-                     .WithDoubleSide(true)
-                     .WithMetallicRoughnessShader()
-                     .WithBaseColor(Vector4.One);
-        
-        if (normal != null) output.WithNormal(BuildImage(normal, name, "normal"));
-        if (mask != null) output.WithSpecularFactor(BuildImage(mask, name, "mask"), 1);
-        if (catchLight != null) output.WithEmissive(BuildImage(catchLight, name, "catchlight"));
+        var alphaThreshold = material.GetConstantOrDefault(MaterialConstant.g_AlphaThreshold, 0.0f);
+        if (alphaThreshold > 0)
+            output.WithAlpha(AlphaMode.MASK, alphaThreshold);
         
         return output;
     }

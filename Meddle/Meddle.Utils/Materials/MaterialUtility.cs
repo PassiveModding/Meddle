@@ -8,24 +8,6 @@ namespace Meddle.Utils.Materials;
 
 public static partial class MaterialUtility
 {
-    public class MaterialParameters
-    {
-        // Skin
-        public Vector3 SkinColor;
-        public Vector3 LipColor;
-        
-        // Hair / Skin (hrothgar)
-        public Vector3 HairColor;       // hair color / fur color
-        public Vector3? HighlightColor; // hair highlight color / fur pattern color
-        
-        // Hair
-        public Vector4? DecalColor;    // tattoo color
-    }
-
-    
-    private static readonly Vector4 DefaultEyeColor       = new Vector4(21, 176, 172, 255) / 255f;
-    private static readonly Vector4 DefaultHairColor      = new Vector4(130, 64,  13, 255) / 255f;
-    private static readonly Vector4 DefaultHighlightColor = new Vector4(77,  126, 240, 255) / 255f;
     public static MaterialBuilder BuildFallback(Material material, string name)
     {
         Console.WriteLine($"Building fallback for {name}, {material.ShaderPackageName}");

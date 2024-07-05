@@ -20,7 +20,23 @@ public unsafe class Model
     public IReadOnlyList<string> EnabledShapes { get; private set; }
     public IReadOnlyList<string> EnabledAttributes { get; private set; }
     
-    public Model(MdlFile file, string handlePath, 
+    public record MdlGroup(string Path, MdlFile MdlFile, Material.MtrlGroup[] MtrlFiles);
+
+    public Model(MdlGroup mdlGroup)
+    {
+        HandlePath = mdlGroup.Path;
+        RaceCode = RaceDeformer.ParseRaceCode(Path);
+        
+        if (mdlGroup.MtrlFiles.Length != mdlGroup.MdlFile.ModelHeader.MaterialCount)
+            throw new ArgumentException($"Material count mismatch: {mdlGroup.MdlFile.ModelHeader.MaterialCount} != {mdlGroup.MtrlFiles.Length}");
+        
+        // NOTE: Does not check for validity on files matching the mdlfile material names
+        Materials = mdlGroup.MtrlFiles.Select(x => new Material(x)).ToArray();
+        
+        InitFromFile(mdlGroup.MdlFile);
+    }
+    
+    public Model(MdlFile file, string handlePath,
                  IReadOnlyDictionary<string, ShpkFile> shpkFiles, 
                  IReadOnlyDictionary<string, MtrlFile> materialFiles, 
                  IReadOnlyDictionary<string, TexFile> textureFiles)
@@ -43,6 +59,11 @@ public unsafe class Model
         
         Materials = materials;
         
+        InitFromFile(file);
+    }
+    
+        private void InitFromFile(MdlFile file)
+    {
         const int lodIdx = 0;
         var lod = file.Lods[lodIdx];
         var meshRanges = new List<Range>
@@ -141,4 +162,5 @@ public unsafe class Model
         
         Shapes = shapes;
     }
+    
 }

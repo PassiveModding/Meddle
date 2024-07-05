@@ -51,6 +51,7 @@ public unsafe class Texture
 
     public TexMeta Meta { get; }
 
+    public record TexGroup(string Path, TexFile TexFile);
     public Texture(TexFile file, string path, uint? samplerFlags, uint? id, ShpkFile? shpkFile)
     {
         SamplerFlags = samplerFlags;

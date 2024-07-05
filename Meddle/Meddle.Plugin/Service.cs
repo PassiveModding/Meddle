@@ -25,6 +25,7 @@ public class Service
         services.AddSingleton(SigScanner);
         services.AddSingleton(GameInteropProvider);
         services.AddSingleton(DataManager);
+        services.AddSingleton(TextureProvider);
     }
 
     [PluginService] private IDalamudPluginInterface PluginInterface { get; set; } = null!;
@@ -40,6 +41,6 @@ public class Service
     [PluginService] private IClientState ClientState { get; set; } = null!;
     [PluginService] private ISigScanner SigScanner { get; set; } = null!;
     [PluginService] private IGameInteropProvider GameInteropProvider { get; set; } = null!;
-    
+    [PluginService] private ITextureProvider TextureProvider { get; set; } = null!;
     [PluginService] private IDataManager DataManager { get; set; } = null!;
 }

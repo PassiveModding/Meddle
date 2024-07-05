@@ -14,37 +14,50 @@ public sealed class Plugin : IDalamudPlugin
     private static readonly WindowSystem WindowSystem = new("Meddle");
     public static readonly string TempDirectory = Path.Combine(Path.GetTempPath(), "Meddle.Export");
     private readonly MainWindow? mainWindow;
-    private readonly ICommandManager commandManager;
-    private readonly IDalamudPluginInterface pluginInterface;
+    private readonly ICommandManager? commandManager;
+    private readonly IDalamudPluginInterface? pluginInterface;
+    private readonly IPluginLog? log;
 
     public Plugin(IDalamudPluginInterface pluginInterface)
     {
-        var services = new ServiceCollection()
-            .AddDalamud(pluginInterface)
-            .AddUi()
-            .AddSingleton(pluginInterface)
-            .AddSingleton<ModelBuilder>()
-            .AddSingleton<InteropService>()
-            .BuildServiceProvider();
-        
-        commandManager = services.GetRequiredService<ICommandManager>();
-        commandManager.AddHandler("/meddle", new CommandInfo(OnCommand)
+        try
         {
-            HelpMessage = "Open the menu"
-        });
-        
-        this.pluginInterface = services.GetRequiredService<IDalamudPluginInterface>();
-        this.pluginInterface.UiBuilder.Draw += WindowSystem.Draw;
-        this.pluginInterface.UiBuilder.OpenMainUi += OpenUi;
-        this.pluginInterface.UiBuilder.OpenConfigUi += OpenUi;
-        mainWindow = services.GetRequiredService<MainWindow>();
-        WindowSystem.AddWindow(mainWindow);
-        
-        Task.Run(() =>
+            var services = new ServiceCollection()
+                           .AddDalamud(pluginInterface)
+                           .AddUi()
+                           .AddSingleton(pluginInterface)
+                           .AddSingleton<ModelBuilder>()
+                           .AddSingleton<InteropService>()
+                           .BuildServiceProvider();
+            log = services.GetRequiredService<IPluginLog>();
+            commandManager = services.GetRequiredService<ICommandManager>();
+            this.pluginInterface = services.GetRequiredService<IDalamudPluginInterface>();
+
+            commandManager.AddHandler("/meddle", new CommandInfo(OnCommand)
+            {
+                HelpMessage = "Open the menu"
+            });
+
+            this.pluginInterface.UiBuilder.Draw += WindowSystem.Draw;
+            this.pluginInterface.UiBuilder.OpenMainUi += OpenUi;
+            this.pluginInterface.UiBuilder.OpenConfigUi += OpenUi;
+            mainWindow = services.GetRequiredService<MainWindow>();
+            WindowSystem.AddWindow(mainWindow);
+
+            OtterTex.NativeDll.Initialize(this.pluginInterface.AssemblyLocation.DirectoryName);
+
+            Task.Run(() =>
+            {
+                var interop = services.GetRequiredService<InteropService>();
+                interop.Initialize();
+                OpenUi(); // temp
+            });
+        }
+        catch (Exception e)
         {
-            var interop = services.GetRequiredService<InteropService>();
-            interop.Initialize();
-        });
+            log?.Error(e, "Failed to initialize plugin");
+            Dispose();
+        }
     }
 
 
@@ -65,10 +78,13 @@ public sealed class Plugin : IDalamudPlugin
     {
         mainWindow?.Dispose();
         WindowSystem.RemoveAllWindows();
-        commandManager.RemoveHandler("/meddle");
+        commandManager?.RemoveHandler("/meddle");
 
-        pluginInterface.UiBuilder.Draw -= WindowSystem.Draw;
-        pluginInterface.UiBuilder.OpenConfigUi -= OpenUi;
-        pluginInterface.UiBuilder.OpenMainUi -= OpenUi;
+        if (pluginInterface != null)
+        {
+            pluginInterface.UiBuilder.Draw -= WindowSystem.Draw;
+            pluginInterface.UiBuilder.OpenConfigUi -= OpenUi;
+            pluginInterface.UiBuilder.OpenMainUi -= OpenUi;
+        }
     }
 }

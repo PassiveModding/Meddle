@@ -1,4 +1,6 @@
 ﻿using System.Numerics;
+using FFXIVClientStructs.FFXIV.Client.Game.Character;
+using FFXIVClientStructs.FFXIV.Shader;
 using ImGuiNET;
 using Meddle.Utils;
 using Meddle.Utils.Export;
@@ -37,16 +39,6 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
     private Task LoadTask = Task.CompletedTask;
     private CancellationTokenSource cts = new();
     private Task ExportTask = Task.CompletedTask;
-
-    private MaterialUtility.MaterialParameters materialParameters = new()
-    {
-        SkinColor = new Vector3(1, 0.8f, 0.6f),
-        HairColor = new Vector3(0.6f, 0.4f, 0.2f),
-        LipColor = new Vector3(0.8f, 0.4f, 0.4f),
-        HighlightColor = new Vector3(0.8f, 0.6f, 0.4f),
-        DecalColor = new Vector4(0.8f, 0.6f, 0.4f, 1.0f)
-    };
-
 
     private string input = "";
 
@@ -257,73 +249,9 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
         }
 
         ImGui.SeparatorText("Parameters");
-
-        var hairColor = materialParameters.HairColor;
-        if (ImGui.ColorEdit3("Hair Color", ref hairColor))
-        {
-            materialParameters.HairColor = hairColor;
-        }
-
-        if (materialParameters.HighlightColor != null)
-        {
-            var highlightColor = materialParameters.HighlightColor.Value;
-            if (ImGui.ColorEdit3("Highlight Color", ref highlightColor))
-            {
-                materialParameters.HighlightColor = highlightColor;
-            }
-
-            // clear highlight button
-            ImGui.SameLine();
-            if (ImGui.Button("Clear"))
-            {
-                materialParameters.HighlightColor = null;
-            }
-        }
-        else
-        {
-            // set highlight button
-            if (ImGui.Button("Set Highlight Color"))
-            {
-                materialParameters.HighlightColor = new Vector3(0.8f, 0.6f, 0.4f);
-            }
-        }
-
-        var skinColor = materialParameters.SkinColor;
-        if (ImGui.ColorEdit3("Skin Color", ref skinColor))
-        {
-            materialParameters.SkinColor = skinColor;
-        }
-
-        var lipColor = materialParameters.LipColor;
-        if (ImGui.ColorEdit3("Lip Color", ref lipColor))
-        {
-            materialParameters.LipColor = lipColor;
-        }
-
-        var decalColor = materialParameters.DecalColor;
-        if (decalColor != null)
-        {
-            var decalColorValue = decalColor.Value;
-            if (ImGui.ColorEdit4("Decal Color", ref decalColorValue))
-            {
-                materialParameters.DecalColor = decalColorValue;
-            }
-
-            // clear tattoo button
-            ImGui.SameLine();
-            if (ImGui.Button("Clear"))
-            {
-                materialParameters.DecalColor = null;
-            }
-        }
-        else
-        {
-            // set tattoo button
-            if (ImGui.Button("Set Decal Color"))
-            {
-                materialParameters.DecalColor = new Vector4(0.8f, 0.6f, 0.4f, 1.0f);
-            }
-        }
+        // TODO TODO TODO
+        var customizeParameters = new CustomizeParameter();
+        var customizeData = new CustomizeData();
 
         if (ImGui.Button("Export as GLTF"))
         {
@@ -334,7 +262,7 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                             .ToDictionary();
             cts?.Cancel();
             cts = new CancellationTokenSource();
-            ExportTask = Task.Run(() => RunExport(models, sklbs, materialParameters, cts.Token), cts.Token);
+            ExportTask = Task.Run(() => RunExport(models, sklbs, customizeParameters, customizeData, cts.Token), cts.Token);
         }
 
         if (ExportTask.IsFaulted)
@@ -353,7 +281,7 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
 
     private void RunExport(
         Dictionary<string, MdlGroup> modelDict, Dictionary<string, HavokXml> sklbDict,
-        MaterialUtility.MaterialParameters @params, CancellationToken token = default)
+        CustomizeParameter parameters, CustomizeData customizeData, CancellationToken token = default)
     {
         var scene = new SceneBuilder();
         var havokXmls = sklbDict.Values.ToArray();
@@ -412,10 +340,10 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                         "character.shpk" => MaterialUtility.BuildCharacter(material, name),
                         "characterocclusion.shpk" => MaterialUtility.BuildCharacterOcclusion(material, name),
                         "characterlegacy.shpk" => MaterialUtility.BuildCharacterLegacy(material, name),
-                        "charactertattoo.shpk" => MaterialUtility.BuildCharacterTattoo(material, name, @params),
-                        "hair.shpk" => MaterialUtility.BuildHair(material, name, @params),
-                        "skin.shpk" => MaterialUtility.BuildSkin(material, name, @params),
-                        "iris.shpk" => MaterialUtility.BuildIris(material, name),
+                        //"charactertattoo.shpk" => MaterialUtility.BuildCharacterTattoo(material, name, @params),
+                        "hair.shpk" => MaterialUtility.BuildHair(material, name, parameters, customizeData),
+                        "skin.shpk" => MaterialUtility.BuildSkin(material, name, parameters, customizeData),
+                        "iris.shpk" => MaterialUtility.BuildIris(material, name, parameters, customizeData),
                         _ => MaterialUtility.BuildFallback(material, name)
                     };
 
@@ -480,7 +408,7 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                     }
 
                     var texture = new Texture(texGroup.File, texPath, null, null, null);
-                    var skTex = texture.ToBitmap();
+                    var skTex = texture.ToTexture().Bitmap;
 
                     var str = new SKDynamicMemoryWStream();
                     skTex.Encode(str, SKEncodedImageFormat.Png, 100);
