@@ -12,10 +12,35 @@ public unsafe class Model
     public IReadOnlyList<Material?> Materials { get; private set; }
     public IReadOnlyList<Mesh> Meshes { get; private set; }
     public IReadOnlyList<ModelShape> Shapes { get; private set; }
-    public IReadOnlyList<string> EnabledShapes { get; private set; }
-    public IReadOnlyList<string> EnabledAttributes { get; private set; }
+    public IReadOnlyList<(string name, short id)> AttributeMasks { get; private set; }
+    public uint EnabledAttributeMask { get; private set; }
+    public IReadOnlyList<(string name, short id)> ShapeMasks { get; private set; }
+    public uint EnabledShapeMask { get; private set; }
     
-    public record MdlGroup(string Path, MdlFile MdlFile, Material.MtrlGroup[] MtrlFiles);
+    public static IEnumerable<string> GetEnabledValues(uint mask, IReadOnlyList<(string, short)> values)
+    {
+        foreach (var (name, id) in values)
+        {
+            if (((1 << id) & mask) != 0)
+                yield return name;
+        }
+    }
+    
+    public record MdlGroup(string Path, MdlFile MdlFile, Material.MtrlGroup[] MtrlFiles, ShapeAttributeGroup? ShapeAttributeGroup);
+    public record ShapeAttributeGroup
+    {
+        public ShapeAttributeGroup(uint EnabledShapeMask, uint EnabledAttributeMask, (string name, short id)[] ShapeMasks, (string name, short id)[] AttributeMasks)
+        {
+            this.EnabledShapeMask = EnabledShapeMask;
+            this.EnabledAttributeMask = EnabledAttributeMask;
+            this.ShapeMasks = ShapeMasks;
+            this.AttributeMasks = AttributeMasks;
+        }
+        public uint EnabledShapeMask { get; init; }
+        public uint EnabledAttributeMask { get; init; }
+        public (string name, short id)[] ShapeMasks { get; init; }
+        public (string name, short id)[] AttributeMasks { get; init; }
+    }
 
     public Model(MdlGroup mdlGroup)
     {
@@ -27,6 +52,11 @@ public unsafe class Model
         
         // NOTE: Does not check for validity on files matching the mdlfile material names
         Materials = mdlGroup.MtrlFiles.Select(x => new Material(x)).ToArray();
+        
+        AttributeMasks = mdlGroup.ShapeAttributeGroup?.AttributeMasks ?? Array.Empty<(string, short)>();
+        EnabledAttributeMask = mdlGroup.ShapeAttributeGroup?.EnabledAttributeMask ?? 0;
+        ShapeMasks = mdlGroup.ShapeAttributeGroup?.ShapeMasks ?? Array.Empty<(string, short)>();
+        EnabledShapeMask = mdlGroup.ShapeAttributeGroup?.EnabledShapeMask ?? 0;
         
         InitFromFile(mdlGroup.MdlFile);
     }
@@ -104,7 +134,7 @@ public unsafe class Model
                     throw new ArgumentException($"Mesh {i} has {meshIndices.Length} indices, but {mesh.IndexCount} were expected");
 
                 
-                meshes.Add(new Mesh(file, i, meshVertices, mesh.StartIndex, meshIndices));
+                meshes.Add(new Mesh(file, i, meshVertices, mesh.StartIndex, meshIndices, AttributeMasks.ToArray()));
             }
         }
         

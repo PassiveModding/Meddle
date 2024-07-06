@@ -8,11 +8,53 @@ using Meddle.Utils.Models;
 
 namespace Meddle.Utils.Export;
 
+public enum ShaderCategory : uint
+{
+    CategorySkinType = 0x380CAED0,
+    CategoryHairType = 0x24826489,
+    CategoryTextureType = 0xB616DC5A,  // DEFAULT, COMPATIBILITY, SIMPLE
+    CategorySpecularType = 0xC8BD1DEF, // MASK, DEFAULT
+    CategoryFlowMapType = 0x40D1481E   // STANDARD, FLOW
+}
+
+public enum SkinType : uint
+{
+    Body = 0x2BDB45F1,
+    Face = 0xF5673524,
+    Hrothgar = 0x57FF3B64,
+    Default = 0
+}
+
+public enum HairType : uint
+{
+    Face = 0x6E5B8F10,
+    Hair = 0xF7B8956E
+}
+
+public enum FlowType : uint
+{
+    Standard = 0x337C6BC4, // No flow?
+    Flow = 0x71ADA939
+}
+
+public enum TextureMode : uint
+{
+    Default = 0x5CC605B5,       // Default mask texture
+    Compatibility = 0x600EF9DF, // Used to enable diffuse texture
+    Simple = 0x22A4AABF         // meh
+}
+
+public enum SpecularMode : uint
+{
+    Mask = 0xA02F4828,   // Use mask sampler for specular
+    Default = 0x198D11CD // Use spec sampler for specular
+}
 
 [SuppressMessage("ReSharper", "InconsistentNaming")]
 public enum MaterialConstant : uint
 {
     g_AlphaThreshold = 0x29AC0223,
+    unk_NormalMapScale = 0x5351646E, // skin, might be used to adjust normal strength
     g_ShaderID = 0x59BDA0B1,
     g_DiffuseColor = 0x2C2A34DD,
     g_SpecularColor = 0x141722D5,
@@ -156,79 +198,5 @@ public unsafe class Material
     public Vector4 GetConstantOrDefault(MaterialConstant id, Vector4 @default)
     {
         return MtrlConstants.TryGetValue(id, out var values) ? new Vector4(values[0], values[1], values[2], values[3]) : @default;
-    }
-    
-    // https://github.com/Shaderlayan/Ouroboros
-    public struct ShaderKey
-    {
-        public enum ShaderKeyCategory : uint
-        {
-            // Note:
-            // CharacterGlass always Color
-            // Hair always Color
-            // Iris always Multi
-            // Skin always Multi
-            VertexColorModeMulti = 4113354501,
-            SkinType = 940355280,
-            HairType = 612525193,
-            TextureMode = 3054951514,
-            DecalMode = 3531043187,
-            SpecularMapMode = 3367837167
-        }
-
-        public enum TextureMode : uint
-        {
-            Multi = 1556481461,
-            
-            // Diffuse Color: #D50000 Specular Color: #FFFFFF Specular Strength: 1.00 Gloss Strength: 100 Emissive Color: #8C0000
-            // Ignores vertex colors and normal map (except for opacity)
-            // Accepts no color table and no textures
-            Simple = 581216959, 
-            Compatibility = 1611594207 // Diffuse / Specular
-        }
-        
-        public enum DecalMode : uint
-        {
-            None = 1111668802,
-            Alpha = 1480746461, // Face paint
-            Color = 4083110193 // FC crest
-        }
-
-        // This is a setting of the Compatibility (Diffuse / Specular) Texture Mode, and has no effect outside of it.
-        public enum SpecularMapMode : uint
-        {
-            Color = 428675533,
-            Multi = 2687453224 
-        }
-
-        public enum VertexColorModeMultiValue : uint
-        {
-            Color = 3756477356,
-            Multi = 2815623008
-        }
-
-        public enum SkinTypeValue : uint
-        {
-            Face = 4117181732,
-            Body = 735790577,
-            BodyWithHair = 1476344676 // used notably on hrothgar
-        }
-
-        public enum HairTypeValue : uint
-        {
-            Hair = 4156069230,
-            Face = 1851494160
-        }
-        
-        public uint Category;
-        public uint Value;
-        
-        public ShaderKeyCategory CategoryEnum => (ShaderKeyCategory)Category;
-        public TextureMode TextureModeEnum => (TextureMode)Value;
-        public DecalMode DecalModeEnum => (DecalMode)Value;
-        public SpecularMapMode SpecularMapModeEnum => (SpecularMapMode)Value;
-        public VertexColorModeMultiValue VertexColorModeMultiValueEnum => (VertexColorModeMultiValue)Value;
-        public SkinTypeValue SkinTypeValueEnum => (SkinTypeValue)Value;
-        public HairTypeValue HairTypeValueEnum => (HairTypeValue)Value;
     }
 }

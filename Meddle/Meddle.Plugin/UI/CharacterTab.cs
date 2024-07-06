@@ -4,6 +4,7 @@ using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface.Textures;
 using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Interface.Utility.Raii;
+using Dalamud.Memory;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
@@ -29,6 +30,8 @@ public unsafe partial class CharacterTab : ITab
     private readonly IClientState clientState;
     private readonly IFramework framework;
     private readonly IPluginLog log;
+    private readonly InteropService interopService;
+    private readonly ExportUtil exportUtil;
     private readonly IObjectTable objectTable;
     private readonly IDataManager dataManager;
     private readonly ITextureProvider textureProvider;
@@ -40,9 +43,13 @@ public unsafe partial class CharacterTab : ITab
         IClientState clientState,
         IFramework framework,
         IPluginLog log,
+        InteropService interopService,
+        ExportUtil exportUtil,
         IDataManager dataManager, ITextureProvider textureProvider)
     {
         this.log = log;
+        this.interopService = interopService;
+        this.exportUtil = exportUtil;
         this.objectTable = objectTable;
         this.clientState = clientState;
         this.framework = framework;
@@ -61,6 +68,7 @@ public unsafe partial class CharacterTab : ITab
 
     public void Draw()
     {
+        if (!interopService.IsResolved) return;
         DrawObjectPicker();
     }
 
@@ -106,7 +114,7 @@ public unsafe partial class CharacterTab : ITab
             var canParse = exportTask == null || exportTask.IsCompleted;
             if (exportTask == null)
             {
-                ParseCharacter(SelectedCharacter);
+                exportTask = Task.Run(() => ParseCharacter(SelectedCharacter));
             }
             else
             {
@@ -119,7 +127,7 @@ public unsafe partial class CharacterTab : ITab
                 ImGui.BeginDisabled(!canParse);
                 if (ImGui.Button("Parse"))
                 {
-                    ParseCharacter(SelectedCharacter);
+                    exportTask = Task.Run(() => ParseCharacter(SelectedCharacter));
                 }
                 ImGui.EndDisabled();
             }
@@ -186,12 +194,12 @@ public unsafe partial class CharacterTab : ITab
         {
             if (ImGui.Button($"Export All##{characterGroup.GetHashCode()}"))
             {
-                exportTask = Task.Run(() => ExportUtil.Export(characterGroup, pbdFile));
+                exportTask = Task.Run(() => exportUtil.Export(characterGroup, pbdFile));
             }
 
             if (ImGui.Button($"Export Raw Textures##{characterGroup.GetHashCode()}"))
             {
-                exportTask = Task.Run(() => ExportUtil.ExportRawTextures(characterGroup));
+                exportTask = Task.Run(() => exportUtil.ExportRawTextures(characterGroup));
             }
         });
 
@@ -207,7 +215,7 @@ public unsafe partial class CharacterTab : ITab
                                                 x => SelectedModels.TryGetValue(x.Path, out var selected) && selected)
                                             .ToArray();
                     var group = characterGroup with {MdlGroups = selectedModels};
-                    exportTask = Task.Run(() => ExportUtil.Export(group, pbdFile));
+                    exportTask = Task.Run(() => exportUtil.Export(group, pbdFile));
                 }
             });
             
@@ -228,7 +236,7 @@ public unsafe partial class CharacterTab : ITab
                         if (ImGui.Button("Export"))
                         {
                             var group = characterGroup with {MdlGroups = [mdlGroup]};
-                            exportTask = Task.Run(() => ExportUtil.Export(group, pbdFile));
+                            exportTask = Task.Run(() => exportUtil.Export(group, pbdFile));
                         }
                     });
             
@@ -285,28 +293,6 @@ public unsafe partial class CharacterTab : ITab
         }
     }
 
-    private Vector3 Normalize(Vector3 v)
-    {
-        var length = v.Length();
-        if (length == 0)
-        {
-            return v;
-        }
-
-        return v / length;
-    }
-    
-    private Vector4 Normalize(Vector4 v)
-    {
-        var length = v.Length();
-        if (length == 0)
-        {
-            return v;
-        }
-
-        return v / length;
-    }
-
     private List<HavokXml> ParseSkeletons(Human* human)
     {
         var skeletonResourceHandles =
@@ -350,6 +336,8 @@ public unsafe partial class CharacterTab : ITab
         return skeletons;
     }
 
+    private Dictionary<string, MaterialResourceHandle.ColorTableRow[]> ColorTableRows = new();
+    
     private void ParseCharacter(ICharacter character)
     {            
         var charPtr = (CSCharacter*)character.Address;
@@ -369,120 +357,169 @@ public unsafe partial class CharacterTab : ITab
             OptionColor = customizeParams.OptionColor
         };
         var customize = human->Customize;
-        var exportCustomizeData = new Meddle.Utils.Export.CustomizeData
+        var exportCustomizeData = new CustomizeData
         {
             LipStick = customize.Lipstick,
             Highlights = customize.Highlights
         };
         var skeleton = new Skeleton.Skeleton(human->Skeleton);
-        
-        exportTask = Task.Run(() =>
+        var mdlGroups = new List<Model.MdlGroup>();
+        for (int i = 0; i < human->SlotCount; i++)
         {
-            var mdlGroups = new List<Model.MdlGroup>();
-            for (int i = 0; i < human->SlotCount; i++)
+            var model = human->Models[i];
+            if (model == null)
             {
-                var model = human->Models[i];
-                if (model == null)
-                {
-                    continue;
-                }
+                continue;
+            }
 
-                
-                var mdlFileName = model->ModelResourceHandle->ResourceHandle.FileName.ToString();
-                var mdlFileResource = dataManager.GameData.GetFile(mdlFileName);
-                if (mdlFileResource == null)
-                {
-                    continue;
-                }
+            
+            var mdlFileName = model->ModelResourceHandle->ResourceHandle.FileName.ToString();
+            var mdlFileResource = dataManager.GameData.GetFile(mdlFileName);
+            if (mdlFileResource == null)
+            {
+                continue;
+            }
 
-                var mdlFile = new MdlFile(mdlFileResource.DataSpan);
-                var mtrlGroups = new List<Material.MtrlGroup>();
-
-                foreach (var materialPtr in model->MaterialsSpan)
-                {
-                    var material = materialPtr.Value;
-                    if (material == null)
-                    {
-                        continue;
-                    }
-
-                    var mtrlFileName = material->MaterialResourceHandle->ResourceHandle.FileName.ToString();
-                    var shader = material->MaterialResourceHandle->ShpkNameString;
-
-                    var mtrlFileResource = dataManager.GameData.GetFile(mtrlFileName);
-                    if (mtrlFileResource == null)
-                    {
-                        continue;
-                    }
-
-                    var mtrlFile = new MtrlFile(mtrlFileResource.DataSpan);
-                    
-                    var shpkFileResource = dataManager.GameData.GetFile($"shader/sm5/shpk/{shader}");
-                    if (shpkFileResource == null)
-                    {
-                        continue;
-                    }
-
-                    var shpkFile = new ShpkFile(shpkFileResource.DataSpan);
-
-                    var texGroups = new List<Texture.TexGroup>();
-
-                    var textureNames = mtrlFile.GetTexturePaths().Select(x => x.Value).ToArray();
-                    foreach (var textureName in textureNames)
-                    {
-                        var texFileResource = dataManager.GameData.GetFile(textureName);
-                        if (texFileResource == null)
-                        {
-                            continue;
-                        }
-
-                        var texFile = new TexFile(texFileResource.DataSpan);
-                        texGroups.Add(new Texture.TexGroup(textureName, texFile));
-                    }
-
-                    mtrlGroups.Add(
-                        new Material.MtrlGroup(mtrlFileName, mtrlFile, shader, shpkFile, texGroups.ToArray()));
-                }
-
-                mdlGroups.Add(new Model.MdlGroup(mdlFileName, mdlFile, mtrlGroups.ToArray()));
+            var shapesMask = model->EnabledShapeKeyIndexMask;
+            var shapes = new List<(string, short)>();
+            foreach (var shape in model->ModelResourceHandle->Shapes)
+            {
+                shapes.Add((MemoryHelper.ReadStringNullTerminated((nint)shape.Item1.Value), shape.Item2));
             }
             
-            characterGroup = new ExportUtil.CharacterGroup(
-                exportCustomizeParams, 
-                exportCustomizeData, 
-                (GenderRace)human->RaceSexId,
-                mdlGroups.ToArray(),
-                skeleton);
-        });
+            var attributeMask = model->EnabledAttributeIndexMask;
+            var attributes = new List<(string, short)>();
+            foreach (var attribute in model->ModelResourceHandle->Attributes)
+            {
+                attributes.Add((MemoryHelper.ReadStringNullTerminated((nint)attribute.Item1.Value), attribute.Item2));
+            }
+            var shapeAttributeGroup = new Model.ShapeAttributeGroup(shapesMask, attributeMask, shapes.ToArray(), attributes.ToArray());
+            
+            var mdlFile = new MdlFile(mdlFileResource.DataSpan);
+            var mtrlGroups = new List<Material.MtrlGroup>();
+
+            for (var j = 0; j < model->MaterialsSpan.Length; j++)
+            {
+                var materialPtr = model->MaterialsSpan[j];
+                var material = materialPtr.Value;
+                if (material == null)
+                {
+                    continue;
+                }
+
+                var tableLive = material->MaterialResourceHandle->ColorTableSpan;
+                var mtrlFileName = material->MaterialResourceHandle->ResourceHandle.FileName.ToString();
+                ColorTableRows[mtrlFileName] = tableLive.ToArray();
+                var shader = material->MaterialResourceHandle->ShpkNameString;
+
+                var mtrlFileResource = dataManager.GameData.GetFile(mtrlFileName);
+                if (mtrlFileResource == null)
+                {
+                    continue;
+                }
+
+                var mtrlFile = new MtrlFile(mtrlFileResource.DataSpan);
+
+                var shpkFileResource = dataManager.GameData.GetFile($"shader/sm5/shpk/{shader}");
+                if (shpkFileResource == null)
+                {
+                    continue;
+                }
+
+                var shpkFile = new ShpkFile(shpkFileResource.DataSpan);
+
+                var texGroups = new List<Texture.TexGroup>();
+
+                var textureNames = mtrlFile.GetTexturePaths().Select(x => x.Value).ToArray();
+                foreach (var textureName in textureNames)
+                {
+                    var texFileResource = dataManager.GameData.GetFile(textureName);
+                    if (texFileResource == null)
+                    {
+                        continue;
+                    }
+
+                    var texFile = new TexFile(texFileResource.DataSpan);
+                    texGroups.Add(new Texture.TexGroup(textureName, texFile));
+                }
+
+                mtrlGroups.Add(
+                    new Material.MtrlGroup(mtrlFileName, mtrlFile, shader, shpkFile, texGroups.ToArray()));
+            }
+
+            mdlGroups.Add(new Model.MdlGroup(mdlFileName, mdlFile, mtrlGroups.ToArray(), shapeAttributeGroup));
+        }
+        
+        characterGroup = new ExportUtil.CharacterGroup(
+            exportCustomizeParams, 
+            exportCustomizeData, 
+            (GenderRace)human->RaceSexId,
+            mdlGroups.ToArray(),
+            skeleton);
     }
     
     private void DrawMdlGroup(Model.MdlGroup mdlGroup)
     {
         ImGui.Text($"Path: {mdlGroup.Path}");
         ImGui.Text($"Mtrl Files: {mdlGroup.MtrlFiles.Length}");
-        try
+
+        if (mdlGroup.ShapeAttributeGroup != null && ImGui.CollapsingHeader("Shape/Attribute Masks"))
         {
-            ImGui.Indent();
-            foreach (var mtrlGroup in mdlGroup.MtrlFiles)
+            var enabledShapes = Model.GetEnabledValues(mdlGroup.ShapeAttributeGroup.EnabledShapeMask,
+                                                       mdlGroup.ShapeAttributeGroup.ShapeMasks).ToArray();
+            var enabledAttributes = Model.GetEnabledValues(mdlGroup.ShapeAttributeGroup.EnabledAttributeMask,
+                                                           mdlGroup.ShapeAttributeGroup.AttributeMasks).ToArray();
+
+            ImGui.Text("Shapes");
+            ImGui.Columns(2);
+            ImGui.Text("Name");
+            ImGui.NextColumn();
+            ImGui.Text("Enabled");
+            ImGui.NextColumn();
+
+            foreach (var shape in mdlGroup.ShapeAttributeGroup.ShapeMasks)
             {
-                ImGui.PushID(mtrlGroup.GetHashCode());
-                if (ImGui.CollapsingHeader($"{mtrlGroup.Path}"))
-                {
-                    try
-                    {
-                        ImGui.Indent();
-                        DrawMtrlGroup(mtrlGroup);
-                    } finally
-                    {
-                        ImGui.Unindent();
-                    }
-                }
-                ImGui.PopID();
+                ImGui.Text($"[{shape.id}] {shape.name}");
+                ImGui.NextColumn();
+                ImGui.Text(enabledShapes.Contains(shape.name) ? "Yes" : "No");
+                ImGui.NextColumn();
             }
+
+            ImGui.Columns(1);
+
+            ImGui.Text("Attributes");
+            ImGui.Columns(2);
+            ImGui.Text("Name");
+            ImGui.NextColumn();
+            ImGui.Text("Enabled");
+            ImGui.NextColumn();
+
+            foreach (var attribute in mdlGroup.ShapeAttributeGroup.AttributeMasks)
+            {
+                ImGui.Text($"[{attribute.id}] {attribute.name}");
+                ImGui.NextColumn();
+                ImGui.Text(enabledAttributes.Contains(attribute.name) ? "Yes" : "No");
+                ImGui.NextColumn();
+            }
+
+            ImGui.Columns(1);
         }
-        finally
+
+        foreach (var mtrlGroup in mdlGroup.MtrlFiles)
         {
-            ImGui.Unindent();
+            ImGui.PushID(mtrlGroup.GetHashCode());
+            if (ImGui.CollapsingHeader($"{mtrlGroup.Path}"))
+            {
+                try
+                {
+                    ImGui.Indent();
+                    DrawMtrlGroup(mtrlGroup);
+                } finally
+                {
+                    ImGui.Unindent();
+                }
+            }
+            ImGui.PopID();
         }
     }
     
@@ -556,8 +593,40 @@ public unsafe partial class CharacterTab : ITab
             {
                 var key = keys[i];
                 ImGui.Text($"0x{key.Category:X8}");
+                if (Enum.IsDefined(typeof(ShaderCategory), key.Category))
+                {
+                    ImGui.SameLine();
+                    ImGui.Text($"({(ShaderCategory)key.Category})");
+                }
+                
                 ImGui.NextColumn();
                 ImGui.Text($"0x{key.Value:X8}");
+                
+                var shaderCategory = (ShaderCategory)key.Category;
+                switch (shaderCategory)
+                {
+                    case ShaderCategory.CategoryHairType:
+                        ImGui.SameLine();
+                        ImGui.Text($"({(HairType)key.Value})");
+                        break;
+                    case ShaderCategory.CategorySkinType:
+                        ImGui.SameLine();
+                        ImGui.Text($"({(SkinType)key.Value})");
+                        break;
+                    case ShaderCategory.CategoryFlowMapType:
+                        ImGui.SameLine();
+                        ImGui.Text($"({(FlowType)key.Value})");
+                        break;
+                    case ShaderCategory.CategoryTextureType:
+                        ImGui.SameLine();
+                        ImGui.Text($"({(TextureMode)key.Value})");
+                        break;
+                    case ShaderCategory.CategorySpecularType:
+                        ImGui.SameLine();
+                        ImGui.Text($"({(SpecularMode)key.Value})");
+                        break;
+                }
+
                 ImGui.NextColumn();
             }
             
@@ -589,6 +658,10 @@ public unsafe partial class CharacterTab : ITab
         if (ImGui.CollapsingHeader($"Color Table##{mtrlGroup.GetHashCode()}"))
         {
             UIUtil.DrawColorTable(mtrlGroup.MtrlFile);
+            if (ColorTableRows.TryGetValue(mtrlGroup.Path, out var rows))
+            {
+                UIUtil.DrawColorTable(rows);
+            }
         }
         
         foreach (var texGroup in mtrlGroup.TexFiles)
@@ -749,7 +822,7 @@ public unsafe partial class CharacterTab : ITab
 
         if (ImGui.Button($"Export as .png"))
         {
-            ExportUtil.ExportTexture(textureImage.Bitmap.Bitmap, path);
+            exportUtil.ExportTexture(textureImage.Bitmap.Bitmap, path);
         }
     }
     

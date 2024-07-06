@@ -165,6 +165,21 @@ public static class ImageUtils
         return img;
     }
     
+    public static unsafe SKTexture ToTexture(this Image img)
+    {
+        if (img.Format != DXGIFormat.R8G8B8A8UNorm)
+            throw new ArgumentException("Image must be in RGBA format.", nameof(img));
+        // assum RGBA
+        var data = img.Span;
+        var bitmap = new SKBitmap(img.Width, img.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
+        fixed (byte* ptr = data)
+        {
+            bitmap.InstallPixels(new SKImageInfo(img.Width, img.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul), (IntPtr)ptr, img.Width * 4);
+        }
+        
+        return new SKTexture(bitmap);
+    }
+    
     public static SKTexture ToTexture(this Texture tex, (int width, int height)? resize = null)
     {
         var bitmap = tex.ToBitmap();

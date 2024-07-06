@@ -97,7 +97,7 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                 mtrlGroups.Add(new Material.MtrlGroup(mtrlPath, mtrlFile, shpkPath, shpkFile, texGroups.ToArray()));
             }
 
-            mdlGroups[mdlPath] = new Model.MdlGroup(mdlPath, mdlFile, mtrlGroups.ToArray());
+            mdlGroups[mdlPath] = new Model.MdlGroup(mdlPath, mdlFile, mtrlGroups.ToArray(), null);
         }
 
         return mdlGroups;
@@ -271,6 +271,13 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
         var havokXmls = sklbDict.Values.ToArray();
         var bones = XmlUtils.GetBoneMap(havokXmls, out var root).ToArray();
         var boneNodes = bones.Cast<NodeBuilder>().ToArray();
+        var catchlightTexture = pack.GetFile("chara/common/texture/sphere_d_array.tex");
+        if (catchlightTexture == null)
+        {
+            throw new InvalidOperationException("Missing catchlight texture");
+        }
+        
+        var catchlightTex = new TexFile(catchlightTexture.Value.file.RawData);
 
         if (root != null)
         {
@@ -315,7 +322,7 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                         //"charactertattoo.shpk" => MaterialUtility.BuildCharacterTattoo(material, name, @params),
                         "hair.shpk" => MaterialUtility.BuildHair(material, name, parameters, customizeData),
                         "skin.shpk" => MaterialUtility.BuildSkin(material, name, parameters, customizeData),
-                        "iris.shpk" => MaterialUtility.BuildIris(material, name, parameters, customizeData),
+                        "iris.shpk" => MaterialUtility.BuildIris(material, name, catchlightTex, parameters, customizeData),
                         _ => MaterialUtility.BuildFallback(material, name)
                     };
 

@@ -8,10 +8,18 @@ public class SubMesh
     public uint IndexCount { get; }
     public IReadOnlyList<string> Attributes { get; }
 
-    public SubMesh(Submesh subMesh, uint meshIndexOffset)
+    public SubMesh(Submesh subMesh, uint meshIndexOffset, (string name, short id)[] modelAttributes)
     {
         IndexOffset = subMesh.IndexOffset - meshIndexOffset;
         IndexCount = subMesh.IndexCount;
-        Attributes = new List<string>(); // TODO
+        
+        var attributes = new List<string>();
+        foreach (var attribute in modelAttributes)
+        {
+            if ((subMesh.AttributeIndexMask & (1 << attribute.id)) != 0)
+                attributes.Add(attribute.name);
+        }
+        
+        Attributes = attributes;
     }
 }

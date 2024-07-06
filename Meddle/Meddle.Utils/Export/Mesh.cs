@@ -13,7 +13,7 @@ public class Mesh
     public IReadOnlyList<string>? BoneTable { get; }
     
     
-    public Mesh(MdlFile mdlFile, int meshIdx, ReadOnlySpan<Vertex> vertices, uint meshIndexOffset, ReadOnlySpan<ushort> indices)
+    public Mesh(MdlFile mdlFile, int meshIdx, ReadOnlySpan<Vertex> vertices, uint meshIndexOffset, ReadOnlySpan<ushort> indices, (string name, short id)[] modelAttributes)
     {
         MeshIdx = meshIdx;
         var mesh = mdlFile.Meshes[meshIdx];
@@ -25,7 +25,7 @@ public class Mesh
         for (var i = 0; i < mesh.SubMeshCount; ++i)
         {
             var submeshIdx = mesh.SubMeshIndex + i;
-            var sm = new SubMesh(mdlFile.Submeshes[submeshIdx], meshIndexOffset);
+            var sm = new SubMesh(mdlFile.Submeshes[submeshIdx], meshIndexOffset, modelAttributes);
             subMeshes.Add(sm);
         }
         

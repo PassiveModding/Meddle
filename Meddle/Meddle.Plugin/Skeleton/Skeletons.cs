@@ -1,6 +1,5 @@
 ﻿using System.Text.Json.Serialization;
 using FFXIVClientStructs.Havok.Animation.Rig;
-using FFXIVClientStructs.Havok.Common.Base.Math.QsTransform;
 using FFXIVClientStructs.Interop;
 using Meddle.Utils.Skeletons;
 using PartialCSSkeleton = FFXIVClientStructs.FFXIV.Client.Graphics.Render.PartialSkeleton;

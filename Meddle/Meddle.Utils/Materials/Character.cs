@@ -1,5 +1,7 @@
 ﻿using System.Numerics;
+using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using Meddle.Utils.Export;
+using Meddle.Utils.Files.Structs.Material;
 using Meddle.Utils.Models;
 using SharpGLTF.Materials;
 using CustomizeParameter = Meddle.Utils.Export.CustomizeParameter;
@@ -8,36 +10,46 @@ namespace Meddle.Utils.Materials;
 
 public static partial class MaterialUtility
 {
-    public enum FlowType : uint
+    public static (MaterialResourceHandle.ColorTableRow row0, MaterialResourceHandle.ColorTableRow row1) GetPair(int weight, MaterialResourceHandle.ColorTableRow[] colorTableRows)
     {
-        Standard = 0x337C6BC4, // No flow?
-        Flow = 0x71ADA939
+        var weightArr = new byte[] { 
+            0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 
+            0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF 
+        };
+        
+        var nearestPair = weightArr.MinBy(v => Math.Abs(v - weight));
+        var pairIdx = Array.IndexOf(weightArr, nearestPair) * 2;
+        var pair0 = colorTableRows[pairIdx];
+        var pair1 = colorTableRows[pairIdx + 1];
+        
+        return (pair0, pair1);
     }
 
-    public enum TextureMode : uint
+    public static ColorRow GetBlendedPair(int weight, int blend, MaterialResourceHandle.ColorTableRow[] colorTableRows)
     {
-        Default = 0x5CC605B5, // Default mask texture
-        Compatibility = 0x600EF9DF, // Used to enable diffuse texture
-        Simple = 0x22A4AABF // meh
-    }
-
-    public enum SpecularMode : uint
-    {
-        Mask = 0xA02F4828, // Use mask sampler for specular
-        Default = 0x198D11CD // Use spec sampler for specular
+        var (row1, row0) = GetPair(weight, colorTableRows);
+        var prioRow = weight < 128 ? row0 : row1;
+        var row = new ColorRow
+        {
+            Diffuse = Vector3.Lerp(row0.Diffuse, row1.Diffuse, blend / 255f),
+            Specular = Vector3.Lerp(row0.Specular, row1.Specular, blend / 255f),
+            Emissive = Vector3.Lerp(row0.Emissive, row1.Emissive, blend / 255f),
+            MaterialRepeat = prioRow.TileScaleU,
+            MaterialSkew = prioRow.TileScaleV,
+            SpecularStrength = float.Lerp((float)row0.SpecularStrength, (float)row1.SpecularStrength, blend / 255f),
+            GlossStrength = float.Lerp((float)row0.GlossStrength, (float)row1.GlossStrength, blend / 255f),
+            TileSet = prioRow.TileIndex
+        };
+        return row;
     }
     
     public static MaterialBuilder BuildCharacter(Material material, string name)
     {
-        const uint textureCategory = 0xB616DC5A; // DEFAULT, COMPATIBILITY, SIMPLE
-        const uint specularCategory = 0xC8BD1DEF; // MASK, DEFAULT
-        const uint flowMapCategory = 0x40D1481E; // STANDARD, FLOW
-        
         // diffuse optional
         TextureMode texMode;
-        if (material.ShaderKeys.Any(x => x.Category == textureCategory))
+        if (material.ShaderKeys.Any(x => x.Category == (uint)ShaderCategory.CategoryTextureType))
         {
-            var key = material.ShaderKeys.First(x => x.Category == textureCategory);
+            var key = material.ShaderKeys.First(x => x.Category == (uint)ShaderCategory.CategoryTextureType);
             texMode = (TextureMode)key.Value;
         }
         else
@@ -46,9 +58,9 @@ public static partial class MaterialUtility
         }
         
         SpecularMode specMode;
-        if (material.ShaderKeys.Any(x => x.Category == specularCategory))
+        if (material.ShaderKeys.Any(x => x.Category == (uint)ShaderCategory.CategorySpecularType))
         {
-            var key = material.ShaderKeys.First(x => x.Category == specularCategory);
+            var key = material.ShaderKeys.First(x => x.Category == (uint)ShaderCategory.CategorySpecularType);
             specMode = (SpecularMode)key.Value;
         }
         else
@@ -57,9 +69,9 @@ public static partial class MaterialUtility
         }
         
         FlowType flowType;
-        if (material.ShaderKeys.Any(x => x.Category == flowMapCategory))
+        if (material.ShaderKeys.Any(x => x.Category == (uint)ShaderCategory.CategoryFlowMapType))
         {
-            var key = material.ShaderKeys.First(x => x.Category == flowMapCategory);
+            var key = material.ShaderKeys.First(x => x.Category == (uint)ShaderCategory.CategoryFlowMapType);
             flowType = (FlowType)key.Value;
         }
         else
@@ -100,7 +112,7 @@ public static partial class MaterialUtility
             var maskPixel = maskTexture[x, y].ToVector4();
             var indexPixel = indexTexture[x, y];
 
-            var blended = material.ColorTable.GetBlendedPair(indexPixel.Red, indexPixel.Green);
+            ColorRow blended = material.ColorTable.GetBlendedPair(indexPixel.Red, indexPixel.Green);
             if (texMode == TextureMode.Compatibility)
             {
                 var diffusePixel = diffuseTexture![x, y].ToVector4();

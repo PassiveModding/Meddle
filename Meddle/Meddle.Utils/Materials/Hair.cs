@@ -8,24 +8,16 @@ namespace Meddle.Utils.Materials;
 
 public static partial class MaterialUtility
 {
-    public enum HairType : uint
-    {
-        Face = 0x6E5B8F10,
-        Hair = 0xF7B8956E
-    }
-    
     public static MaterialBuilder BuildHair(Material material, string name, CustomizeParameter parameters, CustomizeData data)
     {
-        const uint categoryHairType = 0x24826489;
-        
         HairType? hairType = null;
-        if (material.ShaderKeys.Any(x => x.Category == categoryHairType))
+        if (material.ShaderKeys.Any(x => x.Category == (uint)ShaderCategory.CategoryHairType))
         {
-            var key = material.ShaderKeys.First(x => x.Category == categoryHairType);
+            var key = material.ShaderKeys.First(x => x.Category == (uint)ShaderCategory.CategoryHairType);
             hairType = (HairType)key.Value;
         }
         
-        var diffuseMultiplier = material.GetConstantOrDefault(MaterialConstant.g_DiffuseColor, Vector3.One);
+        //var normalScale = material.GetConstantOrDefault(MaterialConstant.g_NormalScale, 1.0f);
         
         SKTexture normal = material.GetTexture(TextureUsage.g_SamplerNormal).ToTexture();
         SKTexture mask = material.GetTexture(TextureUsage.g_SamplerMask).ToTexture();
@@ -73,7 +65,7 @@ public static partial class MaterialUtility
             outSpecRough[x, y] = new Vector4(maskPixel.X, maskPixel.Y, maskPixel.Z, maskPixel.W).ToSkColor();
             
             // Normal
-            outNormal[x, y] = (normalPixel with {W = 1.0f}).ToSkColor();
+            outNormal[x, y] = normalPixel.ToSkColor();
         }
 
         var output = new MaterialBuilder(name);
