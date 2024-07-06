@@ -1,5 +1,4 @@
 ﻿using System.Numerics;
-using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using ImGuiNET;
 using Meddle.Utils;
 using Meddle.Utils.Export;

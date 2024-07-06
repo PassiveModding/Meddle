@@ -1,6 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
+using Meddle.Utils.Files.Structs.Model;
 
 namespace Meddle.Utils.Files;
 
@@ -30,33 +30,33 @@ public class MdlFile
     }
 
     public readonly ModelFileHeader FileHeader;
-    public readonly ModelResourceHandle.VertexDeclaration[] VertexDeclarations; // MeshCount total elements
+    public readonly VertexDeclaration[] VertexDeclarations; // MeshCount total elements
     public readonly ushort StringCount;
     public readonly byte[] StringTable;
-    public readonly ModelResourceHandle.ModelHeader ModelHeader;
-    public readonly ModelResourceHandle.ElementId[] ElementIds;
-    public readonly ModelResourceHandle.Lod[] Lods;
-    public readonly ModelResourceHandle.ExtraLod[] ExtraLods;
-    public readonly ModelResourceHandle.Mesh[] Meshes;
+    public readonly ModelHeader ModelHeader;
+    public readonly ElementId[] ElementIds;
+    public readonly Lod[] Lods;
+    public readonly ExtraLod[] ExtraLods;
+    public readonly Mesh[] Meshes;
     public readonly uint[] AttributeNameOffsets;
-    public readonly ModelResourceHandle.TerrainShadowMesh[] TerrainShadowMeshes;
-    public readonly ModelResourceHandle.Submesh[] Submeshes;
-    public readonly ModelResourceHandle.TerrainShadowSubmesh[] TerrainShadowSubmeshes;
+    public readonly TerrainShadowMesh[] TerrainShadowMeshes;
+    public readonly Submesh[] Submeshes;
+    public readonly TerrainShadowSubmesh[] TerrainShadowSubmeshes;
     public readonly uint[] MaterialNameOffsets;
     public readonly uint[] BoneNameOffsets;
     public readonly BoneTable[] BoneTables;
-    public readonly ModelResourceHandle.Shape[] Shapes;
-    public readonly ModelResourceHandle.ShapeMesh[] ShapeMeshes;
-    public readonly ModelResourceHandle.ShapeValue[] ShapeValues;
+    public readonly Shape[] Shapes;
+    public readonly ShapeMesh[] ShapeMeshes;
+    public readonly ShapeValue[] ShapeValues;
 
     public readonly uint SubmeshBoneMapByteSize;
     public readonly ushort[] SubmeshBoneMap;
 
-    public readonly ModelResourceHandle.BoundingBox BoundingBoxes;
-    public readonly ModelResourceHandle.BoundingBox ModelBoundingBoxes;
-    public readonly ModelResourceHandle.BoundingBox WaterBoundingBoxes;
-    public readonly ModelResourceHandle.BoundingBox VerticalFogBoundingBoxes;
-    public readonly ModelResourceHandle.BoundingBox[] BoneBoundingBoxes;
+    public readonly BoundingBox BoundingBoxes;
+    public readonly BoundingBox ModelBoundingBoxes;
+    public readonly BoundingBox WaterBoundingBoxes;
+    public readonly BoundingBox VerticalFogBoundingBoxes;
+    public readonly BoundingBox[] BoneBoundingBoxes;
 
     private readonly byte[] rawData;
     public readonly int RemainingOffset;
@@ -99,35 +99,35 @@ public class MdlFile
         rawData = data.ToArray();
         var reader = new SpanBinaryReader(data);
         FileHeader = reader.Read<ModelFileHeader>();
-        VertexDeclarations = reader.Read<ModelResourceHandle.VertexDeclaration>(FileHeader.VertexDeclarationCount)
+        VertexDeclarations = reader.Read<VertexDeclaration>(FileHeader.VertexDeclarationCount)
                                    .ToArray();
         StringCount = reader.ReadUInt16();
         reader.ReadUInt16();
         var stringSize = reader.ReadUInt32();
         StringTable = reader.Read<byte>((int)stringSize).ToArray();
 
-        ModelHeader = reader.Read<ModelResourceHandle.ModelHeader>();
-        ElementIds = reader.Read<ModelResourceHandle.ElementId>(ModelHeader.ElementIdCount).ToArray();
-        Lods = reader.Read<ModelResourceHandle.Lod>(3).ToArray();
+        ModelHeader = reader.Read<ModelHeader>();
+        ElementIds = reader.Read<ElementId>(ModelHeader.ElementIdCount).ToArray();
+        Lods = reader.Read<Lod>(3).ToArray();
 
         // Extra log enabled
         if ((ModelHeader.Flags2 & 0x10) != 0)
         {
-            ExtraLods = reader.Read<ModelResourceHandle.ExtraLod>(3).ToArray();
+            ExtraLods = reader.Read<ExtraLod>(3).ToArray();
         }
         else
         {
-            ExtraLods = Array.Empty<ModelResourceHandle.ExtraLod>();
+            ExtraLods = Array.Empty<ExtraLod>();
         }
 
-        Meshes = reader.Read<ModelResourceHandle.Mesh>(ModelHeader.MeshCount).ToArray();
+        Meshes = reader.Read<Mesh>(ModelHeader.MeshCount).ToArray();
 
         AttributeNameOffsets = reader.Read<uint>(ModelHeader.AttributeCount).ToArray();
-        TerrainShadowMeshes = reader.Read<ModelResourceHandle.TerrainShadowMesh>(ModelHeader.TerrainShadowMeshCount)
+        TerrainShadowMeshes = reader.Read<TerrainShadowMesh>(ModelHeader.TerrainShadowMeshCount)
                                     .ToArray();
-        Submeshes = reader.Read<ModelResourceHandle.Submesh>(ModelHeader.SubmeshCount).ToArray();
+        Submeshes = reader.Read<Submesh>(ModelHeader.SubmeshCount).ToArray();
         TerrainShadowSubmeshes =
-            reader.Read<ModelResourceHandle.TerrainShadowSubmesh>(ModelHeader.TerrainShadowSubmeshCount).ToArray();
+            reader.Read<TerrainShadowSubmesh>(ModelHeader.TerrainShadowSubmeshCount).ToArray();
         MaterialNameOffsets = reader.Read<uint>(ModelHeader.MaterialCount).ToArray();
         BoneNameOffsets = reader.Read<uint>(ModelHeader.BoneCount).ToArray();
 
@@ -153,9 +153,9 @@ public class MdlFile
             throw new NotSupportedException($"Unsupported mdl version {FileHeader.Version}");
         }
 
-        Shapes = reader.Read<ModelResourceHandle.Shape>(ModelHeader.ShapeCount).ToArray();
-        ShapeMeshes = reader.Read<ModelResourceHandle.ShapeMesh>(ModelHeader.ShapeMeshCount).ToArray();
-        ShapeValues = reader.Read<ModelResourceHandle.ShapeValue>(ModelHeader.ShapeValueCount).ToArray();
+        Shapes = reader.Read<Shape>(ModelHeader.ShapeCount).ToArray();
+        ShapeMeshes = reader.Read<ShapeMesh>(ModelHeader.ShapeMeshCount).ToArray();
+        ShapeValues = reader.Read<ShapeValue>(ModelHeader.ShapeValueCount).ToArray();
         SubmeshBoneMapByteSize = reader.ReadUInt32();
         var size = SubmeshBoneMapByteSize / Unsafe.SizeOf<ushort>();
         SubmeshBoneMap = reader.Read<ushort>((int)size).ToArray();
@@ -163,11 +163,11 @@ public class MdlFile
         var padding = reader.Read<byte>();
         reader.Seek(padding, SeekOrigin.Current);
 
-        BoundingBoxes = reader.Read<ModelResourceHandle.BoundingBox>();
-        ModelBoundingBoxes = reader.Read<ModelResourceHandle.BoundingBox>();
-        WaterBoundingBoxes = reader.Read<ModelResourceHandle.BoundingBox>();
-        VerticalFogBoundingBoxes = reader.Read<ModelResourceHandle.BoundingBox>();
-        BoneBoundingBoxes = reader.Read<ModelResourceHandle.BoundingBox>(ModelHeader.BoneCount).ToArray();
+        BoundingBoxes = reader.Read<BoundingBox>();
+        ModelBoundingBoxes = reader.Read<BoundingBox>();
+        WaterBoundingBoxes = reader.Read<BoundingBox>();
+        VerticalFogBoundingBoxes = reader.Read<BoundingBox>();
+        BoneBoundingBoxes = reader.Read<BoundingBox>(ModelHeader.BoneCount).ToArray();
 
         var runtimePadding = FileHeader.RuntimeSize +
                              Unsafe.SizeOf<ModelFileHeader>() +

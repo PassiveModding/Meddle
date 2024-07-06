@@ -1,11 +1,7 @@
 ﻿using System.Numerics;
-using FFXIVClientStructs.FFXIV.Client.Game.Character;
-using FFXIVClientStructs.FFXIV.Shader;
 using Meddle.Utils.Export;
-using Meddle.Utils.Files;
 using Meddle.Utils.Models;
 using SharpGLTF.Materials;
-using SkiaSharp;
 using CustomizeParameter = Meddle.Utils.Export.CustomizeParameter;
 
 namespace Meddle.Utils.Materials;
@@ -86,7 +82,7 @@ public static partial class MaterialUtility
             var secondaryInfluence = normalPixel.W;
             if (skinType == SkinType.Default || skinType == SkinType.Face)
             {
-                if (data.Lipstick)
+                if (data.LipStick)
                 {
                     diffusePixel = Vector4.Lerp(diffusePixel, lipColor, secondaryInfluence * lipColor.W);
                     diffusePixel.W = 1.0f;

@@ -1,23 +1,28 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
-using FFXIVClientStructs.FFXIV.Client.Game.Character;
+using Meddle.Plugin.Skeleton;
 using Meddle.Utils;
 using Meddle.Utils.Export;
+using Meddle.Utils.Files;
 using Meddle.Utils.Materials;
 using Meddle.Utils.Skeletons;
+using Meddle.Utils.Skeletons.Havok;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
 using SkiaSharp;
+using CustomizeData = Meddle.Utils.Export.CustomizeData;
 using CustomizeParameter = Meddle.Utils.Export.CustomizeParameter;
 using Material = Meddle.Utils.Export.Material;
 using Model = Meddle.Utils.Export.Model;
+using Vector3 = FFXIVClientStructs.FFXIV.Common.Math.Vector3;
+using Vector4 = FFXIVClientStructs.FFXIV.Common.Math.Vector4;
 
 namespace Meddle.Plugin.Utils;
 
 public static class ExportUtil
 {
-    public record CharacterGroup(CustomizeParameter CustomizeParams, CustomizeData CustomizeData, Model.MdlGroup[] MdlGroups, Skeleton Skeleton);
-
+    public record CharacterGroup(CustomizeParameter CustomizeParams, CustomizeData CustomizeData, GenderRace GenderRace, Model.MdlGroup[] MdlGroups, Skeleton.Skeleton Skeleton);
+    public record CharacterGroupHK(CustomizeParameter CustomizeParams, CustomizeData CustomizeData, GenderRace GenderRace, Model.MdlGroup[] MdlGroups, IEnumerable<HavokXml> Skeletons);
     public static void ExportTexture(SKBitmap bitmap, string path)
     {
         var outputPath = Path.Combine(Path.GetTempPath(), "Meddle.Export", "output", $"{Path.GetFileNameWithoutExtension(path)}.png");
@@ -84,7 +89,7 @@ public static class ExportUtil
         }
     }
     
-    public static void Export(CharacterGroup characterGroup, CancellationToken token = default)
+    public static void Export(CharacterGroup characterGroup, PbdFile? pbd, CancellationToken token = default)
     {
         try
         {
@@ -127,13 +132,15 @@ public static class ExportUtil
                 }
 
                 var bones = SkeletonUtils.GetBoneMap(characterGroup.Skeleton, out var root);
+                //var bones = XmlUtils.GetBoneMap(characterGroup.Skeletons, out var root);
                 if (root != null)
                 {
                     scene.AddNode(root);
                 }
                 
                 var boneNodes = bones.Cast<NodeBuilder>().ToArray();
-                var meshes = ModelBuilder.BuildMeshes(model, materials, bones, null);
+                (GenderRace, RaceDeformer)? raceDeformerValue = pbd != null ? (characterGroup.GenderRace, new RaceDeformer(pbd, bones)) : null;
+                var meshes = ModelBuilder.BuildMeshes(model, materials, bones, raceDeformerValue);
                 foreach (var mesh in meshes)
                 {
                     if (token.IsCancellationRequested) return;
@@ -203,5 +210,15 @@ public static class ExportUtil
                           .Where(x => appliedShapes.Contains(x.Name))
                           .Select(x => (x, model.EnabledShapes.Contains(x.Name)));
         builder.Content.UseMorphing().SetValue(shapes.Select(x => x.Item2 ? 1f : 0).ToArray());
+    }
+    
+    public static System.Numerics.Vector4 ToVector4(this Vector4 vec)
+    {
+        return new System.Numerics.Vector4(vec.X, vec.Y, vec.Z, vec.W);
+    }
+    
+    public static System.Numerics.Vector3 ToVector3(this Vector3 vec)
+    {
+        return new System.Numerics.Vector3(vec.X, vec.Y, vec.Z);
     }
 }

@@ -1,4 +1,4 @@
-﻿using FFXIVClientStructs.FFXIV.Common.Math;
+﻿using System.Numerics;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Models;
@@ -9,17 +9,7 @@ namespace Meddle.Utils;
 
 public static class ImageUtils
 {
-    public static System.Numerics.Vector4 ToVector4(this Vector4 vec)
-    {
-        return new System.Numerics.Vector4(vec.X, vec.Y, vec.Z, vec.W);
-    }
-    
-    public static System.Numerics.Vector3 ToVector3(this Vector3 vec)
-    {
-        return new System.Numerics.Vector3(vec.X, vec.Y, vec.Z);
-    }
-    
-    public static SKColor ToSkColor(this Vector3 vec)
+    /*public static SKColor ToSkColor(this Vector3 vec)
     {
         return new SKColor((byte)(vec.X * 255), (byte)(vec.Y * 255), (byte)(vec.Z * 255));
     }
@@ -27,7 +17,7 @@ public static class ImageUtils
     public static SKColor ToSkColor(this Vector4 vec)
     {
         return new SKColor((byte)(vec.X * 255), (byte)(vec.Y * 255), (byte)(vec.Z * 255), (byte)(vec.W * 255));
-    }
+    }*/
     
     public static DXGIFormat ToDXGIFormat(this TexFile.TextureFormat format)
     {

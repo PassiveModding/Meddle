@@ -1,4 +1,5 @@
-﻿using SharpGLTF.Scenes;
+﻿using Meddle.Plugin.Skeleton;
+using SharpGLTF.Scenes;
 
 namespace Meddle.Utils.Skeletons;
 

@@ -166,9 +166,11 @@ public class MeshBuilder
         var skinningIsEmpty = SkinningT == typeof(VertexEmpty);
         if (!skinningIsEmpty && JointLut != null)
         {
-            for (var k = 0; k < 4; k++)
+            if (vertex.BlendIndicesData == null)
+                throw new InvalidOperationException("Vertex has no blend indices data.");
+            for (var k = 0; k < vertex.BlendIndicesData.Length; k++)
             {
-                var boneIndex = vertex.BlendIndices[k];
+                var boneIndex = vertex.BlendIndicesData[k];
                 var boneWeight = vertex.BlendWeights != null ? vertex.BlendWeights.Value[k] : 0;
                 if (boneIndex >= JointLut.Length)
                 {

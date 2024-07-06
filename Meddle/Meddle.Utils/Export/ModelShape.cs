@@ -1,10 +1,10 @@
-﻿using CSShape = FFXIVClientStructs.FFXIV.Client.System.Resource.Handle.ModelResourceHandle.Shape;
+﻿using Meddle.Utils.Files.Structs.Model;
 
 namespace Meddle.Utils.Export;
 
 public class ModelShape
 {
-    public unsafe ModelShape(CSShape shape, string name, int lodIdx, ReadOnlySpan<ShapeMesh> shapeMeshes)
+    public unsafe ModelShape(Shape shape, string name, int lodIdx, ReadOnlySpan<ShapeMesh> shapeMeshes)
     {
         var shapeMeshCount = shape.ShapeMeshCount[lodIdx];
         var meshesForShape = new ShapeMesh[shapeMeshCount];

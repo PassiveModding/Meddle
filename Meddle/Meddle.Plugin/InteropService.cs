@@ -5,7 +5,6 @@ using InteropGenerator.Runtime;
 
 namespace Meddle.Plugin;
 
-// https://github.com/Caraxi/SimpleTweaksPlugin/blob/2b7c105d1671fd6a344edb5c621632b8825a81c5/SimpleTweaksPlugin.cs#L101C13-L103C75
 public class InteropService(ISigScanner sigScanner) : IDisposable
 {
     /// <summary>
@@ -17,12 +16,14 @@ public class InteropService(ISigScanner sigScanner) : IDisposable
     {
         if (IsResolved)
             return;
-        
+        FFXIVClientStructs.Interop.Generated.Addresses.Register();
+        //Addresses.Register();
         Resolver.GetInstance.Setup(sigScanner.SearchBase);
         Resolver.GetInstance.Resolve();
         IsResolved = true;
     }
 
+    // Client::System::Framework::Framework_Tick
     [Signature("40 53 48 83 EC 20 FF 81 ?? ?? ?? ?? 48 8B D9 48 8D 4C 24", DetourName = nameof(PostTickDetour))]
     private Hook<PostTickDelegate> postTickHook = null!;
     private delegate bool PostTickDelegate(nint a1);

@@ -1,6 +1,4 @@
 ﻿using System.Numerics;
-using FFXIVClientStructs.FFXIV.Client.Game.Character;
-using FFXIVClientStructs.FFXIV.Shader;
 using Meddle.Utils.Export;
 using Meddle.Utils.Models;
 using SharpGLTF.Materials;

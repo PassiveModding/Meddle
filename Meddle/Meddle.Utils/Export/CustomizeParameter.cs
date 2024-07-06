@@ -2,6 +2,12 @@
 
 namespace Meddle.Utils.Export;
 
+public class CustomizeData
+{
+    public bool LipStick;
+    public bool Highlights;
+}
+
 public class CustomizeParameter {
     /// <summary>
     /// XYZ : Skin diffuse color, as squared RGB.
@@ -47,21 +53,4 @@ public class CustomizeParameter {
     /// XYZ : Race feature color, as squared RGB.
     /// </summary>
     public Vector3 OptionColor;
-
-    public CustomizeParameter()
-    {
-    }
-    
-    public CustomizeParameter(FFXIVClientStructs.FFXIV.Shader.CustomizeParameter parameter)
-    {
-        SkinColor = parameter.SkinColor;
-        SkinFresnelValue0 = parameter.SkinFresnelValue0;
-        LipColor = parameter.LipColor;
-        MainColor = parameter.MainColor;
-        HairFresnelValue0 = parameter.HairFresnelValue0;
-        MeshColor = parameter.MeshColor;
-        LeftColor = parameter.LeftColor;
-        RightColor = parameter.RightColor;
-        OptionColor = parameter.OptionColor;
-    }
 }

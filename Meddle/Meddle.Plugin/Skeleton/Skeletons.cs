@@ -2,11 +2,11 @@
 using FFXIVClientStructs.Havok.Animation.Rig;
 using FFXIVClientStructs.Havok.Common.Base.Math.QsTransform;
 using FFXIVClientStructs.Interop;
-using Meddle.Utils.Export;
+using Meddle.Utils.Skeletons;
 using PartialCSSkeleton = FFXIVClientStructs.FFXIV.Client.Graphics.Render.PartialSkeleton;
 using CSSkeleton = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Skeleton;
 
-namespace Meddle.Utils.Skeletons;
+namespace Meddle.Plugin.Skeleton;
 
 public class Skeleton
 {
@@ -100,16 +100,13 @@ public class SkeletonPose
     public unsafe SkeletonPose(hkaPose* pose)
     {
         var transforms = new List<Transform>();
-        var poseSpan = new Span<hkQsTransformf>(pose->LocalPose.Data, pose->LocalPose.Length);
-        foreach (var transform in poseSpan)
-            transforms.Add(new Transform(transform));
         
-        /*var boneCount = pose->LocalPose.Length;
+        var boneCount = pose->LocalPose.Length;
         for (var i = 0; i < boneCount; ++i)
         {
             var localSpace = pose->AccessBoneLocalSpace(i);
             transforms.Add(new Transform(*localSpace));
-        }*/
+        }
 
         Pose = transforms;
     }

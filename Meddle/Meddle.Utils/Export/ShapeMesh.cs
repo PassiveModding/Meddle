@@ -1,11 +1,10 @@
-using CSShapeMesh = FFXIVClientStructs.FFXIV.Client.System.Resource.Handle.ModelResourceHandle.ShapeMesh;
-using CSShapeValue = FFXIVClientStructs.FFXIV.Client.System.Resource.Handle.ModelResourceHandle.ShapeValue;
+using Meddle.Utils.Files.Structs.Model;
 
 namespace Meddle.Utils.Export;
 
 public class ShapeMesh
 {
-    public ShapeMesh(Span<CSShapeValue> shapeValues, CSShapeMesh shapeMesh, Mesh mesh, int i)
+    public ShapeMesh(Span<ShapeValue> shapeValues, Meddle.Utils.Files.Structs.Model.ShapeMesh shapeMesh, Mesh mesh, int i)
     {
         var values = new List<(ushort BaseIndicesIndex, ushort ReplacingVertexIndex)>();
         var range = Enumerable.Range((int)shapeMesh.ShapeValueOffset, (int)shapeMesh.ShapeValueCount);

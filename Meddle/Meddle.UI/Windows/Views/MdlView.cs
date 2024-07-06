@@ -1,6 +1,6 @@
-﻿using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
-using ImGuiNET;
+﻿using ImGuiNET;
 using Meddle.Utils.Files;
+using Meddle.Utils.Files.Structs.Model;
 using Meddle.Utils.Models;
 
 namespace Meddle.UI.Windows.Views;
@@ -99,7 +99,7 @@ public class MdlView(MdlFile mdlFile, string? path) : IView
         }
     }
     
-    private unsafe void DrawBoundingBox(ModelResourceHandle.BoundingBox bb)
+    private unsafe void DrawBoundingBox(BoundingBox bb)
     {
         ImGui.Columns(4);
         for (int i = 0; i < 4; i++)

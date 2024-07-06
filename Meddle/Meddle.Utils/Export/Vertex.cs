@@ -1,36 +1,20 @@
 ﻿using System.Numerics;
 using System.Runtime.InteropServices;
-using System.Text.Json.Serialization;
-using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
+using Meddle.Utils.Files.Structs.Model;
 
 namespace Meddle.Utils.Export;
 
 public unsafe struct Vertex
 {
-    // VertexType and VertexUsage are as-defined in the .mdl file
-    // These get changed into some intermediate other enum
-    // When passed onto DX11, the intermediate enum get converted to their real values
-
     public enum VertexType : byte
     {
-        // 0 => 33 => DXGI_FORMAT_R32_FLOAT
-        // 1 => 34 => DXGI_FORMAT_R32G32_FLOAT
-        Single3 = 2, // => 35 => DXGI_FORMAT_R32G32B32_FLOAT
-        Single4 = 3, // => 36 => DXGI_FORMAT_R32G32B32A32_FLOAT
-        // 4 Doesn't exist!
-        UInt = 5, // => 116 => DXGI_FORMAT_R8G8B8A8_UINT
-        // 6 => 82 => DXGI_FORMAT_R16G16_SINT
-        // 7 => 84 => DXGI_FORMAT_R16G16B16A16_SINT
-        ByteFloat4 = 8, // => 68 => DXGI_FORMAT_R8G8B8A8_UNORM
-        // 9 => 18 => DXGI_FORMAT_R16G16_SNORM
-        // 10 => 20 => DXGI_FORMAT_R16G16B16A16_SNORM
-        // 11 Doesn't exist!
-        // 12 Doesn't exist!
-        Half2 = 13, // => 50 => DXGI_FORMAT_R16G16_FLOAT
-        Half4 = 14,  // => 52 => DXGI_FORMAT_R16G16B16A16_FLOAT
-        // 15 => 97 => ?? (doesn't exist, so it resolves to DXGI_FORMAT_UNKNOWN)
-
-        UShort4 = 17 // 8 byte array for bone weights/bone indexes; 0,4,1,5,2,6,3,7
+        Single3 = 2,
+        Single4 = 3,
+        UInt = 5,
+        ByteFloat4 = 8,
+        Half2 = 13,
+        Half4 = 14,
+        UByte8 = 17 // 8 byte array for bone weights/bone indexes; 0,4,1,5,2,6,3,7
     }
 
     public enum VertexUsage : byte
@@ -47,23 +31,13 @@ public unsafe struct Vertex
 
     public Vector4? Position;
     public Vector4? BlendWeights;
-    [JsonIgnore]
-    public fixed byte BlendIndicesData[4];
+    public Vector4? BlendIndices;
+    public byte[]? BlendIndicesData;
     public Vector3? Normal;
     public Vector4? UV;
     public Vector4? Color;
     public Vector4? Tangent2;
     public Vector4? Tangent1;
-
-    [JsonIgnore]
-    public Span<byte> BlendIndices
-    {
-        get
-        {
-            fixed (byte* buffer = BlendIndicesData)
-                return new(buffer, 4);
-        }
-    }
 
     private static class VertexItem
     {
@@ -92,7 +66,7 @@ public unsafe struct Vertex
                     VertexType.ByteFloat4 => new Vector4(FromUNorm(b[0]), FromUNorm(b[1]), FromUNorm(b[2]), FromUNorm(b[3])),
                     VertexType.Half2 => new Vector2((float)h[0], (float)h[1]),
                     VertexType.Half4 => new Vector4((float)h[0], (float)h[1], (float)h[2], (float)h[3]),
-                    VertexType.UShort4 => HandleUshort4(buffer),
+                    VertexType.UByte8 => HandleUshort4(buffer),
                     _ => throw new ArgumentException($"Unknown type {type}"),
                 };
             }
@@ -103,14 +77,18 @@ public unsafe struct Vertex
             // No clue how correct/incorrect this is I'm tired
             fixed (byte* b = buffer)
             {
+                // pack into vec4
                 var buf = new byte[8];
-                buf[0] = b[0]; buf[1] = b[4];
-                buf[2] = b[1]; buf[3] = b[5];
-                buf[4] = b[2]; buf[5] = b[6];
-                buf[6] = b[3]; buf[7] = b[7];
-                // to ushort[4]
+                buf[0] = b[0]; 
+                buf[1] = b[4];
+                buf[2] = b[1]; 
+                buf[3] = b[5];
+                buf[4] = b[2]; 
+                buf[5] = b[6];
+                buf[6] = b[3]; 
+                buf[7] = b[7];
                 var us = MemoryMarshal.Cast<byte, ushort>(buf);
-                return new Vector4(us[0] / 255.0f, us[1] / 255.0f, us[2] / 255.0f, us[3] / 255.0f);
+                return new Vector4(us[0], us[1], us[2], us[3]);
             }
         }
 
@@ -142,8 +120,8 @@ public unsafe struct Vertex
             throw new ArgumentException($"Cannot convert {value} to {typeof(T)}");
         }
     }
-
-    public static void Apply(ref Vertex vertex, ReadOnlySpan<byte> buffer, ModelResourceHandle.VertexElement element)
+    
+    public static void Apply(ref Vertex vertex, ReadOnlySpan<byte> buffer, VertexElement element)
     {
         var item = VertexItem.GetElement(buffer[element.Offset..], (VertexType)element.Type);
         switch ((VertexUsage)element.Usage)
@@ -156,8 +134,9 @@ public unsafe struct Vertex
                 break;
             case VertexUsage.BlendIndices:
                 var itemVector = VertexItem.ConvertTo<Vector4>(item);
+                vertex.BlendIndicesData = new byte[4];
                 for (var j = 0; j < 4; ++j)
-                    vertex.BlendIndices[j] = (byte)itemVector[j];
+                    vertex.BlendIndicesData[j] = (byte)itemVector[j];
                 break;
             case VertexUsage.Normal:
                 vertex.Normal = VertexItem.ConvertTo<Vector3>(item);

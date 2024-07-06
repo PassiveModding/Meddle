@@ -1,4 +1,4 @@
-﻿using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
+﻿using Meddle.Utils.Files.Structs.Model;
 
 namespace Meddle.Utils.Export;
 
@@ -8,7 +8,7 @@ public class SubMesh
     public uint IndexCount { get; }
     public IReadOnlyList<string> Attributes { get; }
 
-    public SubMesh(ModelResourceHandle.Submesh subMesh, uint meshIndexOffset)
+    public SubMesh(Submesh subMesh, uint meshIndexOffset)
     {
         IndexOffset = subMesh.IndexOffset - meshIndexOffset;
         IndexCount = subMesh.IndexCount;

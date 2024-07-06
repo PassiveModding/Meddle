@@ -1,7 +1,4 @@
-﻿using System.Text.Json;
-using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
-using Meddle.Utils.Files;
-using Meddle.Utils.Models;
+﻿using Meddle.Utils.Files;
 
 namespace Meddle.Utils.Export;
 
@@ -79,7 +76,7 @@ public unsafe class Model
                 var meshIndices = ushortIndexReader.Read<ushort>((int)mesh.IndexCount).ToArray();
                 
                 // Vertex data
-                foreach (var element in meshVertexDecls.Elements)
+                foreach (var element in meshVertexDecls.GetElements())
                 {
                     if (element.Stream == 255)
                         break;

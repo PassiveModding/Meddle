@@ -6,6 +6,8 @@ using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
+using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
+using FFXIVClientStructs.Interop;
 using ImGuiNET;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
@@ -13,7 +15,7 @@ using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Materials;
 using Meddle.Utils.Models;
-using Meddle.Utils.Skeletons;
+using Meddle.Utils.Skeletons.Havok;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
 using CustomizeParameter = FFXIVClientStructs.FFXIV.Shader.CustomizeParameter;
 
@@ -25,33 +27,40 @@ public unsafe partial class CharacterTab : ITab
     public int Order => 0;
     
     private readonly IClientState clientState;
-    private readonly InteropService interopService;
+    private readonly IFramework framework;
     private readonly IPluginLog log;
     private readonly IObjectTable objectTable;
     private readonly IDataManager dataManager;
     private readonly ITextureProvider textureProvider;
+    private readonly PbdFile pbdFile;
     private Task? exportTask;
 
     public CharacterTab(
         IObjectTable objectTable,
         IClientState clientState,
-        InteropService interopService,
+        IFramework framework,
         IPluginLog log,
         IDataManager dataManager, ITextureProvider textureProvider)
     {
-        this.interopService = interopService;
         this.log = log;
         this.objectTable = objectTable;
         this.clientState = clientState;
+        this.framework = framework;
         this.dataManager = dataManager;
         this.textureProvider = textureProvider;
+        // chara/xls/boneDeformer/human.pbd
+        var pbdData = dataManager.GameData.GetFile("chara/xls/boneDeformer/human.pbd");
+        if (pbdData == null)
+        {
+            throw new Exception("Failed to load human.pbd");
+        }
+        pbdFile = new PbdFile(pbdData.DataSpan);
     }
 
     private ICharacter? SelectedCharacter { get; set; }
 
     public void Draw()
     {
-        if (!interopService.IsResolved) return;
         DrawObjectPicker();
     }
 
@@ -164,6 +173,8 @@ public unsafe partial class CharacterTab : ITab
         
             var customizeData = characterGroup.CustomizeData;
             UIUtil.DrawCustomizeData(customizeData);
+            ImGui.Text(characterGroup.GenderRace.ToString());
+            
             ImGui.NextColumn();
         } 
         finally
@@ -175,7 +186,7 @@ public unsafe partial class CharacterTab : ITab
         {
             if (ImGui.Button($"Export All##{characterGroup.GetHashCode()}"))
             {
-                exportTask = Task.Run(() => ExportUtil.Export(characterGroup));
+                exportTask = Task.Run(() => ExportUtil.Export(characterGroup, pbdFile));
             }
 
             if (ImGui.Button($"Export Raw Textures##{characterGroup.GetHashCode()}"))
@@ -196,7 +207,7 @@ public unsafe partial class CharacterTab : ITab
                                                 x => SelectedModels.TryGetValue(x.Path, out var selected) && selected)
                                             .ToArray();
                     var group = characterGroup with {MdlGroups = selectedModels};
-                    exportTask = Task.Run(() => ExportUtil.Export(group));
+                    exportTask = Task.Run(() => ExportUtil.Export(group, pbdFile));
                 }
             });
             
@@ -217,7 +228,7 @@ public unsafe partial class CharacterTab : ITab
                         if (ImGui.Button("Export"))
                         {
                             var group = characterGroup with {MdlGroups = [mdlGroup]};
-                            exportTask = Task.Run(() => ExportUtil.Export(group));
+                            exportTask = Task.Run(() => ExportUtil.Export(group, pbdFile));
                         }
                     });
             
@@ -295,27 +306,76 @@ public unsafe partial class CharacterTab : ITab
 
         return v / length;
     }
-    
+
+    private List<HavokXml> ParseSkeletons(Human* human)
+    {
+        var skeletonResourceHandles =
+            new Span<Pointer<SkeletonResourceHandle>>(human->Skeleton->SkeletonResourceHandles,
+                                                      human->Skeleton->PartialSkeletonCount);
+        var skeletons = new List<HavokXml>();
+        foreach (var skeletonPtr in skeletonResourceHandles)
+        {
+            var skeletonResourceHandle = skeletonPtr.Value;
+            if (skeletonResourceHandle == null)
+            {
+                continue;
+            }
+
+            var skeletonFileResource =
+                dataManager.GameData.GetFile(skeletonResourceHandle->ResourceHandle.FileName.ToString());
+            if (skeletonFileResource == null)
+            {
+                continue;
+            }
+
+            var sklbFile = new SklbFile(skeletonFileResource.DataSpan);
+            var tempFile = Path.GetTempFileName();
+            try
+            {
+                File.WriteAllBytes(tempFile, sklbFile.Skeleton.ToArray());
+                var hkXml = framework.RunOnTick(() =>
+                {
+                    var xml = HkUtil.HkxToXml(tempFile);
+                    return xml;
+                }).GetAwaiter().GetResult();
+                var havokXml = new HavokXml(hkXml);
+
+                skeletons.Add(havokXml);
+            } finally
+            {
+                File.Delete(tempFile);
+            }
+        }
+
+        return skeletons;
+    }
+
     private void ParseCharacter(ICharacter character)
     {            
         var charPtr = (CSCharacter*)character.Address;
         var human = (Human*)charPtr->GameObject.DrawObject;
         var customizeCBuf = human->CustomizeParameterCBuffer->TryGetBuffer<CustomizeParameter>();
         var customizeParams = customizeCBuf[0];
-        customizeParams = new CustomizeParameter
+        var exportCustomizeParams = new Meddle.Utils.Export.CustomizeParameter
         {
-            SkinColor = Normalize(customizeParams.SkinColor),
-            SkinFresnelValue0 = Normalize(customizeParams.SkinFresnelValue0),
-            LipColor = Normalize(customizeParams.LipColor),
-            MainColor = Normalize(customizeParams.MainColor),
-            HairFresnelValue0 = Normalize(customizeParams.HairFresnelValue0),
-            MeshColor = Normalize(customizeParams.MeshColor),
-            LeftColor = Normalize(customizeParams.LeftColor),
-            RightColor = Normalize(customizeParams.RightColor),
-            OptionColor = Normalize(customizeParams.OptionColor)
+            SkinColor = customizeParams.SkinColor,
+            SkinFresnelValue0 = customizeParams.SkinFresnelValue0,
+            LipColor = customizeParams.LipColor,
+            MainColor = customizeParams.MainColor,
+            HairFresnelValue0 = customizeParams.HairFresnelValue0,
+            MeshColor = customizeParams.MeshColor,
+            LeftColor = customizeParams.LeftColor,
+            RightColor = customizeParams.RightColor,
+            OptionColor = customizeParams.OptionColor
         };
         var customize = human->Customize;
-        var skeleton = new Skeleton(human->Skeleton);
+        var exportCustomizeData = new Meddle.Utils.Export.CustomizeData
+        {
+            LipStick = customize.Lipstick,
+            Highlights = customize.Highlights
+        };
+        var skeleton = new Skeleton.Skeleton(human->Skeleton);
+        
         exportTask = Task.Run(() =>
         {
             var mdlGroups = new List<Model.MdlGroup>();
@@ -327,6 +387,7 @@ public unsafe partial class CharacterTab : ITab
                     continue;
                 }
 
+                
                 var mdlFileName = model->ModelResourceHandle->ResourceHandle.FileName.ToString();
                 var mdlFileResource = dataManager.GameData.GetFile(mdlFileName);
                 if (mdlFileResource == null)
@@ -387,8 +448,9 @@ public unsafe partial class CharacterTab : ITab
             }
             
             characterGroup = new ExportUtil.CharacterGroup(
-                new Meddle.Utils.Export.CustomizeParameter(customizeParams), 
-                customize, 
+                exportCustomizeParams, 
+                exportCustomizeData, 
+                (GenderRace)human->RaceSexId,
                 mdlGroups.ToArray(),
                 skeleton);
         });

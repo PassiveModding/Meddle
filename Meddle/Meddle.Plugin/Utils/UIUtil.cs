@@ -5,60 +5,29 @@ using Meddle.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.Structs.Material;
+using CustomizeData = Meddle.Utils.Export.CustomizeData;
 
 namespace Meddle.Plugin.Utils;
 
 public static class UIUtil
 {
-    public static bool DrawCustomizeParams(ref CustomizeParameter customize)
+    public static void DrawCustomizeParams(ref CustomizeParameter customize)
     {
-        bool updated = false;
-        if (ImGui.ColorEdit4("Skin Color", ref customize.SkinColor))
-        {
-            updated = true;
-        }
-        if (ImGui.ColorEdit4("Skin Fresnel Value", ref customize.SkinFresnelValue0))
-        {
-            updated = true;
-        }
-        if (ImGui.ColorEdit4("Lip Color", ref customize.LipColor))
-        {
-            updated = true;
-        }
-        if (ImGui.ColorEdit3("Main Color", ref customize.MainColor))
-        {
-            updated = true;
-        }
-        if (ImGui.ColorEdit3("Hair Fresnel Value", ref customize.HairFresnelValue0))
-        {
-            updated = true;
-        }
-        if (ImGui.ColorEdit3("Mesh Color", ref customize.MeshColor))
-        {
-            updated = true;
-        }
-        if (ImGui.ColorEdit4("Left Color", ref customize.LeftColor))
-        {
-            updated = true;
-        }
-        if (ImGui.ColorEdit4("Right Color", ref customize.RightColor))
-        {
-            updated = true;
-        }
-        if (ImGui.ColorEdit3("Option Color", ref customize.OptionColor))
-        {
-            updated = true;
-        }
-        
-        return updated;
+        ImGui.ColorEdit4("Skin Color", ref customize.SkinColor);
+        ImGui.ColorEdit4("Skin Fresnel Value", ref customize.SkinFresnelValue0);
+        ImGui.ColorEdit4("Lip Color", ref customize.LipColor);
+        ImGui.ColorEdit3("Main Color", ref customize.MainColor);
+        ImGui.ColorEdit3("Hair Fresnel Value", ref customize.HairFresnelValue0);
+        ImGui.ColorEdit3("Mesh Color", ref customize.MeshColor);
+        ImGui.ColorEdit4("Left Color", ref customize.LeftColor);
+        ImGui.ColorEdit4("Right Color", ref customize.RightColor);
+        ImGui.ColorEdit3("Option Color", ref customize.OptionColor);
     }
     
     public static void DrawCustomizeData(CustomizeData customize)
     {
-        var lipstick = customize.Lipstick;
-        ImGui.Checkbox("Lipstick", ref lipstick);
-        var highlights = customize.Highlights;
-        ImGui.Checkbox("Highlights", ref highlights);
+        ImGui.Checkbox("Lipstick", ref customize.LipStick);
+        ImGui.Checkbox("Highlights", ref customize.Highlights);
     }
     
     public static void DrawColorTable(MtrlFile file)
