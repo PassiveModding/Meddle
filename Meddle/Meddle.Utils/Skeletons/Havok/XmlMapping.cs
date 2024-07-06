@@ -1,6 +1,6 @@
 ﻿using System.Xml;
 
-namespace Meddle.Utils.Havok;
+namespace Meddle.Utils.Skeletons.Havok;
 
 public class XmlMapping {
     public readonly int           Id;

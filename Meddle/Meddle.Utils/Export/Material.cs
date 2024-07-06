@@ -142,40 +142,6 @@ public unsafe class Material
 
         ColorTable = mtrlGroup.MtrlFile.ColorTable;
     }
-    public Material(MtrlFile file, string handlePath, ShpkFile shaderFile, IReadOnlyDictionary<string, TexFile> texFiles)
-    {
-        HandlePath = handlePath;
-        ShaderFlags = file.ShaderHeader.Flags;
-        ShaderPackageName = file.GetShaderPackageName();
-        
-        var shaderKeys = new ShaderKey[file.ShaderKeys.Length];
-        for (var i = 0; i < file.ShaderKeys.Length; i++)
-        {
-            shaderKeys[i] = new ShaderKey
-            {
-                Category = file.ShaderKeys[i].Category,
-                Value = file.ShaderKeys[i].Value
-            };
-        }
-
-        ShaderKeys = shaderKeys;
-
-        var textures = new List<Texture>();
-        var texturePaths = file.GetTexturePaths();
-        for (int i = 0; i < file.Samplers.Length; i++)
-        {
-            var sampler = file.Samplers[i];
-            var texture = file.TextureOffsets[sampler.TextureIndex];
-            var path = texturePaths[texture.Offset];
-            var texFile = texFiles[path];
-            var texObj = new Texture(texFile, path, sampler.Flags, sampler.SamplerId, shaderFile);
-            
-            textures.Add(texObj);
-        }
-        
-        Textures = textures;
-        ColorTable = file.ColorTable;
-    }
     
     public float GetConstantOrDefault(MaterialConstant id, float @default)
     {

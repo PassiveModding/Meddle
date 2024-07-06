@@ -1,7 +1,7 @@
 ﻿using System.Numerics;
 using ImGuiNET;
 using Meddle.Utils.Files;
-using Meddle.Utils.Havok;
+using Meddle.Utils.Skeletons.Havok;
 
 namespace Meddle.UI.Windows.Views;
 

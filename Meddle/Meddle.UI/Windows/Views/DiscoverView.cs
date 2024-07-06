@@ -9,7 +9,6 @@ using Meddle.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
-using Meddle.Utils.Havok;
 using Meddle.Utils.Models;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;

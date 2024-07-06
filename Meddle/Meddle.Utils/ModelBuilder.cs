@@ -1,10 +1,13 @@
 ﻿using Meddle.Utils.Export;
+using SharpGLTF.Geometry;
 using SharpGLTF.Materials;
 
 namespace Meddle.Utils;
 
-public class ModelBuilder
+public static class ModelBuilder
 {
+    public record MeshExport(IMeshBuilder<MaterialBuilder> Mesh, bool UseSkinning, SubMesh? Submesh, IReadOnlyList<string>? Shapes);
+    
     public static IReadOnlyList<MeshExport> BuildMeshes(Model model, 
                                                  IReadOnlyList<MaterialBuilder> materials, 
                                                  IReadOnlyList<BoneNodeBuilder> boneMap, 

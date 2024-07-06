@@ -4,6 +4,7 @@ using FFXIVClientStructs.FFXIV.Shader;
 using Meddle.Utils.Export;
 using Meddle.Utils.Models;
 using SharpGLTF.Materials;
+using CustomizeParameter = Meddle.Utils.Export.CustomizeParameter;
 
 namespace Meddle.Utils.Materials;
 
@@ -15,8 +16,8 @@ public static partial class MaterialUtility
         SKTexture diffuse = material.GetTexture(TextureUsage.g_SamplerDiffuse).ToTexture((normal.Width, normal.Height));
         SKTexture mask = material.GetTexture(TextureUsage.g_SamplerMask).ToTexture((normal.Width, normal.Height)); // emissive, reflection/cubemap, iris
 
-        var leftIrisColor = parameters.LeftColor.ToVector4();
-        //var rightIrisColor = parameters.RightColor.ToVector4(); // based on vertex color, not texture
+        var leftIrisColor = parameters.LeftColor;
+        //var rightIrisColor = parameters.RightColor; // based on vertex info, not texture
         
         var outDiffuse = new SKTexture(normal.Width, normal.Height);
         var outNormal = new SKTexture(normal.Width, normal.Height);

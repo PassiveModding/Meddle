@@ -15,8 +15,6 @@ public unsafe class Model
     public IReadOnlyList<Material?> Materials { get; private set; }
     public IReadOnlyList<Mesh> Meshes { get; private set; }
     public IReadOnlyList<ModelShape> Shapes { get; private set; }
-    public uint ShapesMask { get; private set; }
-    public uint AttributesMask { get; private set; }
     public IReadOnlyList<string> EnabledShapes { get; private set; }
     public IReadOnlyList<string> EnabledAttributes { get; private set; }
     
@@ -36,33 +34,7 @@ public unsafe class Model
         InitFromFile(mdlGroup.MdlFile);
     }
     
-    public Model(MdlFile file, string handlePath,
-                 IReadOnlyDictionary<string, ShpkFile> shpkFiles, 
-                 IReadOnlyDictionary<string, MtrlFile> materialFiles, 
-                 IReadOnlyDictionary<string, TexFile> textureFiles)
-    {
-        HandlePath = handlePath;
-        RaceCode = RaceDeformer.ParseRaceCode(Path);
-        
-        var materials = new Material[file.ModelHeader.MaterialCount];
-        var materialNames = file.GetMaterialNames();
-        for (var i = 0; i < file.ModelHeader.MaterialCount; ++i)
-        {
-            var materialName = materialNames[(int)file.MaterialNameOffsets[i]];
-            if (!materialFiles.TryGetValue(materialName, out var mtrlFile))
-                throw new ArgumentException($"Material {materialName} not found");
-            
-            // first file ending in name
-            var shaderPackage = shpkFiles.FirstOrDefault(x => x.Key.EndsWith(mtrlFile.GetShaderPackageName())).Value;
-            materials[i] = new Material(mtrlFile, materialName, shaderPackage, textureFiles);
-        }
-        
-        Materials = materials;
-        
-        InitFromFile(file);
-    }
-    
-        private void InitFromFile(MdlFile file)
+    private void InitFromFile(MdlFile file)
     {
         const int lodIdx = 0;
         var lod = file.Lods[lodIdx];

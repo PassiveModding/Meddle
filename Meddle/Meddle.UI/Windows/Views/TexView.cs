@@ -9,15 +9,13 @@ namespace Meddle.UI.Windows.Views;
 
 public class TexView : IView
 {
-    public TexView(IndexHashTableEntry hash, TexFile texFile, ImageHandler imageHandler, string? path)
+    public TexView(TexFile texFile, ImageHandler imageHandler, string? path)
     {
-        this.hash = hash;
         this.texFile = texFile;
         this.imageHandler = imageHandler;
         this.path = path;
     }
 
-    private readonly IndexHashTableEntry hash;
     private readonly TexFile texFile;
     private readonly Dictionary<(int arrayLevel, int mipLevel, int slice), (Image image, nint binding)> imageCache = new();
     private int arrayLevel;
@@ -48,7 +46,7 @@ public class TexView : IView
         }
 
         // keep aspect ratio and fit in the available space
-        if (ImGui.Button($"Save frame as png##{hash.Hash:X8}"))
+        if (ImGui.Button($"Save frame as png##{texFile.GetHashCode()}"))
         {
             var data = ImageUtils.GetTexData(texFile, arrayLevel, mipLevel, slice);
             var outFolder = Path.Combine(Program.DataDirectory, "SqPackFiles");
@@ -57,7 +55,7 @@ public class TexView : IView
                 Directory.CreateDirectory(outFolder);
             }
 
-            string fileName = path != null ? Path.GetFileNameWithoutExtension(path) : hash.Hash.ToString();
+            string fileName = path != null ? Path.GetFileNameWithoutExtension(path) : "Unk";
             
             var outPath = Path.Combine(outFolder, $"{fileName}.png");
             File.WriteAllBytes(outPath, ImageUtils.ImageAsPng(data).ToArray());
@@ -84,7 +82,7 @@ public class TexView : IView
     {
         if (meta.ArraySize > 1)
         {
-            ImGui.InputInt($"ArrayLevel##{hash.Hash}", ref arrayLevel);
+            ImGui.InputInt($"ArrayLevel##{texFile.GetHashCode()}", ref arrayLevel);
             if (this.arrayLevel >= meta.ArraySize)
             {
                 arrayLevel = 0;
@@ -101,7 +99,7 @@ public class TexView : IView
 
         if (meta.MipLevels > 1)
         {
-            ImGui.InputInt($"MipLevel##{hash.Hash}", ref mipLevel);
+            ImGui.InputInt($"MipLevel##{texFile.GetHashCode()}", ref mipLevel);
             if (this.mipLevel >= meta.MipLevels)
             {
                 mipLevel = 0;
@@ -118,7 +116,7 @@ public class TexView : IView
 
         if (meta.Depth > 1)
         {
-            ImGui.InputInt($"Slice##{hash.Hash}", ref slice);
+            ImGui.InputInt($"Slice##{texFile.GetHashCode()}", ref slice);
             if (this.slice >= meta.Depth)
             {
                 slice = 0;

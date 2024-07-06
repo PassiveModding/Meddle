@@ -1,10 +1,9 @@
 ﻿using System.Globalization;
 using System.Numerics;
 using System.Text.RegularExpressions;
-using SharpGLTF.Scenes;
 using SharpGLTF.Transforms;
 
-namespace Meddle.Utils.Havok;
+namespace Meddle.Utils.Skeletons.Havok;
 
 public static class XmlUtils
 {

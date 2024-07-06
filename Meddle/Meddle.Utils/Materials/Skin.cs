@@ -6,6 +6,7 @@ using Meddle.Utils.Files;
 using Meddle.Utils.Models;
 using SharpGLTF.Materials;
 using SkiaSharp;
+using CustomizeParameter = Meddle.Utils.Export.CustomizeParameter;
 
 namespace Meddle.Utils.Materials;
 

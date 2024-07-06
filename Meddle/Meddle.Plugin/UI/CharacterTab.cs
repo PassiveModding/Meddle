@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Dalamud.Game.ClientState.Objects.Types;
@@ -6,25 +5,25 @@ using Dalamud.Interface.Textures;
 using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
-using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
-using FFXIVClientStructs.FFXIV.Shader;
 using ImGuiNET;
+using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
-using Meddle.Utils.Files.Structs.Material;
 using Meddle.Utils.Materials;
 using Meddle.Utils.Models;
-using SharpGLTF.Materials;
-using SharpGLTF.Scenes;
-using SkiaSharp;
+using Meddle.Utils.Skeletons;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
+using CustomizeParameter = FFXIVClientStructs.FFXIV.Shader.CustomizeParameter;
 
 namespace Meddle.Plugin.UI;
 
 public unsafe partial class CharacterTab : ITab
 {
+    public string Name => "Character";
+    public int Order => 0;
+    
     private readonly IClientState clientState;
     private readonly InteropService interopService;
     private readonly IPluginLog log;
@@ -50,10 +49,6 @@ public unsafe partial class CharacterTab : ITab
 
     private ICharacter? SelectedCharacter { get; set; }
 
-    public string Name => "Character";
-
-    public int Order => 0;
-
     public void Draw()
     {
         if (!interopService.IsResolved) return;
@@ -72,16 +67,14 @@ public unsafe partial class CharacterTab : ITab
         }
         else
         {
+            // login/char creator produces "invalid" characters but are still usable I guess
             objects = objectTable.OfType<ICharacter>()
                                  .Where(obj => IsValidCharacter(obj))
                                  .OrderBy(c => GetDistanceToLocalPlayer(c).LengthSquared())
                                  .ToArray();
         }
 
-        if (SelectedCharacter == null)
-        {
-            SelectedCharacter = objects.FirstOrDefault() ?? clientState.LocalPlayer;
-        }
+        SelectedCharacter ??= objects.FirstOrDefault() ?? clientState.LocalPlayer;
 
         ImGui.Text("Select Character");
         var preview = SelectedCharacter != null ? GetCharacterDisplayText(SelectedCharacter) : "None";
@@ -127,7 +120,7 @@ public unsafe partial class CharacterTab : ITab
             ImGui.TextWrapped("No character selected");
         }
         
-        DrawCache();
+        DrawCharacterGroup();
     }
 
     private Vector3 GetDistanceToLocalPlayer(IGameObject obj)
@@ -143,109 +136,142 @@ public unsafe partial class CharacterTab : ITab
             $"{obj.Address:X8}:{obj.GameObjectId:X} - {obj.ObjectKind} - {(string.IsNullOrWhiteSpace(obj.Name.TextValue) ? "Unnamed" : obj.Name.TextValue)} - {GetDistanceToLocalPlayer(obj).Length():0.00}y";
     }
 
-    private record CharacterGroup(CustomizeParameter CustomizeParams, CustomizeData CustomizeData, Model.MdlGroup[] MdlGroups);
-    private CharacterGroup? characterGroup;
+    private ExportUtil.CharacterGroup? characterGroup;
     
-    private unsafe void DrawCache()
+    private void DrawCharacterGroup()
     {
         if (characterGroup == null)
         {
+            ImGui.Text("No character group");
             return;
         }
         
-        // draw customizeparams
-        ImGui.Text("Customize Parameters");
-        var skinColor = characterGroup.CustomizeParams.SkinColor.ToVector4();
-        ImGui.ColorEdit4("Skin Color", ref skinColor);
-        var skinFresnelValue = characterGroup.CustomizeParams.SkinFresnelValue0.ToVector4();
-        ImGui.ColorEdit4("Skin Fresnel Value", ref skinFresnelValue);
-        var lipColor = characterGroup.CustomizeParams.LipColor.ToVector4();
-        ImGui.ColorEdit4("Lip Color", ref lipColor);
-        var mainColor = characterGroup.CustomizeParams.MainColor.ToVector3();
-        ImGui.ColorEdit3("Main Color", ref mainColor);
-        var hairFresnelValue = characterGroup.CustomizeParams.HairFresnelValue0.ToVector3();
-        ImGui.ColorEdit3("Hair Fresnel Value", ref hairFresnelValue);
-        var meshColor = characterGroup.CustomizeParams.MeshColor.ToVector3();
-        ImGui.ColorEdit3("Mesh Color", ref meshColor);
-        var leftColor = characterGroup.CustomizeParams.LeftColor.ToVector4();
-        ImGui.ColorEdit4("Left Color", ref leftColor);
-        var rightColor = characterGroup.CustomizeParams.RightColor.ToVector4();
-        ImGui.ColorEdit4("Right Color", ref rightColor);
-        var optionColor = characterGroup.CustomizeParams.OptionColor.ToVector3();
-        ImGui.ColorEdit3("Option Color", ref optionColor);
+        var availWidth = ImGui.GetContentRegionAvail().X;
+        ImGui.Columns(2, "Customize", true);
+        try
+        {        
+            ImGui.SetColumnWidth(0, availWidth * 0.8f);
+            ImGui.Text("Customize Parameters");
+            ImGui.NextColumn();
+            ImGui.Text("Customize Data");
+            ImGui.NextColumn();
+            ImGui.Separator();
+            // draw customizeparams
+            var customizeParams = characterGroup.CustomizeParams;
+            UIUtil.DrawCustomizeParams(ref customizeParams);
+            ImGui.NextColumn();
+            // draw customize data
         
-        // draw customize data
-        ImGui.Text("Customize Data");
-        var lipstick = characterGroup.CustomizeData.Lipstick;
-        ImGui.Checkbox("Lipstick", ref lipstick);
-        var highlights = characterGroup.CustomizeData.Highlights;
-        ImGui.Checkbox("Highlights", ref highlights);
-
+            var customizeData = characterGroup.CustomizeData;
+            UIUtil.DrawCustomizeData(customizeData);
+            ImGui.NextColumn();
+        } 
+        finally
+        {
+            ImGui.Columns(1);
+        }
         
-        var canParse = exportTask == null || exportTask.IsCompleted;
-        ImGui.BeginDisabled(!canParse);
-        if (ImGui.Button("Export All"))
+        WrapCanParse(() =>
         {
-            Export(characterGroup);
-        }
+            if (ImGui.Button($"Export All##{characterGroup.GetHashCode()}"))
+            {
+                exportTask = Task.Run(() => ExportUtil.Export(characterGroup));
+            }
 
-        if (ImGui.Button("Export Raw Textures"))
+            if (ImGui.Button($"Export Raw Textures##{characterGroup.GetHashCode()}"))
+            {
+                exportTask = Task.Run(() => ExportUtil.ExportRawTextures(characterGroup));
+            }
+        });
+
+        if (ImGui.CollapsingHeader("Export Individual"))
         {
-            ExportRawTextures(characterGroup);
+            WrapCanParse(() =>
+            {
+                var selectedCount = SelectedModels.Count(x => characterGroup.MdlGroups.Any(y => y.Path == x.Key && x.Value));
+                if (ImGui.Button($"Export {selectedCount} Selected Models##{characterGroup.GetHashCode()}") && selectedCount > 0)
+                {
+                    var selectedModels = characterGroup.MdlGroups
+                                            .Where(
+                                                x => SelectedModels.TryGetValue(x.Path, out var selected) && selected)
+                                            .ToArray();
+                    var group = characterGroup with {MdlGroups = selectedModels};
+                    exportTask = Task.Run(() => ExportUtil.Export(group));
+                }
+            });
+            
+            ImGui.Columns(2, "ExportIndividual", true);
+            try
+            {
+                // set size
+                ImGui.SetColumnWidth(0, availWidth * 0.2f);
+                ImGui.Text("Export");
+                ImGui.NextColumn();
+                ImGui.Text("Path");
+                ImGui.NextColumn();
+                foreach (var mdlGroup in characterGroup.MdlGroups)
+                {
+                    ImGui.PushID(mdlGroup.GetHashCode());
+                    WrapCanParse(() =>
+                    {
+                        if (ImGui.Button("Export"))
+                        {
+                            var group = characterGroup with {MdlGroups = [mdlGroup]};
+                            exportTask = Task.Run(() => ExportUtil.Export(group));
+                        }
+                    });
+            
+                    if (!SelectedModels.TryGetValue(mdlGroup.Path, out var selected))
+                    {
+                        selected = false;
+                        SelectedModels[mdlGroup.Path] = selected;
+                    }
+                    
+                    ImGui.SameLine();
+                    if (ImGui.Checkbox($"##{mdlGroup.GetHashCode()}", ref selected))
+                    {
+                        SelectedModels[mdlGroup.Path] = selected;
+                    }
+            
+                    ImGui.NextColumn();
+                    ImGui.Text(mdlGroup.Path);
+                    ImGui.NextColumn();
+                    ImGui.PopID();
+                }
+            } 
+            finally
+            {
+                ImGui.Columns(1);
+            }
         }
-        ImGui.EndDisabled();
+        
         
         foreach (var mdlGroup in characterGroup.MdlGroups)
         {
-            if (ImGui.CollapsingHeader($"{mdlGroup.Path}##{mdlGroup.GetHashCode()}"))
+            ImGui.PushID(mdlGroup.GetHashCode());
+            if (ImGui.CollapsingHeader(mdlGroup.Path))
             {
-                DrawMdlGroup(mdlGroup, characterGroup.CustomizeParams, characterGroup.CustomizeData);
+                ImGui.Indent();
+                DrawMdlGroup(mdlGroup);
+                ImGui.Unindent();
             }
+            ImGui.PopID();
         }
     }
-
-    private void ExportRawTextures(CharacterGroup characterGroup1)
+    
+    private Dictionary<string, bool> SelectedModels = new();
+    
+    private void WrapCanParse(Action action)
     {
-        exportTask = Task.Run(() =>
+        var canParse = exportTask == null || exportTask.IsCompleted;
+        ImGui.BeginDisabled(!canParse);
+        try
         {
-            try
-            {
-                var folder = Path.Combine(Plugin.TempDirectory, "output", "textures");
-                if (!Directory.Exists(folder))
-                {
-                    Directory.CreateDirectory(folder);
-                }
-                else
-                {
-                    // delete and recreate
-                    Directory.Delete(folder, true);
-                    Directory.CreateDirectory(folder);
-                }
-
-                foreach (var mdlGroup in characterGroup1.MdlGroups)
-                {
-                    foreach (var mtrlGroup in mdlGroup.MtrlFiles)
-                    {
-                        foreach (var texGroup in mtrlGroup.TexFiles)
-                        {
-                            var outputPath = Path.Combine(folder, $"{Path.GetFileNameWithoutExtension(texGroup.Path)}.png");
-                            var texture = new Texture(texGroup.TexFile, texGroup.Path, null, null, null);
-                            var str = new SKDynamicMemoryWStream();
-                            texture.ToTexture().Bitmap.Encode(str, SKEncodedImageFormat.Png, 100);
-
-                            var data = str.DetachAsData().AsSpan();
-                            File.WriteAllBytes(outputPath, data.ToArray());
-                        }
-                    }
-                }
-                Process.Start("explorer.exe", folder);
-            }
-            catch (Exception e)
-            {
-                log.Error(e, "Failed to export textures");
-                throw;
-            }
-        });
+            action();
+        } finally
+        {
+            ImGui.EndDisabled();
+        }
     }
 
     private Vector3 Normalize(Vector3 v)
@@ -289,9 +315,9 @@ public unsafe partial class CharacterTab : ITab
             OptionColor = Normalize(customizeParams.OptionColor)
         };
         var customize = human->Customize;
+        var skeleton = new Skeleton(human->Skeleton);
         exportTask = Task.Run(() =>
         {
-
             var mdlGroups = new List<Model.MdlGroup>();
             for (int i = 0; i < human->SlotCount; i++)
             {
@@ -360,138 +386,16 @@ public unsafe partial class CharacterTab : ITab
                 mdlGroups.Add(new Model.MdlGroup(mdlFileName, mdlFile, mtrlGroups.ToArray()));
             }
             
-            characterGroup = new CharacterGroup(customizeParams, customize, mdlGroups.ToArray());
-        });
-    }
-
-    private void Export(CharacterGroup characterGroup)
-    {
-        exportTask = Task.Run(() =>
-        {
-            try
-            {
-                var scene = new SceneBuilder();
-
-                foreach (var mdlGroup in characterGroup.MdlGroups)
-                {
-                    if (mdlGroup.Path.Contains("b0003_top")) continue;
-                    log.Information("Exporting {Path}", mdlGroup.Path);
-                    var model = new Model(mdlGroup);
-                    var materials = new List<MaterialBuilder>();
-                    //Parallel.ForEach(mdlGroup.MtrlFiles, mtrlGroup =>
-                    foreach (var mtrlGroup in mdlGroup.MtrlFiles)
-                    {
-                        log.Information("Exporting {Path}", mtrlGroup.Path);
-                        var material = new Material(mtrlGroup);
-                        var name =
-                            $"{Path.GetFileNameWithoutExtension(material.HandlePath)}_{Path.GetFileNameWithoutExtension(material.ShaderPackageName)}";
-                        var builder = material.ShaderPackageName switch
-                        {
-                            "bg.shpk" => MaterialUtility.BuildBg(material, name),
-                            "bgprop.shpk" => MaterialUtility.BuildBgProp(material, name),
-                            "character.shpk" => MaterialUtility.BuildCharacter(material, name),
-                            "characterocclusion.shpk" => MaterialUtility.BuildCharacterOcclusion(material, name),
-                            "characterlegacy.shpk" => MaterialUtility.BuildCharacterLegacy(material, name),
-                            "charactertattoo.shpk" => MaterialUtility.BuildCharacterTattoo(
-                                material, name, characterGroup.CustomizeParams, characterGroup.CustomizeData),
-                            "hair.shpk" => MaterialUtility.BuildHair(material, name, characterGroup.CustomizeParams,
-                                                                     characterGroup.CustomizeData),
-                            "skin.shpk" => MaterialUtility.BuildSkin(material, name, characterGroup.CustomizeParams,
-                                                                     characterGroup.CustomizeData),
-                            "iris.shpk" => MaterialUtility.BuildIris(material, name, characterGroup.CustomizeParams,
-                                                                     characterGroup.CustomizeData),
-                            _ => MaterialUtility.BuildFallback(material, name)
-                        };
-
-                        materials.Add(builder);
-                    }
-
-                    var bones = Array.Empty<BoneNodeBuilder>();
-                    var boneNodes = bones.Cast<NodeBuilder>().ToArray();
-                    var meshes = ModelBuilder.BuildMeshes(model, materials, bones, null);
-                    foreach (var mesh in meshes)
-                    {
-                        InstanceBuilder instance;
-                        if (mesh.UseSkinning && boneNodes.Length > 0)
-                        {
-                            instance = scene.AddSkinnedMesh(mesh.Mesh, Matrix4x4.Identity, boneNodes);
-                        }
-                        else
-                        {
-                            instance = scene.AddRigidMesh(mesh.Mesh, Matrix4x4.Identity);
-                        }
-
-                        //ApplyMeshShapes(instance, model, mesh.Shapes);
-
-                        // Remove subMeshes that are not enabled
-                        if (mesh.Submesh != null)
-                        {
-                            // Reaper eye go away (might not be necessary since DT)
-                            if (mesh.Submesh.Attributes.Contains("atr_eye_a"))
-                            {
-                                instance.Remove();
-                            }
-                            else if (!mesh.Submesh.Attributes.All(model.EnabledAttributes.Contains))
-                            {
-                                instance.Remove();
-                            }
-                        }
-                    }
-                }
-
-
-                var sceneGraph = scene.ToGltf2();
-                var outputPath = Path.Combine(Plugin.TempDirectory, "output", "model.mdl");
-                var folder = Path.GetDirectoryName(outputPath) ?? "output";
-                if (!Directory.Exists(folder))
-                {
-                    Directory.CreateDirectory(folder);
-                }
-                else
-                {
-                    // delete and recreate
-                    Directory.Delete(folder, true);
-                    Directory.CreateDirectory(folder);
-                }
-
-                // replace extension with gltf
-                outputPath = Path.ChangeExtension(outputPath, ".gltf");
-
-                sceneGraph.SaveGLTF(outputPath);
-                Process.Start("explorer.exe", folder);
-            }
-            catch (Exception e)
-            {
-                log.Error(e, "Failed to export character");
-                throw;
-            }
+            characterGroup = new ExportUtil.CharacterGroup(
+                new Meddle.Utils.Export.CustomizeParameter(customizeParams), 
+                customize, 
+                mdlGroups.ToArray(),
+                skeleton);
         });
     }
     
-    private static void ApplyMeshShapes(InstanceBuilder builder, Model model, IReadOnlyList<string>? appliedShapes)
+    private void DrawMdlGroup(Model.MdlGroup mdlGroup)
     {
-        if (model.Shapes.Count == 0 || appliedShapes == null) return;
-
-        // This will set the morphing value to 1 if the shape is enabled, 0 if not
-        var shapes = model.Shapes
-                          .Where(x => appliedShapes.Contains(x.Name))
-                          .Select(x => (x, model.EnabledShapes.Contains(x.Name)));
-        builder.Content.UseMorphing().SetValue(shapes.Select(x => x.Item2 ? 1f : 0).ToArray());
-    }
-
-    
-    private void DrawMdlGroup(
-        Model.MdlGroup mdlGroup, CustomizeParameter characterGroupCustomizeParams, CustomizeData characterGroupCustomizeData)
-    {
-        var canParse = exportTask == null || exportTask.IsCompleted;
-        ImGui.BeginDisabled(!canParse);
-        if (ImGui.Button("Export"))
-        {
-            var group = new CharacterGroup(characterGroupCustomizeParams, characterGroupCustomizeData, new[] {mdlGroup});
-            Export(group);
-        }
-        ImGui.EndDisabled();
-        
         ImGui.Text($"Path: {mdlGroup.Path}");
         ImGui.Text($"Mtrl Files: {mdlGroup.MtrlFiles.Length}");
         try
@@ -499,7 +403,8 @@ public unsafe partial class CharacterTab : ITab
             ImGui.Indent();
             foreach (var mtrlGroup in mdlGroup.MtrlFiles)
             {
-                if (ImGui.CollapsingHeader($"{mtrlGroup.Path}##{mtrlGroup.GetHashCode()}"))
+                ImGui.PushID(mtrlGroup.GetHashCode());
+                if (ImGui.CollapsingHeader($"{mtrlGroup.Path}"))
                 {
                     try
                     {
@@ -510,6 +415,7 @@ public unsafe partial class CharacterTab : ITab
                         ImGui.Unindent();
                     }
                 }
+                ImGui.PopID();
             }
         }
         finally
@@ -620,7 +526,7 @@ public unsafe partial class CharacterTab : ITab
         
         if (ImGui.CollapsingHeader($"Color Table##{mtrlGroup.GetHashCode()}"))
         {
-            DrawColorTable(mtrlGroup.MtrlFile);
+            UIUtil.DrawColorTable(mtrlGroup.MtrlFile);
         }
         
         foreach (var texGroup in mtrlGroup.TexFiles)
@@ -635,7 +541,14 @@ public unsafe partial class CharacterTab : ITab
     private void DrawTexGroup(Texture.TexGroup texGroup)
     {
         ImGui.Text($"Path: {texGroup.Path}");
-        DrawTexFile(texGroup.Path, texGroup.TexFile);
+        ImGui.PushID(texGroup.GetHashCode());
+        try
+        {
+            DrawTexFile(texGroup.Path, texGroup.TexFile);
+        } finally
+        {
+            ImGui.PopID();
+        }
     }
 
     private enum Channel : int
@@ -648,9 +561,9 @@ public unsafe partial class CharacterTab : ITab
         All = Red | Green | Blue | Alpha
     }
     
-    private Dictionary<string, TextureImage> textureCache = new();
+    private readonly Dictionary<string, TextureImage> textureCache = new();
     private record TextureImage(Texture Texture, SKTexture Bitmap, IDalamudTextureWrap Wrap);
-    private Dictionary<string, Channel> channelCache = new();
+    private readonly Dictionary<string, Channel> channelCache = new();
     private void DrawTexFile(string path, TexFile file)
     {
         ImGui.Text($"Width: {file.Header.Width}");
@@ -665,12 +578,28 @@ public unsafe partial class CharacterTab : ITab
             channelCache[path] = channels;
         }
         
-        ImGui.Text("Channels");
         var channelsInt = (int)channels;
-        bool changed = ImGui.CheckboxFlags($"Red##{path}", ref channelsInt, (int)Channel.Red) ||
-            ImGui.CheckboxFlags($"Green##{path}", ref channelsInt, (int)Channel.Green) ||
-            ImGui.CheckboxFlags($"Blue##{path}", ref channelsInt, (int)Channel.Blue) ||
-            ImGui.CheckboxFlags($"Alpha##{path}", ref channelsInt, (int)Channel.Alpha);
+        var changed = false;
+        ImGui.Text("Channels");
+        if (ImGui.CheckboxFlags($"Red##{path}", ref channelsInt, (int)Channel.Red))
+        {
+            changed = true;
+        }
+        ImGui.SameLine();
+        if (ImGui.CheckboxFlags($"Green##{path}", ref channelsInt, (int)Channel.Green))
+        {
+            changed = true;
+        }
+        ImGui.SameLine();
+        if (ImGui.CheckboxFlags($"Blue##{path}", ref channelsInt, (int)Channel.Blue))
+        {
+            changed = true;
+        }
+        ImGui.SameLine();
+        if (ImGui.CheckboxFlags($"Alpha##{path}", ref channelsInt, (int)Channel.Alpha))
+        {
+            changed = true;
+        }
         channels = (Channel)channelsInt;
         channelCache[path] = channels;
         
@@ -729,9 +658,9 @@ public unsafe partial class CharacterTab : ITab
                 }
             }
             
-            
-            var pixelsCopy = new byte[bitmap.Bitmap.GetPixelSpan().Length];
-            bitmap.Bitmap.GetPixelSpan().CopyTo(pixelsCopy);
+            var pixelSpan = bitmap.Bitmap.GetPixelSpan();
+            var pixelsCopy = new byte[pixelSpan.Length];
+            pixelSpan.CopyTo(pixelsCopy);
             var wrap = textureProvider.CreateFromRaw(
                 RawImageSpecification.Rgba32(file.Header.Width, file.Header.Height), pixelsCopy,
                 "Meddle.Texture");
@@ -756,190 +685,12 @@ public unsafe partial class CharacterTab : ITab
         
         ImGui.Image(textureImage.Wrap.ImGuiHandle, new Vector2(displayWidth, displayHeight));
 
-        if (ImGui.Button($"Export as .png##{path}"))
+        if (ImGui.Button($"Export as .png"))
         {
-            var outputPath = Path.Combine(Path.GetTempPath(), "Meddle.Export", "output", $"{Path.GetFileNameWithoutExtension(path)}.png");
-            var folder = Path.GetDirectoryName(outputPath) ?? "output";
-            if (!Directory.Exists(folder))
-            {
-                Directory.CreateDirectory(folder);
-            }
-            else
-            {
-                // delete and recreate
-                Directory.Delete(folder, true);
-                Directory.CreateDirectory(folder);
-            }
-            
-            var str = new SKDynamicMemoryWStream();
-            textureImage.Bitmap.Bitmap.Encode(str, SKEncodedImageFormat.Png, 100);
-
-            var data = str.DetachAsData().AsSpan();
-            File.WriteAllBytes(outputPath, data.ToArray());
-            Process.Start("explorer.exe", folder);
+            ExportUtil.ExportTexture(textureImage.Bitmap.Bitmap, path);
         }
     }
     
-    private void DrawColorTable(MtrlFile file)
-    {
-        ImGui.Text($"Color Table: {file.HasTable}");
-        ImGui.Text($"Dye Table: {file.HasDyeTable}");
-        ImGui.Text($"Extended Color Table: {file.LargeColorTable}");
-        if (!file.HasTable)
-        {
-            return;
-        }
-
-        ImGui.Columns(9, "ColorTable", true);
-        ImGui.Text("Row");
-        ImGui.NextColumn();
-        ImGui.Text("Diffuse");
-        ImGui.NextColumn();
-        ImGui.Text("Specular");
-        ImGui.NextColumn();
-        ImGui.Text("Emissive");
-        ImGui.NextColumn();
-        ImGui.Text("Material Repeat");
-        ImGui.NextColumn();
-        ImGui.Text("Material Skew");
-        ImGui.NextColumn();
-        ImGui.Text("Specular");
-        ImGui.NextColumn();
-        ImGui.Text("Gloss");
-        ImGui.NextColumn();
-        ImGui.Text("Tile Set");
-        ImGui.NextColumn();
-
-        for (var i = 0; i < (file.LargeColorTable ? ColorTable.NumRows : ColorTable.LegacyNumRows); i++)
-        {
-            if (file.LargeColorTable)
-            {
-                DrawRow(i, file);
-            }
-            else
-            {
-                DrawLegacyRow(i, file);
-            }
-        }
-
-        ImGui.Columns(1);
-    }
-
-    private void DrawRow(int i, MtrlFile file)
-    {
-        ref var row = ref file.ColorTable.GetRow(i);
-        ImGui.Text($"{i}");
-        ImGui.NextColumn();
-        ImGui.ColorButton($"##rowdiff", new Vector4(row.Diffuse, 1f), ImGuiColorEditFlags.NoAlpha);
-        if (file.HasDyeTable)
-        {
-            ImGui.SameLine();
-            var diff = file.ColorDyeTable[i].Diffuse;
-            ImGui.Checkbox($"##rowdiff", ref diff);
-        }
-
-        ImGui.NextColumn();
-        ImGui.ColorButton($"##rowspec", new Vector4(row.Specular, 1f), ImGuiColorEditFlags.NoAlpha);
-        if (file.HasDyeTable)
-        {
-            ImGui.SameLine();
-            var spec = file.ColorDyeTable[i].Specular;
-            ImGui.Checkbox($"##rowspec", ref spec);
-        }
-
-        ImGui.NextColumn();
-        ImGui.ColorButton($"##rowemm", new Vector4(row.Emissive, 1f), ImGuiColorEditFlags.NoAlpha);
-        if (file.HasDyeTable)
-        {
-            ImGui.SameLine();
-            var emm = file.ColorDyeTable[i].Emissive;
-            ImGui.Checkbox($"##rowemm", ref emm);
-        }
-
-        ImGui.NextColumn();
-        ImGui.Text($"{row.MaterialRepeat}");
-        ImGui.NextColumn();
-        ImGui.Text($"{row.MaterialSkew}");
-        ImGui.NextColumn();
-        if (file.HasDyeTable)
-        {
-            var specStr = file.ColorDyeTable[i].SpecularStrength;
-            ImGui.Checkbox($"##rowspecstr", ref specStr);
-            ImGui.SameLine();
-        }
-
-        ImGui.Text($"{row.SpecularStrength}");
-        ImGui.NextColumn();
-        if (file.HasDyeTable)
-        {
-            var gloss = file.ColorDyeTable[i].Gloss;
-            ImGui.Checkbox($"##rowgloss", ref gloss);
-            ImGui.SameLine();
-        }
-
-        ImGui.Text($"{row.GlossStrength}");
-        ImGui.NextColumn();
-        ImGui.Text($"{row.TileSet}");
-        ImGui.NextColumn();
-    }
-
-    private void DrawLegacyRow(int i, MtrlFile file)
-    {
-        ref var row = ref file.ColorTable.GetLegacyRow(i);
-        ImGui.Text($"{i}");
-        ImGui.NextColumn();
-        ImGui.ColorButton($"##rowdiff", new Vector4(row.Diffuse, 1f), ImGuiColorEditFlags.NoAlpha);
-        if (file.HasDyeTable)
-        {
-            ImGui.SameLine();
-            var diff = file.ColorDyeTable[i].Diffuse;
-            ImGui.Checkbox($"##rowdiff", ref diff);
-        }
-
-        ImGui.NextColumn();
-        ImGui.ColorButton($"##rowspec", new Vector4(row.Specular, 1f), ImGuiColorEditFlags.NoAlpha);
-        if (file.HasDyeTable)
-        {
-            ImGui.SameLine();
-            var spec = file.ColorDyeTable[i].Specular;
-            ImGui.Checkbox($"##rowspec", ref spec);
-        }
-
-        ImGui.NextColumn();
-        ImGui.ColorButton($"##rowemm", new Vector4(row.Emissive, 1f), ImGuiColorEditFlags.NoAlpha);
-        if (file.HasDyeTable)
-        {
-            ImGui.SameLine();
-            var emm = file.ColorDyeTable[i].Emissive;
-            ImGui.Checkbox($"##rowemm", ref emm);
-        }
-
-        ImGui.NextColumn();
-        ImGui.Text($"{row.MaterialRepeat}");
-        ImGui.NextColumn();
-        ImGui.Text($"{row.MaterialSkew}");
-        ImGui.NextColumn();
-        if (file.HasDyeTable)
-        {
-            var specStr = file.ColorDyeTable[i].SpecularStrength;
-            ImGui.Checkbox($"##rowspecstr", ref specStr);
-            ImGui.SameLine();
-        }
-
-        ImGui.Text($"{row.SpecularStrength}");
-        ImGui.NextColumn();
-        if (file.HasDyeTable)
-        {
-            var gloss = file.ColorDyeTable[i].Gloss;
-            ImGui.Checkbox($"##rowgloss", ref gloss);
-            ImGui.SameLine();
-        }
-
-        ImGui.Text($"{row.GlossStrength}");
-        ImGui.NextColumn();
-        ImGui.Text($"{row.TileSet}");
-        ImGui.NextColumn();
-    }
     
     public static bool IsValidCharacter(ICharacter obj)
     {

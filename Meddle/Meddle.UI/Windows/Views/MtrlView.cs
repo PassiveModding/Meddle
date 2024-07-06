@@ -35,7 +35,7 @@ public class MtrlView : IView
                 {
                     var texFile = new TexFile(sqFile.Value.file.RawData);
                     texFiles.Add(value, texFile);
-                    var texView = new TexView(sqFile.Value.hash, texFile, imageHandler, value);
+                    var texView = new TexView(texFile, imageHandler, value);
                     texViews.Add(value, texView);
                 }
                 else
@@ -57,7 +57,8 @@ public class MtrlView : IView
             {
                 shpkFile = new ShpkFile(shpkSqFile.Value.file.RawData);
                 shpkView = new ShpkView(shpkFile, path);
-                material = new Material(file, file.GetShaderPackageName(), shpkFile, texFiles);
+                var mtrlGroup = new Material.MtrlGroup("unknown.mdl", file, path, shpkFile, texFiles.Select(x => new Texture.TexGroup(x.Key, x.Value)).ToArray());
+                material = new Material(mtrlGroup);
             }
         }
         catch (Exception e)

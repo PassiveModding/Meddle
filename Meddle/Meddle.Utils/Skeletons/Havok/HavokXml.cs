@@ -3,7 +3,7 @@ using System.Xml;
 // ReSharper disable NotAccessedField.Global
 // ReSharper disable MemberCanBePrivate.Global
 
-namespace Meddle.Utils.Havok;
+namespace Meddle.Utils.Skeletons.Havok;
 
 public class HavokXml {
     public readonly XmlSkeleton[] Skeletons;

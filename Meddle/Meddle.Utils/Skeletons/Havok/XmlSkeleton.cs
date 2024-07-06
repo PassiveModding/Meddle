@@ -3,7 +3,7 @@
 // ReSharper disable MemberCanBePrivate.Global
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
-namespace Meddle.Utils.Havok;
+namespace Meddle.Utils.Skeletons.Havok;
 
 /// <summary>Representation of a skeleton in XML data.</summary>
 public class XmlSkeleton {

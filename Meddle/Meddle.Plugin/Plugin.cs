@@ -3,6 +3,7 @@ using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Meddle.Plugin.UI;
+using Meddle.Plugin.Utils;
 using Meddle.Utils;
 //using Meddle.Plugin.UI.Shared;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,7 +27,6 @@ public sealed class Plugin : IDalamudPlugin
                            .AddDalamud(pluginInterface)
                            .AddUi()
                            .AddSingleton(pluginInterface)
-                           .AddSingleton<ModelBuilder>()
                            .AddSingleton<InteropService>()
                            .BuildServiceProvider();
             log = services.GetRequiredService<IPluginLog>();
@@ -50,7 +50,9 @@ public sealed class Plugin : IDalamudPlugin
             {
                 var interop = services.GetRequiredService<InteropService>();
                 interop.Initialize();
-                OpenUi(); // temp
+                #if DEBUG
+                    OpenUi();
+                #endif
             });
         }
         catch (Exception e)

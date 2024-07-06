@@ -4,6 +4,7 @@ using FFXIVClientStructs.FFXIV.Shader;
 using Meddle.Utils.Export;
 using Meddle.Utils.Models;
 using SharpGLTF.Materials;
+using CustomizeParameter = Meddle.Utils.Export.CustomizeParameter;
 
 namespace Meddle.Utils.Materials;
 
@@ -44,7 +45,7 @@ public static partial class MaterialUtility
             var normalPixel = refNormal[x, y].ToVector4();
             
             // Base color
-            var hairColor = parameters.MainColor.ToVector3();
+            var hairColor = parameters.MainColor;
 
             if (hairType == HairType.Face)
             {
