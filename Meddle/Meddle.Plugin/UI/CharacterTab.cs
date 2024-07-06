@@ -78,30 +78,30 @@ public unsafe partial class CharacterTab : ITab
         if (clientState.LocalPlayer != null)
         {
             objects = objectTable.OfType<ICharacter>()
-                                 .Where(obj => obj.IsValid() && IsValidCharacter(obj))
-                                 .OrderBy(c => GetDistanceToLocalPlayer(c).LengthSquared())
+                                 .Where(obj => obj.IsValid() && obj.IsValidCharacter())
+                                 .OrderBy(c => clientState.GetDistanceToLocalPlayer(c).LengthSquared())
                                  .ToArray();
         }
         else
         {
             // login/char creator produces "invalid" characters but are still usable I guess
             objects = objectTable.OfType<ICharacter>()
-                                 .Where(obj => IsValidCharacter(obj))
-                                 .OrderBy(c => GetDistanceToLocalPlayer(c).LengthSquared())
+                                 .Where(obj => obj.IsValidCharacter())
+                                 .OrderBy(c => clientState.GetDistanceToLocalPlayer(c).LengthSquared())
                                  .ToArray();
         }
 
         SelectedCharacter ??= objects.FirstOrDefault() ?? clientState.LocalPlayer;
 
         ImGui.Text("Select Character");
-        var preview = SelectedCharacter != null ? GetCharacterDisplayText(SelectedCharacter) : "None";
+        var preview = SelectedCharacter != null ? clientState.GetCharacterDisplayText(SelectedCharacter) : "None";
         using (var combo = ImRaii.Combo("##Character", preview))
         {
             if (combo)
             {
                 foreach (var character in objects)
                 {
-                    if (ImGui.Selectable(GetCharacterDisplayText(character)))
+                    if (ImGui.Selectable(clientState.GetCharacterDisplayText(character)))
                     {
                         SelectedCharacter = character;
                     }
@@ -139,20 +139,7 @@ public unsafe partial class CharacterTab : ITab
         
         DrawCharacterGroup();
     }
-
-    private Vector3 GetDistanceToLocalPlayer(IGameObject obj)
-    {
-        if (clientState.LocalPlayer is {Position: var charPos})
-            return Vector3.Abs(obj.Position - charPos);
-        return new Vector3(obj.YalmDistanceX, 0, obj.YalmDistanceZ);
-    }
-
-    private string GetCharacterDisplayText(ICharacter obj)
-    {
-        return
-            $"{obj.Address:X8}:{obj.GameObjectId:X} - {obj.ObjectKind} - {(string.IsNullOrWhiteSpace(obj.Name.TextValue) ? "Unnamed" : obj.Name.TextValue)} - {GetDistanceToLocalPlayer(obj).Length():0.00}y";
-    }
-
+    
     private ExportUtil.CharacterGroup? characterGroup;
     
     private void DrawCharacterGroup()
@@ -826,24 +813,6 @@ public unsafe partial class CharacterTab : ITab
         }
     }
     
-    
-    public static bool IsValidCharacter(ICharacter obj)
-    {
-        var drawObject = ((CSCharacter*)obj.Address)->GameObject.DrawObject;
-        if (drawObject == null)
-            return false;
-        if (drawObject->Object.GetObjectType() != ObjectType.CharacterBase)
-            return false;
-        if (((CharacterBase*)drawObject)->GetModelType() != CharacterBase.ModelType.Human)
-            return false;
-
-        if (!drawObject->IsVisible)
-        {
-            return false;
-        }
-        
-        return true;
-    }
     
     public void Dispose() 
     { 
