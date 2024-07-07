@@ -291,7 +291,8 @@ public class SqPackWindow
         Model,
         Material,
         Sklb,
-        Shpk
+        Shpk,
+        Pbd
     }
 
     private int sliceStartIndex;
@@ -552,6 +553,7 @@ public class SqPackWindow
                 SelectedFileType.Model => view ?? new MdlView(new MdlFile(file.RawData), path),
                 SelectedFileType.Sklb => view ?? new SklbView(new SklbFile(file.RawData), config),
                 SelectedFileType.Shpk => view ?? new ShpkView(new ShpkFile(file.RawData), path),
+                SelectedFileType.Pbd => view ?? new PbdView(new PbdFile(file.RawData)),
                 SelectedFileType.None => view ?? new DefaultView(hash, file),
                 _ => view ?? new DefaultView(hash, file)
             };
@@ -572,6 +574,9 @@ public class SqPackWindow
             SelectedFileType.Texture => ".tex",
             SelectedFileType.Model => ".mdl",
             SelectedFileType.Material => ".mtrl",
+            SelectedFileType.Sklb => ".sklb",
+            SelectedFileType.Shpk => ".shpk",
+            SelectedFileType.Pbd => ".pbd",
             _ => ""
         };
     }
@@ -585,6 +590,7 @@ public class SqPackWindow
             ".mtrl" => SelectedFileType.Material,
             ".sklb" => SelectedFileType.Sklb,
             ".shpk" => SelectedFileType.Shpk,
+            ".pbd" => SelectedFileType.Pbd,
             _ => SelectedFileType.None
         };
     }
