@@ -544,6 +544,36 @@ public unsafe partial class CharacterTab : ITab
                 mdlGroups.ToArray(),
                 skeleton);
         }
+        else if (modelType == CharacterBase.ModelType.Monster)
+        {
+            var monster = (Monster*)drawObject;
+            var skeleton = new Skeleton.Skeleton(monster->Skeleton);
+            var customizeParams = new Meddle.Utils.Export.CustomizeParameter();
+            var customizeData = new CustomizeData();
+            var genderRace = GenderRace.Unknown;
+            var mdlGroups = new List<Model.MdlGroup>();
+            foreach (var modelPtr in monster->ModelsSpan)
+            {
+                var model = modelPtr.Value;
+                if (model == null)
+                {
+                    continue;
+                }
+                
+                var mdlGroup = HandleModelPtr(model);
+                if (mdlGroup != null)
+                {
+                    mdlGroups.Add(mdlGroup);
+                }
+            }
+            
+            characterGroup = new ExportUtil.CharacterGroup(
+                customizeParams, 
+                customizeData, 
+                genderRace,
+                mdlGroups.ToArray(),
+                skeleton);
+        }
         else
         {
             throw new InvalidOperationException($"Unsupported model type: {modelType}");
