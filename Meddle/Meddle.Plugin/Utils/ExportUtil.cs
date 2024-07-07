@@ -33,21 +33,22 @@ public class ExportUtil
         this.pack = pack;
     }
     
-    public void ExportTexture(SKBitmap bitmap, string path)
+    private string GetPathForOutput()
     {
-        var outputPath = Path.Combine(Path.GetTempPath(), "Meddle.Export", "output", $"{Path.GetFileNameWithoutExtension(path)}.png");
-        var folder = Path.GetDirectoryName(outputPath);
-        if (folder == null) throw new InvalidOperationException("Failed to get directory");
+        var now = DateTime.Now;
+        var folder = Path.Combine(Plugin.TempDirectory, "output", now.ToString("yyyy-MM-dd-HH-mm-ss"));
         if (!Directory.Exists(folder))
         {
             Directory.CreateDirectory(folder);
         }
-        else
-        {
-            // delete and recreate
-            Directory.Delete(folder, true);
-            Directory.CreateDirectory(folder);
-        }
+
+        return folder;
+    }
+    
+    public void ExportTexture(SKBitmap bitmap, string path)
+    {
+        var folder = GetPathForOutput();
+        var outputPath = Path.Combine(folder, $"{Path.GetFileNameWithoutExtension(path)}.png");
             
         var str = new SKDynamicMemoryWStream();
         bitmap.Encode(str, SKEncodedImageFormat.Png, 100);
@@ -61,17 +62,7 @@ public class ExportUtil
     {
         try
         {
-            var folder = Path.Combine(Plugin.TempDirectory, "output", "textures");
-            if (!Directory.Exists(folder))
-            {
-                Directory.CreateDirectory(folder);
-            }
-            else
-            {
-                // delete and recreate
-                Directory.Delete(folder, true);
-                Directory.CreateDirectory(folder);
-            }
+            var folder = GetPathForOutput();
 
             foreach (var mdlGroup in characterGroup.MdlGroups)
             {
@@ -193,22 +184,8 @@ public class ExportUtil
             }
 
             var sceneGraph = scene.ToGltf2();
-            var outputPath = Path.Combine(Plugin.TempDirectory, "output", "model.mdl");
-            var folder = Path.GetDirectoryName(outputPath) ?? "output";
-            if (!Directory.Exists(folder))
-            {
-                Directory.CreateDirectory(folder);
-            }
-            else
-            {
-                // delete and recreate
-                Directory.Delete(folder, true);
-                Directory.CreateDirectory(folder);
-            }
-
-            // replace extension with gltf
-            outputPath = Path.ChangeExtension(outputPath, ".gltf");
-
+            var folder = GetPathForOutput();
+            var outputPath = Path.Combine(folder, "character.gltf");
             sceneGraph.SaveGLTF(outputPath);
             Process.Start("explorer.exe", folder);
         }
