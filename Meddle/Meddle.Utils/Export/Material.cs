@@ -54,7 +54,6 @@ public enum SpecularMode : uint
 public enum MaterialConstant : uint
 {
     g_AlphaThreshold = 0x29AC0223,
-    unk_NormalMapScale = 0x5351646E, // skin, might be used to adjust normal strength
     g_ShaderID = 0x59BDA0B1,
     g_DiffuseColor = 0x2C2A34DD,
     g_SpecularColor = 0x141722D5,

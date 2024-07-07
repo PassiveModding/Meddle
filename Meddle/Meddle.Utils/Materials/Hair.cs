@@ -17,8 +17,6 @@ public static partial class MaterialUtility
             hairType = (HairType)key.Value;
         }
         
-        //var normalScale = material.GetConstantOrDefault(MaterialConstant.g_NormalScale, 1.0f);
-        
         SKTexture normal = material.GetTexture(TextureUsage.g_SamplerNormal).ToTexture();
         SKTexture mask = material.GetTexture(TextureUsage.g_SamplerMask).ToTexture();
         
@@ -72,8 +70,11 @@ public static partial class MaterialUtility
         var doubleSided = (material.ShaderFlags & 0x1) == 0;
         output.WithDoubleSide(doubleSided);
 
+        
+        var normalScale = material.GetConstantOrDefault(MaterialConstant.g_NormalScale, 1.0f);
+        
         output.WithBaseColor(BuildImage(outDiffuse, name, "diffuse"))
-              .WithNormal(BuildImage(outNormal, name, "normal"));
+              .WithNormal(BuildImage(outNormal, name, "normal"), normalScale);
         
         var alphaThreshold = material.GetConstantOrDefault(MaterialConstant.g_AlphaThreshold, 0.0f);
         if (alphaThreshold > 0)

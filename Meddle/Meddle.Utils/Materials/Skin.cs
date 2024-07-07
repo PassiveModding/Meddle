@@ -77,10 +77,7 @@ public static partial class MaterialUtility
 
         var output = new MaterialBuilder(name);
         output.WithBaseColor(BuildImage(diffuseTexture, name, "diffuse"));
-        
-        var normalMapScale = material.GetConstantOrDefault(MaterialConstant.unk_NormalMapScale, 1.0f);
-        output.WithNormal(BuildImage(normalTexture, name, "normal"), normalMapScale);
-        
+        output.WithNormal(BuildImage(normalTexture, name, "normal"));
         
         var alphaThreshold = material.GetConstantOrDefault(MaterialConstant.g_AlphaThreshold, 0.0f);
         if (alphaThreshold > 0)
