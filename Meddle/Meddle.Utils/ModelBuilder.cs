@@ -36,7 +36,7 @@ public static class ModelBuilder
                 {
                     var match = jointLut.FirstOrDefault(x => x.BoneName.Equals(boneName, StringComparison.Ordinal));
                     if (match == default)
-                        throw new Exception($"Bone {boneName} not found in bone map.");
+                        throw new Exception($"Bone {boneName} on {model.HandlePath} not found in bone map.");
                     jointIdMapping.Add(match.i);
                 }
 

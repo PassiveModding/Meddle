@@ -55,8 +55,8 @@ public unsafe partial class CharacterTab : ITab
         this.framework = framework;
         this.dataManager = dataManager;
         this.textureProvider = textureProvider;
-        // chara/xls/boneDeformer/human.pbd
-        var pbdData = dataManager.GameData.GetFile("chara/xls/boneDeformer/human.pbd");
+        // chara/xls/bonedeformer/human.pbd
+        var pbdData = dataManager.GameData.GetFile("chara/xls/bonedeformer/human.pbd");
         if (pbdData == null)
         {
             throw new Exception("Failed to load human.pbd");

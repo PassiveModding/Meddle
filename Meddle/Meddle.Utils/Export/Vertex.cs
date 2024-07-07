@@ -130,7 +130,7 @@ public unsafe struct Vertex
                 vertex.Position = VertexItem.ConvertTo<Vector4>(item);
                 break;
             case VertexUsage.BlendWeights:
-                vertex.BlendWeights = VertexItem.ConvertTo<Vector4>(item);
+                vertex.BlendWeights = VertexItem.ConvertTo<Vector4>(item) / 255f;
                 break;
             case VertexUsage.BlendIndices:
                 var itemVector = VertexItem.ConvertTo<Vector4>(item);

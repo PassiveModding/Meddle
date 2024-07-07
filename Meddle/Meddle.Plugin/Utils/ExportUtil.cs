@@ -153,9 +153,6 @@ public class ExportUtil
                 var boneNodes = bones.Cast<NodeBuilder>().ToArray();
                 (GenderRace, RaceDeformer)? raceDeformerValue = pbd != null ? (characterGroup.GenderRace, new RaceDeformer(pbd, bones)) : null;
 
-                // TEMP until I figure out
-                raceDeformerValue = null;
-                
                 var meshes = ModelBuilder.BuildMeshes(model, materials, bones, raceDeformerValue);
                 foreach (var mesh in meshes)
                 {
