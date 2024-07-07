@@ -7,6 +7,7 @@ using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
 using Meddle.Utils.Materials;
+using Meddle.Utils.Models;
 using Meddle.Utils.Skeletons;
 using Meddle.Utils.Skeletons.Havok;
 using SharpGLTF.Materials;
@@ -281,5 +282,93 @@ public class ExportUtil
                           .Where(x => appliedShapes.Contains(x.Name))
                           .Select(x => (x, enabledShapes.Contains(x.Name)));
         builder.Content.UseMorphing().SetValue(shapes.Select(x => x.Item2 ? 1f : 0).ToArray());
+    }
+
+    public record Resource(string mdlPath, Vector3 position, Quaternion rotation, Vector3 scale);
+    public void ExportResource(Resource[] resources, Vector3 rootPosition)
+    {
+        try
+        {
+            var scene = new SceneBuilder();
+            var materialCache = new Dictionary<string, MaterialBuilder>();
+            foreach (var resource in resources)
+            {
+                var mdlFileData = pack.GetFile(resource.mdlPath);
+                if (mdlFileData == null) throw new InvalidOperationException("Failed to get resource");
+                var data = mdlFileData.Value.file.RawData;
+                var mdlFile = new MdlFile(data);
+                var mtrlGroups = new List<Material.MtrlGroup>();
+                foreach (var (mtrlOff, mtrlPath) in mdlFile.GetMaterialNames())
+                {
+                    if (mtrlPath.StartsWith('/')) throw new InvalidOperationException($"Relative path found on material {mtrlPath}");
+                    var mtrlResource = pack.GetFile(mtrlPath);
+                    if (mtrlResource == null) throw new InvalidOperationException("Failed to get mtrl resource");
+                    var mtrlData = mtrlResource.Value.file.RawData;
+                    
+                    var mtrlFile = new MtrlFile(mtrlData);
+                    
+                    var shpkPath = mtrlFile.GetShaderPackageName();
+                    var shpkResource = pack.GetFile($"shader/sm5/shpk/{shpkPath}");
+                    if (shpkResource == null) throw new InvalidOperationException("Failed to get shpk resource");
+                    var shpkFile = new ShpkFile(shpkResource.Value.file.RawData);
+                    var texGroups = new List<Texture.TexGroup>();
+                    foreach (var (texOff, texPath) in mtrlFile.GetTexturePaths())
+                    {
+                        var texResource = pack.GetFile(texPath);
+                        if (texResource == null) throw new InvalidOperationException("Failed to get tex resource");
+                        var texData = texResource.Value.file.RawData;
+                        var texFile = new TexFile(texData);
+                        texGroups.Add(new Texture.TexGroup(texPath, texFile));
+                    }
+
+                    mtrlGroups.Add(new Material.MtrlGroup(mtrlPath, mtrlFile, shpkPath, shpkFile, texGroups.ToArray()));
+                }
+                
+                var model = new Model(new Model.MdlGroup(resource.mdlPath, mdlFile, mtrlGroups.ToArray(), null));
+                var materials = new List<MaterialBuilder>();
+                foreach (var mtrlGroup in mtrlGroups)
+                {
+                    if (materialCache.TryGetValue(mtrlGroup.Path, out var builder))
+                    {
+                        materials.Add(builder);
+                        continue;
+                    }
+                    var material = new Material(mtrlGroup);
+                    var name =
+                        $"{Path.GetFileNameWithoutExtension(material.HandlePath)}_{Path.GetFileNameWithoutExtension(material.ShaderPackageName)}";
+                    builder = material.ShaderPackageName switch
+                    {
+                        "bg.shpk" => MaterialUtility.BuildBg(material, name),
+                        "bgprop.shpk" => MaterialUtility.BuildBgProp(material, name),
+                        _ => MaterialUtility.BuildFallback(material, name)
+                    };
+
+                    materials.Add(builder);
+                    materialCache[mtrlGroup.Path] = builder;
+                }
+                
+                var meshes = ModelBuilder.BuildMeshes(model, materials, [], null);
+                var position = Matrix4x4.CreateTranslation(resource.position - rootPosition);
+                var rotation = Matrix4x4.CreateFromQuaternion(resource.rotation);
+                var scale = Matrix4x4.CreateScale(resource.scale);
+                var transform = position * rotation * scale;
+                
+                foreach (var mesh in meshes)
+                {
+                    scene.AddRigidMesh(mesh.Mesh, transform);
+                }
+            }
+            
+            var sceneGraph = scene.ToGltf2();
+            var folder = GetPathForOutput();
+            var outputPath = Path.Combine(folder, "resource.gltf");
+            sceneGraph.SaveGLTF(outputPath);
+            Process.Start("explorer.exe", folder);
+        }
+        catch (Exception e)
+        {
+            Service.Log.Error(e, "Failed to export resource");
+            throw;
+        }
     }
 }

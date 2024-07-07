@@ -1,11 +1,13 @@
 ﻿using System.Numerics;
 using System.Runtime.InteropServices;
+using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface.Textures;
 using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Memory;
 using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using FFXIVClientStructs.Interop;
@@ -78,7 +80,7 @@ public unsafe partial class CharacterTab : ITab
         if (clientState.LocalPlayer != null)
         {
             objects = objectTable.OfType<ICharacter>()
-                                 .Where(obj => obj.IsValid() && obj.IsValidObject())
+                                 .Where(obj => obj.IsValid() && obj.IsValidCharacterBase())
                                  .OrderBy(c => clientState.GetDistanceToLocalPlayer(c).LengthSquared())
                                  .ToArray();
         }
@@ -86,7 +88,7 @@ public unsafe partial class CharacterTab : ITab
         {
             // login/char creator produces "invalid" characters but are still usable I guess
             objects = objectTable.OfType<ICharacter>()
-                                 .Where(obj => obj.IsValidCharacter())
+                                 .Where(obj => obj.IsValidHuman())
                                  .OrderBy(c => clientState.GetDistanceToLocalPlayer(c).LengthSquared())
                                  .ToArray();
         }
@@ -126,7 +128,7 @@ public unsafe partial class CharacterTab : ITab
                 
                 ImGui.BeginDisabled(!canParse);
                 if (ImGui.Button("Parse"))
-                {
+                {  
                     exportTask = Task.Run(() => ParseCharacter(SelectedCharacter));
                 }
                 ImGui.EndDisabled();

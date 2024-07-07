@@ -1,6 +1,7 @@
 ﻿using System.Numerics;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
 
@@ -8,7 +9,7 @@ namespace Meddle.Plugin.Utils;
 
 public static class ObjectUtil
 {
-    public static unsafe bool IsValidCharacter(this ICharacter obj)
+    public static unsafe bool IsValidHuman(this ICharacter obj)
     {
         var drawObject = ((CSCharacter*)obj.Address)->GameObject.DrawObject;
         if (drawObject == null)
@@ -26,7 +27,7 @@ public static class ObjectUtil
         return true;
     }
     
-    public static unsafe bool IsValidObject(this ICharacter obj)
+    public static unsafe bool IsValidCharacterBase(this ICharacter obj)
     {
         var drawObject = ((CSCharacter*)obj.Address)->GameObject.DrawObject;
         if (drawObject == null)
@@ -49,9 +50,9 @@ public static class ObjectUtil
         return new Vector3(obj.YalmDistanceX, 0, obj.YalmDistanceZ);
     }
 
-    public static unsafe string GetCharacterDisplayText(this IClientState clientState, ICharacter obj)
+    public static unsafe string GetCharacterDisplayText(this IClientState clientState, IGameObject obj)
     {
-        var drawObject = ((CSCharacter*)obj.Address)->GameObject.DrawObject;
+        var drawObject = ((GameObject*)obj.Address)->DrawObject;
         if (drawObject == null)
             return "Invalid Character";
         

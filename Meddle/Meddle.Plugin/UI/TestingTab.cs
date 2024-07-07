@@ -45,7 +45,7 @@ public class TestingTab : ITab
         if (clientState.LocalPlayer != null)
         {
             objects = objectTable.OfType<ICharacter>()
-                                 .Where(obj => obj.IsValid() && obj.IsValidCharacter())
+                                 .Where(obj => obj.IsValid() && obj.IsValidHuman())
                                  .OrderBy(c => clientState.GetDistanceToLocalPlayer(c).LengthSquared())
                                  .ToArray();
         }
@@ -53,7 +53,7 @@ public class TestingTab : ITab
         {
             // login/char creator produces "invalid" characters but are still usable I guess
             objects = objectTable.OfType<ICharacter>()
-                                 .Where(obj =>  obj.IsValidCharacter())
+                                 .Where(obj =>  obj.IsValidHuman())
                                  .OrderBy(c => clientState.GetDistanceToLocalPlayer(c).LengthSquared())
                                  .ToArray();
         }
