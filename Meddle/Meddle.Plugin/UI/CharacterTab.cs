@@ -1,4 +1,4 @@
-using System.Numerics;
+﻿using System.Numerics;
 using System.Runtime.InteropServices;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface.Textures;
@@ -308,6 +308,25 @@ public unsafe partial class CharacterTab : ITab
             }
             ImGui.PopID();
         }
+
+        if (characterGroup.AttachedModelGroups.Length > 0)
+        {
+            ImGui.Separator();
+            foreach (var attachedModelGroup in characterGroup.AttachedModelGroups)
+            {
+                foreach (var mdlGroup in attachedModelGroup.MdlGroups)
+                {
+                    ImGui.PushID(mdlGroup.GetHashCode());
+                    if (ImGui.CollapsingHeader(mdlGroup.Path))
+                    {
+                        ImGui.Indent();
+                        DrawMdlGroup(mdlGroup);
+                        ImGui.Unindent();
+                    }
+                    ImGui.PopID();
+                }
+            }
+        }
     }
     
     private Dictionary<string, bool> SelectedModels = new();
@@ -452,6 +471,30 @@ public unsafe partial class CharacterTab : ITab
         return new Model.MdlGroup(mdlFileName, mdlFile, mtrlGroups.ToArray(), shapeAttributeGroup);
     }
     
+    private ExportUtil.AttachedModelGroup HandleAttachGroup(CharacterBase* characterBase)
+    {
+        var attach = new Meddle.Plugin.Skeleton.Attach(characterBase->Attach);
+        var models = new List<Model.MdlGroup>();
+        var skeleton = new Skeleton.Skeleton(characterBase->Skeleton);
+        foreach (var modelPtr in characterBase->ModelsSpan)
+        {
+            var model = modelPtr.Value;
+            if (model == null)
+            {
+                continue;
+            }
+                        
+            var mdlGroup = HandleModelPtr(model);
+            if (mdlGroup != null)
+            {
+                models.Add(mdlGroup);
+            }
+        }
+
+        var attachGroup = new ExportUtil.AttachedModelGroup(attach, models.ToArray(), skeleton);
+        return attachGroup;
+    }
+    
     private void ParseCharacter(ICharacter character)
     {            
         var charPtr = (CSCharacter*)character.Address;
@@ -506,40 +549,59 @@ public unsafe partial class CharacterTab : ITab
                     mdlGroups.Add(mdlGroup);
                 }
             }
-
-            /*foreach (var childObject in human->ChildObjects)
+            
+            var attachGroups = new List<ExportUtil.AttachedModelGroup>();
+            // TODO: Mount/ornament/weapon
+            if (charPtr->Mount.MountObject != null)
             {
-                if (childObject == null)
+                var mountDrawObject = charPtr->Mount.MountObject->GameObject.DrawObject;
+                if (mountDrawObject != null && mountDrawObject->Object.GetObjectType() == ObjectType.CharacterBase)
                 {
-                    continue;
+                    var mountBase = (CharacterBase*)mountDrawObject;
+                    var attachGroup = HandleAttachGroup(mountBase);
+                    attachGroups.Add(attachGroup);
                 }
-                
-                var type = childObject->GetObjectType();
-                if (type != ObjectType.CharacterBase) continue;
-                
-                var csChildObject = (CharacterBase*)childObject;
-                foreach (var modelPtr in csChildObject->ModelsSpan)
+            }
+            
+            if (charPtr->OrnamentData.OrnamentObject != null)
+            {
+                var ornamentDrawObject = charPtr->OrnamentData.OrnamentObject->DrawObject;
+                if (ornamentDrawObject != null && ornamentDrawObject->Object.GetObjectType() == ObjectType.CharacterBase)
                 {
-                    var model = modelPtr.Value;
-                    if (model == null)
+                    var ornamentBase = (CharacterBase*)ornamentDrawObject;
+                    var attachGroup = HandleAttachGroup(ornamentBase);
+                    attachGroups.Add(attachGroup);
+                }
+            }
+
+            if (charPtr->DrawData.IsWeaponHidden == false)
+            {
+                var weaponDataSpan = charPtr->DrawData.WeaponData;
+                foreach (var weaponData in weaponDataSpan)
+                {
+                    var draw = weaponData.DrawObject;
+                    if (draw == null)
                     {
                         continue;
                     }
                     
-                    var mdlGroup = HandleModelPtr(model);
-                    if (mdlGroup != null)
+                    if (draw->Object.GetObjectType() != ObjectType.CharacterBase)
                     {
-                        mdlGroups.Add(mdlGroup);
+                        continue;
                     }
+                    var weaponBase = (CharacterBase*)draw;
+                    var attachGroup = HandleAttachGroup(weaponBase);
+                    attachGroups.Add(attachGroup);
                 }
-            }*/
+            }
             
             characterGroup = new ExportUtil.CharacterGroup(
                 exportCustomizeParams, 
                 exportCustomizeData, 
                 (GenderRace)human->RaceSexId,
                 mdlGroups.ToArray(),
-                skeleton);
+                skeleton,
+                attachGroups.ToArray());
         }
         else
         {
@@ -569,7 +631,8 @@ public unsafe partial class CharacterTab : ITab
                 customizeData, 
                 genderRace,
                 mdlGroups.ToArray(),
-                skeleton);
+                skeleton,
+                []);
         }
     }
     

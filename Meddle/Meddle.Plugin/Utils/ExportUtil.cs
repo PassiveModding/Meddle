@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
 using Dalamud.Plugin.Services;
+using Meddle.Plugin.Skeleton;
 using Meddle.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
@@ -22,7 +23,8 @@ public class ExportUtil
 {
     private readonly SqPack pack;
 
-    public record CharacterGroup(CustomizeParameter CustomizeParams, CustomizeData CustomizeData, GenderRace GenderRace, Model.MdlGroup[] MdlGroups, Skeleton.Skeleton Skeleton);
+    public record CharacterGroup(CustomizeParameter CustomizeParams, CustomizeData CustomizeData, GenderRace GenderRace, Model.MdlGroup[] MdlGroups, Skeleton.Skeleton Skeleton, AttachedModelGroup[] AttachedModelGroups);
+    public record AttachedModelGroup(Attach Attach, Model.MdlGroup[] MdlGroups, Skeleton.Skeleton Skeleton);
     public record CharacterGroupHK(CustomizeParameter CustomizeParams, CustomizeData CustomizeData, GenderRace GenderRace, Model.MdlGroup[] MdlGroups, IEnumerable<HavokXml> Skeletons);
     public record CharacterGroupCT(CustomizeParameter CustomizeParams, CustomizeData CustomizeData, GenderRace GenderRace, Model.MdlGroup[] MdlGroups, IEnumerable<HavokXml> Skeletons);
 
