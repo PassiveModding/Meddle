@@ -78,7 +78,7 @@ public unsafe partial class CharacterTab : ITab
         if (clientState.LocalPlayer != null)
         {
             objects = objectTable.OfType<ICharacter>()
-                                 .Where(obj => obj.IsValid() && obj.IsValidCharacter())
+                                 .Where(obj => obj.IsValid() && obj.IsValidObject())
                                  .OrderBy(c => clientState.GetDistanceToLocalPlayer(c).LengthSquared())
                                  .ToArray();
         }
@@ -369,125 +369,185 @@ public unsafe partial class CharacterTab : ITab
     }
 
     private Dictionary<string, MaterialResourceHandle.ColorTableRow[]> ColorTableRows = new();
+
+    private Model.MdlGroup? HandleModelPtr(FFXIVClientStructs.FFXIV.Client.Graphics.Render.Model* model)
+    {
+        if (model == null)
+            return null;
+        
+        var mdlFileName = model->ModelResourceHandle->ResourceHandle.FileName.ToString();
+        var mdlFileResource = dataManager.GameData.GetFile(mdlFileName);
+        if (mdlFileResource == null)
+        {
+            return null;
+        }
+
+        var shapesMask = model->EnabledShapeKeyIndexMask;
+        var shapes = new List<(string, short)>();
+        foreach (var shape in model->ModelResourceHandle->Shapes)
+        {
+            shapes.Add((MemoryHelper.ReadStringNullTerminated((nint)shape.Item1.Value), shape.Item2));
+        }
+        
+        var attributeMask = model->EnabledAttributeIndexMask;
+        var attributes = new List<(string, short)>();
+        foreach (var attribute in model->ModelResourceHandle->Attributes)
+        {
+            attributes.Add((MemoryHelper.ReadStringNullTerminated((nint)attribute.Item1.Value), attribute.Item2));
+        }
+        var shapeAttributeGroup = new Model.ShapeAttributeGroup(shapesMask, attributeMask, shapes.ToArray(), attributes.ToArray());
+        
+        var mdlFile = new MdlFile(mdlFileResource.DataSpan);
+        var mtrlGroups = new List<Material.MtrlGroup>();
+
+        for (var j = 0; j < model->MaterialsSpan.Length; j++)
+        {
+            var materialPtr = model->MaterialsSpan[j];
+            var material = materialPtr.Value;
+            if (material == null)
+            {
+                continue;
+            }
+
+            var tableLive = material->MaterialResourceHandle->ColorTableSpan;
+            var mtrlFileName = material->MaterialResourceHandle->ResourceHandle.FileName.ToString();
+            ColorTableRows[mtrlFileName] = tableLive.ToArray();
+            var shader = material->MaterialResourceHandle->ShpkNameString;
+
+            var mtrlFileResource = dataManager.GameData.GetFile(mtrlFileName);
+            if (mtrlFileResource == null)
+            {
+                continue;
+            }
+
+            var mtrlFile = new MtrlFile(mtrlFileResource.DataSpan);
+
+            var shpkFileResource = dataManager.GameData.GetFile($"shader/sm5/shpk/{shader}");
+            if (shpkFileResource == null)
+            {
+                continue;
+            }
+
+            var shpkFile = new ShpkFile(shpkFileResource.DataSpan);
+
+            var texGroups = new List<Texture.TexGroup>();
+
+            var textureNames = mtrlFile.GetTexturePaths().Select(x => x.Value).ToArray();
+            foreach (var textureName in textureNames)
+            {
+                var texFileResource = dataManager.GameData.GetFile(textureName);
+                if (texFileResource == null)
+                {
+                    continue;
+                }
+
+                var texFile = new TexFile(texFileResource.DataSpan);
+                texGroups.Add(new Texture.TexGroup(textureName, texFile));
+            }
+
+            mtrlGroups.Add(
+                new Material.MtrlGroup(mtrlFileName, mtrlFile, shader, shpkFile, texGroups.ToArray()));
+        }
+
+        return new Model.MdlGroup(mdlFileName, mdlFile, mtrlGroups.ToArray(), shapeAttributeGroup);
+    }
     
     private void ParseCharacter(ICharacter character)
     {            
         var charPtr = (CSCharacter*)character.Address;
-        var human = (Human*)charPtr->GameObject.DrawObject;
-        var customizeCBuf = human->CustomizeParameterCBuffer->TryGetBuffer<CustomizeParameter>();
-        var customizeParams = customizeCBuf[0];
-        var exportCustomizeParams = new Meddle.Utils.Export.CustomizeParameter
+        var drawObject = charPtr->GameObject.DrawObject;
+        if (drawObject == null)
         {
-            SkinColor = customizeParams.SkinColor,
-            SkinFresnelValue0 = customizeParams.SkinFresnelValue0,
-            LipColor = customizeParams.LipColor,
-            MainColor = customizeParams.MainColor,
-            HairFresnelValue0 = customizeParams.HairFresnelValue0,
-            MeshColor = customizeParams.MeshColor,
-            LeftColor = customizeParams.LeftColor,
-            RightColor = customizeParams.RightColor,
-            OptionColor = customizeParams.OptionColor
-        };
-        var customize = human->Customize;
-        var exportCustomizeData = new CustomizeData
-        {
-            LipStick = customize.Lipstick,
-            Highlights = customize.Highlights
-        };
-        var skeleton = new Skeleton.Skeleton(human->Skeleton);
-        var mdlGroups = new List<Model.MdlGroup>();
-        for (int i = 0; i < human->SlotCount; i++)
-        {
-            var model = human->Models[i];
-            if (model == null)
-            {
-                continue;
-            }
-
-            
-            var mdlFileName = model->ModelResourceHandle->ResourceHandle.FileName.ToString();
-            var mdlFileResource = dataManager.GameData.GetFile(mdlFileName);
-            if (mdlFileResource == null)
-            {
-                continue;
-            }
-
-            var shapesMask = model->EnabledShapeKeyIndexMask;
-            var shapes = new List<(string, short)>();
-            foreach (var shape in model->ModelResourceHandle->Shapes)
-            {
-                shapes.Add((MemoryHelper.ReadStringNullTerminated((nint)shape.Item1.Value), shape.Item2));
-            }
-            
-            var attributeMask = model->EnabledAttributeIndexMask;
-            var attributes = new List<(string, short)>();
-            foreach (var attribute in model->ModelResourceHandle->Attributes)
-            {
-                attributes.Add((MemoryHelper.ReadStringNullTerminated((nint)attribute.Item1.Value), attribute.Item2));
-            }
-            var shapeAttributeGroup = new Model.ShapeAttributeGroup(shapesMask, attributeMask, shapes.ToArray(), attributes.ToArray());
-            
-            var mdlFile = new MdlFile(mdlFileResource.DataSpan);
-            var mtrlGroups = new List<Material.MtrlGroup>();
-
-            for (var j = 0; j < model->MaterialsSpan.Length; j++)
-            {
-                var materialPtr = model->MaterialsSpan[j];
-                var material = materialPtr.Value;
-                if (material == null)
-                {
-                    continue;
-                }
-
-                var tableLive = material->MaterialResourceHandle->ColorTableSpan;
-                var mtrlFileName = material->MaterialResourceHandle->ResourceHandle.FileName.ToString();
-                ColorTableRows[mtrlFileName] = tableLive.ToArray();
-                var shader = material->MaterialResourceHandle->ShpkNameString;
-
-                var mtrlFileResource = dataManager.GameData.GetFile(mtrlFileName);
-                if (mtrlFileResource == null)
-                {
-                    continue;
-                }
-
-                var mtrlFile = new MtrlFile(mtrlFileResource.DataSpan);
-
-                var shpkFileResource = dataManager.GameData.GetFile($"shader/sm5/shpk/{shader}");
-                if (shpkFileResource == null)
-                {
-                    continue;
-                }
-
-                var shpkFile = new ShpkFile(shpkFileResource.DataSpan);
-
-                var texGroups = new List<Texture.TexGroup>();
-
-                var textureNames = mtrlFile.GetTexturePaths().Select(x => x.Value).ToArray();
-                foreach (var textureName in textureNames)
-                {
-                    var texFileResource = dataManager.GameData.GetFile(textureName);
-                    if (texFileResource == null)
-                    {
-                        continue;
-                    }
-
-                    var texFile = new TexFile(texFileResource.DataSpan);
-                    texGroups.Add(new Texture.TexGroup(textureName, texFile));
-                }
-
-                mtrlGroups.Add(
-                    new Material.MtrlGroup(mtrlFileName, mtrlFile, shader, shpkFile, texGroups.ToArray()));
-            }
-
-            mdlGroups.Add(new Model.MdlGroup(mdlFileName, mdlFile, mtrlGroups.ToArray(), shapeAttributeGroup));
+            return;
         }
         
-        characterGroup = new ExportUtil.CharacterGroup(
-            exportCustomizeParams, 
-            exportCustomizeData, 
-            (GenderRace)human->RaceSexId,
-            mdlGroups.ToArray(),
-            skeleton);
+        var objectType = drawObject->Object.GetObjectType();
+        if (objectType != ObjectType.CharacterBase)
+            throw new InvalidOperationException($"Object type is not CharacterBase: {objectType}");
+        
+        var modelType = ((CharacterBase*)drawObject)->GetModelType();
+
+        if (modelType == CharacterBase.ModelType.Human)
+        {
+            var human = (Human*)drawObject;
+            var customizeCBuf = human->CustomizeParameterCBuffer->TryGetBuffer<CustomizeParameter>();
+            var customizeParams = customizeCBuf[0];
+            var exportCustomizeParams = new Meddle.Utils.Export.CustomizeParameter
+            {
+                SkinColor = customizeParams.SkinColor,
+                SkinFresnelValue0 = customizeParams.SkinFresnelValue0,
+                LipColor = customizeParams.LipColor,
+                MainColor = customizeParams.MainColor,
+                HairFresnelValue0 = customizeParams.HairFresnelValue0,
+                MeshColor = customizeParams.MeshColor,
+                LeftColor = customizeParams.LeftColor,
+                RightColor = customizeParams.RightColor,
+                OptionColor = customizeParams.OptionColor
+            };
+            var customize = human->Customize;
+            var exportCustomizeData = new CustomizeData
+            {
+                LipStick = customize.Lipstick,
+                Highlights = customize.Highlights
+            };
+            var skeleton = new Skeleton.Skeleton(human->Skeleton);
+            var mdlGroups = new List<Model.MdlGroup>();
+            for (int i = 0; i < human->SlotCount; i++)
+            {
+                var model = human->Models[i];
+                if (model == null)
+                {
+                    continue;
+                }
+                
+                var mdlGroup = HandleModelPtr(model);
+                if (mdlGroup != null)
+                {
+                    mdlGroups.Add(mdlGroup);
+                }
+            }
+            
+            characterGroup = new ExportUtil.CharacterGroup(
+                exportCustomizeParams, 
+                exportCustomizeData, 
+                (GenderRace)human->RaceSexId,
+                mdlGroups.ToArray(),
+                skeleton);
+        }
+        else if (modelType == CharacterBase.ModelType.DemiHuman)
+        {
+            var demiHuman = (Demihuman*)drawObject;
+            var skeleton = new Skeleton.Skeleton(demiHuman->Skeleton);
+            var customizeParams = new Meddle.Utils.Export.CustomizeParameter();
+            var customizeData = new CustomizeData();
+            var genderRace = GenderRace.Unknown;
+            var mdlGroups = new List<Model.MdlGroup>();
+            foreach (var modelPtr in demiHuman->ModelsSpan)
+            {
+                var model = modelPtr.Value;
+                if (model == null)
+                {
+                    continue;
+                }
+                
+                var mdlGroup = HandleModelPtr(model);
+                if (mdlGroup != null)
+                {
+                    mdlGroups.Add(mdlGroup);
+                }
+            }
+            
+            characterGroup = new ExportUtil.CharacterGroup(
+                customizeParams, 
+                customizeData, 
+                genderRace,
+                mdlGroups.ToArray(),
+                skeleton);
+        }
+        else
+        {
+            throw new InvalidOperationException($"Unsupported model type: {modelType}");
+        }
     }
     
     private void DrawMdlGroup(Model.MdlGroup mdlGroup)
