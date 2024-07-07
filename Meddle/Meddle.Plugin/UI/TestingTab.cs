@@ -29,7 +29,9 @@ public class TestingTab : ITab
     
     public void Dispose()
     {
-        // TODO release managed resources here
+        shpkCache.Clear();
+        mtrlConstantCache.Clear();
+        materialCache.Clear();
     }
 
     public string Name => "Testing";
@@ -85,11 +87,11 @@ public class TestingTab : ITab
     private Dictionary<string, Pointer<Material>> materialCache = new();
     
     // only show values that are different from the shader default
-    private bool OnlyShowChanged;
+    private bool onlyShowChanged;
     
     public unsafe void DrawCharacter(ICharacter character)
     {
-        ImGui.Checkbox("Only Show Changed", ref OnlyShowChanged);
+        ImGui.Checkbox("Only Show Changed", ref onlyShowChanged);
         
         if (ImGui.Button("Restore all defaults"))
         {
@@ -242,7 +244,7 @@ public class TestingTab : ITab
                                             
                                             bool matchesDefault = defaults.SequenceEqual(mtrlDefault);
 
-                                            if (OnlyShowChanged && matchesDefault)
+                                            if (onlyShowChanged && matchesDefault)
                                             {
                                                 continue;
                                             }
