@@ -107,6 +107,15 @@ public class ExportUtil
             
             var scene = new SceneBuilder();
 
+            
+            var bones = SkeletonUtils.GetBoneMap(characterGroup.Skeleton, out var root);
+            //var bones = XmlUtils.GetBoneMap(characterGroup.Skeletons, out var root);
+            if (root != null)
+            {
+                scene.AddNode(root);
+            }
+            
+            var meshOutput = new List<(Model, ModelBuilder.MeshExport)>();
             foreach (var mdlGroup in characterGroup.MdlGroups)
             {
                 if (mdlGroup.Path.Contains("b0003_top")) continue;
@@ -142,44 +151,42 @@ public class ExportUtil
 
                     materials.Add(builder);
                 }
-
-                var bones = SkeletonUtils.GetBoneMap(characterGroup.Skeleton, out var root);
-                //var bones = XmlUtils.GetBoneMap(characterGroup.Skeletons, out var root);
-                if (root != null)
-                {
-                    scene.AddNode(root);
-                }
                 
-                var boneNodes = bones.Cast<NodeBuilder>().ToArray();
                 (GenderRace, RaceDeformer)? raceDeformerValue = pbd != null ? (characterGroup.GenderRace, new RaceDeformer(pbd, bones)) : null;
 
                 var meshes = ModelBuilder.BuildMeshes(model, materials, bones, raceDeformerValue);
                 foreach (var mesh in meshes)
                 {
-                    if (token.IsCancellationRequested) return;
+                    meshOutput.Add((model, mesh));
+                }
+            }
+
+            var boneNodes = bones.Cast<NodeBuilder>().ToArray();
+            foreach (var (model, mesh) in meshOutput)
+            {
+                if (token.IsCancellationRequested) return;
+                
+                InstanceBuilder instance;
+                if (mesh.UseSkinning && boneNodes.Length > 0)
+                {
+                    instance = scene.AddSkinnedMesh(mesh.Mesh, Matrix4x4.Identity, boneNodes);
+                }
+                else
+                {
+                    instance = scene.AddRigidMesh(mesh.Mesh, Matrix4x4.Identity);
+                }
+
+                ApplyMeshShapes(instance, model, mesh.Shapes);
+
+                // Remove subMeshes that are not enabled
+                if (mesh.Submesh != null)
+                {
+                    var enabledAttributes = Model.GetEnabledValues(model.EnabledAttributeMask, 
+                                                                   model.AttributeMasks);
                     
-                    InstanceBuilder instance;
-                    if (mesh.UseSkinning && boneNodes.Length > 0)
+                    if (!mesh.Submesh.Attributes.All(enabledAttributes.Contains))
                     {
-                        instance = scene.AddSkinnedMesh(mesh.Mesh, Matrix4x4.Identity, boneNodes);
-                    }
-                    else
-                    {
-                        instance = scene.AddRigidMesh(mesh.Mesh, Matrix4x4.Identity);
-                    }
-
-                    ApplyMeshShapes(instance, model, mesh.Shapes);
-
-                    // Remove subMeshes that are not enabled
-                    if (mesh.Submesh != null)
-                    {
-                        var enabledAttributes = Model.GetEnabledValues(model.EnabledAttributeMask, 
-                                                                       model.AttributeMasks);
-                        
-                        if (!mesh.Submesh.Attributes.All(enabledAttributes.Contains))
-                        {
-                            instance.Remove();
-                        }
+                        instance.Remove();
                     }
                 }
             }
