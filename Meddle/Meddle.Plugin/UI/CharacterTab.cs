@@ -141,6 +141,47 @@ public unsafe partial class CharacterTab : ITab
     }
     
     private ExportUtil.CharacterGroup? characterGroup;
+
+    private void DrawSkeleton(Skeleton.Skeleton skeleton)
+    {
+        ImGui.Indent();
+        foreach (var partialSkeleton in skeleton.PartialSkeletons)
+        {
+            if (ImGui.CollapsingHeader($"Partial Skeleton Connected At {partialSkeleton.ConnectedBoneIndex}"))
+            {
+                ImGui.Indent();
+                var hkSkeleton = partialSkeleton.HkSkeleton;
+                if (hkSkeleton == null)
+                {
+                    continue;
+                }
+
+                ImGui.Text($"ConnectedBoneIdx: {partialSkeleton.ConnectedBoneIndex}");
+                ImGui.Columns(3);
+                ImGui.Text("Bone Names");
+                ImGui.NextColumn();
+                ImGui.Text("Bone Parents");
+                ImGui.NextColumn();
+                ImGui.Text("Transform");
+                ImGui.NextColumn();
+                for (var i = 0; i < hkSkeleton.BoneNames.Count; i++)
+                {
+                    ImGui.Text(hkSkeleton.BoneNames[i]);
+                    ImGui.NextColumn();
+                    ImGui.Text($"{hkSkeleton.BoneParents[i]}");
+                    ImGui.NextColumn();
+                    var transform = hkSkeleton.ReferencePose[i].AffineTransform;
+                    ImGui.Text($"Scale: {transform.Scale}");
+                    ImGui.Text($"Rotation: {transform.Rotation}");
+                    ImGui.Text($"Translation: {transform.Translation}");
+                    ImGui.NextColumn();
+                }
+                ImGui.Columns(1);
+                ImGui.Unindent();
+            }
+        }
+        ImGui.Unindent();
+    }
     
     private void DrawCharacterGroup()
     {
@@ -251,6 +292,10 @@ public unsafe partial class CharacterTab : ITab
             }
         }
         
+        if (ImGui.CollapsingHeader("Skeletons"))
+        {
+            DrawSkeleton(characterGroup.Skeleton);
+        }
         
         foreach (var mdlGroup in characterGroup.MdlGroups)
         {
