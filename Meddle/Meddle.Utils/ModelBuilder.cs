@@ -15,7 +15,7 @@ public static class ModelBuilder
     {
         var meshes = new List<MeshExport>();
         (RaceDeformer deformer, ushort from, ushort to)? deform = null;
-        if (raceDeformer != null)
+        if (raceDeformer != null && model.RaceCode != GenderRace.Unknown)
         {
             var rd = raceDeformer.Value;
             deform = (rd.deformer, (ushort)model.RaceCode, (ushort)rd.targetDeform);
