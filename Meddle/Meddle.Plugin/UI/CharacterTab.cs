@@ -492,9 +492,9 @@ public unsafe partial class CharacterTab : ITab
             };
             var skeleton = new Skeleton.Skeleton(human->Skeleton);
             var mdlGroups = new List<Model.MdlGroup>();
-            for (int i = 0; i < human->SlotCount; i++)
+            foreach (var modelPtr in human->ModelsSpan)
             {
-                var model = human->Models[i];
+                var model = modelPtr.Value;
                 if (model == null)
                 {
                     continue;
@@ -506,6 +506,33 @@ public unsafe partial class CharacterTab : ITab
                     mdlGroups.Add(mdlGroup);
                 }
             }
+
+            /*foreach (var childObject in human->ChildObjects)
+            {
+                if (childObject == null)
+                {
+                    continue;
+                }
+                
+                var type = childObject->GetObjectType();
+                if (type != ObjectType.CharacterBase) continue;
+                
+                var csChildObject = (CharacterBase*)childObject;
+                foreach (var modelPtr in csChildObject->ModelsSpan)
+                {
+                    var model = modelPtr.Value;
+                    if (model == null)
+                    {
+                        continue;
+                    }
+                    
+                    var mdlGroup = HandleModelPtr(model);
+                    if (mdlGroup != null)
+                    {
+                        mdlGroups.Add(mdlGroup);
+                    }
+                }
+            }*/
             
             characterGroup = new ExportUtil.CharacterGroup(
                 exportCustomizeParams, 
