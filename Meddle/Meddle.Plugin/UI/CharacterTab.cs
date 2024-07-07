@@ -330,6 +330,7 @@ public unsafe partial class CharacterTab : ITab
     }
     
     private Dictionary<string, bool> SelectedModels = new();
+    private Dictionary<string, bool> SelectedAttachedModels = new();
     
     private void WrapCanParse(Action action)
     {
@@ -509,131 +510,109 @@ public unsafe partial class CharacterTab : ITab
             throw new InvalidOperationException($"Object type is not CharacterBase: {objectType}");
         
         var modelType = ((CharacterBase*)drawObject)->GetModelType();
-
+        var characterBase = (CharacterBase*)drawObject;
+        Meddle.Utils.Export.CustomizeParameter customizeParams;
+        CustomizeData customizeData;
+        GenderRace genderRace;
         if (modelType == CharacterBase.ModelType.Human)
         {
             var human = (Human*)drawObject;
-            var customizeCBuf = human->CustomizeParameterCBuffer->TryGetBuffer<CustomizeParameter>();
-            var customizeParams = customizeCBuf[0];
-            var exportCustomizeParams = new Meddle.Utils.Export.CustomizeParameter
+            var customizeCBuf = human->CustomizeParameterCBuffer->TryGetBuffer<CustomizeParameter>()[0];
+            customizeParams = new Meddle.Utils.Export.CustomizeParameter
             {
-                SkinColor = customizeParams.SkinColor,
-                SkinFresnelValue0 = customizeParams.SkinFresnelValue0,
-                LipColor = customizeParams.LipColor,
-                MainColor = customizeParams.MainColor,
-                HairFresnelValue0 = customizeParams.HairFresnelValue0,
-                MeshColor = customizeParams.MeshColor,
-                LeftColor = customizeParams.LeftColor,
-                RightColor = customizeParams.RightColor,
-                OptionColor = customizeParams.OptionColor
+                SkinColor = customizeCBuf.SkinColor,
+                SkinFresnelValue0 = customizeCBuf.SkinFresnelValue0,
+                LipColor = customizeCBuf.LipColor,
+                MainColor = customizeCBuf.MainColor,
+                HairFresnelValue0 = customizeCBuf.HairFresnelValue0,
+                MeshColor = customizeCBuf.MeshColor,
+                LeftColor = customizeCBuf.LeftColor,
+                RightColor = customizeCBuf.RightColor,
+                OptionColor = customizeCBuf.OptionColor
             };
-            var customize = human->Customize;
-            var exportCustomizeData = new CustomizeData
+            customizeData = new CustomizeData
             {
-                LipStick = customize.Lipstick,
-                Highlights = customize.Highlights
+                LipStick = human->Customize.Lipstick,
+                Highlights = human->Customize.Highlights
             };
-            var skeleton = new Skeleton.Skeleton(human->Skeleton);
-            var mdlGroups = new List<Model.MdlGroup>();
-            foreach (var modelPtr in human->ModelsSpan)
-            {
-                var model = modelPtr.Value;
-                if (model == null)
-                {
-                    continue;
-                }
-                
-                var mdlGroup = HandleModelPtr(model);
-                if (mdlGroup != null)
-                {
-                    mdlGroups.Add(mdlGroup);
-                }
-            }
-            
-            var attachGroups = new List<ExportUtil.AttachedModelGroup>();
-            // TODO: Mount/ornament/weapon
-            if (charPtr->Mount.MountObject != null)
-            {
-                var mountDrawObject = charPtr->Mount.MountObject->GameObject.DrawObject;
-                if (mountDrawObject != null && mountDrawObject->Object.GetObjectType() == ObjectType.CharacterBase)
-                {
-                    var mountBase = (CharacterBase*)mountDrawObject;
-                    var attachGroup = HandleAttachGroup(mountBase);
-                    attachGroups.Add(attachGroup);
-                }
-            }
-            
-            if (charPtr->OrnamentData.OrnamentObject != null)
-            {
-                var ornamentDrawObject = charPtr->OrnamentData.OrnamentObject->DrawObject;
-                if (ornamentDrawObject != null && ornamentDrawObject->Object.GetObjectType() == ObjectType.CharacterBase)
-                {
-                    var ornamentBase = (CharacterBase*)ornamentDrawObject;
-                    var attachGroup = HandleAttachGroup(ornamentBase);
-                    attachGroups.Add(attachGroup);
-                }
-            }
-
-            if (charPtr->DrawData.IsWeaponHidden == false)
-            {
-                var weaponDataSpan = charPtr->DrawData.WeaponData;
-                foreach (var weaponData in weaponDataSpan)
-                {
-                    var draw = weaponData.DrawObject;
-                    if (draw == null)
-                    {
-                        continue;
-                    }
-                    
-                    if (draw->Object.GetObjectType() != ObjectType.CharacterBase)
-                    {
-                        continue;
-                    }
-                    var weaponBase = (CharacterBase*)draw;
-                    var attachGroup = HandleAttachGroup(weaponBase);
-                    attachGroups.Add(attachGroup);
-                }
-            }
-            
-            characterGroup = new ExportUtil.CharacterGroup(
-                exportCustomizeParams, 
-                exportCustomizeData, 
-                (GenderRace)human->RaceSexId,
-                mdlGroups.ToArray(),
-                skeleton,
-                attachGroups.ToArray());
+            genderRace = (GenderRace)human->RaceSexId;
         }
         else
         {
-            var cbase = (CharacterBase*)drawObject;
-            var skeleton = new Skeleton.Skeleton(cbase->Skeleton);
-            var customizeParams = new Meddle.Utils.Export.CustomizeParameter();
-            var customizeData = new CustomizeData();
-            var genderRace = GenderRace.Unknown;
-            var mdlGroups = new List<Model.MdlGroup>();
-            foreach (var modelPtr in cbase->ModelsSpan)
+            customizeParams = new Meddle.Utils.Export.CustomizeParameter();
+            customizeData = new CustomizeData();
+            genderRace = GenderRace.Unknown;
+        }
+        
+        var skeleton = new Skeleton.Skeleton(characterBase->Skeleton);
+        var mdlGroups = new List<Model.MdlGroup>();
+        foreach (var modelPtr in characterBase->ModelsSpan)
+        {
+            var model = modelPtr.Value;
+            if (model == null)
             {
-                var model = modelPtr.Value;
-                if (model == null)
+                continue;
+            }
+            
+            var mdlGroup = HandleModelPtr(model);
+            if (mdlGroup != null)
+            {
+                mdlGroups.Add(mdlGroup);
+            }
+        }
+        
+        var attachGroups = new List<ExportUtil.AttachedModelGroup>();
+        // TODO: Mount/ornament/weapon
+        if (charPtr->Mount.MountObject != null)
+        {
+            var mountDrawObject = charPtr->Mount.MountObject->GameObject.DrawObject;
+            if (mountDrawObject != null && mountDrawObject->Object.GetObjectType() == ObjectType.CharacterBase)
+            {
+                var mountBase = (CharacterBase*)mountDrawObject;
+                var attachGroup = HandleAttachGroup(mountBase);
+                attachGroups.Add(attachGroup);
+            }
+        }
+        
+        if (charPtr->OrnamentData.OrnamentObject != null)
+        {
+            var ornamentDrawObject = charPtr->OrnamentData.OrnamentObject->DrawObject;
+            if (ornamentDrawObject != null && ornamentDrawObject->Object.GetObjectType() == ObjectType.CharacterBase)
+            {
+                var ornamentBase = (CharacterBase*)ornamentDrawObject;
+                var attachGroup = HandleAttachGroup(ornamentBase);
+                attachGroups.Add(attachGroup);
+            }
+        }
+
+        if (charPtr->DrawData.IsWeaponHidden == false)
+        {
+            var weaponDataSpan = charPtr->DrawData.WeaponData;
+            foreach (var weaponData in weaponDataSpan)
+            {
+                var draw = weaponData.DrawObject;
+                if (draw == null)
                 {
                     continue;
                 }
                 
-                var mdlGroup = HandleModelPtr(model);
-                if (mdlGroup != null)
+                if (draw->Object.GetObjectType() != ObjectType.CharacterBase)
                 {
-                    mdlGroups.Add(mdlGroup);
+                    continue;
                 }
+                var weaponBase = (CharacterBase*)draw;
+                var attachGroup = HandleAttachGroup(weaponBase);
+                attachGroups.Add(attachGroup);
             }
-            
-            characterGroup = new ExportUtil.CharacterGroup(
-                customizeParams, 
-                customizeData, 
-                genderRace,
-                mdlGroups.ToArray(),
-                skeleton,
-                []);
         }
+        
+        characterGroup = new ExportUtil.CharacterGroup(
+            customizeParams, 
+            customizeData, 
+            genderRace,
+            mdlGroups.ToArray(),
+            skeleton,
+            attachGroups.ToArray());
     }
     
     private void DrawMdlGroup(Model.MdlGroup mdlGroup)
