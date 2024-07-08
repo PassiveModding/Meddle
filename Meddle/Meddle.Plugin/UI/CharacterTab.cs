@@ -19,6 +19,7 @@ using Meddle.Utils.Files;
 using Meddle.Utils.Materials;
 using Meddle.Utils.Models;
 using Meddle.Utils.Skeletons.Havok;
+using Attach = Meddle.Plugin.Skeleton.Attach;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
 using CustomizeParameter = FFXIVClientStructs.FFXIV.Shader.CustomizeParameter;
 
@@ -238,13 +239,17 @@ public unsafe partial class CharacterTab : ITab
             WrapCanParse(() =>
             {
                 var selectedCount = SelectedModels.Count(x => characterGroup.MdlGroups.Any(y => y.Path == x.Key && x.Value));
-                if (ImGui.Button($"Export {selectedCount} Selected Models##{characterGroup.GetHashCode()}") && selectedCount > 0)
+                var selectedAttachCount = SelectedAttachedModels.Count(x => characterGroup.AttachedModelGroups.Any(y => y.GetHashCode() == x.Key && x.Value));
+                
+                if (ImGui.Button($"Export {selectedCount + selectedAttachCount} Selected Models##{characterGroup.GetHashCode()}") && selectedCount > 0 || selectedAttachCount > 0)
                 {
                     var selectedModels = characterGroup.MdlGroups
-                                            .Where(
-                                                x => SelectedModels.TryGetValue(x.Path, out var selected) && selected)
+                                            .Where(x => SelectedModels.TryGetValue(x.Path, out var selected) && selected)
                                             .ToArray();
-                    var group = characterGroup with {MdlGroups = selectedModels};
+                    var selectedAttachedModels = characterGroup.AttachedModelGroups
+                                            .Where(x => SelectedAttachedModels.TryGetValue(x.GetHashCode(), out var selected) && selected)
+                                            .ToArray();
+                    var group = characterGroup with {MdlGroups = selectedModels, AttachedModelGroups = selectedAttachedModels};
                     exportTask = Task.Run(() => exportUtil.Export(group, pbdFile));
                 }
             });
@@ -284,6 +289,40 @@ public unsafe partial class CharacterTab : ITab
             
                     ImGui.NextColumn();
                     ImGui.Text(mdlGroup.Path);
+                    ImGui.NextColumn();
+                    ImGui.PopID();
+                }
+                
+                ImGui.Separator();
+                foreach (var attachedModelGroup in characterGroup.AttachedModelGroups)
+                {
+                    ImGui.PushID(attachedModelGroup.GetHashCode());
+                    WrapCanParse(() =>
+                    {
+                        if (ImGui.Button("Export"))
+                        {
+                            var group = characterGroup with {AttachedModelGroups = [attachedModelGroup], MdlGroups = Array.Empty<Model.MdlGroup>()};
+                            exportTask = Task.Run(() => exportUtil.Export(group, pbdFile));
+                        }
+                    });
+            
+                    if (!SelectedAttachedModels.TryGetValue(attachedModelGroup.GetHashCode(), out var selected))
+                    {
+                        selected = false;
+                        SelectedAttachedModels[attachedModelGroup.GetHashCode()] = selected;
+                    }
+                    
+                    ImGui.SameLine();
+                    if (ImGui.Checkbox($"##{attachedModelGroup.GetHashCode()}", ref selected))
+                    {
+                        SelectedAttachedModels[attachedModelGroup.GetHashCode()] = selected;
+                    }
+            
+                    ImGui.NextColumn();
+                    foreach (var attachMdl in attachedModelGroup.MdlGroups)
+                    {
+                        ImGui.Text(attachMdl.Path);
+                    }
                     ImGui.NextColumn();
                     ImGui.PopID();
                 }
@@ -332,7 +371,7 @@ public unsafe partial class CharacterTab : ITab
     }
     
     private Dictionary<string, bool> SelectedModels = new();
-    private Dictionary<string, bool> SelectedAttachedModels = new();
+    private Dictionary<int, bool> SelectedAttachedModels = new();
     
     private void WrapCanParse(Action action)
     {
