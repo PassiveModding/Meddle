@@ -19,12 +19,17 @@ public class TestingTab : ITab
     private readonly IObjectTable objectTable;
     private readonly IClientState clientState;
     private readonly SqPack pack;
+    private readonly Configuration config;
+    public string Name => "Testing";
+    public int Order => 3;
+    public bool DisplayTab => config.ShowAdvanced;
 
-    public TestingTab(IObjectTable objectTable, IClientState clientState, SqPack pack)
+    public TestingTab(IObjectTable objectTable, IClientState clientState, SqPack pack, Configuration config)
     {
         this.objectTable = objectTable;
         this.clientState = clientState;
         this.pack = pack;
+        this.config = config;
     }
     
     public void Dispose()
@@ -34,8 +39,6 @@ public class TestingTab : ITab
         materialCache.Clear();
     }
 
-    public string Name => "Testing";
-    public int Order => 3;
     
     private ICharacter? SelectedCharacter { get; set; }
     

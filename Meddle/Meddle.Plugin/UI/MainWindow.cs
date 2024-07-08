@@ -29,6 +29,8 @@ public sealed class MainWindow : Window, IDisposable
         using var tabBar = ImRaii.TabBar("##meddleTabs");
         foreach (var tab in tabs)
         {
+            if (!tab.DisplayTab)
+                continue;
             using var tabItem = ImRaii.TabItem(tab.Name);
             try
             {

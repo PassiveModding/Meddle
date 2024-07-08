@@ -29,6 +29,7 @@ public unsafe partial class CharacterTab : ITab
 {
     public string Name => "Character";
     public int Order => 0;
+    public bool DisplayTab => true;
     
     private readonly IClientState clientState;
     private readonly IFramework framework;
@@ -77,6 +78,12 @@ public unsafe partial class CharacterTab : ITab
 
     private void DrawObjectPicker()
     {
+        // Warning text:
+        ImGui.TextWrapped("Meddle allows you to export character data. Select a character to begin.");
+        ImGui.Separator();
+        ImGui.TextWrapped("Warning: This plugin is experimental and may not work as expected.");
+        ImGui.TextWrapped("Exported models use a rudimentary approximation of the games pixel shaders, they will likely not match 1:1 to the in-game appearance.");
+        
         ICharacter[] objects;
         if (clientState.LocalPlayer != null)
         {

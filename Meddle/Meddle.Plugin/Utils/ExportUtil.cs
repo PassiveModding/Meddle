@@ -1,6 +1,5 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
-using Dalamud.Plugin.Services;
 using Meddle.Plugin.Skeleton;
 using Meddle.Utils;
 using Meddle.Utils.Export;
@@ -9,7 +8,6 @@ using Meddle.Utils.Files.SqPack;
 using Meddle.Utils.Materials;
 using Meddle.Utils.Models;
 using Meddle.Utils.Skeletons;
-using Meddle.Utils.Skeletons.Havok;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
 using SkiaSharp;

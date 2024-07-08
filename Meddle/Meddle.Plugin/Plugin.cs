@@ -1,4 +1,5 @@
 using System.Reflection;
+using Dalamud.Configuration;
 using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
@@ -33,19 +34,20 @@ public sealed class Plugin : IDalamudPlugin
                             .AddSingleton<InteropService>()
                             .AddSingleton<ExportUtil>();
             
+            var config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration(pluginInterface);
+            serviceCollection.AddSingleton(config);
+            
             var gameDir = Environment.CurrentDirectory;
             var sqPack = new SqPack(gameDir);
             serviceCollection.AddSingleton(sqPack);
             
             services = serviceCollection
                            .BuildServiceProvider();
-            
             log = services.GetRequiredService<IPluginLog>();
-
             log.Info($"Game directory: {gameDir}");
-            
             commandManager = services.GetRequiredService<ICommandManager>();
             this.pluginInterface = services.GetRequiredService<IDalamudPluginInterface>();
+            OtterTex.NativeDll.Initialize(this.pluginInterface.AssemblyLocation.DirectoryName);
 
             commandManager.AddHandler("/meddle", new CommandInfo(OnCommand)
             {
@@ -60,11 +62,11 @@ public sealed class Plugin : IDalamudPlugin
             mainWindow = services.GetRequiredService<MainWindow>();
             WindowSystem.AddWindow(mainWindow);
 
-            OtterTex.NativeDll.Initialize(this.pluginInterface.AssemblyLocation.DirectoryName);
 
-            #if DEBUG
+            if (config.OpenOnLoad)
+            {
                 OpenUi();
-            #endif
+            }
             
             Task.Run(() =>
             {
@@ -108,4 +110,23 @@ public sealed class Plugin : IDalamudPlugin
         
         services?.Dispose();
     }
+}
+
+public class Configuration : IPluginConfiguration
+{
+    private readonly IDalamudPluginInterface pi;
+
+    public Configuration(IDalamudPluginInterface pi)
+    {
+        this.pi = pi;
+    }
+
+    public int Version { get; set; } = 1;
+    public bool ShowAdvanced { get; set; }
+    public bool OpenOnLoad { get; set; }
+    public void Save()
+    {
+        pi.SavePluginConfig(this);
+    }
+
 }

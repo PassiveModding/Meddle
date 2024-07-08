@@ -20,6 +20,8 @@ public class WorldTab : ITab
     private readonly ExportUtil exportUtil;
     private readonly SqPack pack;
     private readonly IPluginLog log;
+    private readonly Configuration config;
+    public bool DisplayTab => config.ShowAdvanced;
 
     public void Dispose()
     {
@@ -29,13 +31,14 @@ public class WorldTab : ITab
     public string Name => "World";
     public int Order => 4;
 
-    public WorldTab(InteropService interop, IClientState clientState, ExportUtil exportUtil, SqPack pack, IPluginLog log)
+    public WorldTab(InteropService interop, IClientState clientState, ExportUtil exportUtil, SqPack pack, IPluginLog log, Configuration config)
     {
         this.interop = interop;
         this.clientState = clientState;
         this.exportUtil = exportUtil;
         this.pack = pack;
         this.log = log;
+        this.config = config;
     }
     
     private record ObjectData(ObjectType Type, string Path, Vector3 Position, Quaternion Rotation, Vector3 Scale);
