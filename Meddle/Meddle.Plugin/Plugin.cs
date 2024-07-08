@@ -1,17 +1,14 @@
-using Dalamud.Game;
+using System.Reflection;
 using Dalamud.Game.Command;
-using Dalamud.Hooking;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
-using Dalamud.Utility.Signatures;
-using Meddle.Plugin.Models.Config;
-using Meddle.Plugin.Services;
 using Meddle.Plugin.UI;
+using Meddle.Plugin.Utils;
+using Meddle.Utils;
+using Meddle.Utils.Files.SqPack;
 //using Meddle.Plugin.UI.Shared;
-using Meddle.Plugin.Utility;
 using Microsoft.Extensions.DependencyInjection;
-using Meddle.Plugin.Xande;
 
 namespace Meddle.Plugin;
 
@@ -20,51 +17,66 @@ public sealed class Plugin : IDalamudPlugin
     private static readonly WindowSystem WindowSystem = new("Meddle");
     public static readonly string TempDirectory = Path.Combine(Path.GetTempPath(), "Meddle.Export");
     private readonly MainWindow? mainWindow;
-    private readonly ICommandManager commandManager;
-    private readonly DalamudPluginInterface pluginInterface;
+    private readonly ICommandManager? commandManager;
+    private readonly IDalamudPluginInterface? pluginInterface;
+    private readonly IPluginLog? log;
+    private readonly ServiceProvider? services;
 
-    public Plugin(DalamudPluginInterface pluginInterface)
+    public Plugin(IDalamudPluginInterface pluginInterface)
     {
-        var config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
-        config.Initialize(pluginInterface);
-        config.Save();
+        try
+        {
+            var serviceCollection = new ServiceCollection()
+                            .AddDalamud(pluginInterface)
+                            .AddUi()
+                            .AddSingleton(pluginInterface)
+                            .AddSingleton<InteropService>()
+                            .AddSingleton<ExportUtil>();
+            
+            var gameDir = Environment.CurrentDirectory;
+            var sqPack = new SqPack(gameDir);
+            serviceCollection.AddSingleton(sqPack);
+            
+            services = serviceCollection
+                           .BuildServiceProvider();
+            
+            log = services.GetRequiredService<IPluginLog>();
 
-        var services = new ServiceCollection()
-            .AddDalamud(pluginInterface)
-            .AddUi()
-            .AddSingleton(pluginInterface)
-            .AddSingleton(config)
-            .AddSingleton<ExportManager>()
-            .AddSingleton<ModelBuilder>()
-            .AddSingleton<InteropService>()
-            .BuildServiceProvider();
-        
-        commandManager = services.GetRequiredService<ICommandManager>();
-        commandManager.AddHandler("/meddle", new CommandInfo(OnCommand)
-        {
-            HelpMessage = "Open the menu"
-        });
-        
-        this.pluginInterface = services.GetRequiredService<DalamudPluginInterface>();
-        this.pluginInterface.UiBuilder.Draw += WindowSystem.Draw;
-        this.pluginInterface.UiBuilder.OpenMainUi += OpenUi;
-        this.pluginInterface.UiBuilder.OpenConfigUi += OpenUi;
-        this.pluginInterface.UiBuilder.DisableGposeUiHide = config.DisableGposeUiHide;
-        this.pluginInterface.UiBuilder.DisableCutsceneUiHide = config.DisableCutsceneUiHide;
-        config.OnChange += () =>
-        {
-            this.pluginInterface.UiBuilder.DisableGposeUiHide = config.DisableGposeUiHide;
-            this.pluginInterface.UiBuilder.DisableCutsceneUiHide = config.DisableCutsceneUiHide;
-        };
+            log.Info($"Game directory: {gameDir}");
+            
+            commandManager = services.GetRequiredService<ICommandManager>();
+            this.pluginInterface = services.GetRequiredService<IDalamudPluginInterface>();
 
-        mainWindow = services.GetRequiredService<MainWindow>();
-        WindowSystem.AddWindow(mainWindow);
-        
-        Task.Run(() =>
+            commandManager.AddHandler("/meddle", new CommandInfo(OnCommand)
+            {
+                HelpMessage = "Open the menu"
+            });
+
+            this.pluginInterface.UiBuilder.Draw += WindowSystem.Draw;
+            this.pluginInterface.UiBuilder.OpenMainUi += OpenUi;
+            this.pluginInterface.UiBuilder.OpenConfigUi += OpenUi;
+            this.pluginInterface.UiBuilder.DisableGposeUiHide = true;
+            this.pluginInterface.UiBuilder.DisableCutsceneUiHide = true;
+            mainWindow = services.GetRequiredService<MainWindow>();
+            WindowSystem.AddWindow(mainWindow);
+
+            OtterTex.NativeDll.Initialize(this.pluginInterface.AssemblyLocation.DirectoryName);
+
+            #if DEBUG
+                OpenUi();
+            #endif
+            
+            Task.Run(() =>
+            {
+                var interop = services.GetRequiredService<InteropService>();
+                interop.Initialize();
+            });
+        }
+        catch (Exception e)
         {
-            var interop = services.GetRequiredService<InteropService>();
-            interop.Initialize();
-        });
+            log?.Error(e, "Failed to initialize plugin");
+            Dispose();
+        }
     }
 
 
@@ -85,10 +97,15 @@ public sealed class Plugin : IDalamudPlugin
     {
         mainWindow?.Dispose();
         WindowSystem.RemoveAllWindows();
-        commandManager.RemoveHandler("/meddle");
+        commandManager?.RemoveHandler("/meddle");
 
-        pluginInterface.UiBuilder.Draw -= WindowSystem.Draw;
-        pluginInterface.UiBuilder.OpenConfigUi -= OpenUi;
-        pluginInterface.UiBuilder.OpenMainUi -= OpenUi;
+        if (pluginInterface != null)
+        {
+            pluginInterface.UiBuilder.Draw -= WindowSystem.Draw;
+            pluginInterface.UiBuilder.OpenConfigUi -= OpenUi;
+            pluginInterface.UiBuilder.OpenMainUi -= OpenUi;
+        }
+        
+        services?.Dispose();
     }
 }

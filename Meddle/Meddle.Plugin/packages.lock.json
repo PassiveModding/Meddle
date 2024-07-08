@@ -4,9 +4,9 @@
     "net8.0-windows7.0": {
       "DalamudPackager": {
         "type": "Direct",
-        "requested": "[2.1.12, )",
-        "resolved": "2.1.12",
-        "contentHash": "Sc0PVxvgg4NQjcI8n10/VfUQBAS4O+Fw2pZrAqBdRMbthYGeogzu5+xmIGCGmsEZ/ukMOBuAqiNiB5qA3MRalg=="
+        "requested": "[2.1.13, )",
+        "resolved": "2.1.13",
+        "contentHash": "rMN1omGe8536f4xLMvx9NwfvpAc9YFFfeXJ1t4P4PE6Gu8WCIoFliR1sh07hM+bfODmesk/dvMbji7vNI+B/pQ=="
       },
       "Microsoft.Extensions.DependencyInjection": {
         "type": "Direct",
@@ -17,58 +17,20 @@
           "Microsoft.Extensions.DependencyInjection.Abstractions": "8.0.0"
         }
       },
-      "SharpGLTF.Core": {
-        "type": "Direct",
-        "requested": "[1.0.0-alpha0031, )",
-        "resolved": "1.0.0-alpha0031",
-        "contentHash": "lFJ/0UrYNVuKl4Cty0xvzAiAZd6GYZw57qi5es/EQbd1Ic+XpbVMV1566aXxxlJFQ0LkTvmI5PhKUjiHNdpmqA=="
-      },
-      "SharpGLTF.Toolkit": {
-        "type": "Direct",
-        "requested": "[1.0.0-alpha0031, )",
-        "resolved": "1.0.0-alpha0031",
-        "contentHash": "oLX3oHz3ybpEhkz/LSC2QToLhnGAAEucQSNyaac5UiZtlPwgPsDMvbJ0gE6TLOr0Ao1NUv1ZN1ZXHeJt1zeGfg==",
-        "dependencies": {
-          "SharpGLTF.Runtime": "1.0.0-alpha0031"
-        }
-      },
-      "SkiaSharp": {
-        "type": "Direct",
-        "requested": "[2.88.7, )",
-        "resolved": "2.88.7",
-        "contentHash": "LJHAMrbWO00J7jXWLWehyjqFo29T4VzABimfJb4nICqpEe3c/KvQGWL4ItON8ymzhxYOeFgyxeRzuNzO4GHSug==",
-        "dependencies": {
-          "SkiaSharp.NativeAssets.Win32": "2.88.7",
-          "SkiaSharp.NativeAssets.macOS": "2.88.7"
-        }
-      },
-      "Vortice.Direct3D11": {
-        "type": "Direct",
-        "requested": "[3.5.0, )",
-        "resolved": "3.5.0",
-        "contentHash": "TUVz5tml5tTlk1UpQgh/0cj74ehmlyzvQeGdVkdQGACth2v2t1d+/f84dqT/Trs/5O2WdIvXfYQe2yxALLR5mQ==",
-        "dependencies": {
-          "SharpGen.Runtime": "2.1.2-beta",
-          "Vortice.DXGI": "3.5.0"
-        }
+      "JetBrains.Annotations": {
+        "type": "Transitive",
+        "resolved": "2021.2.0",
+        "contentHash": "kKSyoVfndMriKHLfYGmr0uzQuI4jcc3TKGyww7buJFCYeHb/X0kodYBPL7n9454q7v6ASiRmDgpPGaDGerg/Hg=="
       },
       "Microsoft.Extensions.DependencyInjection.Abstractions": {
         "type": "Transitive",
         "resolved": "8.0.0",
         "contentHash": "cjWrLkJXK0rs4zofsK4bSdg+jhDLTaxrkXu4gS6Y7MAlCvRyNNgwY/lJi5RDlQOnSZweHqoyvgvbdvQsRIW+hg=="
       },
-      "SharpGen.Runtime": {
+      "SharpGLTF.Core": {
         "type": "Transitive",
-        "resolved": "2.1.2-beta",
-        "contentHash": "nqZAjfEG1jX1ivvdZLsi6Pkt0DiOJyuOgRgldNFsmjXFPhxUbXQibofLSwuDZidL2kkmtTF8qLoRIeqeVdXgYw=="
-      },
-      "SharpGen.Runtime.COM": {
-        "type": "Transitive",
-        "resolved": "2.1.2-beta",
-        "contentHash": "HBCrb6HfnUWx9v5/GjJeBr5DuodZLnHlFQQYXPrQs1Hbe1c6Wd0uCXf+SJp4hW8fQNxjXEu0FgiyHGlA/SRzRw==",
-        "dependencies": {
-          "SharpGen.Runtime": "2.1.2-beta"
-        }
+        "resolved": "1.0.0-alpha0031",
+        "contentHash": "lFJ/0UrYNVuKl4Cty0xvzAiAZd6GYZw57qi5es/EQbd1Ic+XpbVMV1566aXxxlJFQ0LkTvmI5PhKUjiHNdpmqA=="
       },
       "SharpGLTF.Runtime": {
         "type": "Transitive",
@@ -78,42 +40,57 @@
           "SharpGLTF.Core": "1.0.0-alpha0031"
         }
       },
+      "SharpGLTF.Toolkit": {
+        "type": "Transitive",
+        "resolved": "1.0.0-alpha0031",
+        "contentHash": "oLX3oHz3ybpEhkz/LSC2QToLhnGAAEucQSNyaac5UiZtlPwgPsDMvbJ0gE6TLOr0Ao1NUv1ZN1ZXHeJt1zeGfg==",
+        "dependencies": {
+          "SharpGLTF.Runtime": "1.0.0-alpha0031"
+        }
+      },
+      "SkiaSharp": {
+        "type": "Transitive",
+        "resolved": "2.88.8",
+        "contentHash": "bRkp3uKp5ZI8gXYQT57uKwil1uobb2p8c69n7v5evlB/2JNcMAXVcw9DZAP5Ig3WSvgzGm2YSn27UVeOi05NlA==",
+        "dependencies": {
+          "SkiaSharp.NativeAssets.Win32": "2.88.8",
+          "SkiaSharp.NativeAssets.macOS": "2.88.8"
+        }
+      },
       "SkiaSharp.NativeAssets.macOS": {
         "type": "Transitive",
-        "resolved": "2.88.7",
-        "contentHash": "3jNzco4VjcYPFNxR9aNWcgweFXbTSdM1VpNRzCS4X0i1A1OuNqcaulrAvmntNpujeWxHo9e6WGh6FN8Jf5+XhA=="
+        "resolved": "2.88.8",
+        "contentHash": "6Kn5TSkKlfyS6azWHF3Jk2sW5C4jCE5uSshM/5AbfFrR+5n6qM5XEnz9h4VaVl7LTxBvHvMkuPb/3bpbq0vxTw=="
       },
       "SkiaSharp.NativeAssets.Win32": {
         "type": "Transitive",
-        "resolved": "2.88.7",
-        "contentHash": "BCXmWdQ0oVck9vRwC8U3ocSaTHEx28VB+6qw9OxGIMQ86iO5bp4Flqk3IXH0l9Pbr7vWAUOpI212iaL9mTaUZQ=="
+        "resolved": "2.88.8",
+        "contentHash": "O9QXoWEXA+6cweR4h3BOnwMz+pO9vL9mXdjLrpDd0w1QzCgWmLQBxa1VgySDITiH7nQndrDG1h6937zm9pLj1Q=="
       },
-      "Vortice.DirectX": {
+      "System.IO.Hashing": {
         "type": "Transitive",
-        "resolved": "3.5.0",
-        "contentHash": "LwyojEqRCaYgMoEqKsLnHWJ85wM237wFzZy/w57kvQPDsEd+zcqdwDYswOCEdizcLtDBzX/Xt4bbUPgFi8Kp4w==",
-        "dependencies": {
-          "SharpGen.Runtime": "2.1.2-beta",
-          "SharpGen.Runtime.COM": "2.1.2-beta",
-          "Vortice.Mathematics": "1.7.8"
-        }
-      },
-      "Vortice.DXGI": {
-        "type": "Transitive",
-        "resolved": "3.5.0",
-        "contentHash": "W1dHY13DbitLJDVAAD8+YiGddqzBP1m3wN3pfEmxYrrE+dGEV/31aaw8EV74GXYnJQZ2vWJCnc7LCFPR2YkBnw==",
-        "dependencies": {
-          "SharpGen.Runtime": "2.1.2-beta",
-          "Vortice.DirectX": "3.5.0"
-        }
-      },
-      "Vortice.Mathematics": {
-        "type": "Transitive",
-        "resolved": "1.7.8",
-        "contentHash": "hpVlfej54yC6Qaq9AYXWgTgF8SDz2dtKbDNZGO8msjn3NjdkUBnFcIzYfOWyvwvpr3aqZPKh4WSSnJ78GxyIWg=="
+        "resolved": "8.0.0",
+        "contentHash": "ne1843evDugl0md7Fjzy6QjJrzsjh46ZKbhf8GwBXb5f/gw97J4bxMs0NQKifDuThh/f0bZ0e62NPl1jzTuRqA=="
       },
       "ffxivclientstructs": {
+        "type": "Project",
+        "dependencies": {
+          "InteropGenerator.Runtime": "[1.0.0, )",
+          "JetBrains.Annotations": "[2021.2.0, )"
+        }
+      },
+      "interopgenerator.runtime": {
         "type": "Project"
+      },
+      "meddle.utils": {
+        "type": "Project",
+        "dependencies": {
+          "FFXIVClientStructs": "[1.0.0, )",
+          "SharpGLTF.Core": "[1.0.0-alpha0031, )",
+          "SharpGLTF.Toolkit": "[1.0.0-alpha0031, )",
+          "SkiaSharp": "[2.88.8, )",
+          "System.IO.Hashing": "[8.0.0, )"
+        }
       }
     }
   }

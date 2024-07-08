@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0-windows</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <None Update="Lib\DirectXTexC.dll">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <TargetPath>DirectXTexC.dll</TargetPath>
+      </None>
+    </ItemGroup>
+    
+    <ItemGroup>
+        <Reference Include="OtterTex">
+            <HintPath>Lib\OtterTex.dll</HintPath>
+        </Reference>
+    </ItemGroup>
+    
+    <ItemGroup>
+      <PackageReference Include="SharpGLTF.Core" Version="1.0.0-alpha0031" />
+      <PackageReference Include="SharpGLTF.Toolkit" Version="1.0.0-alpha0031" />
+      <PackageReference Include="SkiaSharp" Version="2.88.8" />
+      <PackageReference Include="System.IO.Hashing" Version="8.0.0" />
+    </ItemGroup>
+    
+    <ItemGroup>
+      <ProjectReference Include="..\..\FFXIVClientStructs\FFXIVClientStructs\FFXIVClientStructs.csproj" />
+    </ItemGroup>
+</Project>

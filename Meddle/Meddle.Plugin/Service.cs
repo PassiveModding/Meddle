@@ -8,7 +8,7 @@ namespace Meddle.Plugin;
 
 public class Service
 {
-    public Service(DalamudPluginInterface pluginInterface)
+    public Service(IDalamudPluginInterface pluginInterface)
     {
         pluginInterface.Inject(this);
         Log = PrivLog;
@@ -25,9 +25,10 @@ public class Service
         services.AddSingleton(SigScanner);
         services.AddSingleton(GameInteropProvider);
         services.AddSingleton(DataManager);
+        services.AddSingleton(TextureProvider);
     }
 
-    [PluginService] private DalamudPluginInterface PluginInterface { get; set; } = null!;
+    [PluginService] private IDalamudPluginInterface PluginInterface { get; set; } = null!;
 
     [PluginService] private IFramework Framework { get; set; } = null!;
 
@@ -40,6 +41,6 @@ public class Service
     [PluginService] private IClientState ClientState { get; set; } = null!;
     [PluginService] private ISigScanner SigScanner { get; set; } = null!;
     [PluginService] private IGameInteropProvider GameInteropProvider { get; set; } = null!;
-    
+    [PluginService] private ITextureProvider TextureProvider { get; set; } = null!;
     [PluginService] private IDataManager DataManager { get; set; } = null!;
 }
