@@ -8,7 +8,6 @@ namespace Meddle.UI.Windows.Views;
 public class MdlView(MdlFile mdlFile, string? path) : IView
 {
     private readonly HexView hexView = new(mdlFile.RawData);
-    private readonly HexView remainingView = new(mdlFile.RemainingData);
 
     public void Draw()
     {
@@ -91,11 +90,6 @@ public class MdlView(MdlFile mdlFile, string? path) : IView
         if (ImGui.CollapsingHeader("Raw Data"))
         {
             hexView.DrawHexDump();
-        }
-        
-        if (ImGui.CollapsingHeader("Remaining Data"))
-        {
-            remainingView.DrawHexDump();
         }
     }
     

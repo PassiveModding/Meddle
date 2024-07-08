@@ -14,7 +14,14 @@ public enum ShaderCategory : uint
     CategoryHairType = 0x24826489,
     CategoryTextureType = 0xB616DC5A,  // DEFAULT, COMPATIBILITY, SIMPLE
     CategorySpecularType = 0xC8BD1DEF, // MASK, DEFAULT
-    CategoryFlowMapType = 0x40D1481E   // STANDARD, FLOW
+    CategoryFlowMapType = 0x40D1481E,   // STANDARD, FLOW
+    CategoryDiffuseAlpha = 0xA9A3EE25
+}
+
+public enum DiffuseAlpha : uint
+{
+    Default = 0x0,
+    UseDiffuseAlphaAsOpacity = 0x72AAA9AE
 }
 
 public enum SkinType : uint

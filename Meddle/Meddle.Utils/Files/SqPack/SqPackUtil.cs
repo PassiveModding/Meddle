@@ -6,6 +6,39 @@ namespace Meddle.Utils.Files.SqPack;
 
 public static class SqPackUtil
 {
+    public static SqPackFile? ReadFile(long offset, string datFilePath, FileType type)
+    {
+        using var fileStream = File.OpenRead(datFilePath);
+        using var br = new BinaryReader(fileStream);
+        try
+        {
+            fileStream.Seek(offset, SeekOrigin.Begin);
+
+            var header = br.Read<SqPackFileInfo>();
+            if (header.Type != type)
+            {
+                return null;
+            }
+
+            var data = header.Type switch
+            {
+                FileType.Empty => new byte[header.RawFileSize],
+                FileType.Texture => ParseTexFile(offset, header, br),
+                FileType.Standard => ParseStandardFile(offset, header, br),
+                FileType.Model => ParseModelFile(offset, header, br),
+                _ => throw new InvalidDataException($"Unknown file type {header.Type}")
+            };
+
+            var file = new SqPackFile(header, data);
+            return file;
+        }
+        finally
+        {
+            br.Close();
+            fileStream.Close();
+        }
+    }
+    
     public static SqPackFile ReadFile(long offset, string datFilePath)
     {
         using var fileStream = File.OpenRead(datFilePath);

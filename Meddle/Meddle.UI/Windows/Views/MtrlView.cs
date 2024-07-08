@@ -138,7 +138,15 @@ public class MtrlView : IView
             for (var i = 0; i < file.ShaderKeys.Length; i++)
             {
                 var key = file.ShaderKeys[i];
-                ImGui.Text($"[{i}][{key.Category:X4}] {key.Value:X4}");
+                
+                if (Enum.IsDefined((ShaderCategory)key.Category))
+                {
+                    ImGui.Text($"[{i}][{key.Category:X4}] {((ShaderCategory)key.Category).ToString()} {key.Value:X4}");
+                }
+                else
+                {
+                    ImGui.Text($"[{i}][{key.Category:X4}] {key.Value:X4}");
+                }
             }
 
             ImGui.Text($"Constants [{file.Constants.Length}]");
@@ -155,16 +163,33 @@ public class MtrlView : IView
                     buf.AddRange(bytes);
                 }
 
-                ImGui.Text(
-                    $"[{i}][{constant.ConstantId:X4}|{constant.ConstantId}] off:{constant.ValueOffset:X2} size:{constant.ValueSize:X2} [{BitConverter.ToString(buf.ToArray())}]");
+                //ImGui.Text(
+                //    $"[{i}][{constant.ConstantId:X4}|{constant.ConstantId}] off:{constant.ValueOffset:X2} size:{constant.ValueSize:X2} [{BitConverter.ToString(buf.ToArray())}]");
+                if (Enum.IsDefined((MaterialConstant)constant.ConstantId))
+                {
+                    ImGui.Text(
+                        $"[{i}][{constant.ConstantId:X4}|{constant.ConstantId}] {((MaterialConstant)constant.ConstantId).ToString()} [{BitConverter.ToString(buf.ToArray())}]");
+                }
+                else
+                {
+                    ImGui.Text(
+                        $"[{i}][{constant.ConstantId:X4}|{constant.ConstantId}] Unknown [{BitConverter.ToString(buf.ToArray())}]");
+                }
             }
 
             ImGui.Text($"Samplers [{file.Samplers.Length}]");
             for (var i = 0; i < file.Samplers.Length; i++)
             {
                 var sampler = file.Samplers[i];
-                ImGui.Text(
-                    $"[{i}][{sampler.SamplerId:X4}|{sampler.SamplerId}] texIdx:{sampler.TextureIndex} flags:{sampler.Flags:X8}");
+                if (Enum.IsDefined((TextureUsage)sampler.SamplerId))
+                {
+                    ImGui.Text(
+                        $"[{i}][{sampler.SamplerId:X4}] {((TextureUsage)sampler.SamplerId).ToString()} {sampler.Flags:X4}");
+                }
+                else
+                {
+                    ImGui.Text($"[{i}][{sampler.SamplerId:X4}] Unknown {sampler.Flags:X4}");
+                }
             }
 
             ImGui.Text($"Shader Values [{file.ShaderValues.Length}]");

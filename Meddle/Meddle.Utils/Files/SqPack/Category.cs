@@ -42,6 +42,30 @@ public class Category
         return UnifiedIndexEntries.ContainsKey(hash);
     }
     
+    public bool TryGetFile(ulong hash, FileType? fileType, out SqPackFile data)
+    {
+        if (!UnifiedIndexEntries.TryGetValue(hash, out var entry))
+        {
+            data = null!;
+            return false;
+        }
+
+        if (fileType == null)
+        {
+            return TryGetFile(hash, out data);
+        }
+        
+        var locData = SqPackUtil.ReadFile(entry.Offset, datFilePaths[entry.DataFileId], fileType.Value);
+        if (locData == null)
+        {
+            data = null!;
+            return false;
+        }
+        
+        data = locData;
+        return true;
+    }
+    
     public bool TryGetFile(ulong hash, out SqPackFile data)
     {
         if (!UnifiedIndexEntries.TryGetValue(hash, out var entry))

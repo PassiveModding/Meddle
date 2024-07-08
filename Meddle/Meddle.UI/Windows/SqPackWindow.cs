@@ -292,7 +292,9 @@ public class SqPackWindow
         Material,
         Sklb,
         Shpk,
-        Pbd
+        Pbd,
+        Lgb,
+        Tera
     }
 
     private int sliceStartIndex;
@@ -554,6 +556,8 @@ public class SqPackWindow
                 SelectedFileType.Sklb => view ?? new SklbView(new SklbFile(file.RawData), config),
                 SelectedFileType.Shpk => view ?? new ShpkView(new ShpkFile(file.RawData), path),
                 SelectedFileType.Pbd => view ?? new PbdView(new PbdFile(file.RawData)),
+                SelectedFileType.Lgb => view ?? new LgbView(new LgbFile(file.RawData)),
+                SelectedFileType.Tera => view ?? new TeraView(new TeraFile(file.RawData), path, sqPack, config, imageHandler, pathManager),
                 SelectedFileType.None => view ?? new DefaultView(hash, file),
                 _ => view ?? new DefaultView(hash, file)
             };
@@ -577,6 +581,8 @@ public class SqPackWindow
             SelectedFileType.Sklb => ".sklb",
             SelectedFileType.Shpk => ".shpk",
             SelectedFileType.Pbd => ".pbd",
+            SelectedFileType.Lgb => ".lgb",
+            SelectedFileType.Tera => ".tera",
             _ => ""
         };
     }
@@ -591,6 +597,8 @@ public class SqPackWindow
             ".sklb" => SelectedFileType.Sklb,
             ".shpk" => SelectedFileType.Shpk,
             ".pbd" => SelectedFileType.Pbd,
+            ".lgb" => SelectedFileType.Lgb,
+            ".tera" => SelectedFileType.Tera,
             _ => SelectedFileType.None
         };
     }

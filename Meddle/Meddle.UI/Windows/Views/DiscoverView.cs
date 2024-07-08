@@ -13,6 +13,7 @@ using Meddle.Utils.Models;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
 using SkiaSharp;
+using WebSocketSharp;
 
 namespace Meddle.UI.Windows.Views;
 
@@ -22,1006 +23,482 @@ public class DiscoverView(SqPack pack, Configuration configuration, PathManager 
     private Task? discoverTask;
     private readonly List<string> log = new();
     
-    public record DiscoveredMtrl(string SourcePath, string ResolvedPath, string MdlPath);
-    public record DiscoveredTexture(string SourcePath, string MtrlPath);
-    private readonly Dictionary<string, DiscoveredMtrl> discoveredMtrls = new();
-    private readonly Dictionary<string, DiscoveredTexture> discoveredTextures = new();
-    private readonly HashSet<string> discoveredShaders = new();
-
-    public void HandlePath(ParsedFilePath pathInfo)
-    {
-        try 
-        { 
-            if (pathInfo.Path.EndsWith(".mdl"))
-            {
-                HandleMdlFile(pathInfo.Path);
-            }
-            else if (pathInfo.Path.EndsWith(".mtrl"))
-            {
-                var file = pack.GetFile(pathInfo.Path);
-                if (file is null)
-                {
-                    log.Add($"Failed to get mtrl file {pathInfo.Path}");
-                    return;
-                }
-                var mtrl = new MtrlFile(file.Value.file.RawData);
-                DiscoverShaders(mtrl);
-                DiscoverTextures(mtrl, pathInfo.Path);
-            }
-        }
-        catch (Exception ex)
-        {
-            log.Add($"[{pathInfo.Path}] Exception: {ex}");
-        }
-    }
-    
-    private int progress;
-    private int count;
-    public async Task DiscoverAsync(CancellationToken token)
-    {
-        discoveredMtrls.Clear();
-        discoveredTextures.Clear();
-        discoveredShaders.Clear();
-        log.Clear();
-        var initPaths = pathManager.ParsedPaths.ToArray();
-        progress = 0;
-        count = initPaths.Length;
-
-        await Parallel.ForEachAsync(initPaths, token, (path, tkn) =>
-        {
-            if (tkn.IsCancellationRequested)
-            {
-                return ValueTask.CompletedTask;
-            }
-            
-            HandlePath(path);
-            Interlocked.Increment(ref progress);
-            return ValueTask.CompletedTask;
-        });
-                    
-        await File.WriteAllLinesAsync("discovered_mtrls.txt", discoveredMtrls.Select(x => x.Value.ResolvedPath), token);
-        await File.WriteAllLinesAsync("discovered_textures.txt", discoveredTextures.Select(x => x.Key), token);
-        await File.WriteAllLinesAsync("discovered_shaders.txt", discoveredShaders, token);
-    }
-    
-    private string searchHash = "";
     public void Draw()
     {
-        if (ImGui.Button("RunDiscovery"))
-        {
-            discoverCts?.Cancel();
-            discoverCts = new CancellationTokenSource();
-            discoverTask = Task.Run(async () => await DiscoverAsync(discoverCts.Token));
-        }
-        
-        ImGui.SameLine();
-        if (ImGui.Button("Cancel Discovery"))
-        {
-            discoverCts?.Cancel();
-        }
-        
         if (discoverTask is not null && discoverTask.IsCompleted)
         {
-            ImGui.Text("Discover task completed");
+            if (discoverTask.IsFaulted)
+            {
+                ImGui.Text("Discover task failed");
+                ImGui.Text(discoverTask.Exception?.ToString());
+            }
+            else if (discoverTask.IsCanceled)
+            {
+                ImGui.Text("Discover task canceled");
+            }
+            else
+            {
+                ImGui.Text("Discover task completed");
+            }
         }
         
-        ImGui.SameLine();
-        if (ImGui.Button("ShpkDump"))
-        {
-            ShpkDump();
-        }
-        
-        ImGui.SameLine();
-        if (ImGui.Button("ShpkDump2"))
-        {
-            ShpkDump2();
-        }
-        
-        ImGui.SameLine();
-        if (ImGui.Button("MtrlDump"))
-        {
-            discoverCts?.Cancel();
-            // iterate all .mtrl files and find the one with stocking in it
-            discoverCts = new CancellationTokenSource();
-            discoverTask = Task.Run(async () => await MtrlDump(discoverCts.Token));
-        }
-        
-        ImGui.SameLine();
-        if (ImGui.Button("Discover New"))
+        ImGui.BeginDisabled(discoverTask is not null && !discoverTask.IsCompleted);
+        if (ImGui.Button("Discover Paths"))
         {
             discoverCts?.Cancel();
             discoverCts = new CancellationTokenSource();
-            discoverTask = Task.Run(async () => await DiscoverNew(discoverCts.Token));
+            discoverTask = Task.Run(async () => await IterateAllHashes(discoverCts.Token));
+        }
+        if (ImGui.Button("Bruteforce Paths from Patterns"))
+        {
+            discoverCts?.Cancel();
+            discoverCts = new CancellationTokenSource();
+            discoverTask = Task.Run(() => BruteForcePaths(discoverCts.Token));
+        }
+        ImGui.EndDisabled();
+        
+        if (ImGui.Button("Cancel"))
+        {
+            discoverCts?.Cancel();
         }
         
-        // search by hash
-        ImGui.SameLine();
-        searchHash ??= "";
-        if (ImGui.InputText("Search by hash", ref searchHash, 100))
+        if (total > 0)
         {
-            searchHash = Regex.Replace(searchHash, "[^0-9]", "");
-            var hash = ulong.Parse(searchHash);
-            foreach (var repo in pack.Repositories)
-            {
-                foreach (var category in repo.Categories)
-                {
-                    if (category.Value.TryGetFile(hash, out var file))
-                    {
-                        var tmp = new MtrlFile(file.RawData);
-                        
-                        var strings = tmp.GetStrings();
-                        Console.WriteLine($"Found val in {category.Key}");
-                    }
-                }
-            }
-        }
-        
-        // progress bar
-        ImGui.ProgressBar(progress / (float)count, new Vector2(0, 0));
-        
-        // scroll box of discovered files
-        ImGui.SeparatorText("Discovered Files");
-        var availableSize = ImGui.GetContentRegionAvail();
-        ImGui.BeginChild("Discovered Files", new Vector2(0, availableSize.Y - 350));
-        try
-        {
-            // show all paths not present in parsed paths
-            foreach (var (key, value) in discoveredMtrls.ToArray())
-            {
-                ImGui.Text($"[{value.MdlPath}] {value.SourcePath} -> {value.ResolvedPath}");
-            }
-            
-            foreach (var (key, value) in discoveredTextures.ToArray())
-            {
-                ImGui.Text($"[{value.MtrlPath}] {key}");
-            }
-            
-            foreach (var shader in discoveredShaders.ToArray())
-            {
-                ImGui.Text($"Shader: {shader}");
-            }
-        }
-        finally
-        {
-            ImGui.EndChild();
-        }
-        
-        // scroll box of logs
-        ImGui.SeparatorText("Logs");
-        ImGui.BeginChild("Logs", new Vector2(0, 300));
-        try
-        {
-            foreach (var line in log.ToArray())
-            {
-                ImGui.Text(line);
-            }
-        }
-        finally
-        {
-            ImGui.EndChild();
+            ImGui.Text($"Processed {processed} / {total}");
         }
     }
 
-    private record ShaderInfo(float[] Defaults, int index);
-    public void ShpkDump2()
+    public record ShpkResult(Dictionary<string, uint> StringCrcs, HashSet<uint> MatParamCrcs);
+    public ShpkResult HandleShpk(ShpkFile shpk)
     {
-        var shpkPaths = pathManager.ParsedPaths.Where(x => x.Path.EndsWith(".shpk")).ToList();
-        var distinctCrc = new Dictionary<uint, (string name, HashSet<string> shaders, HashSet<string> types)>();
-        var materialParams = new Dictionary<uint, Dictionary<string, ShaderInfo>>();
-        foreach (var path in shpkPaths)
+        var stringCrcs = new Dictionary<string, uint>();
+        var matParamCrcs = new HashSet<uint>();
+        var stringReader = new SpanBinaryReader(shpk.RawData[(int)shpk.FileHeader.StringsOffset..]);
+        
+        foreach (var constant in shpk.Constants)
         {
-            var file = pack.GetFile(path.Path);
-            if (file == null) continue;
-            
-            var shpk = new ShpkFile(file.Value.file.RawData);
-            var stringReader = new SpanBinaryReader(shpk.RawData[(int)shpk.FileHeader.StringsOffset..]);
-            foreach (var sampler in shpk.Samplers)
-            {
-                var resName = stringReader.ReadString((int)sampler.StringOffset);
-                // compute crc
-                var crc = Crc32.GetHash(resName);
-                if (!distinctCrc.TryGetValue(crc, out var entry))
-                {
-                    entry = (resName, new HashSet<string>(), new HashSet<string>());
-                    distinctCrc[crc] = entry;
-                }
-                
-                entry.shaders.Add(path.Path);
-                entry.types.Add("SAMPLER");
-            }
-                
-            foreach (var constant in shpk.Constants)
-            {
-                var resName = stringReader.ReadString((int)constant.StringOffset);  
-                var crc = Crc32.GetHash(resName);
-                
-                if (!distinctCrc.TryGetValue(crc, out var entry))
-                {
-                    entry = (resName, new HashSet<string>(), new HashSet<string>());
-                    distinctCrc[crc] = entry;
-                }
-                
-                entry.shaders.Add(path.Path);
-                entry.types.Add("CONSTANT");
-            }
-                
-            foreach (var texture in shpk.Textures)
-            {
-                var resName = stringReader.ReadString((int)texture.StringOffset);
-                var crc = Crc32.GetHash(resName);
-                
-                if (!distinctCrc.TryGetValue(crc, out var entry))
-                {
-                    entry = (resName, new HashSet<string>(), new HashSet<string>());
-                    distinctCrc[crc] = entry;
-                }
-                
-                entry.shaders.Add(path.Path);
-                entry.types.Add("TEXTURE");
-            }
-                
-            foreach (var uav in shpk.Uavs)
-            {
-                var resName = stringReader.ReadString((int)uav.StringOffset);
-                var crc = Crc32.GetHash(resName);
-                
-                if (!distinctCrc.TryGetValue(crc, out var entry))
-                {
-                    entry = (resName, new HashSet<string>(), new HashSet<string>());
-                    distinctCrc[crc] = entry;
-                }
-                
-                entry.shaders.Add(path.Path);
-                entry.types.Add("UAV");
-            }
+            var name = ReadString(constant, stringReader);
+            stringCrcs[name] = constant.Id;
+        }
 
-            for (int i = 0; i < shpk.MaterialParams.Length; i++)
-            {
-                var materialParam = shpk.MaterialParams[i];
-                var defaults = shpk.MaterialParamDefaults.Skip(materialParam.ByteOffset / 4).Take(materialParam.ByteSize / 4).ToArray();
-                
-                if (!materialParams.TryGetValue(materialParam.Id, out var entry))
-                {
-                    entry = new Dictionary<string, ShaderInfo>();
-                    materialParams[materialParam.Id] = entry;
-                }
-                
-                entry[path.Path] = new ShaderInfo(defaults, i);
-            }
-        }
-        
-        var outputMaterialParamsList = new List<string>();
-        outputMaterialParamsList.Add("ID\tIndex\tDefaults\tShader");
-        foreach (var (id, shaders) in materialParams)
+        foreach (var sampler in shpk.Samplers)
         {
-            // group by defaults
-            var groupedShaders = shaders.GroupBy(x => x.Value.Defaults, new FloatArrayComparer());
-            foreach (var group in groupedShaders)
-            {
-                foreach (var (shader, info) in group)
-                {
-                    outputMaterialParamsList.Add($"0x{id:X8}\t{info.index}\t{string.Join(",", group.Key)}\t{shader}");
-                }
-            }
+            var name = ReadString(sampler, stringReader);
+            stringCrcs[name] = sampler.Id;
         }
-        
-        File.WriteAllLines("material_params.txt", outputMaterialParamsList);
-        
-        // another but ordered by shader
-        var outputMaterialParamsList2 = new List<string>();
-        outputMaterialParamsList2.Add("Shader\tID\tIndex\tDefaults");
-        var flattenedMaterialParams = materialParams.SelectMany(x => x.Value.Select(y => (x.Key, y.Key, y.Value.Defaults, y.Value.index)));
-        foreach (var (id, shader, defaults, index) in flattenedMaterialParams.OrderBy(x => x.Item2))
+
+        foreach (var texture in shpk.Textures)
         {
-            outputMaterialParamsList2.Add($"{shader}\t0x{id:X8}\t{index}\t{string.Join(",", defaults)}");
+            var name = ReadString(texture, stringReader);
+            stringCrcs[name] = texture.Id;
         }
-        
-        File.WriteAllLines("material_params2.txt", outputMaterialParamsList2);
+
+        foreach (var uav in shpk.Uavs)
+        {
+            var name = ReadString(uav, stringReader);
+            stringCrcs[name] = uav.Id;
+        }
+
+        foreach (var materialParam in shpk.MaterialParams)
+        {
+            matParamCrcs.Add(materialParam.Id);
+        }
+
+        return new ShpkResult(stringCrcs, matParamCrcs);
+
+        string ReadString(ShpkFile.Resource resource, SpanBinaryReader reader)
+        {
+            return reader.ReadString((int)resource.StringOffset);
+        }
     }
     
-    private class FloatArrayComparer : IEqualityComparer<float[]>
+    public record MtrlResult(HashSet<uint> Crcs, HashSet<string> Textures, string Shader);
+
+    public MtrlResult HandleMtrlFile(MtrlFile mtrl)
     {
-        public bool Equals(float[] x, float[] y)
+        var crcs = new HashSet<uint>();
+        var textures = new HashSet<string>();
+        foreach (var constant in mtrl.Constants)
         {
-            return x.SequenceEqual(y);
+            crcs.Add(constant.ConstantId);
         }
 
-        public int GetHashCode(float[] obj)
+        var texPaths = mtrl.GetTexturePaths().Select(x => x.Value); 
+        foreach (var texPath in texPaths)
         {
-            return obj.Aggregate(0, (acc, val) => acc ^ val.GetHashCode());
+            textures.Add(texPath);
         }
+
+        var shader = mtrl.GetShaderPackageName();
+
+        return new MtrlResult(crcs, textures, shader);
     }
-
-    public async Task MtrlDump(CancellationToken token)
+    
+    public record MdlResult(HashSet<string> RelativePaths, HashSet<string> Paths);
+    
+    public MdlResult HandleMdlFile(MdlFile mdl)
     {
-        var stats = new ConcurrentDictionary<string, HashSet<ulong>>();
-        foreach (var repo in pack.Repositories)
+        var relativePaths = new HashSet<string>();
+        var paths = new HashSet<string>();
+        foreach (var (_, path) in mdl.GetMaterialNames())
         {
-            foreach (var category in repo.Categories)
+            // if path starts with / then need to handle as relative
+            if (path.StartsWith("/"))
             {
-                //foreach (var hash in category.Value.UnifiedIndexEntries)
-                await Parallel.ForEachAsync(category.Value.UnifiedIndexEntries, token, (hash, lTok) =>
-                {
-                    try
-                    {
-                        if (category.Value.TryGetFile(hash.Key, out var packFile))
-                        {
-                            var shpkName = TryParseFileFromHash(category.Value, hash, packFile);
-                            if (shpkName is not null)
-                            {
-                                Console.WriteLine($"Found {shpkName} on {category.Key}");
-                                stats.GetOrAdd(shpkName, _ => []).Add(hash.Key);
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Error while processing {category.Key}: {ex}");
-                    }
-
-                    return ValueTask.CompletedTask;
-                });
+                relativePaths.Add(path);
+            }
+            else
+            {
+                paths.Add(path);
             }
         }
         
-        var sb = new StringBuilder();
-        foreach (var (key, value) in stats)
-        {
-            sb.AppendLine($"{key}: {value.Count}");
-        }
-        
-        await File.WriteAllTextAsync("mtrl_dump.txt", sb.ToString(), token);
-        shpkStats = stats.ToDictionary(x => x.Key, x => x.Value);
+        return new MdlResult(relativePaths, paths);
     }
-
-    private Dictionary<string, HashSet<ulong>> shpkStats = new();
     
-    public string? TryParseFileFromHash(Category category, KeyValuePair<ulong, IndexHashTableEntry> hash, SqPackFile packFile)
+    public record ConsolidatedResult(MtrlResult? MtrlResult, ShpkResult? ShpkResult, MdlResult? MdlResult);
+    
+    public ConsolidatedResult? HandleHash(ulong hash, Category category, CancellationToken token)
     {
-        // if data starts with mtrlMagic
-        var fileReader = new SpanBinaryReader(packFile.RawData);
-        if (fileReader.ReadUInt32() == MtrlFile.MtrlMagic)
+        if (category.TryGetFile(hash, out var packFile))
         {
-            var mtrl = new MtrlFile(packFile.RawData);
-            var shaderPackageName = mtrl.GetShaderPackageName();
-            return shaderPackageName;
+            if (packFile.RawData.Length < 4)
+            {
+                return null;
+            }
+            
+            if (packFile.FileHeader.Type == FileType.Standard)
+            {
+
+                // mtrlmagic
+                var fileReader = new SpanBinaryReader(packFile.RawData);
+                var magic = fileReader.ReadUInt32();
+                if (magic == MtrlFile.MtrlMagic)
+                {
+                    var mtrl = new MtrlFile(packFile.RawData);
+                    var mtrlResult = HandleMtrlFile(mtrl);
+                    return new ConsolidatedResult(mtrlResult, null, null);
+                }
+                else if (magic == ShpkFile.ShPkMagic)
+                {
+                    var shpk = new ShpkFile(packFile.RawData);
+                    var shpkResult = HandleShpk(shpk);
+                    return new ConsolidatedResult(null, shpkResult, null);
+                }
+                else if (magic == SklbFile.SklbMagic)
+                {
+                    // var sklb = new SklbFile(packFile.RawData);
+                }
+            }
+            else if (packFile.FileHeader.Type == FileType.Model)
+            {
+                var mdl = new MdlFile(packFile.RawData);
+                var mdlResult = HandleMdlFile(mdl);
+                return new ConsolidatedResult(null, null, mdlResult);
+            }
         }
         
         return null;
     }
-    
-    public void ShpkDump()
+
+    private int total;
+    private int processed;
+
+    public void BruteForcePaths(CancellationToken token)
     {
-        var shpkPaths = pathManager.ParsedPaths.Where(x => x.Path.EndsWith(".shpk")).ToList();
-        var sb = new StringBuilder();
-        var distinctCrc = new Dictionary<uint, string>();
-        foreach (var path in shpkPaths)
+        var patterns = File.ReadAllLines("data/path_patterns.txt");
+        //var mtrlRelativePaths = File.ReadAllLines("data/mtrl_relative_paths.txt");
+        var parsedPatterns = new List<(string SimpleCmp, Token[] Tokens, string Pattern)>();
+        int maxReplacements = 0;
+        var now = DateTime.Now;
+        foreach (var pattern in patterns)
         {
-            var file = pack.GetFile(path.Path);
-            if (file == null) continue;
+            var templatePattern = pattern;
+            int idx = 0;
+            var tokens = new List<Token>();
+            var simpleCmp = "";
+            while (Regex.IsMatch(templatePattern, "\\w%(\\d+)d"))
+            {
+                var matches = Regex.Matches(templatePattern, "(\\w)%(\\d+)d");
+
+                // update pattern string to
+                // in:  chara/equipment/e%04d/e%04d.imc
+                // out: chara/equipment/e{0:4}/e{1:4}.imc
+                // replace first occurence only
+                var match = matches[0];
+                var prefixChar = match.Groups[1].Value;
+                var digits = int.Parse(match.Groups[2].Value);
+                var replacement = $"{{{prefixChar}:{digits}}}";
+                simpleCmp += replacement;
+                templatePattern = templatePattern.Replace(match.Value, replacement);
+                idx++;
+                
+                var max = prefixChar switch {
+                    "e" => 9999,
+                    "c" => -1,
+                    "h" => 500,
+                    "z" => 10,
+                    "w" => 9999,
+                    "b" => 999,
+                    "d" => 9999,
+                    "f" => 20,
+                    "v" => 9999,
+                    _ => 9999
+                };
+                
+                tokens.Add(new Token(replacement, prefixChar, digits, max));
+            }
+
+            if (!templatePattern.Contains("{")) continue;
+            parsedPatterns.Add((simpleCmp, tokens.ToArray(), templatePattern));
+            maxReplacements = Math.Max(maxReplacements, idx);
             
-            var shpk = new ShpkFile(file.Value.file.RawData);
-            var stringReader = new SpanBinaryReader(shpk.RawData[(int)shpk.FileHeader.StringsOffset..]);
-            foreach (var sampler in shpk.Samplers)
+            if (token.IsCancellationRequested)
             {
-                if (sampler.Slot != 2)
-                    continue;
-        
-                var resName = stringReader.ReadString((int)sampler.StringOffset);
-                // compute crc
-                var crc = Crc32.GetHash(resName);
-                sb.AppendLine($"{path.Path}: SAMPLER {resName} - {crc}");
-                distinctCrc[crc] = resName;
-            }
-                
-            foreach (var constant in shpk.Constants)
-            {
-                if (constant.Slot != 2)
-                    continue;
-                var resName = stringReader.ReadString((int)constant.StringOffset);  
-                var crc = Crc32.GetHash(resName);
-                sb.AppendLine($"{path.Path}: CONSTANT {resName} - {crc}");
-                distinctCrc[crc] = resName;
-            }
-                
-            foreach (var texture in shpk.Textures)
-            {
-                if (texture.Slot != 2)
-                    continue;
-                var resName = stringReader.ReadString((int)texture.StringOffset);
-                var crc = Crc32.GetHash(resName);
-                sb.AppendLine($"{path.Path}: TEXTURE {resName} - {crc}");
-                distinctCrc[crc] = resName;
-            }
-                
-            foreach (var uav in shpk.Uavs)
-            {
-                if (uav.Slot != 2)
-                    continue;
-                var resName = stringReader.ReadString((int)uav.StringOffset);
-                var crc = Crc32.GetHash(resName);
-                sb.AppendLine($"{path.Path}: UAV {resName} - {crc}");
-                distinctCrc[crc] = resName;
+                break;
             }
         }
         
-        File.WriteAllText("shpk_dump.txt", sb.ToString());
-        File.WriteAllLines("shpk_distinct.txt", distinctCrc.Select(x => $"{x.Value} = 0x{x.Key:X8},"));
-    }
-
-    public void HandleMtrlPath(string mdlPath, string mtrlPath)
-    {
-        if (!mtrlPath.StartsWith('/'))
+        // ctokens can be any value from GenderRace enum
+        var genderRaceValues = Enum.GetValues(typeof(GenderRace))
+                                   .Cast<GenderRace>()
+                                   .Where(x => x != GenderRace.Unknown)
+                                   .Select(x => $"c{(int)x:D4}".ToLower()).ToArray();
+        // chara/equipment/e{0:4}/e{1:4}.imc
+        // -> chara/equipment/e0000/e0000.imc
+        // -> chara/equipment/e0000/e0001.imc
+        // ...
+        // -> chara/equipment/e9999/e9999.imc
+        
+        var found = new ConcurrentBag<string>();
+        var autoExportTaskToken = new CancellationTokenSource();
+        var autoExportTask = Task.Run(async () =>
         {
-            var file = pack.GetFile(mtrlPath);
-            if (file is null)
+            while (!token.IsCancellationRequested && !autoExportTaskToken.Token.IsCancellationRequested)
             {
-                log.Add($"Failed to find {mdlPath} -> {mtrlPath}");
-                return;
+                await Task.Delay(5000, token);
+                var orderedVals = found.OrderBy(x => x).ToArray();
+                await File.WriteAllLinesAsync($"found_patterns-{now:yyyyMMdd-HHmmss}.txt", orderedVals, token);
             }
+        }, token);
+        
+        parsedPatterns = ExpandPatterns(genderRaceValues, parsedPatterns)
+            // skip versioned paths for now
+            //.Where(x => !x.SimpleCmp.Contains("{v:4}"))
+            .ToList();
+        
+        try
+        {
+            foreach (var pattern in parsedPatterns.OrderBy(x => x.Tokens.Length))
+            {
+                // skip wildcard patterns for now
+                if (pattern.Pattern.Contains("%")) continue;
+                RecurseTokens(pattern.Tokens, 0, pattern.Pattern, found, token);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error while processing: {ex}");
+        }
+        
+        autoExportTaskToken.Cancel();
+        autoExportTask.Wait(token);
 
-            var mtrlFile = new MtrlFile(file.Value.file.RawData);
-            DiscoverShaders(mtrlFile);
-            DiscoverTextures(mtrlFile, mtrlPath);
+        File.WriteAllLines($"found_patterns-{now:yyyyMMdd-HHmmss}.txt", found.OrderBy(x => x));
+    }
+    
+    private IEnumerable<(string SimpleCmp, Token[] Tokens, string Pattern)> ExpandPatterns(string[] cTokens, IEnumerable<(string SimpleCmp, Token[] Tokens, string Pattern)> patterns)
+    {
+        foreach (var pattern in patterns)
+        {
+            if (pattern.SimpleCmp.Contains("{c:4}"))
+            {
+                foreach (var cToken in cTokens)
+                {
+                    var newPattern = pattern.Pattern.Replace("{c:4}", cToken);
+                    var newTokens = pattern.Tokens.Where(x => x.Data != "{c:4}").ToArray();
+                    var newSimpleCmp = pattern.SimpleCmp.Replace("{c:4}", cToken);
+                    yield return (newSimpleCmp, newTokens, newPattern);
+                }
+            }
+            else
+            {
+                yield return pattern;
+            }
+        }
+    }
+    
+    private void RecurseTokens(Token[] tokens, int idx, string pattern, ConcurrentBag<string> found, CancellationToken token)
+    {
+        if (idx >= tokens.Length)
+        {
+            TestPattern(pattern, found);
             return;
         }
-        
-        var resolvedPath = PathUtil.Resolve(mdlPath, mtrlPath);
-        var lookupResult = pack.GetFile(resolvedPath);
-        var foundCount = 0;
-        if (lookupResult is null)
+
+        if (idx == 0 || idx == 1)
         {
-            var prefix = resolvedPath[..resolvedPath.LastIndexOf('/')];
-            
-            // in chunks of 5, try and find each mtrlPath, if none in group, break, otherwise continue
-            var chunkSize = 5;
-            var offset = 0;
-
-            while (true)
-            {
-                var found = false;
-
-                for (var i = offset; i < offset + chunkSize; i++)
-                {
-                    var newResolvedPath = $"{prefix}/v{i:D4}{mtrlPath}";
-                    var newLookupResult = pack.GetFile(newResolvedPath);
-                    if (newLookupResult is not null)
-                    {
-                        var mtrlFile = new MtrlFile(newLookupResult.Value.file.RawData);
-                        discoveredMtrls[newResolvedPath] = new DiscoveredMtrl(mtrlPath, newResolvedPath, mdlPath);
-                        DiscoverShaders(mtrlFile);
-                        DiscoverTextures(mtrlFile, newResolvedPath);
-                        Interlocked.Increment(ref foundCount);
-                        found = true;
-                    }
-                }
-                
-                if (!found)
-                {
-                    break;
-                }
-                
-                offset += chunkSize;
-            }
+            // parallel
+            Parallel.For(0, tokens[idx].Max, HandleIndex);
         }
         else
         {
-            var mtrlFile = new MtrlFile(lookupResult.Value.file.RawData);
-            discoveredMtrls[resolvedPath] = new DiscoveredMtrl(mtrlPath, resolvedPath, mdlPath);
-            DiscoverShaders(mtrlFile);
-            DiscoverTextures(mtrlFile, mtrlPath);
-            foundCount = 1;
-        }
-
-        if (foundCount == 0)
-        {
-            log.Add($"Failed to find {mdlPath} -> {mtrlPath}");
-        }
-        else if (foundCount > 1)
-        {
-            log.Add($"Found multiple ({foundCount}) {mdlPath} -> {mtrlPath}");
-        }
-    }
-    
-    public void HandleMdlFile(string path)
-    {
-        var mdlFile = pack.GetFile(path);
-        if (mdlFile is null)
-        {
-            log.Add($"Failed to get mdl file {path}");
-            return;
-        }
-        
-        var mdl = new MdlFile(mdlFile.Value.file.RawData);
-        foreach (var (offset, mtrlPath) in mdl.GetMaterialNames())
-        {
-            HandleMtrlPath(path, mtrlPath);
-        }
-    }
-    public void DiscoverTextures(MtrlFile mtrlFile, string mtrlPath)
-    {
-        var texturePaths = mtrlFile.GetTexturePaths();
-        foreach (var (_, texPath) in texturePaths)
-        {
-            if (texPath == "dummy.tex")
+            for (int i = 0; i < tokens[idx].Max; i++)
             {
-                continue;
-            }
-            
-            try
-            {
-                var texResult = pack.GetFile(texPath);
-                if (texResult is null)
-                {
-                    log.Add($"Failed to find {texPath}");
-                }
-                else
-                {
-                    discoveredTextures[texPath] = new DiscoveredTexture(texPath, mtrlPath);
-                }
-            }
-            catch (Exception ex)
-            {
-                log.Add($"Error while discovering {texPath}: {ex}");
-            }
-        }
-    }
-
-    public void DiscoverShaders(MtrlFile mtrlFile)
-    {
-        var shpkName = mtrlFile.GetShaderPackageName();
-        var sm5Path = $"shader/sm5/shpk/{shpkName}";
-        var legacyPath = $"shader/shpk/{shpkName}";
-        var sm5Result = pack.GetFile(sm5Path);
-        var legacyResult = pack.GetFile(legacyPath);
-        if (sm5Result is not null)
-        {
-            discoveredShaders.Add(sm5Path);
-        }
-        
-        if (legacyResult is not null)
-        {
-            discoveredShaders.Add(legacyPath);
-        }
-
-        if (sm5Result is null && legacyResult is null)
-        {
-            log.Add($"Failed to find {shpkName}");
-        }
-    }
-
-    public Task DiscoverNew(CancellationToken token)
-    {
-        var textureNames = new ConcurrentDictionary<string, bool>();
-        var mtrlNamesFull = new ConcurrentDictionary<string, bool>();
-        var mtrlNames = new ConcurrentDictionary<string, bool>();
-        var mdlnames = new ConcurrentDictionary<string, bool>();
-        var shpkNames = new ConcurrentDictionary<string, bool>();
-        foreach (var repository in pack.Repositories)
-        {
-            if (repository.ExpansionId != null) continue;
-            foreach (var category in repository.Categories)
-            {
-                if (Category.TryGetCategoryName(category.Key.category) != "chara")
-                {
-                    continue;
-                }
-                
-                if (token.IsCancellationRequested)
-                {
-                    return Task.CompletedTask;
-                }
-                
-                Console.WriteLine($"Processing {category.Key}");
-                
-                Parallel.ForEach(category.Value.UnifiedIndexEntries, (hash, tk) =>
-                {
-                    if (token.IsCancellationRequested)
-                    {
-                        return;
-                    }
-                    
-                    try
-                    {
-                        if (category.Value.TryGetFile(hash.Value.Hash, out var data))
-                        {
-                            if (data.FileHeader.Type == FileType.Model)
-                            {
-                                var mdlFile = new MdlFile(data.RawData);
-                                var mtrlPaths = mdlFile.GetMaterialNames();
-                                foreach (var (_, mtrlPath) in mtrlPaths)
-                                {
-                                    if (mtrlPath.StartsWith("/"))
-                                    {
-                                        if (mtrlNames.TryAdd(mtrlPath, true))
-                                        {
-                                            //Console.WriteLine($"[MTRL] Found {mtrlPath} on {category.Key}");
-                                        }
-                                    }
-                                    else
-                                    {
-                                        if (mtrlNamesFull.TryAdd(mtrlPath, true))
-                                        {
-                                            //Console.WriteLine($"[MTRL] Found {mtrlPath} on {category.Key}");
-                                        }
-                                    }
-                                }
-                            }
-                            else if (data.FileHeader.Type == FileType.Standard)
-                            {
-                                if (data.RawData.Length < 4)
-                                {
-                                    return;
-                                }
-
-                                var reader = new SpanBinaryReader(data.RawData);
-                                var magic = reader.ReadUInt32();
-                                if (magic == MtrlFile.MtrlMagic)
-                                {
-                                    var mtrl = new MtrlFile(data.RawData);
-                                    var shaderPackageName = mtrl.GetShaderPackageName();
-                                    if (shpkNames.TryAdd(shaderPackageName, true))
-                                    {
-                                        //Console.WriteLine($"[SHPK] Found {shaderPackageName} on {category.Key}");
-                                    }
-
-                                    var texturePaths = mtrl.GetTexturePaths();
-                                    foreach (var (_, texPath) in texturePaths)
-                                    {
-                                        if (texPath == "dummy.tex")
-                                        {
-                                            continue;
-                                        }
-
-                                        if (textureNames.TryAdd(texPath, true))
-                                        {
-                                            //Console.WriteLine($"[TEX] Found {texPath} on {category.Key}");
-                                            var mdlPath = ResolveMdlFromTexPath(texPath);
-                                            if (mdlPath is not null && mdlnames.TryAdd(mdlPath, true))
-                                            {
-                                                //Console.WriteLine($"[MDL] Found {mdlPath} on {category.Key}");
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                // skip for now
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        log.Add($"Error while processing {category.Key}: {ex}");
-                        Console.WriteLine($"Error while processing {category.Key}: {ex}");
-                    }
-                });
+                HandleIndex(i);
             }
         }
         
-        Parallel.ForEach(mdlnames.Keys, (mdlPath, tk) =>
+        return;
+        
+        void HandleIndex(int i)
         {
             if (token.IsCancellationRequested)
             {
                 return;
             }
             
+            var replacement = i.ToString($"D{tokens[idx].Digits}");
+            var newPattern = pattern.Replace(tokens[idx].Data, $"{tokens[idx].PrefixChar}{replacement}");
+            RecurseTokens(tokens, idx + 1, newPattern, found, token);
+        }
+    }
+
+    private void TestPattern(string patternText, ConcurrentBag<string> found)
+    {
+        if (pack.FileExists(patternText, out var file))
+        {
             try
             {
-                var mdlFile = pack.GetFile(mdlPath);
-                if (mdlFile is null)
+                if (patternText.EndsWith(".mdl"))
                 {
-                    log.Add($"Failed to get mdl file {mdlPath}");
-                    return;
-                }
-                
-                var mdl = new MdlFile(mdlFile.Value.file.RawData);
-                var newPaths = DiscoverMtrlsFromMdl(mdl, mdlPath);
-                foreach (var mtrlPath in newPaths.mtrlPaths)
-                {
-                    if (mtrlNames.TryAdd(mtrlPath, true))
+                    var data = pack.GetFile(patternText, FileType.Model);
+                    if (data != null)
                     {
-                        Console.WriteLine($"[MTRL] Found {mtrlPath} from {mdlPath}");
+                        Console.WriteLine($"Found {patternText}");
+                        found.Add(patternText);
                     }
                 }
-                
-                foreach (var texPath in newPaths.texPaths)
+                else if (patternText.EndsWith(".mtrl"))
                 {
-                    if (textureNames.TryAdd(texPath, true))
+                    var data = pack.GetFile(patternText, FileType.Standard);
+                    if (data is {file.RawData.Length: > 4})
                     {
-                        Console.WriteLine($"[TEX] Found {texPath} from {mdlPath}");
+                        var reader = new SpanBinaryReader(data.Value.file.RawData);
+                        var magic = reader.ReadUInt32();
+                        if (magic == MtrlFile.MtrlMagic)
+                        {
+                            Console.WriteLine($"Found {patternText}");
+                            found.Add(patternText);
+                        }
                     }
                 }
-                
-                foreach (var shpkName in newPaths.shpkNames)
+                else
                 {
-                    if (shpkNames.TryAdd(shpkName, true))
-                    {
-                        Console.WriteLine($"[SHPK] Found {shpkName} from {mdlPath}");
-                    }
+                    Console.WriteLine($"Untested path found {patternText}");
+                    found.Add(patternText);
                 }
             }
             catch (Exception ex)
             {
-                log.Add($"Error while processing {mdlPath}: {ex}");
+                Console.WriteLine($"Error while processing {patternText}: {ex}");
             }
+        }
+    }
+    
+    private static ReadOnlySpan<int> Calculate(int size, int length, long index)
+    {
+        var combination = new int[length];
+        var remainder = index;
+
+        for (int i = 0; i < length; i++)
+        {
+            combination[i] = (int)(remainder % size);
+            remainder /= size;
+        }
+
+        return combination;
+    }
+    
+    private record Token(string Data, string PrefixChar, int Digits, int Max);
+    
+    public void IterateHashes(CancellationToken token)
+    {
+        var results = new ConcurrentBag<ConsolidatedResult>();
+        total = pack.Repositories.Sum(x => x.Categories.Sum(y => y.Value.UnifiedIndexEntries.Count));
+        processed = 0;
+        foreach (var repo in pack.Repositories)
+        {
+            Console.WriteLine($"Processing {repo.Version} / {repo.Path}");
+            foreach (var category in repo.Categories)
+            {
+                Console.WriteLine($"Processing {category.Key}");
+                var localCategory = category;
+                Parallel.ForEach(category.Value.UnifiedIndexEntries, (hash, state, idx) =>
+                {
+                    if (token.IsCancellationRequested)
+                    {
+                        state.Stop();
+                        return;
+                    }
+
+                    try
+                    {
+                        var result = HandleHash(hash.Key, localCategory.Value, token);
+                        if (result is not null)
+                        {
+                            results.Add(result);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error while processing {localCategory.Key}: {ex}");
+                    }
+                    
+                    Interlocked.Increment(ref processed);
+                });
+            }
+        }
+        
+        
+        var mtrlResults = results.Where(x => x.MtrlResult is not null).Select(x => x.MtrlResult!).ToArray();
+        var shpkResults = results.Where(x => x.ShpkResult is not null).Select(x => x.ShpkResult!).ToArray();
+        var mdlResults = results.Where(x => x.MdlResult is not null).Select(x => x.MdlResult!).ToArray();
+        
+        var mtrlCrcs = mtrlResults.SelectMany(x => x.Crcs).Distinct();
+        var mtrlTextures = mtrlResults.SelectMany(x => x.Textures).Distinct();
+        var mtrlShaders = mtrlResults.Select(x => x.Shader).Distinct();
+        
+        var shpkStrings = shpkResults.SelectMany(x => x.StringCrcs.Keys).Distinct();
+        var shpkMatParams = shpkResults.SelectMany(x => x.MatParamCrcs).Distinct();
+        
+        var mdlRelativePaths = mdlResults.SelectMany(x => x.RelativePaths).Distinct();
+        var mdlPaths = mdlResults.SelectMany(x => x.Paths).Distinct();
+        
+        File.WriteAllLines("mtrl_crcs.txt", mtrlCrcs.Select(x => x.ToString()));
+        File.WriteAllLines("mtrl_textures.txt", mtrlTextures);
+        File.WriteAllLines("mtrl_shaders.txt", mtrlShaders);
+        
+        File.WriteAllLines("shpk_strings.txt", shpkStrings);
+        File.WriteAllLines("shpk_matparams.txt", shpkMatParams.Select(x => x.ToString()));
+        
+        File.WriteAllLines("mdl_relative_paths.txt", mdlRelativePaths);
+        File.WriteAllLines("mdl_paths.txt", mdlPaths);
+        
+        // write serialized results file
+        var serializedResults = JsonSerializer.Serialize(results, new JsonSerializerOptions
+        {
+            WriteIndented = true
         });
         
-        Console.WriteLine("Writing discovered files");
-        File.WriteAllLines("discovered_mtrls.txt", mtrlNames.Keys.OrderBy(x => x).ToArray());
-        File.WriteAllLines("discovered_mtrls_full.txt", mtrlNamesFull.Keys.OrderBy(x => x).ToArray());
-        File.WriteAllLines("discovered_textures.txt", textureNames.Keys.OrderBy(x => x).ToArray());
-        File.WriteAllLines("discovered_mdls.txt", mdlnames.Keys.OrderBy(x => x).ToArray());
-        File.WriteAllLines("discovered_shpk.txt", shpkNames.Keys.OrderBy(x => x).ToArray());
+        File.WriteAllText("results.json", serializedResults);
         
-        return Task.CompletedTask;
+        Console.WriteLine("Done");
     }
-
-    private (List<string> mtrlPaths, List<string> texPaths, List<string> shpkNames) DiscoverMtrlsFromMdl(MdlFile file, string mdlPath)
+    
+    public Task IterateAllHashes(CancellationToken token)
     {
-        var mtrlResolvedPaths = new List<string>();
-        var texPaths = new List<string>();
-        var shpkNames = new List<string>();
-        var mtrlNames = file.GetMaterialNames();
-        foreach (var (offset, originalPath) in mtrlNames)
-        {
-            var mtrlPath = originalPath.StartsWith('/') ? PathUtil.Resolve(mdlPath, originalPath) : originalPath;
-            var mtrlLookupResult = pack.GetFile(mtrlPath);
-            if (mtrlLookupResult == null)
-            {
-                // versioning
-                var prefix = mtrlPath[..mtrlPath.LastIndexOf('/')];
-                for (var j = 1; j < 9999; j++)
-                {
-                    // 1 -> v0001
-                    var versionedPath = $"{prefix}/v{j:D4}{originalPath}";
-                    var versionedLookupResult = pack.GetFile(versionedPath);
-                    if (versionedLookupResult != null)
-                    {
-                        mtrlLookupResult = versionedLookupResult;
-                        break;
-                    }
-                }
-
-                if (mtrlLookupResult == null)
-                {
-                    continue;
-                }
-            }
-
-            var mtrlFile = new MtrlFile(mtrlLookupResult.Value.file.RawData);
-            var texturePaths = mtrlFile.GetTexturePaths();
-            foreach (var (_, texPath) in texturePaths)
-            {
-                if (texPath == "dummy.tex")
-                {
-                    continue;
-                }
-
-                texPaths.Add(texPath);
-            }
-            
-            mtrlResolvedPaths.Add(mtrlPath);
-            shpkNames.Add(mtrlFile.GetShaderPackageName());
-        }
-        
-        return (mtrlResolvedPaths, texPaths, shpkNames);
-    }
-
-    private string? ResolveMdlFromTexPath(string texPath)
-    {
-        if (texPath.StartsWith("chara/demihuman/"))
-        {
-            var regex = new Regex(@"chara/demihuman/(\w+)/obj/equipment/(\w+)/texture/(\w+)\.tex");
-            var match = regex.Match(texPath);
-            if (match.Success)
-            {
-                var demihuman = match.Groups[1].Value;
-                var equipment = match.Groups[2].Value;
-                var texture = match.Groups[3].Value;
-                var textureRegex = new Regex(@"v\d+_(\w+)_(\w+)_(\w+)");
-                var textureMatch = textureRegex.Match(texture);
-                if (textureMatch.Success)
-                {
-                    var mainPart = textureMatch.Groups[1].Value;
-                    var subPart = textureMatch.Groups[2].Value;
-                    var mdlPath = $"chara/demihuman/{demihuman}/obj/equipment/{equipment}/model/{mainPart}_{subPart}.mdl";
-                    var file = pack.GetFile(mdlPath);
-                    if (file is not null)
-                    {
-                        return mdlPath;
-                    }
-                }
-            }
-
-            return null;
-        }
-        else if (texPath.StartsWith("chara/equipment/"))
-        {
-            var regex = new Regex(@"chara/equipment/(\w+)/texture/(\w+)\.tex");
-            var match = regex.Match(texPath);
-            if (match.Success)
-            {
-                var equipment = match.Groups[1].Value;
-                var texture = match.Groups[2].Value;
-                var textureRegex = new Regex(@"v\d+_(\w+)_(\w+)_(\w+)");
-                var textureMatch = textureRegex.Match(texture);
-                if (textureMatch.Success)
-                {
-                    var mainPart = textureMatch.Groups[1].Value;
-                    var subPart = textureMatch.Groups[2].Value;
-                    var mdlPath = $"chara/equipment/{equipment}/model/{mainPart}_{subPart}.mdl";
-                    var file = pack.GetFile(mdlPath);
-                    if (file is not null)
-                    {
-                        return mdlPath;
-                    }
-                }
-            }
-
-            return null;
-        }
-        else if (texPath.StartsWith("chara/human/"))
-        {
-            var bodyTexRegex = new Regex(@"chara/human/(\w+)/obj/body/(\w+)/texture/(\w+)\.tex");
-            var bodyMatch = bodyTexRegex.Match(texPath);
-            if (bodyMatch.Success)
-            {
-                var human = bodyMatch.Groups[1].Value;
-                var body = bodyMatch.Groups[2].Value;
-                var texture = bodyMatch.Groups[3].Value;
-                var textureRegex = new Regex(@"(\w+)_.+");
-                var textureMatch = textureRegex.Match(texture);
-                if (textureMatch.Success)
-                {
-                    var mainPart = textureMatch.Groups[1].Value;
-                    var mdlPath = $"chara/human/{human}/obj/body/{body}/model/{mainPart}.mdl";
-                    var file = pack.GetFile(mdlPath);
-                    if (file is not null)
-                    {
-                        return mdlPath;
-                    }
-                }
-            }
-            
-            var faceTexRegex = new Regex(@"chara/human/(\w+)/obj/face/(\w+)/texture/(\w+)\.tex");
-            var faceMatch = faceTexRegex.Match(texPath);
-            if (faceMatch.Success)
-            {
-                var human = faceMatch.Groups[1].Value;
-                var face = faceMatch.Groups[2].Value;
-                var texture = faceMatch.Groups[3].Value;
-                var textureRegex = new Regex(@"v\d+_(\w+)_.+");
-                var textureMatch = textureRegex.Match(texture);
-                if (textureMatch.Success)
-                {
-                    var mainPart = textureMatch.Groups[1].Value;
-                    var mdlPath = $"chara/human/{human}/obj/face/{face}/model/{mainPart}_fac.mdl";
-                    var file = pack.GetFile(mdlPath);
-                    if (file is not null)
-                    {
-                        return mdlPath;
-                    }
-                }
-            }
-            
-            var hairTexRegex = new Regex(@"chara/human/(\w+)/obj/hair/(\w+)/texture/(\w+)\.tex");
-            var hairMatch = hairTexRegex.Match(texPath);
-            if (hairMatch.Success)
-            {
-                var human = hairMatch.Groups[1].Value;
-                var hair = hairMatch.Groups[2].Value;
-                var texture = hairMatch.Groups[3].Value;
-                var textureRegex = new Regex(@"(\w+)_.+\.tex");
-                var textureMatch = textureRegex.Match(texture);
-                if (textureMatch.Success)
-                {
-                    var mainPart = textureMatch.Groups[1].Value;
-                    var mdlPath = $"chara/human/{human}/obj/hair/{hair}/model/{mainPart}_hir.mdl";
-                    var file = pack.GetFile(mdlPath);
-                    if (file is not null)
-                    {
-                        return mdlPath;
-                    }
-                }
-            }
-            
-            var tailTexRegex = new Regex(@"chara/human/(\w+)/obj/tail/(\w+)/texture/(\w+)\.tex");
-            var tailMatch = tailTexRegex.Match(texPath);
-            if (tailMatch.Success)
-            {
-                var human = tailMatch.Groups[1].Value;
-                var tail = tailMatch.Groups[2].Value;
-                var texture = tailMatch.Groups[3].Value;
-                var textureRegex = new Regex(@"(\w+)_.+");
-                var textureMatch = textureRegex.Match(texture);
-                if (textureMatch.Success)
-                {
-                    var mainPart = textureMatch.Groups[1].Value;
-                    var mdlPath = $"chara/human/{human}/obj/tail/{tail}/model/{mainPart}_til.mdl";
-                    var file = pack.GetFile(mdlPath);
-                    if (file is not null)
-                    {
-                        return mdlPath;
-                    }
-                }
-            }
-            
-            var zearTexRegex = new Regex(@"chara/human/(\w+)/obj/zear/(\w+)/texture/(\w+)\.tex");
-            var zearMatch = zearTexRegex.Match(texPath);
-            if (zearMatch.Success)
-            {
-                var human = zearMatch.Groups[1].Value;
-                var zear = zearMatch.Groups[2].Value;
-                var texture = zearMatch.Groups[3].Value;
-                var textureRegex = new Regex(@"(\w+)_.+");
-                var textureMatch = textureRegex.Match(texture);
-                if (textureMatch.Success)
-                {
-                    var mainPart = textureMatch.Groups[1].Value;
-                    var mdlPath = $"chara/human/{human}/obj/zear/{zear}/model/{mainPart}_ear.mdl";
-                    var file = pack.GetFile(mdlPath);
-                    if (file is not null)
-                    {
-                        return mdlPath;
-                    }
-                }
-            }
-
-            return null;
-        }
-        else if (texPath.StartsWith("chara/monster/"))
-        {
-            var monsterTexRegex = new Regex(@"chara/monster/(\w+)/obj/body/(\w+)/texture/(\w+)\.tex");
-            var monsterMatch = monsterTexRegex.Match(texPath);
-            if (monsterMatch.Success)
-            {
-                var monster = monsterMatch.Groups[1].Value;
-                var body = monsterMatch.Groups[2].Value;
-                var texture = monsterMatch.Groups[3].Value;
-                var textureRegex = new Regex(@"v\d+_(\w+)_(\w+)");
-                var textureMatch = textureRegex.Match(texture);
-                if (textureMatch.Success)
-                {
-                    var mainPart = textureMatch.Groups[1].Value;
-                    var mdlPath = $"chara/monster/{monster}/obj/body/{body}/model/{mainPart}.mdl";
-                    var file = pack.GetFile(mdlPath);
-                    if (file is not null)
-                    {
-                        return mdlPath;
-                    }
-                }
-            }
-            
-            return null;
-        }
-        else if (texPath.StartsWith("chara/weapon/"))
-        {
-            var weaponTexRegex = new Regex(@"chara/weapon/(\w+)/obj/body/(\w+)/texture/(\w+)\.tex");
-            var weaponMatch = weaponTexRegex.Match(texPath);
-            if (weaponMatch.Success)
-            {
-                var weapon = weaponMatch.Groups[1].Value;
-                var body = weaponMatch.Groups[2].Value;
-                var texture = weaponMatch.Groups[3].Value;
-                var textureRegex = new Regex(@"v\d+_(\w+)_(\w+)");
-                var textureMatch = textureRegex.Match(texture);
-                if (textureMatch.Success)
-                {
-                    var mainPart = textureMatch.Groups[1].Value;
-                    var mdlPath = $"chara/weapon/{weapon}/obj/body/{body}/model/{mainPart}.mdl";
-                    var file = pack.GetFile(mdlPath);
-                    if (file is not null)
-                    {
-                        return mdlPath;
-                    }
-                }
-            }
-            
-            return null;
-        }
-        
-        return null;
+        // iterate mtrl files and get crc from constant ids
+        return Task.Run(() => IterateHashes(token), token);
     }
 }

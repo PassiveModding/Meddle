@@ -40,4 +40,13 @@
         <HintPath>..\Meddle.Utils\Lib\OtterTex.dll</HintPath>
       </Reference>
     </ItemGroup>
+    
+    <ItemGroup>
+      <None Update="data\path_patterns.txt">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+      <None Update="data\mtrl_relative_paths.txt">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
 </Project>

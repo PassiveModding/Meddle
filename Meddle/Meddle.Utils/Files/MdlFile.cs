@@ -59,9 +59,7 @@ public class MdlFile
     public readonly BoundingBox[] BoneBoundingBoxes;
 
     private readonly byte[] rawData;
-    public readonly int RemainingOffset;
     public ReadOnlySpan<byte> RawData => rawData;
-    public ReadOnlySpan<byte> RemainingData => rawData.AsSpan(RemainingOffset);
 
     public struct BoneTable
     {
@@ -168,11 +166,5 @@ public class MdlFile
         WaterBoundingBoxes = reader.Read<BoundingBox>();
         VerticalFogBoundingBoxes = reader.Read<BoundingBox>();
         BoneBoundingBoxes = reader.Read<BoundingBox>(ModelHeader.BoneCount).ToArray();
-
-        var runtimePadding = FileHeader.RuntimeSize +
-                             Unsafe.SizeOf<ModelFileHeader>() +
-                             FileHeader.StackSize - reader.Position;
-        reader.Seek((int)runtimePadding, SeekOrigin.Current);
-        RemainingOffset = reader.Position;
     }
 }

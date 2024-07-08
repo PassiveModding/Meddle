@@ -26,8 +26,26 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
     private CancellationTokenSource cts = new();
     private Task ExportTask = Task.CompletedTask;
 
-    private string input = "";
+    private CustomizeParameter customizeParameters = new()
+    {
+        HairFresnelValue0 = new Vector3(0.7443291f, 0.7443291f, 0.7443291f),
+        LeftColor = new Vector4(0.65261054f, 0.24804306f, 0.26795852f, 1),
+        LipColor = new Vector4(0.2214533f, 0.073218f, 0.16633603f, 0.6f),
+        MainColor = new Vector3(0.7994464f, 0.7994464f, 0.7994464f),
+        MeshColor = new Vector3(0.75111115f, 0.4549635f, 0.41868514f),
+        OptionColor = new Vector3(0.6029066f, 0.6029066f, 0.6029066f),
+        RightColor = new Vector4(0.65261054f, 0.24804306f, 0.26795852f, 1),
+        SkinColor = new Vector4(1, 0.7647674f, 0.7443291f, 1),
+        SkinFresnelValue0 = new Vector4(0.0625f, 0.0625f, 0.0625f, 32)
+    };
 
+    private CustomizeData customizeData = new()
+    {
+        LipStick = true,
+        Highlights = true
+    };
+
+    private string input = "";
     private Dictionary<string, Model.MdlGroup> HandleMdls(string[] paths)
     {
         var mdlGroups = new Dictionary<string, Model.MdlGroup>();
@@ -122,42 +140,9 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
         return sklbGroups;
     }
 
-    public void Draw()
+    public void DrawFiles()
     {
-        if (ImGui.InputTextMultiline("##Input", ref input, 1000, new Vector2(500, 500)))
-        {
-            LoadTask = Task.Run(() =>
-            {
-                models.Clear();
-                skeletons.Clear();
-                var newModels = HandleMdls(input.Split("\n"));
-                foreach (var (key, value) in newModels)
-                {
-                    models[key] = value;
-                }
-
-                var newSkeletons = HandleSklbs(input.Split("\n"));
-                foreach (var (key, value) in newSkeletons)
-                {
-                    skeletons[key] = value;
-                }
-            });
-        }
-
-        if (!LoadTask.IsCompleted)
-        {
-            ImGui.Text("Loading...");
-            return;
-        }
-
-        if (LoadTask.IsFaulted)
-        {
-            var ex = LoadTask.Exception;
-            ImGui.Text($"Error: {ex}");
-            return;
-        }
-
-        ImGui.SeparatorText("Models");
+                ImGui.SeparatorText("Models");
         foreach (var (path, mdlGroup) in models)
         {
             if (ImGui.CollapsingHeader(path))
@@ -231,11 +216,47 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                 sklbView.Draw();
             }
         }
+    }
+    
+    public void Draw()
+    {
+        if (ImGui.InputTextMultiline("##Input", ref input, 1000, new Vector2(500, 500)))
+        {
+            LoadTask = Task.Run(() =>
+            {
+                models.Clear();
+                skeletons.Clear();
+                var newModels = HandleMdls(input.Split("\n"));
+                foreach (var (key, value) in newModels)
+                {
+                    models[key] = value;
+                }
+
+                var newSkeletons = HandleSklbs(input.Split("\n"));
+                foreach (var (key, value) in newSkeletons)
+                {
+                    skeletons[key] = value;
+                }
+            });
+        }
+
+        if (!LoadTask.IsCompleted)
+        {
+            ImGui.Text("Loading...");
+            return;
+        }
+
+        if (LoadTask.IsFaulted)
+        {
+            var ex = LoadTask.Exception;
+            ImGui.Text($"Error: {ex}");
+            return;
+        }
+
+        DrawFiles();
 
         ImGui.SeparatorText("Parameters");
-        // TODO TODO TODO
-        var customizeParameters = new CustomizeParameter();
-        var customizeData = new CustomizeData();
+        DrawParameters();
 
         if (ImGui.Button("Export as GLTF"))
         {
@@ -246,7 +267,7 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                             .ToDictionary();
             cts?.Cancel();
             cts = new CancellationTokenSource();
-            ExportTask = Task.Run(() => RunExport(models, sklbs, customizeParameters, customizeData, cts.Token), cts.Token);
+            ExportTask = Task.Run(() => RunExport(models, sklbs, cts.Token), cts.Token);
         }
 
         if (ExportTask.IsFaulted)
@@ -263,9 +284,23 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
         }
     }
 
-    private void RunExport(
-        Dictionary<string, Model.MdlGroup> modelDict, Dictionary<string, HavokXml> sklbDict,
-        CustomizeParameter parameters, CustomizeData customizeData, CancellationToken token = default)
+    private void DrawParameters()
+    {
+        ImGui.Text("Parameters");
+        ImGui.ColorEdit3("Hair Fresnel Value 0", ref customizeParameters.HairFresnelValue0);
+        ImGui.ColorEdit3("Main Color", ref customizeParameters.MainColor);
+        ImGui.ColorEdit3("Mesh Color", ref customizeParameters.MeshColor);
+        ImGui.ColorEdit3("Option Color", ref customizeParameters.OptionColor);
+        ImGui.ColorEdit4("Left Color", ref customizeParameters.LeftColor);
+        ImGui.ColorEdit4("Right Color", ref customizeParameters.RightColor);
+        ImGui.ColorEdit4("Skin Color", ref customizeParameters.SkinColor);
+        ImGui.ColorEdit4("Skin Fresnel Value 0", ref customizeParameters.SkinFresnelValue0);
+        ImGui.ColorEdit4("Lip Color", ref customizeParameters.LipColor);
+        ImGui.Checkbox("Highlights", ref customizeData.Highlights);
+        ImGui.Checkbox("Lip Stick", ref customizeData.LipStick);
+    }
+
+    private void RunExport(Dictionary<string, Model.MdlGroup> modelDict, Dictionary<string, HavokXml> sklbDict, CancellationToken token = default)
     {
         var scene = new SceneBuilder();
         var havokXmls = sklbDict.Values.ToArray();
@@ -276,6 +311,8 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
         {
             throw new InvalidOperationException("Missing catchlight texture");
         }
+        // chara/xls/bonedeformer/human.pbd
+        var pbd = pack.GetFile("chara/xls/bonedeformer/human.pbd");
         
         var catchlightTex = new TexFile(catchlightTexture.Value.file.RawData);
 
@@ -292,9 +329,9 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
             }
             var model = new Model(mdlGroup);
 
-            var materials = new List<MaterialBuilder>();
+            var materials = new MaterialBuilder[model.Materials.Count];
             //foreach (var mtrlGroup in mdlGroup.Mtrls)
-            Parallel.ForEach(model.Materials, material =>
+            Parallel.ForEach(model.Materials, (material, state, i) =>
             {
                 if (token.IsCancellationRequested)
                 {
@@ -307,7 +344,6 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                     {
                         return;
                     }
-                    //var builder = MaterialUtility.ParseMaterial(material);
 
                     var name =
                         $"{Path.GetFileNameWithoutExtension(material.HandlePath)}_{Path.GetFileNameWithoutExtension(material.ShaderPackageName)}";
@@ -320,13 +356,13 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                         "characterocclusion.shpk" => MaterialUtility.BuildCharacterOcclusion(material, name),
                         "characterlegacy.shpk" => MaterialUtility.BuildCharacterLegacy(material, name),
                         //"charactertattoo.shpk" => MaterialUtility.BuildCharacterTattoo(material, name, @params),
-                        "hair.shpk" => MaterialUtility.BuildHair(material, name, parameters, customizeData),
-                        "skin.shpk" => MaterialUtility.BuildSkin(material, name, parameters, customizeData),
-                        "iris.shpk" => MaterialUtility.BuildIris(material, name, catchlightTex, parameters, customizeData),
+                        "hair.shpk" => MaterialUtility.BuildHair(material, name, customizeParameters, customizeData),
+                        "skin.shpk" => MaterialUtility.BuildSkin(material, name, customizeParameters, customizeData),
+                        "iris.shpk" => MaterialUtility.BuildIris(material, name, catchlightTex, customizeParameters, customizeData),
                         _ => MaterialUtility.BuildFallback(material, name)
                     };
 
-                    materials.Add(builder);
+                    materials[i] = builder;
                 }
                 catch (Exception ex)
                 {
