@@ -21,15 +21,23 @@ namespace Meddle.Plugin.Utils;
 public class ExportUtil
 {
     private readonly SqPack pack;
+    private readonly PbdFile pbdFile;
 
     public record CharacterGroup(CustomizeParameter CustomizeParams, CustomizeData CustomizeData, GenderRace GenderRace, Model.MdlGroup[] MdlGroups, Skeleton.Skeleton Skeleton, AttachedModelGroup[] AttachedModelGroups);
     public record AttachedModelGroup(Attach Attach, Model.MdlGroup[] MdlGroups, Skeleton.Skeleton Skeleton);
-    //public record CharacterGroupHK(CustomizeParameter CustomizeParams, CustomizeData CustomizeData, GenderRace GenderRace, Model.MdlGroup[] MdlGroups, IEnumerable<HavokXml> Skeletons);
-    //public record CharacterGroupCT(CustomizeParameter CustomizeParams, CustomizeData CustomizeData, GenderRace GenderRace, Model.MdlGroup[] MdlGroups, IEnumerable<HavokXml> Skeletons);
 
     public ExportUtil(SqPack pack)
     {
         this.pack = pack;
+        
+        // chara/xls/bonedeformer/human.pbd
+        var pbdData = pack.GetFile("chara/xls/bonedeformer/human.pbd");
+        if (pbdData == null)
+        {
+            throw new Exception("Failed to load human.pbd");
+        }
+
+        pbdFile = new PbdFile(pbdData.Value.file.RawData);
     }
     
     private string GetPathForOutput()
@@ -89,7 +97,7 @@ public class ExportUtil
         }
     }
     
-    public void Export(CharacterGroup characterGroup, PbdFile? pbd, CancellationToken token = default)
+    public void Export(CharacterGroup characterGroup, CancellationToken token = default)
     {
         try
         {
@@ -111,7 +119,7 @@ public class ExportUtil
             foreach (var mdlGroup in characterGroup.MdlGroups)
             {
                 if (mdlGroup.Path.Contains("b0003_top")) continue;
-                var meshes = HandleModel(characterGroup, mdlGroup, pbd, catchlightTex, bones, token);
+                var meshes = HandleModel(characterGroup, mdlGroup, catchlightTex, bones, token);
                 meshOutput.AddRange(meshes);
             }
             
@@ -162,7 +170,7 @@ public class ExportUtil
                 
                 foreach (var mdlGroup in attachedModelGroup.MdlGroups)
                 {
-                    var meshes = HandleModel(characterGroup, mdlGroup, pbd, catchlightTex, attachBones, token);
+                    var meshes = HandleModel(characterGroup, mdlGroup, catchlightTex, attachBones, token);
                     foreach (var mesh in meshes)
                     {
                         meshOutputAttach.Add((transform, mesh.model, mesh.mesh, attachBones.ToArray()));
@@ -222,7 +230,7 @@ public class ExportUtil
         }
     }
 
-    private static List<(Model model, ModelBuilder.MeshExport mesh)> HandleModel(CharacterGroup characterGroup, Model.MdlGroup mdlGroup, PbdFile? pbd, TexFile catchlightTex, List<BoneNodeBuilder> bones, CancellationToken token)
+    private List<(Model model, ModelBuilder.MeshExport mesh)> HandleModel(CharacterGroup characterGroup, Model.MdlGroup mdlGroup, TexFile catchlightTex, List<BoneNodeBuilder> bones, CancellationToken token)
     {
         Service.Log.Information("Exporting {Path}", mdlGroup.Path);
         var model = new Model(mdlGroup);
@@ -258,7 +266,7 @@ public class ExportUtil
             materials.Add(builder);
         }
         
-        (GenderRace, RaceDeformer)? raceDeformerValue = pbd != null ? (characterGroup.GenderRace, new RaceDeformer(pbd, bones)) : null;
+        var raceDeformerValue = (characterGroup.GenderRace, new RaceDeformer(pbdFile, bones));
 
         var meshes = ModelBuilder.BuildMeshes(model, materials, bones, raceDeformerValue);
         foreach (var mesh in meshes)

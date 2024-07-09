@@ -32,7 +32,8 @@ public sealed class Plugin : IDalamudPlugin
                             .AddUi()
                             .AddSingleton(pluginInterface)
                             .AddSingleton<InteropService>()
-                            .AddSingleton<ExportUtil>();
+                            .AddSingleton<ExportUtil>()
+                            .AddSingleton<ParseUtil>();
             
             Configuration.PluginInterface = pluginInterface;
             var config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();

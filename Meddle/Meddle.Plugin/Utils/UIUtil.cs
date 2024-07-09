@@ -1,8 +1,5 @@
 ﻿using System.Numerics;
-using FFXIVClientStructs.FFXIV.Client.Game.Character;
-using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using ImGuiNET;
-using Meddle.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.Structs.Material;
@@ -21,7 +18,18 @@ public static class UIUtil
         ImGui.ColorEdit3("Hair Fresnel Value", ref customize.HairFresnelValue0);
         ImGui.ColorEdit3("Mesh Color", ref customize.MeshColor);
         ImGui.ColorEdit4("Left Color", ref customize.LeftColor);
+        ImGui.BeginDisabled();
         ImGui.ColorEdit4("Right Color", ref customize.RightColor);
+        ImGui.EndDisabled();
+        ImGui.SameLine();
+        ImGui.TextDisabled("?");
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.BeginTooltip();
+            ImGui.Text("Right Eye Color will not apply to computed textures as it is selected using the vertex shaders");
+            ImGui.EndTooltip();
+        }
+        
         ImGui.ColorEdit3("Option Color", ref customize.OptionColor);
     }
     
