@@ -149,41 +149,45 @@ public unsafe partial class CharacterTab : ITab
         ImGui.Indent();
         foreach (var partialSkeleton in skeleton.PartialSkeletons)
         {
+            ImGui.PushID(partialSkeleton.GetHashCode());
             if (ImGui.CollapsingHeader($"Partial Skeleton Connected At {partialSkeleton.ConnectedBoneIndex}"))
             {
                 ImGui.Indent();
                 var hkSkeleton = partialSkeleton.HkSkeleton;
                 if (hkSkeleton == null)
                 {
-                    continue;
+                    ImGui.Text("No skeleton data");
                 }
-
-                ImGui.Text($"ConnectedBoneIdx: {partialSkeleton.ConnectedBoneIndex}");
-                ImGui.Columns(3);
-                ImGui.Text("Bone Names");
-                ImGui.NextColumn();
-                ImGui.Text("Bone Parents");
-                ImGui.NextColumn();
-                ImGui.Text("Transform");
-                ImGui.NextColumn();
-                for (var i = 0; i < hkSkeleton.BoneNames.Count; i++)
+                else
                 {
-                    ImGui.Text(hkSkeleton.BoneNames[i]);
+                    ImGui.Text($"ConnectedBoneIdx: {partialSkeleton.ConnectedBoneIndex}");
+                    ImGui.Columns(3);
+                    ImGui.Text("Bone Names");
                     ImGui.NextColumn();
-                    ImGui.Text($"{hkSkeleton.BoneParents[i]}");
+                    ImGui.Text("Bone Parents");
                     ImGui.NextColumn();
-                    var transform = hkSkeleton.ReferencePose[i].AffineTransform;
-                    ImGui.Text($"Scale: {transform.Scale}");
-                    ImGui.Text($"Rotation: {transform.Rotation}");
-                    ImGui.Text($"Translation: {transform.Translation}");
+                    ImGui.Text("Transform");
                     ImGui.NextColumn();
+                    for (var i = 0; i < hkSkeleton.BoneNames.Count; i++)
+                    {
+                        ImGui.Text(hkSkeleton.BoneNames[i]);
+                        ImGui.NextColumn();
+                        ImGui.Text($"{hkSkeleton.BoneParents[i]}");
+                        ImGui.NextColumn();
+                        var transform = hkSkeleton.ReferencePose[i].AffineTransform;
+                        ImGui.Text($"Scale: {transform.Scale}");
+                        ImGui.Text($"Rotation: {transform.Rotation}");
+                        ImGui.Text($"Translation: {transform.Translation}");
+                        ImGui.NextColumn();
+                    }
+
+                    ImGui.Columns(1);
                 }
 
-                ImGui.Columns(1);
                 ImGui.Unindent();
             }
+            ImGui.PopID();
         }
-
         ImGui.Unindent();
     }
 
