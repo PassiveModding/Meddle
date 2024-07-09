@@ -124,13 +124,13 @@ public unsafe partial class CharacterTab : ITab
         {
             if (characterGroup == null)
             {
-                ParseCharacter(SelectedCharacter);
+                exportTask = ParseCharacter(SelectedCharacter);
             }
             else
             {
                 if (ImGui.Button("Parse"))
                 {
-                    ParseCharacter(SelectedCharacter);
+                    exportTask = ParseCharacter(SelectedCharacter);
                 }
             }
         }
@@ -451,7 +451,7 @@ public unsafe partial class CharacterTab : ITab
         return skeletons;
     }
 
-    private Model.MdlGroup? HandleModelPtr(CharacterBase* characterBase, int modelIdx)
+    private Model.MdlGroup? HandleModelPtr(CharacterBase* characterBase, int modelIdx, Dictionary<int, ColorTable> colorTables)
     {
         var modelPtr = characterBase->ModelsSpan[modelIdx];
         if (modelPtr == null) return null;
@@ -513,22 +513,10 @@ public unsafe partial class CharacterTab : ITab
                 var cts = ColorTable.Load(ref reader);
                 mtrlFile.ColorTable = cts;
             }
-
-            var colorTableTex = characterBase->ColorTableTexturesSpan[(modelIdx * CharacterBase.MaxMaterialCount) + j];
-            if (colorTableTex != null)
+            
+            if (colorTables.TryGetValue((modelIdx * CharacterBase.MaxMaterialCount) + j, out var gpuColorTable))
             {
-                var colorTableTexture = colorTableTex.Value;
-                if (colorTableTexture != null)
-                {
-                    log.Debug($"Parsing Color table texture for {mtrlFileName}");
-                    var textures = ParseUtil.ParseColorTableTexture(colorTableTexture).AsSpan();
-                    var colorTableBytes = MemoryMarshal.AsBytes(textures);
-                    var colorTableBuf = new byte[colorTableBytes.Length];
-                    colorTableBytes.CopyTo(colorTableBuf);
-                    var reader = new SpanBinaryReader(colorTableBuf);
-                    var cts = ColorTable.Load(ref reader);
-                    mtrlFile.ColorTable = cts;
-                }
+                mtrlFile.ColorTable = gpuColorTable;
             }
 
             var shpkFileResource = dataManager.GameData.GetFile($"shader/sm5/shpk/{shader}");
@@ -561,14 +549,14 @@ public unsafe partial class CharacterTab : ITab
         return new Model.MdlGroup(mdlFileName, mdlFile, mtrlGroups.ToArray(), shapeAttributeGroup);
     }
 
-    private ExportUtil.AttachedModelGroup HandleAttachGroup(CharacterBase* attachBase)
+    private ExportUtil.AttachedModelGroup HandleAttachGroup(CharacterBase* attachBase, Dictionary<int, ColorTable> colorTables)
     {
         var attach = new Attach(attachBase->Attach);
         var models = new List<Model.MdlGroup>();
         var skeleton = new Skeleton.Skeleton(attachBase->Skeleton);
         for (var i = 0; i < attachBase->ModelsSpan.Length; i++)
         {
-            var mdlGroup = HandleModelPtr(attachBase, i);
+            var mdlGroup = HandleModelPtr(attachBase, i, colorTables);
             if (mdlGroup != null)
             {
                 models.Add(mdlGroup);
@@ -579,13 +567,18 @@ public unsafe partial class CharacterTab : ITab
         return attachGroup;
     }
 
-    private void ParseCharacterInternal(ICharacter character)
+    private Task ParseCharacter(ICharacter character)
     {
+        if (!exportTask?.IsCompleted ?? false)
+        {
+            return exportTask;
+        }
+        
         var charPtr = (CSCharacter*)character.Address;
         var drawObject = charPtr->GameObject.DrawObject;
         if (drawObject == null)
         {
-            return;
+            return Task.CompletedTask;
         }
 
         var objectType = drawObject->Object.GetObjectType();
@@ -627,27 +620,17 @@ public unsafe partial class CharacterTab : ITab
             genderRace = GenderRace.Unknown;
         }
 
-        var skeleton = new Skeleton.Skeleton(characterBase->Skeleton);
-        var mdlGroups = new List<Model.MdlGroup>();
-        for (var i = 0; i < characterBase->SlotCount; i++)
-        {
-            var mdlGroup = HandleModelPtr(characterBase, i);
-            if (mdlGroup != null)
-            {
-                mdlGroups.Add(mdlGroup);
-            }
-        }
+        var colorTableTextures = ParseUtil.ParseColorTableTextures(characterBase);
 
-        var attachGroups = new List<ExportUtil.AttachedModelGroup>();
-        // TODO: Mount/ornament/weapon
+        var attachDict = new Dictionary<Pointer<CharacterBase>, Dictionary<int, ColorTable>>();
         if (charPtr->Mount.MountObject != null)
         {
             var mountDrawObject = charPtr->Mount.MountObject->GameObject.DrawObject;
             if (mountDrawObject != null && mountDrawObject->Object.GetObjectType() == ObjectType.CharacterBase)
             {
                 var mountBase = (CharacterBase*)mountDrawObject;
-                var attachGroup = HandleAttachGroup(mountBase);
-                attachGroups.Add(attachGroup);
+                var mountColorTableTextures = ParseUtil.ParseColorTableTextures(mountBase);
+                attachDict[mountBase] = mountColorTableTextures;
             }
         }
 
@@ -657,8 +640,8 @@ public unsafe partial class CharacterTab : ITab
             if (ornamentDrawObject != null && ornamentDrawObject->Object.GetObjectType() == ObjectType.CharacterBase)
             {
                 var ornamentBase = (CharacterBase*)ornamentDrawObject;
-                var attachGroup = HandleAttachGroup(ornamentBase);
-                attachGroups.Add(attachGroup);
+                var ornamentColorTableTextures = ParseUtil.ParseColorTableTextures(ornamentBase);
+                attachDict[ornamentBase] = ornamentColorTableTextures;
             }
         }
 
@@ -679,23 +662,40 @@ public unsafe partial class CharacterTab : ITab
                 }
 
                 var weaponBase = (CharacterBase*)draw;
-                var attachGroup = HandleAttachGroup(weaponBase);
-                attachGroups.Add(attachGroup);
+                var weaponColorTableTextures = ParseUtil.ParseColorTableTextures(weaponBase);
+                attachDict[weaponBase] = weaponColorTableTextures;
             }
         }
+        
+        // begin background work
+        return Task.Run(() =>
+        {
+            var skeleton = new Skeleton.Skeleton(characterBase->Skeleton);
+            var mdlGroups = new List<Model.MdlGroup>();
+            for (var i = 0; i < characterBase->SlotCount; i++)
+            {
+                var mdlGroup = HandleModelPtr(characterBase, i, colorTableTextures);
+                if (mdlGroup != null)
+                {
+                    mdlGroups.Add(mdlGroup);
+                }
+            }
 
-        characterGroup = new ExportUtil.CharacterGroup(
-            customizeParams,
-            customizeData,
-            genderRace,
-            mdlGroups.ToArray(),
-            skeleton,
-            attachGroups.ToArray());
-    }
+            var attachGroups = new List<ExportUtil.AttachedModelGroup>();
+            foreach (var (attachBase, attachColorTableTextures) in attachDict)
+            {
+                var attachGroup = HandleAttachGroup(attachBase, attachColorTableTextures);
+                attachGroups.Add(attachGroup);
+            }
 
-    private void ParseCharacter(ICharacter character)
-    {
-        ParseCharacterInternal(character);
+            characterGroup = new ExportUtil.CharacterGroup(
+                customizeParams,
+                customizeData,
+                genderRace,
+                mdlGroups.ToArray(),
+                skeleton,
+                attachGroups.ToArray());
+        });
     }
 
     private void DrawMdlGroup(Model.MdlGroup mdlGroup)
