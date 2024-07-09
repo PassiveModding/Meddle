@@ -1,7 +1,6 @@
 ﻿using System.Numerics;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using Meddle.Utils.Export;
-using Meddle.Utils.Files.Structs.Material;
 using Meddle.Utils.Models;
 using SharpGLTF.Materials;
 using CustomizeParameter = Meddle.Utils.Export.CustomizeParameter;
@@ -10,39 +9,6 @@ namespace Meddle.Utils.Materials;
 
 public static partial class MaterialUtility
 {
-    public static (MaterialResourceHandle.ColorTableRow row0, MaterialResourceHandle.ColorTableRow row1) GetPair(int weight, MaterialResourceHandle.ColorTableRow[] colorTableRows)
-    {
-        var weightArr = new byte[] { 
-            0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 
-            0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF 
-        };
-        
-        var nearestPair = weightArr.MinBy(v => Math.Abs(v - weight));
-        var pairIdx = Array.IndexOf(weightArr, nearestPair) * 2;
-        var pair0 = colorTableRows[pairIdx];
-        var pair1 = colorTableRows[pairIdx + 1];
-        
-        return (pair0, pair1);
-    }
-
-    public static ColorRow GetBlendedPair(int weight, int blend, MaterialResourceHandle.ColorTableRow[] colorTableRows)
-    {
-        var (row1, row0) = GetPair(weight, colorTableRows);
-        var prioRow = weight < 128 ? row0 : row1;
-        var row = new ColorRow
-        {
-            Diffuse = Vector3.Lerp(row0.Diffuse, row1.Diffuse, blend / 255f),
-            Specular = Vector3.Lerp(row0.Specular, row1.Specular, blend / 255f),
-            Emissive = Vector3.Lerp(row0.Emissive, row1.Emissive, blend / 255f),
-            MaterialRepeat = prioRow.TileScaleU,
-            MaterialSkew = prioRow.TileScaleV,
-            SpecularStrength = float.Lerp((float)row0.SpecularStrength, (float)row1.SpecularStrength, blend / 255f),
-            GlossStrength = float.Lerp((float)row0.GlossStrength, (float)row1.GlossStrength, blend / 255f),
-            TileSet = prioRow.TileIndex
-        };
-        return row;
-    }
-    
     public static MaterialBuilder BuildCharacter(Material material, string name)
     {
         // diffuse optional
@@ -112,7 +78,7 @@ public static partial class MaterialUtility
             var maskPixel = maskTexture[x, y].ToVector4();
             var indexPixel = indexTexture[x, y];
 
-            ColorRow blended = material.ColorTable.GetBlendedPair(indexPixel.Red, indexPixel.Green);
+            var blended = material.ColorTable.GetBlendedPair(indexPixel.Red, indexPixel.Green);
             if (texMode == TextureMode.Compatibility)
             {
                 var diffusePixel = diffuseTexture![x, y].ToVector4();

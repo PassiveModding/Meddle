@@ -249,7 +249,7 @@ public class MtrlView : IView
             }
             else
             {
-                DrawLegacyRow(i);
+                ImGui.Text($"Legacy Row {i}");
             }
         }
 
@@ -310,65 +310,7 @@ public class MtrlView : IView
 
         ImGui.Text($"{row.GlossStrength}");
         ImGui.NextColumn();
-        ImGui.Text($"{row.TileSet}");
-        ImGui.NextColumn();
-    }
-
-    private void DrawLegacyRow(int i)
-    {
-        ref var row = ref file.ColorTable.GetLegacyRow(i);
-        ImGui.Text($"{i}");
-        ImGui.NextColumn();
-        ImGui.ColorButton($"##rowdiff", new Vector4(row.Diffuse, 1f), ImGuiColorEditFlags.NoAlpha);
-        if (file.HasDyeTable)
-        {
-            ImGui.SameLine();
-            var diff = file.ColorDyeTable[i].Diffuse;
-            ImGui.Checkbox($"##rowdiff", ref diff);
-        }
-
-        ImGui.NextColumn();
-        ImGui.ColorButton($"##rowspec", new Vector4(row.Specular, 1f), ImGuiColorEditFlags.NoAlpha);
-        if (file.HasDyeTable)
-        {
-            ImGui.SameLine();
-            var spec = file.ColorDyeTable[i].Specular;
-            ImGui.Checkbox($"##rowspec", ref spec);
-        }
-
-        ImGui.NextColumn();
-        ImGui.ColorButton($"##rowemm", new Vector4(row.Emissive, 1f), ImGuiColorEditFlags.NoAlpha);
-        if (file.HasDyeTable)
-        {
-            ImGui.SameLine();
-            var emm = file.ColorDyeTable[i].Emissive;
-            ImGui.Checkbox($"##rowemm", ref emm);
-        }
-
-        ImGui.NextColumn();
-        ImGui.Text($"{row.MaterialRepeat}");
-        ImGui.NextColumn();
-        ImGui.Text($"{row.MaterialSkew}");
-        ImGui.NextColumn();
-        if (file.HasDyeTable)
-        {
-            var specStr = file.ColorDyeTable[i].SpecularStrength;
-            ImGui.Checkbox($"##rowspecstr", ref specStr);
-            ImGui.SameLine();
-        }
-
-        ImGui.Text($"{row.SpecularStrength}");
-        ImGui.NextColumn();
-        if (file.HasDyeTable)
-        {
-            var gloss = file.ColorDyeTable[i].Gloss;
-            ImGui.Checkbox($"##rowgloss", ref gloss);
-            ImGui.SameLine();
-        }
-
-        ImGui.Text($"{row.GlossStrength}");
-        ImGui.NextColumn();
-        ImGui.Text($"{row.TileSet}");
+        ImGui.Text($"{row.TileIndex}");
         ImGui.NextColumn();
     }
 }

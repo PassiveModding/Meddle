@@ -1,16 +1,17 @@
 ﻿using System.Numerics;
+using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 
 namespace Meddle.Utils.Files.Structs.Material;
 
 public unsafe struct ColorTable
 {
     public ushort[] Data;
-    public const int LegacyRowSize = 16;
     public const int RowSize = 32;
-    public const int LegacyNumRows = 16;
     public const int NumRows = 32;
+    public const int LegacyRowSize = 16;
+    public const int LegacyNumRows = 16;
 
-    public (ColorRow row0, ColorRow row1) GetPair(int weight)
+    public (MaterialResourceHandle.ColorTableRow row0, MaterialResourceHandle.ColorTableRow row1) GetPair(int weight)
     {
         var weightArr = new byte[] { 
             0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 
@@ -25,11 +26,11 @@ public unsafe struct ColorTable
         return (pair0, pair1);
     }
 
-    public ColorRow GetBlendedPair(int weight, int blend)
+    public MaterialResourceHandle.ColorTableRow GetBlendedPair(int weight, int blend)
     {
         var (row1, row0) = GetPair(weight);
         var prioRow = weight < 128 ? row0 : row1;
-        var row = new ColorRow
+        var row = new MaterialResourceHandle.ColorTableRow
         {
             Diffuse = Vector3.Lerp(row0.Diffuse, row1.Diffuse, blend / 255f),
             Specular = Vector3.Lerp(row0.Specular, row1.Specular, blend / 255f),
@@ -38,47 +39,20 @@ public unsafe struct ColorTable
             MaterialSkew = prioRow.MaterialSkew,
             SpecularStrength = float.Lerp(row0.SpecularStrength, row1.SpecularStrength, blend / 255f),
             GlossStrength = float.Lerp(row0.GlossStrength, row1.GlossStrength, blend / 255f),
-            TileSet = prioRow.TileSet
+            TileIndex = prioRow.TileIndex
         };
+
         return row;
     }
 
-    public ref ColorRow GetRow(int idx)
+    public ref MaterialResourceHandle.ColorTableRow GetRow(int idx)
     {
         fixed (ushort* ptr = Data)
         {
-            return ref ((ColorRow*)ptr)[idx];
+            return ref ((MaterialResourceHandle.ColorTableRow*)ptr)[idx];
         }
     }
     
-    public ref LegacyColorRow GetLegacyRow(int idx)
-    {
-        fixed (ushort* ptr = Data)
-        {
-            return ref ((LegacyColorRow*)ptr)[idx];
-        }
-    }
-
-    public static ColorTable LoadLegacy(ref SpanBinaryReader reader)
-    {
-        var table = new ColorTable
-        {
-            Data = reader.Read<ushort>(LegacyRowSize * LegacyNumRows).ToArray()
-        };
-
-        return table;
-    }
-
-    public static ColorTable DefaultLegacy()
-    {
-        var table = new ColorTable
-        {
-            Data = new ushort[LegacyRowSize * LegacyNumRows]
-        };
-
-        return table;
-    }
-
     public static ColorTable Load(ref SpanBinaryReader reader)
     {
         var table = new ColorTable
@@ -98,8 +72,32 @@ public unsafe struct ColorTable
 
         return table;
     }
-}
 
+    public ColorTable LoadLegacy(ref SpanBinaryReader dataSetReader)
+    {
+        var buf = dataSetReader.Read<ushort>(LegacyRowSize * LegacyNumRows);
+        var table = new ColorTable
+        {
+            Data = new ushort[RowSize * NumRows]
+        };
+        
+        for (int i = 0; i < buf.Length; i++)
+            table.Data[i] = buf[i];
+        
+        return table;
+    }
+
+    public ColorTable DefaultLegacy()
+    {
+        var table = new ColorTable
+        {
+            Data = new ushort[RowSize * NumRows]
+        };
+
+        return table;
+    }
+}
+/*
 public unsafe struct LegacyColorRow
 {
     public fixed ushort Data[ColorTable.LegacyRowSize];
@@ -262,8 +260,9 @@ public unsafe struct ColorRow
 
     private static ushort FromFloat(float x)
         => BitConverter.HalfToUInt16Bits((Half)x);
-}
+}*/
 
+// Old Color Table blending
 public struct TableRow
 {
     public int   Stepped;

@@ -34,7 +34,8 @@ public sealed class Plugin : IDalamudPlugin
                             .AddSingleton<InteropService>()
                             .AddSingleton<ExportUtil>();
             
-            var config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration(pluginInterface);
+            Configuration.PluginInterface = pluginInterface;
+            var config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
             serviceCollection.AddSingleton(config);
             
             var gameDir = Environment.CurrentDirectory;
@@ -114,19 +115,13 @@ public sealed class Plugin : IDalamudPlugin
 
 public class Configuration : IPluginConfiguration
 {
-    private readonly IDalamudPluginInterface pi;
-
-    public Configuration(IDalamudPluginInterface pi)
-    {
-        this.pi = pi;
-    }
-
+    public static IDalamudPluginInterface PluginInterface = null!;
     public int Version { get; set; } = 1;
     public bool ShowAdvanced { get; set; }
     public bool OpenOnLoad { get; set; }
     public void Save()
     {
-        pi.SavePluginConfig(this);
+        PluginInterface.SavePluginConfig(this);
     }
 
 }

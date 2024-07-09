@@ -68,7 +68,11 @@ public unsafe class Texture
         D3DResourceMiscFlags flags = 0;
         if (h.Type.HasFlag(TexFile.Attribute.TextureTypeCube))
             flags |= D3DResourceMiscFlags.TextureCube;
-        Resource = new TextureResource(h.Format.ToDXGIFormat(), h.Width, h.Height, h.MipLevels, h.ArraySize, dimension, flags, file.TextureBuffer);
+        Resource = new TextureResource(h.Format.ToDXGIFormat(), 
+                                       h.Width, 
+                                       h.Height, 
+                                       h.MipLevels, h.ArraySize, dimension, flags, 
+                                       file.TextureBuffer);
         Meta = ImageUtils.GetTexMeta(file);
 
         if (shpkFile != null)
