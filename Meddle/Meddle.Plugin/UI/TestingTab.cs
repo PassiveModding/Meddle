@@ -158,6 +158,12 @@ public class TestingTab : ITab
                                 material = materialPtr;
                             }
 
+                            if (material == null)
+                            {
+                                materialCache.Remove(mtrlFileName);
+                                continue;
+                            }
+
                             var shpkName = material->MaterialResourceHandle->ShpkNameString;
                             var shpkPath = $"shader/sm5/shpk/{shpkName}";
                             if (!shpkCache.TryGetValue(shpkPath, out var shpk))
