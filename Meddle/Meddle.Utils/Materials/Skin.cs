@@ -44,7 +44,7 @@ public static partial class MaterialUtility
             var diffusePixel = diffuse[x, y].ToVector4();
 
             var skinInfluence = normalPixel.Z;
-            diffusePixel = Vector4.Lerp(diffusePixel, skinColor, skinInfluence);
+            var newDiffusePixel = Vector4.Lerp(diffusePixel, skinColor, skinInfluence);
             
             var specMask = maskPixel.X;
             //var specular = new Vector4(specMask, specMask, specMask, 1.0f);
@@ -54,8 +54,7 @@ public static partial class MaterialUtility
             {
                 if (data.LipStick)
                 {
-                    diffusePixel = Vector4.Lerp(diffusePixel, lipColor, secondaryInfluence * lipColor.W);
-                    diffusePixel.W = 1.0f;
+                    newDiffusePixel = Vector4.Lerp(newDiffusePixel, lipColor, secondaryInfluence * lipColor.W);
                 }
             }
             else if (skinType == SkinType.Hrothgar)
@@ -67,10 +66,10 @@ public static partial class MaterialUtility
                 }
                 
                 var hCol = new Vector4(hair, 1.0f);
-                diffusePixel = Vector4.Lerp(diffusePixel, hCol, secondaryInfluence);
+                newDiffusePixel = Vector4.Lerp(newDiffusePixel, hCol, secondaryInfluence);
             }
             
-            diffuseTexture[x, y] = diffusePixel.ToSkColor();
+            diffuseTexture[x, y] = (newDiffusePixel with { W = diffusePixel.W }).ToSkColor();
             normalTexture[x, y] = (normalPixel with { W = 1.0f }).ToSkColor();
            // specularTexture[x, y] = specular.ToSkColor();
         }
