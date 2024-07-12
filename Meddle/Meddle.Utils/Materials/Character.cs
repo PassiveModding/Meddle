@@ -1,5 +1,4 @@
 ﻿using System.Numerics;
-using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using Meddle.Utils.Export;
 using Meddle.Utils.Models;
 using SharpGLTF.Materials;
@@ -11,7 +10,6 @@ public static partial class MaterialUtility
 {
     public static MaterialBuilder BuildCharacter(Material material, string name)
     {
-        // diffuse optional
         TextureMode texMode;
         if (material.ShaderKeys.Any(x => x.Category == (uint)ShaderCategory.CategoryTextureType))
         {
@@ -226,99 +224,98 @@ public static partial class MaterialUtility
     
     public static MaterialBuilder BuildCharacterLegacy(Material material, string name)
     {
-        SKTexture normal = material.GetTexture(TextureUsage.g_SamplerNormal).ToTexture();
-        SKTexture? diffuse = null;
-        bool hasDiffuse = false;
-        
-        if (material.TryGetTexture(TextureUsage.g_SamplerDiffuse, out var diffuseTexture))
+        TextureMode texMode;
+        if (material.ShaderKeys.Any(x => x.Category == (uint)ShaderCategory.CategoryTextureType))
         {
-            hasDiffuse = true;
-            diffuse = diffuseTexture.ToTexture((normal.Width, normal.Height));
+            var key = material.ShaderKeys.First(x => x.Category == (uint)ShaderCategory.CategoryTextureType);
+            texMode = (TextureMode)key.Value;
         }
-
-        var baseNormal = normal;
-        SKTexture baseTexture = diffuse ?? new SKTexture(normal.Width, normal.Height);
-        SKTexture? baseGloss = null;
-        SKTexture? baseSpecular = null;
-        if (material.TryGetTexture(TextureUsage.g_SamplerIndex, out var indexTexture))
+        else
         {
-            var index = indexTexture.ToTexture((normal.Width, normal.Height));
-            baseSpecular = new SKTexture(normal.Width, normal.Height);
-            baseGloss = new SKTexture(normal.Width, normal.Height);
-            var table = material.ColorTable;
-
-            for (var x = 0; x < index.Width; x++)
-            for (var y = 0; y < index.Height; y++)
-            {
-                var indexPixel = index[x, y];
-                var blended = table.GetBlendedPair(indexPixel.Red, indexPixel.Green);
-                var normalPixel = baseNormal[x, y].ToVector4();
-                
-                baseGloss[x, y] = new Vector4(blended.Emissive, blended.GlossStrength).ToSkColor();
-                baseSpecular[x, y] = new Vector4(blended.Specular, blended.SpecularStrength).ToSkColor();
-                
-                // apply to diffuse
-                if (hasDiffuse)
-                {
-                    var diffusePixel = baseTexture[x, y].ToVector4();
-                    // multiply diffuse by pairDiffuse
-                    diffusePixel *= new Vector4(blended.Diffuse, normalPixel.Z);
-                    baseTexture[x, y] = (diffusePixel with {W = normalPixel.Z}).ToSkColor();
-                }
-                else
-                {
-                    baseTexture[x, y] = new Vector4(blended.Diffuse, normalPixel.Z).ToSkColor();
-                }
-            }
+            texMode = TextureMode.Default;
         }
         
-        
-        if (material.TryGetTexture(TextureUsage.g_SamplerMask, out var maskTexture))
+        SpecularMode specMode;
+        if (material.ShaderKeys.Any(x => x.Category == (uint)ShaderCategory.CategorySpecularType))
         {
-            var mask = maskTexture.ToTexture((normal.Width, normal.Height));
-            // red -> diffuse mask
-            // green -> specular mask
-            // blue -> gloss mask
+            var key = material.ShaderKeys.First(x => x.Category == (uint)ShaderCategory.CategorySpecularType);
+            specMode = (SpecularMode)key.Value;
+        }
+        else
+        {
+            specMode = 0x0;
+        }
+        
+        var normal = material.GetTexture(TextureUsage.g_SamplerNormal).ToTexture();
+        var indexTexture = material.GetTexture(TextureUsage.g_SamplerIndex).ToTexture((normal.Width, normal.Height));
+        
+        var diffuseTexture = texMode switch
+        {
+            TextureMode.Compatibility => material.GetTexture(TextureUsage.g_SamplerDiffuse).ToTexture((normal.Width, normal.Height)),
+            _ => null
+        };
+        
+        var specularTexture = specMode switch
+        {
+            SpecularMode.Default => material.GetTexture(TextureUsage.g_SamplerSpecular).ToTexture((normal.Width, normal.Height)),
+            _ => null
+        };
+        
+        var outNormal = new SKTexture(normal.Width, normal.Height);
+        var outDiffuse = new SKTexture(normal.Width, normal.Height);
+        var outSpecular = new SKTexture(normal.Width, normal.Height);
+        for (var x = 0; x < normal.Width; x++)
+        for (var y = 0; y < normal.Height; y++)
+        {
+            var normalPixel = normal[x, y].ToVector4();
+            var indexPixel = indexTexture[x, y];
             
-            for (var x = 0; x < mask.Width; x++)
-            for (var y = 0; y < mask.Height; y++)
+            var blended = material.ColorTable.GetBlendedPair(indexPixel.Red, indexPixel.Green);
+            if (texMode == TextureMode.Compatibility)
             {
-                var maskPixel = mask[x, y].ToVector4();
-                var normalPixel = baseNormal[x, y].ToVector4();
-                var diffusePixel = baseTexture[x, y].ToVector4();
-                
-                // apply diffuse mask
-                diffusePixel *= new Vector4(maskPixel.X);
-                baseTexture[x, y] = (diffusePixel with {W = normalPixel.Z}).ToSkColor();
-                
-                // apply specular mask
-                if (baseSpecular != null)
-                {
-                    var specPixel = baseSpecular[x, y].ToVector4();
-                    var specAlpha = specPixel.W;
-                    specPixel *= new Vector4(maskPixel.Y);
-                    baseSpecular[x, y] = (specPixel with {W = specAlpha}).ToSkColor();
-                }
-
-                // apply gloss mask
-                if (baseGloss != null)
-                {
-                    var glossPixel = baseGloss[x, y].ToVector4();
-                    var glossAlpha = glossPixel.W;
-                    glossPixel *= new Vector4(maskPixel.Z);
-                    baseGloss[x, y] = (glossPixel with {W = glossAlpha}).ToSkColor();
-                }
+                var diffusePixel = diffuseTexture![x, y].ToVector4();
+                diffusePixel *= new Vector4(blended.Diffuse, normalPixel.Z);
+                outDiffuse[x, y] = (diffusePixel with {W = normalPixel.Z}).ToSkColor();
             }
+            else if (texMode == TextureMode.Default)
+            {
+                var diffusePixel = new Vector4(blended.Diffuse, normalPixel.Z);
+                outDiffuse[x, y] = diffusePixel.ToSkColor();
+            }
+            else
+            {
+                throw new NotImplementedException();
+            }
+
+            if (specMode == SpecularMode.Default)
+            {
+                var specPixel = specularTexture![x, y].ToVector4();
+                outSpecular[x, y] = specPixel.ToSkColor();
+            }
+            else if (specMode == SpecularMode.Mask)
+            {
+                outSpecular[x, y] = new Vector4(0.1f, 0.1f, 0.1f, 1.0f).ToSkColor();
+            }
+            else
+            {
+                outSpecular[x, y] = new Vector4(0.1f, 0.1f, 0.1f, 1.0f).ToSkColor();
+            }
+            
+            outNormal[x, y] = (normalPixel with {W = 1.0f}).ToSkColor();
         }
+
+        var output = new MaterialBuilder(name);
+        output.WithBaseColor(BuildImage(outDiffuse, name, "diffuse"));
+        output.WithNormal(BuildImage(outNormal, name, "normal"));
+        output.WithSpecularFactor(BuildImage(outSpecular, name, "specular"), 1);
         
-        var output = new MaterialBuilder(name)
-                     .WithDoubleSide(true);
+        var alphaThreshold = material.GetConstantOrDefault(MaterialConstant.g_AlphaThreshold, 0.0f);
+        if (alphaThreshold > 0)
+            output.WithAlpha(AlphaMode.MASK, alphaThreshold);
+        else
+            output.WithAlpha();
         
-        output.WithBaseColor(BuildImage(baseTexture, name, "diffuse"));
-        output.WithNormal(BuildImage(normal, name, "normal"));
-        
-        if (baseGloss != null) output.WithSpecularColor(BuildImage(baseGloss, name, "gloss"));
-        if (baseSpecular != null) output.WithSpecularFactor(BuildImage(baseSpecular, name, "specular"), 1);
+        output.WithDoubleSide((material.ShaderFlags & 0x1) == 0);
         
         return output;
     }
