@@ -202,15 +202,16 @@ public class ShpkView : IView
                 disassembledVertexShaders[i] = ShaderUtils.Disassemble(file.VertexShaders[i].Blob);
             }
             
-            File.WriteAllText("vertex_shaders.txt", string.Join("\n\n", disassembledVertexShaders.Values));
+            File.WriteAllText($"vertex_shaders_{Path.GetFileNameWithoutExtension(shaderPackage.Name)}.txt", string.Join("\n\n", disassembledVertexShaders.Values));
             
             var disassembledPixelShaders = new Dictionary<int, string>();
             for (var i = 0; i < file.PixelShaders.Length; i++)
             {
                 disassembledPixelShaders[i] = ShaderUtils.Disassemble(file.PixelShaders[i].Blob);
+                File.WriteAllText($"pixel_shaders_{Path.GetFileNameWithoutExtension(shaderPackage.Name)}_{i}.txt", disassembledPixelShaders[i]);
             }
             
-            File.WriteAllText("pixel_shaders.txt", string.Join("\n\n", disassembledPixelShaders.Values));
+            File.WriteAllText($"pixel_shaders_{Path.GetFileNameWithoutExtension(shaderPackage.Name)}.txt", string.Join("\n\n", disassembledPixelShaders.Values));
         }
         
         if (ImGui.CollapsingHeader("Vertex Shaders"))
