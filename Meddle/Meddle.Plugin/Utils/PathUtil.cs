@@ -20,6 +20,12 @@ public static class PathUtil
         }
 
         var file = pack.GetFile(path);
-        return file?.file.RawData.ToArray();
+        if (file == null)
+        {
+            Service.Log.Error($"Failed to get file {path}");
+            return null;
+        }
+
+        return file.Value.file.RawData.ToArray();
     }
 }
