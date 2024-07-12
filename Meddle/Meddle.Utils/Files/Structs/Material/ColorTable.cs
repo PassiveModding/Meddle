@@ -28,17 +28,19 @@ public unsafe struct ColorTable
 
     public MaterialResourceHandle.ColorTableRow GetBlendedPair(int weight, int blend)
     {
-        var (row1, row0) = GetPair(weight);
-        var prioRow = weight < 128 ? row0 : row1;
+        var (row0, row1) = GetPair(weight);
+        var prioRow = weight < 128 ? row1 : row0;
+        
+        var blendAmount = blend / 255f;
         var row = new MaterialResourceHandle.ColorTableRow
         {
-            Diffuse = Vector3.Lerp(row0.Diffuse, row1.Diffuse, blend / 255f),
-            Specular = Vector3.Lerp(row0.Specular, row1.Specular, blend / 255f),
-            Emissive = Vector3.Lerp(row0.Emissive, row1.Emissive, blend / 255f),
+            Diffuse = Vector3.Clamp(Vector3.Lerp(row1.Diffuse, row0.Diffuse, blendAmount), Vector3.Zero, Vector3.One),
+            Specular = Vector3.Clamp(Vector3.Lerp(row1.Specular, row0.Specular, blendAmount), Vector3.Zero, Vector3.One),
+            Emissive = Vector3.Clamp(Vector3.Lerp(row1.Emissive, row0.Emissive, blendAmount), Vector3.Zero, Vector3.One),
             MaterialRepeat = prioRow.MaterialRepeat,
             MaterialSkew = prioRow.MaterialSkew,
-            SpecularStrength = float.Lerp(row0.SpecularStrength, row1.SpecularStrength, blend / 255f),
-            GlossStrength = float.Lerp(row0.GlossStrength, row1.GlossStrength, blend / 255f),
+            SpecularStrength = float.Clamp(float.Lerp(row1.SpecularStrength, row0.SpecularStrength, blendAmount), 0, 1),
+            GlossStrength = float.Clamp(float.Lerp(row1.GlossStrength, row0.GlossStrength, blendAmount), 0, 1),
             TileIndex = prioRow.TileIndex
         };
 
