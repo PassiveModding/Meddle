@@ -65,6 +65,11 @@ public class TestingTab : ITab
         SelectedCharacter ??= objects.FirstOrDefault() ?? clientState.LocalPlayer;
 
         ImGui.Text("Select Character");
+        if (SelectedCharacter?.IsValid() == false && clientState.LocalPlayer != null)
+        {
+            SelectedCharacter = null;
+        }
+        
         var preview = SelectedCharacter != null ? clientState.GetCharacterDisplayText(SelectedCharacter) : "None";
         using (var combo = ImRaii.Combo("##Character", preview))
         {
@@ -173,10 +178,10 @@ public class TestingTab : ITab
                                 {
                                     if (!mtrlCache.TryGetValue(mtrlFileName, out var mtrl))
                                     {
-                                        var mtrlData = pack.GetFile(mtrlFileName);
+                                        var mtrlData = pack.GetFileOrReadFromDisk(mtrlFileName);
                                         if (mtrlData != null)
                                         {
-                                            mtrl = new MtrlFile(mtrlData.Value.file.RawData);
+                                            mtrl = new MtrlFile(mtrlData);
                                             mtrlCache[mtrlFileName] = mtrl;
                                         }
                                         else
@@ -189,10 +194,10 @@ public class TestingTab : ITab
                                     var shpkPath = $"shader/sm5/shpk/{shpkName}";
                                     if (!shpkCache.TryGetValue(shpkPath, out var shpk))
                                     {
-                                        var shpkData = pack.GetFile(shpkPath);
+                                        var shpkData = pack.GetFileOrReadFromDisk(shpkPath);
                                         if (shpkData != null)
                                         {
-                                            shpk = new ShpkFile(shpkData.Value.file.RawData);
+                                            shpk = new ShpkFile(shpkData);
                                             shpkCache[shpkPath] = shpk;
                                         }
                                         else
