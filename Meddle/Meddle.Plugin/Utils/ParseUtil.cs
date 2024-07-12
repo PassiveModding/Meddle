@@ -78,7 +78,7 @@ public class ParseUtil
         if (model == null) return null;
 
         var mdlFileName = model->ModelResourceHandle->ResourceHandle.FileName.ToString();
-        var mdlFileResource = pack.GetFile(mdlFileName);
+        var mdlFileResource = pack.GetFileOrReadFromDisk(mdlFileName);
         if (mdlFileResource == null)
         {
             return null;
@@ -101,7 +101,7 @@ public class ParseUtil
         var shapeAttributeGroup =
             new Model.ShapeAttributeGroup(shapesMask, attributeMask, shapes.ToArray(), attributes.ToArray());
 
-        var mdlFile = new MdlFile(mdlFileResource.Value.file.RawData);
+        var mdlFile = new MdlFile(mdlFileResource);
         var mtrlGroups = new List<Material.MtrlGroup>();
         for (var j = 0; j < model->MaterialsSpan.Length; j++)
         {
@@ -115,13 +115,13 @@ public class ParseUtil
             var mtrlFileName = material->MaterialResourceHandle->ResourceHandle.FileName.ToString();
             var shader = material->MaterialResourceHandle->ShpkNameString;
 
-            var mtrlFileResource = pack.GetFile(mtrlFileName);
+            var mtrlFileResource = pack.GetFileOrReadFromDisk(mtrlFileName);
             if (mtrlFileResource == null)
             {
                 continue;
             }
 
-            var mtrlFile = new MtrlFile(mtrlFileResource.Value.file.RawData);
+            var mtrlFile = new MtrlFile(mtrlFileResource);
             var colorTable = material->MaterialResourceHandle->ColorTableSpan;
             if (colorTable.Length == 32)
             {
@@ -151,13 +151,13 @@ public class ParseUtil
             var textureNames = mtrlFile.GetTexturePaths().Select(x => x.Value).ToArray();
             foreach (var textureName in textureNames)
             {
-                var texFileResource = pack.GetFile(textureName);
+                var texFileResource = pack.GetFileOrReadFromDisk(textureName);
                 if (texFileResource == null)
                 {
                     continue;
                 }
 
-                var texFile = new TexFile(texFileResource.Value.file.RawData);
+                var texFile = new TexFile(texFileResource);
                 texGroups.Add(new Meddle.Utils.Export.Texture.TexGroup(textureName, texFile));
             }
 
@@ -200,14 +200,14 @@ public class ParseUtil
                 continue;
             }
 
-            var skeletonFileResource =
-                pack.GetFile(skeletonResourceHandle->ResourceHandle.FileName.ToString());
+            var fileName = skeletonResourceHandle->ResourceHandle.FileName.ToString();
+            var skeletonFileResource = pack.GetFileOrReadFromDisk(fileName);
             if (skeletonFileResource == null)
             {
                 continue;
             }
 
-            var sklbFile = new SklbFile(skeletonFileResource.Value.file.RawData);
+            var sklbFile = new SklbFile(skeletonFileResource);
             var tempFile = Path.GetTempFileName();
             try
             {
