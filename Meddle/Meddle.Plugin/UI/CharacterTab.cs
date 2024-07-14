@@ -113,25 +113,25 @@ public unsafe partial class CharacterTab : ITab
 
         if (SelectedCharacter != null)
         {
-            if (characterGroup == null)
+            ImGui.BeginDisabled(ExportTaskIncomplete);
+            if (ImGui.Button("Parse"))
             {
                 exportTask = ParseCharacter(SelectedCharacter);
             }
-            else
-            {
-                ImGui.BeginDisabled(ExportTaskIncomplete);
-                if (ImGui.Button("Parse"))
-                {
-                    exportTask = ParseCharacter(SelectedCharacter);
-                }
-                ImGui.EndDisabled();
-            }
+            ImGui.EndDisabled();
         }
         else
         {
             ImGui.TextWrapped("No character selected");
         }
 
+        
+        if (characterGroup == null)
+        {
+            ImGui.Text("Parse a character to view data");
+            return;
+        }
+        
         DrawCharacterGroup();
     }
 
@@ -186,13 +186,7 @@ public unsafe partial class CharacterTab : ITab
 
     private void DrawCharacterGroup()
     {
-        if (characterGroup == null)
-        {
-            ImGui.Text("No character group");
-            return;
-        }
-        
-        ImGui.PushID(characterGroup.GetHashCode());
+        ImGui.PushID(characterGroup!.GetHashCode());
         var availWidth = ImGui.GetContentRegionAvail().X;
         ImGui.Columns(2, "Customize", true);
         try
