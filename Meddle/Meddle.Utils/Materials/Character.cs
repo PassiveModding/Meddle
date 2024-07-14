@@ -69,54 +69,56 @@ public static partial class MaterialUtility
         var outDiffuse = new SKTexture(normal.Width, normal.Height);
         var outSpecular = new SKTexture(normal.Width, normal.Height);
         var outOcclusion = new SKTexture(normal.Width, normal.Height);
-        for (var x = 0; x < normal.Width; x++)
-        for (var y = 0; y < normal.Height; y++)
+        //for (var x = 0; x < normal.Width; x++)
+        Parallel.For(0, normal.Width, x =>
         {
-            var normalPixel = normal[x, y].ToVector4();
-            var maskPixel = maskTexture[x, y].ToVector4();
-            var indexPixel = indexTexture[x, y];
+            for (var y = 0; y < normal.Height; y++)
+            {
+                var normalPixel = normal[x, y].ToVector4();
+                var maskPixel = maskTexture[x, y].ToVector4();
+                var indexPixel = indexTexture[x, y];
 
-            var blended = material.ColorTable.GetBlendedPair(indexPixel.Red, indexPixel.Green);
-            if (texMode == TextureMode.Compatibility)
-            {
-                var diffusePixel = diffuseTexture![x, y].ToVector4();
-                diffusePixel *= new Vector4(blended.Diffuse, normalPixel.Z);
-                outDiffuse[x, y] = (diffusePixel with {W = normalPixel.Z}).ToSkColor();
-            }
-            else if (texMode == TextureMode.Default)
-            {
-                var diffusePixel = new Vector4(blended.Diffuse, normalPixel.Z);
-                outDiffuse[x, y] = diffusePixel.ToSkColor();
-            }
-            else
-            {
-                throw new NotImplementedException();
-            }
+                var blended = material.ColorTable.GetBlendedPair(indexPixel.Red, indexPixel.Green);
+                if (texMode == TextureMode.Compatibility)
+                {
+                    var diffusePixel = diffuseTexture![x, y].ToVector4();
+                    diffusePixel *= new Vector4(blended.Diffuse, normalPixel.Z);
+                    outDiffuse[x, y] = (diffusePixel with {W = normalPixel.Z}).ToSkColor();
+                }
+                else if (texMode == TextureMode.Default)
+                {
+                    var diffusePixel = new Vector4(blended.Diffuse, normalPixel.Z);
+                    outDiffuse[x, y] = diffusePixel.ToSkColor();
+                }
+                else
+                {
+                    throw new NotImplementedException();
+                }
 
-            var specular = new Vector4(1.0f);
-            var roughness = 0.0f;
-            var occlusion = 1.0f;
-            
-            if (specMode == SpecularMode.Mask)
-            {
-                var diffuseMask = maskPixel.X;
-                specular *= maskPixel.Y;
-                roughness = maskPixel.Z;
-                outOcclusion[x, y] = new Vector4(diffuseMask).ToSkColor();
-                outSpecular[x, y] = specular.ToSkColor();
+                var spec = blended.Specular;
+                var specStrength = blended.SpecularStrength;
+
+                if (specMode == SpecularMode.Mask)
+                {
+                    var diffuseMask = maskPixel.X;
+                    var maspSpec = maskPixel.Y;
+                    var maskRoughness = maskPixel.Z;
+                    outOcclusion[x, y] = new Vector4(diffuseMask).ToSkColor();
+                    outSpecular[x, y] = new Vector4(spec, specStrength).ToSkColor();
+                }
+                else if (specMode == SpecularMode.Default)
+                {
+                    var specPixel = specTexture![x, y].ToVector4();
+                    outSpecular[x, y] = specPixel.ToSkColor();
+                }
+                else
+                {
+                    outSpecular[x, y] = new Vector4(spec, specStrength).ToSkColor();
+                }
+
+                outNormal[x, y] = (normalPixel with {W = 1.0f}).ToSkColor();
             }
-            else if (specMode == SpecularMode.Default)
-            {
-                var specPixel = specTexture![x, y].ToVector4();
-                outSpecular[x, y] = specPixel.ToSkColor();
-            }
-            else
-            {
-                outSpecular[x, y] = new Vector4(0.1f, 0.1f, 0.1f, 1.0f).ToSkColor();
-            }
-            
-            outNormal[x, y] = (normalPixel with {W = 1.0f}).ToSkColor();
-        }
+        });
 
         var output = new MaterialBuilder(name);
         output.WithBaseColor(BuildImage(outDiffuse, name, "diffuse"));
@@ -125,12 +127,14 @@ public static partial class MaterialUtility
         if (specMode == SpecularMode.Mask)
         {
             output.WithMetallicRoughnessShader();
-            output.WithMetallicRoughness(BuildImage(outSpecular, name, "specular"), 1);
+            output.WithMetallicRoughness(BuildImage(outSpecular, name, "specular"));
             output.WithOcclusion(BuildImage(outOcclusion, name, "occlusion"));
         }
         else
         {
-            output.WithSpecularFactor(BuildImage(outSpecular, name, "specular"), 1);
+            var spec = BuildImage(outSpecular, name, "specular");
+            output.WithSpecularFactor(spec, 1);
+            output.WithSpecularColor(spec);
         }
         
         var alphaThreshold = material.GetConstantOrDefault(MaterialConstant.g_AlphaThreshold, 0.0f);
@@ -224,6 +228,7 @@ public static partial class MaterialUtility
     
     public static MaterialBuilder BuildCharacterLegacy(Material material, string name)
     {
+        return BuildCharacter(material, name);
         TextureMode texMode;
         if (material.ShaderKeys.Any(x => x.Category == (uint)ShaderCategory.CategoryTextureType))
         {
@@ -294,11 +299,11 @@ public static partial class MaterialUtility
             }
             else if (specMode == SpecularMode.Mask)
             {
-                outSpecular[x, y] = new Vector4(0.1f, 0.1f, 0.1f, 1.0f).ToSkColor();
+                outSpecular[x, y] = new Vector4(0.1f, 0.1f, 0.1f, 0.1f).ToSkColor();
             }
             else
             {
-                outSpecular[x, y] = new Vector4(0.1f, 0.1f, 0.1f, 1.0f).ToSkColor();
+                outSpecular[x, y] = new Vector4(0.1f, 0.1f, 0.1f, 0.1f).ToSkColor();
             }
             
             outNormal[x, y] = (normalPixel with {W = 1.0f}).ToSkColor();
@@ -307,7 +312,9 @@ public static partial class MaterialUtility
         var output = new MaterialBuilder(name);
         output.WithBaseColor(BuildImage(outDiffuse, name, "diffuse"));
         output.WithNormal(BuildImage(outNormal, name, "normal"));
-        output.WithSpecularFactor(BuildImage(outSpecular, name, "specular"), 1);
+        var spec = BuildImage(outSpecular, name, "specular");
+        output.WithSpecularFactor(spec, 1);
+        output.WithSpecularColor(spec);
         
         var alphaThreshold = material.GetConstantOrDefault(MaterialConstant.g_AlphaThreshold, 0.0f);
         if (alphaThreshold > 0)

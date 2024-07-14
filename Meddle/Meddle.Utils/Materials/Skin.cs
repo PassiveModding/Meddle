@@ -36,33 +36,34 @@ public static partial class MaterialUtility
         var diffuseTexture = new SKTexture(diffuse.Width, diffuse.Height);
         var normalTexture = new SKTexture(normal.Width, normal.Height);
         var metallicRoughness = new SKTexture(normal.Width, normal.Height);
-        for (int x = 0; x < normal.Width; x++)
-        for (int y = 0; y < normal.Height; y++)
+        //for (int x = 0; x < normal.Width; x++)
+        Parallel.For(0, normal.Width, x =>
         {
-            var normalPixel = normal[x, y].ToVector4();
-            var maskPixel = mask[x, y].ToVector4();
-            var diffusePixel = diffuse[x, y].ToVector4();
-
-            var skinInfluence = normalPixel.Z;
-            var newDiffusePixel = Vector4.Lerp(diffusePixel, skinColor, skinInfluence);
-            
-            var specular = maskPixel.X;
-            var roughness = maskPixel.Y;
-            var subsurface = maskPixel.Z;
-            var metallic = 0.0f;
-            var roughnessPixel = new Vector4(subsurface, roughness, metallic, specular);
-
-            var secondaryInfluence = normalPixel.W;
-            if (skinType == SkinType.Default || skinType == SkinType.Face)
+            for (int y = 0; y < normal.Height; y++)
             {
-                if (data.LipStick)
+                var normalPixel = normal[x, y].ToVector4();
+                var maskPixel = mask[x, y].ToVector4();
+                var diffusePixel = diffuse[x, y].ToVector4();
+
+                var skinInfluence = normalPixel.Z;
+                var diffuseAlpha = diffusePixel.W;
+                diffusePixel = Vector4.Lerp(diffusePixel, skinColor, skinInfluence);
+
+                var specular = maskPixel.X;
+                var roughness = maskPixel.Y;
+                var subsurface = maskPixel.Z;
+                var metallic = 0.0f;
+                var roughnessPixel = new Vector4(subsurface, roughness, metallic, specular);
+
+                if (skinType == SkinType.Face)
                 {
-                    newDiffusePixel = Vector4.Lerp(newDiffusePixel, lipColor, secondaryInfluence * lipColor.W);
+                    if (data.LipStick)
+                    {
+                        diffusePixel = Vector4.Lerp(diffusePixel, lipColor, normalPixel.W * lipColor.W);
+                    }
                 }
-            }
-            else if (skinType == SkinType.Hrothgar)
-            {
-                if (skinInfluence != 0f)
+                // only apply hair for hrothgar if skin is not applied
+                else if (skinType == SkinType.Hrothgar && skinInfluence == 0f)
                 {
                     var hair = hairColor;
                     if (data.Highlights)
@@ -70,19 +71,21 @@ public static partial class MaterialUtility
                         hair = Vector3.Lerp(hairColor, highlightColor, maskPixel.W);
                     }
 
-                    var hCol = new Vector4(hair, 1.0f);
-                    newDiffusePixel = Vector4.Lerp(newDiffusePixel, hCol, secondaryInfluence);
+                    diffusePixel = Vector4.Lerp(diffusePixel, new Vector4(hair, 1.0f), normalPixel.W);
                 }
+
+                diffuseTexture[x, y] = (diffusePixel with {W = diffuseAlpha}).ToSkColor();
+                normalTexture[x, y] = (normalPixel with {W = 1.0f}).ToSkColor();
+                metallicRoughness[x, y] = roughnessPixel.ToSkColor();
             }
-            
-            diffuseTexture[x, y] = (newDiffusePixel with { W = diffusePixel.W }).ToSkColor();
-            normalTexture[x, y] = (normalPixel with { W = 1.0f }).ToSkColor();
-            metallicRoughness[x, y] = roughnessPixel.ToSkColor();
-        }
+        });
 
         var output = new MaterialBuilder(name);
         output.WithBaseColor(BuildImage(diffuseTexture, name, "diffuse"));
-        output.WithNormal(BuildImage(normalTexture, name, "normal"));
+        
+        // just seems right at 0.75f, at least for au-ra scales?
+        output.WithNormal(BuildImage(normalTexture, name, "normal"), 0.75f);
+        
         var mr = BuildImage(metallicRoughness, name, "sss_roughness_metallic_specular");
         output.WithMetallicRoughness(mr);
         output.WithSpecularFactor(mr, 1.0f);

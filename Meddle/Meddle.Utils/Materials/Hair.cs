@@ -18,19 +18,22 @@ public static partial class MaterialUtility
         }
         
         SKTexture normal = material.GetTexture(TextureUsage.g_SamplerNormal).ToTexture();
-        SKTexture mask = material.GetTexture(TextureUsage.g_SamplerMask).ToTexture();
+        SKTexture mask = material.GetTexture(TextureUsage.g_SamplerMask).ToTexture((normal.Width, normal.Height)); // spec, roughness, sss thickness, ao
         
         var outDiffuse = new SKTexture(normal.Width, normal.Height);
-        var outSpecRough = new SKTexture(normal.Width, normal.Height);
+        var roughMet = new SKTexture(normal.Width, normal.Height); // R = SSS, G = roughness, B = metallic, A = specular strength
         var outNormal = new SKTexture(normal.Width, normal.Height);
+        var occ = new SKTexture(normal.Width, normal.Height);
         
-        var refMask = mask.Resize(normal.Width, normal.Height);
-        var refNormal = normal.Resize(normal.Width, normal.Height);
         for (var x = 0; x < outDiffuse.Width; x++)
         for (var y = 0; y < outDiffuse.Height; y++)
         {
-            var maskPixel = refMask[x, y].ToVector4();
-            var normalPixel = refNormal[x, y].ToVector4();
+            var normalPixel = normal[x, y].ToVector4();
+            var maskPixel = mask[x, y].ToVector4();
+
+            roughMet[x, y] = new Vector4(maskPixel.Z, maskPixel.Y, 0, maskPixel.X).ToSkColor();
+            occ[x, y] = new Vector4(0, 0, 0, maskPixel.W).ToSkColor();
+            
             
             // Base color
             var hairColor = parameters.MainColor;
@@ -58,23 +61,24 @@ public static partial class MaterialUtility
             }
 
             outDiffuse[x, y] = new Vector4(hairColor, normalPixel.W).ToSkColor();
-            
-            // Specular
-            outSpecRough[x, y] = new Vector4(maskPixel.X, maskPixel.Y, maskPixel.Z, maskPixel.W).ToSkColor();
-            
-            // Normal
-            outNormal[x, y] = normalPixel.ToSkColor();
+            outNormal[x, y] = (normalPixel with {Z = 1.0f, W = 1.0f}).ToSkColor();
         }
 
         var output = new MaterialBuilder(name);
-        var doubleSided = (material.ShaderFlags & 0x1) == 0;
-        output.WithDoubleSide(doubleSided);
+        //var doubleSided = (material.ShaderFlags & 0x1) == 0;
+        //output.WithDoubleSide(doubleSided);
 
         
-        var normalScale = material.GetConstantOrDefault(MaterialConstant.g_NormalScale, 1.0f);
+        // using this kinda just makes everything look jank
+        //var normalScale = material.GetConstantOrDefault(MaterialConstant.g_NormalScale, 1.0f);
         
-        output.WithBaseColor(BuildImage(outDiffuse, name, "diffuse"))
-              .WithNormal(BuildImage(outNormal, name, "normal"), normalScale);
+        output.WithBaseColor(BuildImage(outDiffuse, name, "diffuse"));
+        output.WithNormal(BuildImage(outNormal, name, "normal"));
+        var roughMetImg = BuildImage(roughMet, name, "roughness_metallic_specular");
+        output.WithSpecularFactor(roughMetImg, 1.0f);
+        output.WithMetallicRoughness(roughMetImg, 0.0f, 1.0f);
+        output.WithMetallicRoughnessShader();
+        output.WithOcclusion(BuildImage(occ, name, "occlusion"));
         
         var alphaThreshold = material.GetConstantOrDefault(MaterialConstant.g_AlphaThreshold, 0.0f);
         if (alphaThreshold > 0)
