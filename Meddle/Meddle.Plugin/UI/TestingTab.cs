@@ -49,7 +49,7 @@ public class TestingTab : ITab
         if (clientState.LocalPlayer != null)
         {
             objects = objectTable.OfType<ICharacter>()
-                                 .Where(obj => obj.IsValid() && obj.IsValidHuman())
+                                 .Where(obj => obj.IsValid() && obj.IsValidCharacterBase())
                                  .OrderBy(c => clientState.GetDistanceToLocalPlayer(c).LengthSquared())
                                  .ToArray();
         }
