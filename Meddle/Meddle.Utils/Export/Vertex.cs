@@ -74,21 +74,6 @@ public unsafe struct Vertex
 
         public static Vector4 HandleUshort4(ReadOnlySpan<byte> buffer)
         {
-            /*fixed (byte* b = buffer)
-            {
-                // pack into vec4
-                var buf = new byte[8];
-                buf[0] = b[0]; 
-                buf[1] = b[4];
-                buf[2] = b[1]; 
-                buf[3] = b[5];
-                buf[4] = b[2]; 
-                buf[5] = b[6];
-                buf[6] = b[3]; 
-                buf[7] = b[7];
-                var us = MemoryMarshal.Cast<byte, ushort>(buf);
-                return new Vector4(us[0], us[1], us[2], us[3]);
-            }*/
             var byteValues = new byte[8];
             byteValues[0] = buffer[0];
             byteValues[4] = buffer[1];
