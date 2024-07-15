@@ -6,6 +6,7 @@ public class BoneNodeBuilder(string name) : NodeBuilder(name)
 {
     public string BoneName { get; } = name;
     public int? Suffix { get; private set; }
+    public bool IsGenerated { get; set; } = false;
 
     /// <summary>
     /// Sets the suffix of this bone and all its children.

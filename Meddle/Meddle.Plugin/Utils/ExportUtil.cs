@@ -116,6 +116,34 @@ public class ExportUtil
             }
             
             var meshOutput = new List<(Model, ModelBuilder.MeshExport)>();
+            // precompute required bones in the case they don't exist
+            foreach (var mdlGroup in characterGroup.MdlGroups)
+            {
+                var model = new Model(mdlGroup);
+                foreach (var mesh in model.Meshes)
+                {
+                    if (mesh.BoneTable == null) continue;
+                    
+                    foreach (var boneName in mesh.BoneTable)
+                    {
+                        if (bones.All(b => !b.BoneName.Equals(boneName, StringComparison.Ordinal)))
+                        {
+                            Service.Log.Information("Adding bone {BoneName} from mesh {MeshPath}", boneName, mdlGroup.Path);
+                            var bone = new BoneNodeBuilder(boneName)
+                            {
+                                IsGenerated = true
+                            };
+                            
+                            if (root == null) throw new InvalidOperationException("Root bone not found");
+                            root.AddNode(bone);
+                            Service.Log.Information("Added bone {BoneName} to {ParentBone}", boneName, root.BoneName);
+                            
+                            bones.Add(bone);
+                        }
+                    }
+                }
+            }
+            
             foreach (var mdlGroup in characterGroup.MdlGroups)
             {
                 if (mdlGroup.Path.Contains("b0003_top")) continue;
