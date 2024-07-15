@@ -15,17 +15,17 @@ using Material = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Material;
 
 namespace Meddle.Plugin.UI;
 
-public class TestingTab : ITab
+public class MaterialParameterTab : ITab
 {
     private readonly IObjectTable objectTable;
     private readonly IClientState clientState;
     private readonly SqPack pack;
     private readonly Configuration config;
-    public string Name => "Testing";
+    public string Name => "Material Parameters";
     public int Order => 3;
     public bool DisplayTab => config.ShowAdvanced;
 
-    public TestingTab(IObjectTable objectTable, IClientState clientState, SqPack pack, Configuration config)
+    public MaterialParameterTab(IObjectTable objectTable, IClientState clientState, SqPack pack, Configuration config)
     {
         this.objectTable = objectTable;
         this.clientState = clientState;
