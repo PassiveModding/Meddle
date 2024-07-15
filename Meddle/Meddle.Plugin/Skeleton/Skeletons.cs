@@ -27,6 +27,7 @@ public class Skeleton
 
 public class PartialSkeleton
 {
+    public string? HandlePath { get; }
     public HkSkeleton? HkSkeleton { get; }
     public IReadOnlyList<SkeletonPose> Poses { get; }
     public int ConnectedBoneIndex { get; }
@@ -37,7 +38,10 @@ public class PartialSkeleton
     public unsafe PartialSkeleton(PartialCSSkeleton* partialSkeleton)
     {
         if (partialSkeleton->SkeletonResourceHandle != null)
+        {
             HkSkeleton = new HkSkeleton(partialSkeleton->SkeletonResourceHandle->HavokSkeleton);
+            HandlePath = partialSkeleton->SkeletonResourceHandle->FileName.ToString();
+        }
 
         ConnectedBoneIndex = partialSkeleton->ConnectedBoneIndex;
 

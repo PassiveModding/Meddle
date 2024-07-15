@@ -143,7 +143,7 @@ public unsafe partial class CharacterTab : ITab
         foreach (var partialSkeleton in skeleton.PartialSkeletons)
         {
             ImGui.PushID(partialSkeleton.GetHashCode());
-            if (ImGui.CollapsingHeader($"Partial Skeleton Connected At {partialSkeleton.ConnectedBoneIndex}"))
+            if (ImGui.CollapsingHeader($"[{partialSkeleton.ConnectedBoneIndex}] {partialSkeleton.HandlePath ?? "Unknown"}"))
             {
                 ImGui.Indent();
                 var hkSkeleton = partialSkeleton.HkSkeleton;
