@@ -74,8 +74,7 @@ public unsafe struct Vertex
 
         public static Vector4 HandleUshort4(ReadOnlySpan<byte> buffer)
         {
-            // No clue how correct/incorrect this is I'm tired
-            fixed (byte* b = buffer)
+            /*fixed (byte* b = buffer)
             {
                 // pack into vec4
                 var buf = new byte[8];
@@ -89,7 +88,18 @@ public unsafe struct Vertex
                 buf[7] = b[7];
                 var us = MemoryMarshal.Cast<byte, ushort>(buf);
                 return new Vector4(us[0], us[1], us[2], us[3]);
-            }
+            }*/
+            var byteValues = new byte[8];
+            byteValues[0] = buffer[0];
+            byteValues[4] = buffer[1];
+            byteValues[1] = buffer[2];
+            byteValues[5] = buffer[3];
+            byteValues[2] = buffer[4];
+            byteValues[6] = buffer[5];
+            byteValues[3] = buffer[6];
+            byteValues[7] = buffer[7];
+            var us = MemoryMarshal.Cast<byte, ushort>(byteValues);
+            return new Vector4(us[0], us[1], us[2], us[3]);
         }
 
         public static T ConvertTo<T>(object value) where T : struct
