@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using System.Diagnostics;
+using System.Numerics;
 using ImGuiNET;
 using Meddle.Utils;
 using Meddle.Utils.Export;
@@ -403,8 +404,10 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
 
         // replace extension with gltf
         outputPath = Path.ChangeExtension(outputPath, ".gltf");
-
+        
         sceneGraph.SaveGLTF(outputPath);
+        
+        Process.Start("explorer.exe", folder);
 
         // save all raw textures
         foreach (var mdlGroup in modelDict)
