@@ -1,6 +1,7 @@
 ﻿using System.Text.Json.Serialization;
 using FFXIVClientStructs.Havok.Animation.Rig;
 using FFXIVClientStructs.Interop;
+using Meddle.Utils.Files;
 using Meddle.Utils.Skeletons;
 using PartialCSSkeleton = FFXIVClientStructs.FFXIV.Client.Graphics.Render.PartialSkeleton;
 using CSSkeleton = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Skeleton;
@@ -46,7 +47,7 @@ public class PartialSkeleton
         ConnectedBoneIndex = partialSkeleton->ConnectedBoneIndex;
 
         var poses = new List<SkeletonPose>();
-        for (var i = 0; i < 4; ++i)
+        for (var i = 0; i < partialSkeleton->HavokPoses.Length; ++i)
         {
             var pose = partialSkeleton->GetHavokPose(i);
             if (pose != null)
@@ -57,9 +58,10 @@ public class PartialSkeleton
                 }
 
                 poses.Add(new SkeletonPose(pose));
+                
             }
         }
-
+        
         Poses = poses;
     }
 }
