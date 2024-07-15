@@ -7,35 +7,50 @@ using Meddle.Utils.Skeletons.Havok;
 
 namespace Meddle.UI.Windows.Views;
 
-public class SklbView : IView
+public class PapView : IView
 {
-    private readonly SklbFile file;
+    private readonly PapFile papFile;
+    private readonly HexView havokHexView;
+    private readonly HexView footerHexView;
     private readonly HexView hexView;
-    private readonly Configuration configuration;
 
-    public SklbView(SklbFile file, Configuration configuration)
+    public PapView(PapFile papFile)
     {
-        this.file = file;
-        this.hexView = new(file.RawData);
-        this.configuration = configuration;
+        this.papFile = papFile;
+        this.havokHexView = new HexView(papFile.HavokData);
+        this.footerHexView = new HexView(papFile.FooterData);
+        this.hexView = new HexView(papFile.RawData);
     }
-    
-    private string? parseResult;
+
+    private string? parsed;
     private HavokXml? havokXml;
     public void Draw()
     {
-        ImGui.Text($"Version: {file.Header.Version} [{(uint)file.Header.Version:X8}]");
-        ImGui.Text($"Old Header: {file.Header.OldHeader}");
+        ImGui.Text($"Variant: {papFile.FileHeader.Variant}");
+        ImGui.Text($"Model ID: {papFile.FileHeader.ModelId}");
+        ImGui.Text($"Model Type: {papFile.FileHeader.ModelType}");
         
-        if (ImGui.Button("Parse"))
+        ImGui.Text($"Loaded {papFile.Animations.Length} animations");
+        foreach (var anim in papFile.Animations)
         {
-            parseResult = SkeletonUtil.ParseHavokInput(file.Skeleton.ToArray());
-            havokXml = new HavokXml(parseResult);
+            if (ImGui.TreeNode($"{anim.GetName}##{anim.GetHashCode()}"))
+            {
+                ImGui.Text($"Type: {anim.Type}");
+                ImGui.Text($"Havok Index: {anim.HavokIndex}");
+                ImGui.Text($"Is Face: {anim.IsFace}");
+                ImGui.TreePop();
+            }
         }
 
-        if (ImGui.CollapsingHeader("Havok XML") && parseResult != null)
+        if (ImGui.Button("Parse"))
         {
-            ImGui.TextUnformatted(parseResult);
+            parsed = SkeletonUtil.ParseHavokInput(papFile.HavokData.ToArray());
+            havokXml = new HavokXml(parsed);
+        }
+        
+        if (ImGui.CollapsingHeader("XML") && parsed != null)
+        {
+            ImGui.TextUnformatted(parsed);
         }
         
         if (ImGui.CollapsingHeader("Parsed XML") && havokXml != null)
@@ -68,6 +83,16 @@ public class SklbView : IView
                 ImGui.BulletText($"Skeleton A: {mapping.SkeletonA}");
                 ImGui.BulletText($"Skeleton B: {mapping.SkeletonB}");
             }
+        }
+
+        if (ImGui.CollapsingHeader("Havok Data"))
+        {
+            havokHexView.DrawHexDump();
+        }
+        
+        if (ImGui.CollapsingHeader("Footer Data"))
+        {
+            footerHexView.DrawHexDump();
         }
         
         if (ImGui.CollapsingHeader("Raw Data"))

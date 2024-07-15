@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
 using ImGuiNET;
+using Meddle.UI.Util;
 using Meddle.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
@@ -143,7 +144,7 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
 
     public void DrawFiles()
     {
-                ImGui.SeparatorText("Models");
+        ImGui.SeparatorText("Models");
         foreach (var (path, mdlGroup) in models)
         {
             if (ImGui.CollapsingHeader(path))
@@ -262,10 +263,8 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
         if (ImGui.Button("Export as GLTF"))
         {
             var sklbs = this.skeletons
-                            .Select(x => (x.Key, views[x.Key] as SklbView))
-                            .Select(x => (x.Item1, x.Item2!.Resolve().GetAwaiter().GetResult()))
-                            .Select(x => (x.Item1, new HavokXml(x.Item2)))
-                            .ToDictionary();
+                            .Select(x => (x.Key, SkeletonUtil.ParseHavokInput(x.Value.File.Skeleton.ToArray())))
+                            .ToDictionary(x => x.Key, y => new HavokXml(y.Item2));
             cts?.Cancel();
             cts = new CancellationTokenSource();
             ExportTask = Task.Run(() => RunExport(models, sklbs, cts.Token), cts.Token);
