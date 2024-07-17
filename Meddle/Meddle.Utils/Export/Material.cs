@@ -151,14 +151,17 @@ public unsafe class Material
         for (int i = 0; i < mtrlGroup.MtrlFile.Samplers.Length; i++)
         {
             var sampler = mtrlGroup.MtrlFile.Samplers[i];
-            var texture = mtrlGroup.MtrlFile.TextureOffsets[sampler.TextureIndex];
-            var path = texturePaths[texture.Offset];
-            var texFile = mtrlGroup.TexFiles.FirstOrDefault(x => x.Path == path)?.TexFile;
-            if (texFile == null)
-                throw new ArgumentException($"Texture {path} not found");
-            var texObj = new Texture(texFile, path, sampler.Flags, sampler.SamplerId, mtrlGroup.ShpkFile);
-            
-            textures.Add(texObj);
+            if (sampler.TextureIndex != byte.MaxValue)
+            {
+                var texture = mtrlGroup.MtrlFile.TextureOffsets[sampler.TextureIndex];
+                var path = texturePaths[texture.Offset];
+                var texFile = mtrlGroup.TexFiles.FirstOrDefault(x => x.Path == path)?.TexFile;
+                if (texFile == null)
+                    throw new ArgumentException($"Texture {path} not found");
+                var texObj = new Texture(texFile, path, sampler.Flags, sampler.SamplerId, mtrlGroup.ShpkFile);
+
+                textures.Add(texObj);
+            }
         }
         
         Textures = textures;
