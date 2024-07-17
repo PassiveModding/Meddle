@@ -1,15 +1,11 @@
 ﻿using System.Numerics;
 using System.Runtime.InteropServices;
-using System.Text.Json;
 using Dalamud.Plugin.Services;
-using FFXIVClientStructs.FFXIV.Client.Graphics.Render;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using ImGuiNET;
 using Meddle.Plugin.Utils;
-using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
-using Object = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Object;
 
 namespace Meddle.Plugin.UI;
 
@@ -71,7 +67,6 @@ public class WorldTab : ITab
                 if (terrain->ResourceHandle == null) continue;
                 var path = terrain->ResourceHandle->FileName.ToString();
                 objects.Add(new ObjectData(ObjectType.Terrain, path, childObject->Position, childObject->Rotation, childObject->Scale));
-                
             }
         }
     }
@@ -79,7 +74,6 @@ public class WorldTab : ITab
     public void Draw()
     {
         if (!interop.IsResolved) return;
-        //if (clientState.LocalPlayer == null) return;
         var position = clientState.LocalPlayer?.Position ?? Vector3.Zero;
 
         if (ImGui.Button("Parse world objects"))
@@ -88,17 +82,30 @@ public class WorldTab : ITab
         }
 
         var availHeight = ImGui.GetContentRegionAvail().Y;
-        ImGui.BeginChild("ObjectTable", new Vector2(0, availHeight / 2), true);
-        foreach (var obj in objects.OrderBy(o => Vector3.Distance(o.Position, position)))
+        ImGui.BeginChild("ObjectTable", new Vector2(0, availHeight / 4), true);
+        foreach (var obj in objects.Where(x => x.Path.EndsWith(".mdl")).OrderBy(o => Vector3.Distance(o.Position, position)))
         {
             var distance = Vector3.Distance(obj.Position, position);
             if (ImGui.Selectable($"[{obj.Type}][{distance:F1}y] {obj.Path}"))
             {
                 selectedObjects.Add(obj);
+                // set clipboard
+                ImGui.SetClipboardText(obj.Path);
             }
         }
-
         ImGui.EndChild();
+        /*ImGui.BeginChild("TeraTable", new Vector2(0, availHeight / 4), true);
+        foreach (var obj in objects.Where(x => x.Path.EndsWith(".tera")).OrderBy(o => Vector3.Distance(o.Position, position)))
+        {
+            var distance = Vector3.Distance(obj.Position, position);
+            if (ImGui.Selectable($"[{obj.Type}][{distance:F1}y] {obj.Path}"))
+            {
+                selectedObjects.Add(obj);
+                // set clipboard
+                ImGui.SetClipboardText(obj.Path);
+            }
+        }
+        ImGui.EndChild();*/
 
         if (selectedObjects.Count > 0)
         {
@@ -119,8 +126,13 @@ public class WorldTab : ITab
                 // NOTE: Position is players current position, so if they move the objects will be exported relative to that position
                 foreach (var obj in selectedObjectArr)
                 {
-                    if (obj.Path.EndsWith(".tera"))
+                    if (obj.Path.EndsWith(".mdl"))
                     {
+                        resources.Add(new ExportUtil.Resource(obj.Path, obj.Position, obj.Rotation, obj.Scale));
+                    }
+                    else if (obj.Path.EndsWith(".tera"))
+                    {
+                        /*
                         var fileData = pack.GetFile(obj.Path);
                         if (fileData != null)
                         {
@@ -134,11 +146,7 @@ public class WorldTab : ITab
                             {
                                 var lgbFile = new LgbFile(bgLgbData.Value.file.RawData);
                             }
-                        }
-                    }
-                    else
-                    {
-                        resources.Add(new ExportUtil.Resource(obj.Path, obj.Position, obj.Rotation, obj.Scale));
+                        }*/
                     }
                 }
                 exportTask = Task.Run(() => exportUtil.ExportResource(resources.ToArray(), position));
