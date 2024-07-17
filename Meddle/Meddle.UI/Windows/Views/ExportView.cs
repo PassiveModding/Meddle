@@ -9,6 +9,7 @@ using Meddle.Utils.Files.SqPack;
 using Meddle.Utils.Materials;
 using Meddle.Utils.Models;
 using Meddle.Utils.Skeletons.Havok;
+using Meddle.Utils.Skeletons.HavokAnim;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
 using SkiaSharp;
@@ -23,10 +24,11 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
 
     private readonly Dictionary<string, Model.MdlGroup> models = new();
     private readonly Dictionary<string, SklbGroup> skeletons = new();
+    private string? animation;
     private Dictionary<string, IView> views = new();
-    private Task LoadTask = Task.CompletedTask;
+    private Task loadTask = Task.CompletedTask;
     private CancellationTokenSource cts = new();
-    private Task ExportTask = Task.CompletedTask;
+    private Task exportTask = Task.CompletedTask;
 
     private CustomizeParameter customizeParameters = new()
     {
@@ -37,7 +39,7 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
         MeshColor = new Vector3(0.75111115f, 0.4549635f, 0.41868514f),
         OptionColor = new Vector3(0.6029066f, 0.6029066f, 0.6029066f),
         RightColor = new Vector4(0.65261054f, 0.24804306f, 0.26795852f, 1),
-        SkinColor = new Vector4(1, 0.7647674f, 0.7443291f, 1),
+        SkinColor = new Vector3(1, 0.7647674f, 0.7443291f),
         SkinFresnelValue0 = new Vector4(0.0625f, 0.0625f, 0.0625f, 32)
     };
 
@@ -224,10 +226,11 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
     {
         if (ImGui.InputTextMultiline("##Input", ref input, 1000, new Vector2(500, 500)))
         {
-            LoadTask = Task.Run(() =>
+            loadTask = Task.Run(() =>
             {
                 models.Clear();
                 skeletons.Clear();
+                animation = null;
                 var newModels = HandleMdls(input.Split("\n"));
                 foreach (var (key, value) in newModels)
                 {
@@ -239,18 +242,29 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                 {
                     skeletons[key] = value;
                 }
+                
+                var animLines = input.Split("\n").Select(x => x.Trim()).Where(x => x.EndsWith(".pap")).ToList();
+                if (animLines.Count > 0)
+                {
+                    var lookupResult = pack.GetFile(animLines[0]);
+                    if (lookupResult != null)
+                    {
+                        var papFile = new PapFile(lookupResult.Value.file.RawData);
+                        animation = SkeletonUtil.ParseHavokInput(papFile.HavokData.ToArray());
+                    }
+                }
             });
         }
 
-        if (!LoadTask.IsCompleted)
+        if (!loadTask.IsCompleted)
         {
             ImGui.Text("Loading...");
             return;
         }
 
-        if (LoadTask.IsFaulted)
+        if (loadTask.IsFaulted)
         {
-            var ex = LoadTask.Exception;
+            var ex = loadTask.Exception;
             ImGui.Text($"Error: {ex}");
             return;
         }
@@ -265,16 +279,23 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
             var sklbs = this.skeletons
                             .Select(x => (x.Key, SkeletonUtil.ParseHavokInput(x.Value.File.Skeleton.ToArray())))
                             .ToDictionary(x => x.Key, y => new HavokXml(y.Item2));
+
+            HavokAnimation.BindingContainer? anim = null;
+            if (animation != null)
+            {
+                anim = HavokAnimation.ParseDocument(this.animation)[0];
+            }
+
             cts?.Cancel();
             cts = new CancellationTokenSource();
-            ExportTask = Task.Run(() => RunExport(models, sklbs, cts.Token), cts.Token);
+            exportTask = Task.Run(() => RunExport(models, sklbs, anim, cts.Token), cts.Token);
         }
 
-        if (ExportTask.IsFaulted)
+        if (exportTask.IsFaulted)
         {
-            ImGui.Text($"Error: {ExportTask.Exception?.Message}");
+            ImGui.Text($"Error: {exportTask.Exception?.Message}");
         }
-        else if (!ExportTask.IsCompleted)
+        else if (!exportTask.IsCompleted)
         {
             ImGui.Text("Exporting...");
             if (ImGui.Button("Cancel"))
@@ -287,24 +308,24 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
     private void DrawParameters()
     {
         ImGui.Text("Parameters");
-        ImGui.ColorEdit3("Hair Fresnel Value 0", ref customizeParameters.HairFresnelValue0);
+        //ImGui.ColorEdit3("Hair Fresnel Value 0", ref customizeParameters.HairFresnelValue0);
         ImGui.ColorEdit3("Main Color", ref customizeParameters.MainColor);
         ImGui.ColorEdit3("Mesh Color", ref customizeParameters.MeshColor);
         ImGui.ColorEdit3("Option Color", ref customizeParameters.OptionColor);
         ImGui.ColorEdit4("Left Color", ref customizeParameters.LeftColor);
         ImGui.ColorEdit4("Right Color", ref customizeParameters.RightColor);
-        ImGui.ColorEdit4("Skin Color", ref customizeParameters.SkinColor);
-        ImGui.ColorEdit4("Skin Fresnel Value 0", ref customizeParameters.SkinFresnelValue0);
+        ImGui.ColorEdit3("Skin Color", ref customizeParameters.SkinColor);
+        //ImGui.ColorEdit4("Skin Fresnel Value 0", ref customizeParameters.SkinFresnelValue0);
         ImGui.ColorEdit4("Lip Color", ref customizeParameters.LipColor);
         ImGui.Checkbox("Highlights", ref customizeData.Highlights);
         ImGui.Checkbox("Lip Stick", ref customizeData.LipStick);
     }
 
-    private void RunExport(Dictionary<string, Model.MdlGroup> modelDict, Dictionary<string, HavokXml> sklbDict, CancellationToken token = default)
+    private void RunExport(Dictionary<string, Model.MdlGroup> modelDict, Dictionary<string, HavokXml> sklbDict, HavokAnimation.BindingContainer? animation, CancellationToken token = default)
     {
         var scene = new SceneBuilder();
         var havokXmls = sklbDict.Values.ToArray();
-        var bones = XmlUtils.GetBoneMap(havokXmls, out var root).ToArray();
+        var bones = XmlUtils.GetBoneMap(havokXmls, animation, out var root).ToArray();
         var boneNodes = bones.Cast<NodeBuilder>().ToArray();
         var catchlightTexture = pack.GetFile("chara/common/texture/sphere_d_array.tex");
         if (catchlightTexture == null)

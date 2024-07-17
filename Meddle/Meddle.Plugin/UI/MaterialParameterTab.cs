@@ -95,14 +95,135 @@ public class MaterialParameterTab : ITab
     private Dictionary<string, MtrlFile> mtrlCache = new();
     private Dictionary<string, float[]> mtrlConstantCache = new();
     private Dictionary<string, Pointer<Material>> materialCache = new();
+    private Vector4[]? CustomizeParameters;
+    
+    private bool ColorEditF4(string label, ref float r, ref float g, ref float b, ref float a)
+    {
+        var color = new Vector4(r, g, b, a);
+        var changed = ImGui.ColorEdit4(label, ref color);
+        r = color.X;
+        g = color.Y;
+        b = color.Z;
+        a = color.W;
+        return changed;
+    }
+    
+    private bool ColorEditF3(string label, ref float r, ref float g, ref float b)
+    {
+        var color = new Vector3(r, g, b);
+        var changed = ImGui.ColorEdit3(label, ref color);
+        r = color.X;
+        g = color.Y;
+        b = color.Z;
+        return changed;
+    }
     
     // only show values that are different from the shader default
     private bool onlyShowChanged;
+    private Pointer<Human> lastHuman;
+    
+    public unsafe void DrawCustomizeParams(CharacterBase* cbase)
+    {
+        if (cbase->GetModelType() != CharacterBase.ModelType.Human) return;
+        var human = (Human*)cbase;
+        
+        if (ImGui.CollapsingHeader("Customize Parameters"))
+        {
+            if (human != lastHuman)
+            {
+                if (lastHuman != null && lastHuman.Value != null)
+                {
+                    // restore defaults
+                    var lastParams = lastHuman.Value->CustomizeParameterCBuffer->TryGetBuffer<Vector4>();
+                    CustomizeParameters.CopyTo(lastParams);
+                }
+                CustomizeParameters = null;
+                lastHuman = human;
+            }
+            
+            var parameter = human->CustomizeParameterCBuffer->TryGetBuffer<Vector4>();
+            if (CustomizeParameters == null)
+            {
+                var initParams = new Vector4[parameter.Length];
+                for (var i = 0; i < parameter.Length; i++)
+                {
+                    var p = parameter[i];
+                    initParams[i] = new Vector4(p.X, p.Y, p.Z, p.W);
+                }
+                CustomizeParameters = initParams;
+            }
+            
+            if (ImGui.Button("Restore all defaults"))
+            {
+                CustomizeParameters.CopyTo(parameter);
+            }
+            
+            ImGui.ColorEdit4("Skin Color", ref parameter[0]);
+            ImGui.SameLine();
+            // restore
+            if (ImGui.Button("Restore##SkinColor"))
+            {
+                parameter[0] = CustomizeParameters[0];
+            }
+        
+            ImGui.ColorEdit4("Skin Fresnel", ref parameter[1]);
+            ImGui.SameLine();
+            if (ImGui.Button("Restore##SkinFresnel"))
+            {
+                parameter[1] = CustomizeParameters[1];
+            }
+            ImGui.ColorEdit4("Lip Color", ref parameter[2]);
+            ImGui.SameLine();
+            if (ImGui.Button("Restore##LipColor"))
+            {
+                parameter[2] = CustomizeParameters[2];
+            }
+            ImGui.ColorEdit4("Main Color", ref parameter[3]);
+            ImGui.SameLine();
+            if (ImGui.Button("Restore##MainColor"))
+            {
+                parameter[3] = CustomizeParameters[3];
+            }
+            ImGui.ColorEdit4("Hair Fresnel", ref parameter[4]);
+            ImGui.SameLine();
+            if (ImGui.Button("Restore##HairFresnel"))
+            {
+                parameter[4] = CustomizeParameters[4];
+            }
+            ImGui.ColorEdit4("Mesh Color", ref parameter[5]);
+            ImGui.SameLine();
+            if (ImGui.Button("Restore##MeshColor"))
+            {
+                parameter[5] = CustomizeParameters[5];
+            }
+        
+            ImGui.ColorEdit4("Left Color", ref parameter[6]);
+            ImGui.SameLine();
+            if (ImGui.Button("Restore##LeftColor"))
+            {
+                parameter[6] = CustomizeParameters[6];
+            }
+        
+            ImGui.ColorEdit4("Right Color", ref parameter[7]);
+            ImGui.SameLine();
+            if (ImGui.Button("Restore##RightColor"))
+            {
+                parameter[7] = CustomizeParameters[7];
+            }
+            ImGui.ColorEdit4("Option Color", ref parameter[8]);
+            ImGui.SameLine();
+            if (ImGui.Button("Restore##OptionColor"))
+            {
+                parameter[8] = CustomizeParameters[8];
+            }
+        }
+    }
     
     public unsafe void DrawCharacter(ICharacter character)
     {
         ImGui.Checkbox("Only Show Changed", ref onlyShowChanged);
         
+        var charPtr = (CSCharacter*)character.Address;
         if (ImGui.Button("Restore all defaults"))
         {
             // iterate all material pointers, check if valid and restore from mtrlConstantCache
@@ -124,10 +245,10 @@ public class MaterialParameterTab : ITab
             }
         }
         
-        var charPtr = (CSCharacter*)character.Address;
-        var human = (Human*)charPtr->GameObject.DrawObject;
+        var cBase = (CharacterBase*)charPtr->GameObject.DrawObject;
+        DrawCustomizeParams(cBase);
 
-        foreach (var mdlPtr in human->ModelsSpan)
+        foreach (var mdlPtr in cBase->ModelsSpan)
         {
             if (mdlPtr == null)
                 continue;

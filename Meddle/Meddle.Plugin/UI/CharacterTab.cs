@@ -421,15 +421,18 @@ public unsafe partial class CharacterTab : ITab
         if (modelType == CharacterBase.ModelType.Human)
         {
             var human = (Human*)drawObject;
-            var customizeCBuf = human->CustomizeParameterCBuffer->TryGetBuffer<CustomizeParameter>()[0];
+            var customizeCBuf = human->CustomizeParameterCBuffer->TryGetBuffer<Models.CustomizeParameter>()[0];
             customizeParams = new Meddle.Utils.Export.CustomizeParameter
             {
                 SkinColor = customizeCBuf.SkinColor,
+                MuscleTone = customizeCBuf.MuscleTone,
                 SkinFresnelValue0 = customizeCBuf.SkinFresnelValue0,
                 LipColor = customizeCBuf.LipColor,
                 MainColor = customizeCBuf.MainColor,
+                FacePaintUVMultiplier = customizeCBuf.FacePaintUVMultiplier,
                 HairFresnelValue0 = customizeCBuf.HairFresnelValue0,
                 MeshColor = customizeCBuf.MeshColor,
+                FacePaintUVOffset = customizeCBuf.FacePaintUVOffset,
                 LeftColor = customizeCBuf.LeftColor,
                 RightColor = customizeCBuf.RightColor,
                 OptionColor = customizeCBuf.OptionColor

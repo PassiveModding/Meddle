@@ -26,7 +26,7 @@ public static partial class MaterialUtility
         // PART_BODY = no additional color
         // PART_FACE/default = lip color
         // PART_HRO = hairColor blend into hair highlight color
-        
+
         var skinColor = parameters.SkinColor;
         var lipColor = parameters.LipColor;
         var hairColor = parameters.MainColor;
@@ -47,7 +47,7 @@ public static partial class MaterialUtility
 
                 var skinInfluence = normalPixel.Z;
                 var diffuseAlpha = diffusePixel.W;
-                diffusePixel = Vector4.Lerp(diffusePixel, skinColor, skinInfluence);
+                diffusePixel = Vector4.Lerp(diffusePixel, new (skinColor, 1.0f), skinInfluence);
 
                 var specular = maskPixel.X;
                 var roughness = maskPixel.Y;

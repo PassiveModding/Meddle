@@ -11,15 +11,16 @@ public static class UIUtil
 {
     public static void DrawCustomizeParams(ref CustomizeParameter customize)
     {
-        ImGui.ColorEdit4("Skin Color", ref customize.SkinColor);
-        ImGui.ColorEdit4("Skin Fresnel Value", ref customize.SkinFresnelValue0);
+        ImGui.ColorEdit3("Skin Color", ref customize.SkinColor);
         ImGui.ColorEdit4("Lip Color", ref customize.LipColor);
         ImGui.ColorEdit3("Main Color", ref customize.MainColor);
-        ImGui.ColorEdit3("Hair Fresnel Value", ref customize.HairFresnelValue0);
         ImGui.ColorEdit3("Mesh Color", ref customize.MeshColor);
         ImGui.ColorEdit4("Left Color", ref customize.LeftColor);
         ImGui.BeginDisabled();
         ImGui.ColorEdit4("Right Color", ref customize.RightColor);
+        //ImGui.ColorEdit3("Hair Fresnel Value", ref customize.HairFresnelValue0);
+        //ImGui.DragFloat("Muscle Tone", ref customize.MuscleTone, 0.01f, 0f, 1f);
+        //ImGui.ColorEdit4("Skin Fresnel Value", ref customize.SkinFresnelValue0);
         ImGui.EndDisabled();
         ImGui.SameLine();
         ImGui.TextDisabled("?");
