@@ -28,7 +28,6 @@ public class SqPackWindow
     private Category selectedCategory;
     private IView? view;
     private ExportView exportView;
-    private DiscoverView discoverView;
 
 
     public SqPackWindow(SqPack sqPack, ImageHandler imageHandler, PathManager pathManager, Configuration config, ILogger<SqPackWindow> logger)
@@ -41,7 +40,6 @@ public class SqPackWindow
         this.config = config;
         this.logger = logger;
         exportView = new ExportView(sqPack, config, imageHandler, pathManager);
-        discoverView = new DiscoverView(sqPack, config, pathManager);
     }
 
     public void Draw()
@@ -117,10 +115,6 @@ public class SqPackWindow
             if (view is ExportView ev)
             {
                 ev.Draw();
-            }
-            else if (view is DiscoverView dv)
-            {
-                dv.Draw();
             }
             else
             {
@@ -228,10 +222,6 @@ public class SqPackWindow
         }
 
         ImGui.SameLine();
-        if (ImGui.Button("Test view"))
-        {
-            view = discoverView;
-        }
     }
 
     private void DrawPathSet(string key, IEnumerable<ParsedFilePath> paths)
