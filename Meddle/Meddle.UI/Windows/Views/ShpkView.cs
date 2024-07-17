@@ -342,6 +342,11 @@ public class ShpkView : IView
                     ImGui.Text(i.ToString());
                     ImGui.TableNextColumn();
                     ImGui.Text($"0x{materialParam.Id:X8}");
+                    if (Enum.IsDefined((MaterialConstant)materialParam.Id))
+                    {
+                        ImGui.SameLine();
+                        ImGui.Text($"({(MaterialConstant)materialParam.Id})");
+                    }
                     ImGui.TableNextColumn();
                     ImGui.Text(materialParam.ByteOffset.ToString());
                     ImGui.TableNextColumn();
