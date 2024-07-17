@@ -10,7 +10,6 @@ using Meddle.Utils.Materials;
 using Meddle.Utils.Models;
 using Meddle.Utils.Skeletons.Havok;
 using Meddle.Utils.Skeletons.Havok.Models;
-using Meddle.Utils.Skeletons.HavokAnim;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
 using SkiaSharp;
