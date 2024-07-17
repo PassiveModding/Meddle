@@ -19,7 +19,7 @@ public class Program
     private readonly ILoggerFactory logFactory = LoggerFactory.Create(builder => builder.AddConsole());
     private readonly ILogger<Program> logger;
     
-    public Configuration Configuration;
+    public static Configuration Configuration;
     public Sdl2Window Window;
     public GraphicsDevice GraphicsDevice;
     public ImGuiHandler ImGuiHandler;

@@ -12,6 +12,7 @@ public class Configuration
     public int WindowHeight { get; set; }
     public int DisplayScale { get; set; }
     public int FpsLimit { get; set; }
+    public bool AssetCcResolve { get; set; }
     
     public static Configuration Load()
     {
@@ -25,7 +26,8 @@ public class Configuration
                 WindowHeight = 720,
                 DisplayScale = 1,
                 FpsLimit = 60,
-                InteropPort = 5000
+                InteropPort = 5000,
+                AssetCcResolve = false
             };
         }
         

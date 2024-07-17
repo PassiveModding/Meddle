@@ -1,6 +1,7 @@
 ﻿using System.Globalization;
 using System.Numerics;
 using System.Text.RegularExpressions;
+using Meddle.Utils.Skeletons.Havok.Models;
 using SharpGLTF.Transforms;
 
 namespace Meddle.Utils.Skeletons.Havok;
@@ -43,7 +44,7 @@ public static class XmlUtils
     /// <param name="skeletons">A list of HavokXml instances.</param>
     /// <param name="root">The root bone node.</param>
     /// <returns>A mapping of bone name to node in the scene.</returns>
-    public static List<BoneNodeBuilder> GetBoneMap(IEnumerable<HavokXml> skeletons, out BoneNodeBuilder? root)
+    public static List<BoneNodeBuilder> GetBoneMap(IEnumerable<HavokSkeleton> skeletons, out BoneNodeBuilder? root)
     {
         List<BoneNodeBuilder> boneMap = new();
         root = null;

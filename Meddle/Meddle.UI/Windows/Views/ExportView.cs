@@ -9,6 +9,7 @@ using Meddle.Utils.Files.SqPack;
 using Meddle.Utils.Materials;
 using Meddle.Utils.Models;
 using Meddle.Utils.Skeletons.Havok;
+using Meddle.Utils.Skeletons.Havok.Models;
 using Meddle.Utils.Skeletons.HavokAnim;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
@@ -24,7 +25,6 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
 
     private readonly Dictionary<string, Model.MdlGroup> models = new();
     private readonly Dictionary<string, SklbGroup> skeletons = new();
-    private string? animation;
     private Dictionary<string, IView> views = new();
     private Task loadTask = Task.CompletedTask;
     private CancellationTokenSource cts = new();
@@ -230,7 +230,6 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
             {
                 models.Clear();
                 skeletons.Clear();
-                animation = null;
                 var newModels = HandleMdls(input.Split("\n"));
                 foreach (var (key, value) in newModels)
                 {
@@ -241,17 +240,6 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                 foreach (var (key, value) in newSkeletons)
                 {
                     skeletons[key] = value;
-                }
-                
-                var animLines = input.Split("\n").Select(x => x.Trim()).Where(x => x.EndsWith(".pap")).ToList();
-                if (animLines.Count > 0)
-                {
-                    var lookupResult = pack.GetFile(animLines[0]);
-                    if (lookupResult != null)
-                    {
-                        var papFile = new PapFile(lookupResult.Value.file.RawData);
-                        animation = SkeletonUtil.ParseHavokInput(papFile.HavokData.ToArray());
-                    }
                 }
             });
         }
@@ -277,18 +265,12 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
         if (ImGui.Button("Export as GLTF"))
         {
             var sklbs = this.skeletons
-                            .Select(x => (x.Key, SkeletonUtil.ParseHavokInput(x.Value.File.Skeleton.ToArray())))
-                            .ToDictionary(x => x.Key, y => new HavokXml(y.Item2));
-
-            HavokAnimation.BindingContainer? anim = null;
-            if (animation != null)
-            {
-                anim = HavokAnimation.ParseDocument(this.animation)[0];
-            }
+                            .Select(x => (x.Key, SkeletonUtil.ProcessHavokInput(x.Value.File.Skeleton.ToArray())))
+                            .ToDictionary(x => x.Key, y => y.Item2.Item2);
 
             cts?.Cancel();
             cts = new CancellationTokenSource();
-            exportTask = Task.Run(() => RunExport(models, sklbs, anim, cts.Token), cts.Token);
+            exportTask = Task.Run(() => RunExport(models, sklbs, cts.Token), cts.Token);
         }
 
         if (exportTask.IsFaulted)
@@ -321,11 +303,11 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
         ImGui.Checkbox("Lip Stick", ref customizeData.LipStick);
     }
 
-    private void RunExport(Dictionary<string, Model.MdlGroup> modelDict, Dictionary<string, HavokXml> sklbDict, HavokAnimation.BindingContainer? animation, CancellationToken token = default)
+    private void RunExport(Dictionary<string, Model.MdlGroup> modelDict, Dictionary<string, HavokSkeleton> sklbDict, CancellationToken token = default)
     {
         var scene = new SceneBuilder();
         var havokXmls = sklbDict.Values.ToArray();
-        var bones = XmlUtils.GetBoneMap(havokXmls, animation, out var root).ToArray();
+        var bones = XmlUtils.GetBoneMap(havokXmls, out var root).ToArray();
         var boneNodes = bones.Cast<NodeBuilder>().ToArray();
         var catchlightTexture = pack.GetFile("chara/common/texture/sphere_d_array.tex");
         if (catchlightTexture == null)

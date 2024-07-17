@@ -11,6 +11,7 @@ using Meddle.Utils.Files.SqPack;
 using Meddle.Utils.Files.Structs.Material;
 using Meddle.Utils.Models;
 using Meddle.Utils.Skeletons.Havok;
+using Meddle.Utils.Skeletons.Havok.Models;
 using Attach = Meddle.Plugin.Skeleton.Attach;
 using Texture = FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Texture;
 
@@ -186,12 +187,12 @@ public class ParseUtil
         return attachGroup;
     }
     
-    private unsafe List<HavokXml> ParseSkeletons(Human* human)
+    private unsafe List<HavokSkeleton> ParseSkeletons(Human* human)
     {
         var skeletonResourceHandles =
             new Span<Pointer<SkeletonResourceHandle>>(human->Skeleton->SkeletonResourceHandles,
                                                       human->Skeleton->PartialSkeletonCount);
-        var skeletons = new List<HavokXml>();
+        var skeletons = new List<HavokSkeleton>();
         foreach (var skeletonPtr in skeletonResourceHandles)
         {
             var skeletonResourceHandle = skeletonPtr.Value;
@@ -217,7 +218,7 @@ public class ParseUtil
                     var xml = HkUtil.HkxToXml(tempFile);
                     return xml;
                 }).GetAwaiter().GetResult();
-                var havokXml = new HavokXml(hkXml);
+                var havokXml = HavokUtils.ParseHavokXml(hkXml);
 
                 skeletons.Add(havokXml);
             } finally
