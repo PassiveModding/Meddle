@@ -134,7 +134,7 @@ public class ParseUtil
                 mtrlFile.ColorTable = cts;
             }
             
-            if (colorTables.TryGetValue((modelIdx * CharacterBase.MaxMaterialCount) + j, out var gpuColorTable))
+            if (colorTables.TryGetValue((modelIdx * CharacterBase.MaterialsPerSlot) + j, out var gpuColorTable))
             {
                 mtrlFile.ColorTable = gpuColorTable;
             }
