@@ -27,7 +27,6 @@ public class MeshBuilder
 
     public MeshBuilder(
         Mesh mesh,
-        bool useSkinning,
         int[]? jointLut,
         MaterialBuilder materialBuilder,
         (RaceDeformer deformer, ushort from, ushort to)? raceDeformer
@@ -39,7 +38,7 @@ public class MeshBuilder
 
         GeometryT = GetVertexGeometryType(Mesh.Vertices);
         MaterialT = GetVertexMaterialType(Mesh.Vertices);
-        SkinningT = useSkinning ? typeof(VertexJoints4) : typeof(VertexEmpty);
+        SkinningT = GetVertexSkinningType(Mesh.Vertices, JointLut != null);
         VertexBuilderT = typeof(VertexBuilder<,,>).MakeGenericType(GeometryT, MaterialT, SkinningT);
         MeshBuilderT =
             typeof(MeshBuilder<,,,>).MakeGenericType(typeof(MaterialBuilder), GeometryT, MaterialT, SkinningT);
@@ -166,17 +165,41 @@ public class MeshBuilder
         var skinningIsEmpty = SkinningT == typeof(VertexEmpty);
         if (!skinningIsEmpty && JointLut != null)
         {
-            if (vertex.BlendIndicesData == null)
+            if (vertex.BlendIndices == null)
                 throw new InvalidOperationException("Vertex has no blend indices data.");
-            for (var k = 0; k < vertex.BlendIndicesData.Length; k++)
+            for (var k = 0; k < vertex.BlendIndices.Length; k++)
             {
-                var boneIndex = vertex.BlendIndicesData[k];
-                var boneWeight = vertex.BlendWeights != null ? vertex.BlendWeights.Value[k] : 0;
+                var boneIndex = vertex.BlendIndices[k];
+                var boneWeight = vertex.BlendWeights != null ? vertex.BlendWeights[k] : 0;
                 if (boneIndex >= JointLut.Length)
                 {
                     if (boneWeight == 0)
                         continue;
-                    throw new InvalidOperationException($"Bone index {boneIndex} is out of bounds! ({vertex.BlendWeights} blendIdx:{k} blendWeight:{boneWeight} jointLut:{string.Join(", ", JointLut)})");
+
+                    var indices = vertex.BlendIndices?.Select(x => (int)x).ToArray();
+                    
+                    var serializedVertexData = new
+                    {
+                        Vertex = new
+                        {
+                            vertex.Position,
+                            vertex.BlendWeights,
+                            BlendIndices = indices,
+                            vertex.Normal,
+                            vertex.UV,
+                            vertex.Color,
+                            vertex.Tangent2,
+                            vertex.Tangent1
+                        },
+                        JoinLutSize = JointLut.Length,
+                        JointLut = JointLut,
+                        BoneIndex = boneIndex,
+                        BoneWeight = boneWeight
+                    };
+                    
+                    var json = JsonSerializer.Serialize(serializedVertexData, new JsonSerializerOptions { WriteIndented = true, IncludeFields = true});
+                    
+                    throw new InvalidOperationException($"Bone index {boneIndex} is out of bounds! Vertex data: {json}");
                 }
                 var mappedBoneIndex = JointLut[boneIndex];
 
@@ -185,7 +208,7 @@ public class MeshBuilder
             }
         }
 
-        var origPos = ToVec3(vertex.Position!.Value);
+        var origPos = vertex.Position!.Value;
         var currentPos = origPos;
 
         if (Deformers.Count > 0 && RaceDeformer != null)
@@ -278,6 +301,22 @@ public class MeshBuilder
             true when hasUv => typeof(VertexColor1Texture2),
             false when hasUv => typeof(VertexTexture2),
             _ => typeof(VertexColor1),
+        };
+    }
+    
+    private static Type GetVertexSkinningType(IReadOnlyList<Vertex> vertex, bool isSkinned)
+    {
+        if (vertex.Count == 0 || !isSkinned)
+        {
+            return typeof(VertexEmpty);
+        }
+
+        var blendIndices = vertex[0].BlendIndices;
+        return blendIndices?.Length switch
+        {
+            4 => typeof(VertexJoints4),
+            8 => typeof(VertexJoints8),
+            _ => typeof(VertexEmpty)
         };
     }
 

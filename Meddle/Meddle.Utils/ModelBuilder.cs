@@ -26,7 +26,7 @@ public static class ModelBuilder
             var useSkinning = mesh.BoneTable != null;
             MeshBuilder meshBuilder;
             var material = materials[mesh.MaterialIdx];
-            if (useSkinning && boneMap.Count > 0)
+            if (useSkinning)
             {
                 var jointIdMapping = new List<int>();
                 var jointLut = boneMap
@@ -40,11 +40,11 @@ public static class ModelBuilder
                     jointIdMapping.Add(match.i);
                 }
 
-                meshBuilder = new MeshBuilder(mesh, true, jointIdMapping.ToArray(), material, deform);
+                meshBuilder = new MeshBuilder(mesh, jointIdMapping.ToArray(), material, deform);
             }
             else
             {
-                meshBuilder = new MeshBuilder(mesh, false, Array.Empty<int>(), material, deform);
+                meshBuilder = new MeshBuilder(mesh, null, material, deform);
             }
             
             meshBuilder.BuildVertices();

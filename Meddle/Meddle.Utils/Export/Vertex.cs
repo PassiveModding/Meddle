@@ -29,10 +29,9 @@ public unsafe struct Vertex
         Color = 7,        // (UsageIndex +) 3 => COLOR0
     }
 
-    public Vector4? Position;
-    public Vector4? BlendWeights;
-    public Vector4? BlendIndices;
-    public byte[]? BlendIndicesData;
+    public Vector3? Position;
+    public float[]? BlendWeights;
+    public byte[]? BlendIndices;
     public Vector3? Normal;
     public Vector4? UV;
     public Vector4? Color;
@@ -48,29 +47,6 @@ public unsafe struct Vertex
         
         private static float FromUNorm(byte value) =>
             value / 255.0f;
-        
-        public static object GetElement(ReadOnlySpan<byte> buffer, VertexType type)
-        {
-            fixed (byte* b = buffer)
-            {
-                var s = (short*)b;
-                var h = (Half*)b;
-                var f = (float*)b;
-                var us = (ushort*)b;
-
-                return type switch
-                {
-                    VertexType.Single3 => new Vector3(f[0], f[1], f[2]),
-                    VertexType.Single4 => new Vector4(f[0], f[1], f[2], f[3]),
-                    VertexType.UInt => new Vector4(b[0], b[1], b[2], b[3]),
-                    VertexType.ByteFloat4 => new Vector4(FromUNorm(b[0]), FromUNorm(b[1]), FromUNorm(b[2]), FromUNorm(b[3])),
-                    VertexType.Half2 => new Vector2((float)h[0], (float)h[1]),
-                    VertexType.Half4 => new Vector4((float)h[0], (float)h[1], (float)h[2], (float)h[3]),
-                    VertexType.UByte8 => HandleUshort4(buffer),
-                    _ => throw new ArgumentException($"Unknown type {type}"),
-                };
-            }
-        }
 
         public static Vector4 HandleUshort4(ReadOnlySpan<byte> buffer)
         {
@@ -116,41 +92,108 @@ public unsafe struct Vertex
         }
     }
     
+    public static Vector3 ReadVector3(ReadOnlySpan<byte> buffer, VertexType type)
+    {
+        fixed (byte* b = buffer)
+        {
+            var h = (Half*)b;
+            var f = (float*)b;
+
+            return type switch
+            {
+                VertexType.Single3 => new Vector3(f[0], f[1], f[2]),
+                VertexType.Single4 => new Vector3(f[0], f[1], f[2]), // skip W
+                VertexType.Half4 => new Vector3((float)h[0], (float)h[1], (float)h[2]), // skip W
+                _ => throw new ArgumentException($"Unsupported vector3 type {type}")
+            };
+        }
+    }
+    
+    public static float[] ReadFloatArray(ReadOnlySpan<byte> buffer, VertexType type)
+    {
+        fixed (byte* b = buffer)
+        {
+            byte[] byteBuffer = type switch
+            {
+                VertexType.UInt => [b[0], b[1], b[2], b[3]],
+                VertexType.ByteFloat4 => [b[0], b[1], b[2], b[3]],
+                VertexType.UByte8 => [b[0], b[2], b[4], b[6], b[1], b[3], b[5], b[7]],
+                _ => throw new ArgumentException($"Unsupported float array type {type}")
+            };
+
+            var fb = new float[byteBuffer.Length];
+            for (var i = 0; i < byteBuffer.Length; ++i)
+                fb[i] = byteBuffer[i] / 255.0f;
+            return fb;
+        }
+    }
+    
+    public static byte[] ReadByteArray(ReadOnlySpan<byte> buffer, VertexType type)
+    {
+        fixed (byte* b = buffer)
+        {
+            return type switch
+            {
+                VertexType.UInt => [b[0], b[1], b[2], b[3]],
+                VertexType.UByte8 => [b[0], b[2], b[4], b[6], b[1], b[3], b[5], b[7]],
+                _ => throw new ArgumentException($"Unsupported byte array type {type}")
+            };
+        }
+    }
+
+    public static Vector4 ReadVector4(ReadOnlySpan<byte> buffer, VertexType type)
+    {
+        fixed (byte* b = buffer)
+        {
+            var h = (Half*)b;
+            var f = (float*)b;
+
+            return type switch
+            {
+                VertexType.ByteFloat4 => new Vector4(FromUNorm(b[0]), FromUNorm(b[1]), FromUNorm(b[2]), FromUNorm(b[3])),
+                VertexType.Single4 => new Vector4(f[0], f[1], f[2], f[3]),
+                VertexType.Half2 => new Vector4((float)h[0], (float)h[1], 0, 0),
+                VertexType.Half4 => new Vector4((float)h[0], (float)h[1], (float)h[2], (float)h[3]),
+                _ => throw new ArgumentException($"Unsupported vector4 type {type}")
+            };
+        }
+    }
+    
     public static void Apply(ref Vertex vertex, ReadOnlySpan<byte> buffer, VertexElement element)
     {
-        var item = VertexItem.GetElement(buffer[element.Offset..], (VertexType)element.Type);
+        var buf = buffer[element.Offset..];
         switch ((VertexUsage)element.Usage)
         {
             case VertexUsage.Position:
-                vertex.Position = VertexItem.ConvertTo<Vector4>(item);
+                vertex.Position = ReadVector3(buf, (VertexType)element.Type);
                 break;
             case VertexUsage.BlendWeights:
-                vertex.BlendWeights = VertexItem.ConvertTo<Vector4>(item) / 255f;
+                vertex.BlendWeights = ReadFloatArray(buf, (VertexType)element.Type);
                 break;
             case VertexUsage.BlendIndices:
-                var itemVector = VertexItem.ConvertTo<Vector4>(item);
-                vertex.BlendIndicesData = new byte[4];
-                for (var j = 0; j < 4; ++j)
-                    vertex.BlendIndicesData[j] = (byte)itemVector[j];
+                vertex.BlendIndices = ReadByteArray(buf, (VertexType)element.Type);
                 break;
             case VertexUsage.Normal:
-                vertex.Normal = VertexItem.ConvertTo<Vector3>(item);
+                vertex.Normal = ReadVector3(buf, (VertexType)element.Type);
                 break;
             case VertexUsage.UV:
-                vertex.UV = VertexItem.ConvertTo<Vector4>(item);
+                vertex.UV = ReadVector4(buf, (VertexType)element.Type);
                 break;
             case VertexUsage.Color:
-                vertex.Color = VertexItem.ConvertTo<Vector4>(item);
+                vertex.Color = ReadVector4(buf, (VertexType)element.Type);
                 break;
             case VertexUsage.Tangent2:
-                vertex.Tangent2 = VertexItem.ConvertTo<Vector4>(item);
+                vertex.Tangent2 = ReadVector4(buf, (VertexType)element.Type);
                 break;
             case VertexUsage.Tangent1:
-                vertex.Tangent1 = VertexItem.ConvertTo<Vector4>(item);
+                vertex.Tangent1 = ReadVector4(buf, (VertexType)element.Type);
                 break;
             default:
-                Console.WriteLine($"Skipped usage {element.Usage} [{element.Type}] = {item}");
+                Console.WriteLine($"Skipped usage {element.Usage} [{element.Type}]");
                 break;
         }
     }
+    
+    private static float FromUNorm(byte value) =>
+        value / 255.0f;
 }
