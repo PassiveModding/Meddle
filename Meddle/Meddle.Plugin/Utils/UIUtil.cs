@@ -39,55 +39,6 @@ public static class UIUtil
         ImGui.Checkbox("Lipstick", ref customize.LipStick);
         ImGui.Checkbox("Highlights", ref customize.Highlights);
     }
-    
-    /*public static void DrawColorTable(MaterialResourceHandle.ColorTableRow[] rows)
-    {
-        ImGui.Columns(9, "ColorTable", true);
-        ImGui.Text("Row");
-        ImGui.NextColumn();
-        ImGui.Text("Diffuse");
-        ImGui.NextColumn();
-        ImGui.Text("Specular");
-        ImGui.NextColumn();
-        ImGui.Text("Emissive");
-        ImGui.NextColumn();
-        ImGui.Text("Material Repeat");
-        ImGui.NextColumn();
-        ImGui.Text("Material Skew");
-        ImGui.NextColumn();
-        ImGui.Text("Specular");
-        ImGui.NextColumn();
-        ImGui.Text("Gloss");
-        ImGui.NextColumn();
-        ImGui.Text("Tile Set");
-        ImGui.NextColumn();
-
-        for (var i = 0; i < rows.Length; i++)
-        {
-            ref var row = ref rows[i];
-            ImGui.Text($"{i}");
-            ImGui.NextColumn();
-            ImGui.ColorButton($"##rowdiff", new Vector4(row.Diffuse, 1f), ImGuiColorEditFlags.NoAlpha);
-            ImGui.NextColumn();
-            ImGui.ColorButton($"##rowspec", new Vector4(row.Specular, 1f), ImGuiColorEditFlags.NoAlpha);
-            ImGui.NextColumn();
-            ImGui.ColorButton($"##rowemm", new Vector4(row.Emissive, 1f), ImGuiColorEditFlags.NoAlpha);
-            ImGui.NextColumn();
-            ImGui.Text($"{row.TileScaleU}");
-            ImGui.NextColumn();
-            ImGui.Text($"{row.TileScaleV}");
-            ImGui.NextColumn();
-            ImGui.Text($"{row.SpecularStrength}");
-            ImGui.NextColumn();
-            ImGui.Text($"{row.GlossStrength}");
-            ImGui.NextColumn();
-            ImGui.Text($"{row.TileIndex}");
-            ImGui.NextColumn();
-        }
-
-        ImGui.Columns(1);
-    }*/
-
 
     public static void DrawColorTable(ColorTable table, ColorDyeTable? dyeTable = null)
     {
