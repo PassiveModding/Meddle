@@ -726,7 +726,6 @@ public unsafe class CharacterTab : ITab
         if (ImGui.CollapsingHeader($"Shader Keys##{mtrlGroup.GetHashCode()}"))
         {
             var keys = mtrlGroup.MtrlFile.ShaderKeys;
-            ImGui.Text("Keys");
             ImGui.Columns(2);
             ImGui.Text("Category");
             ImGui.NextColumn();
