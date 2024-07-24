@@ -2,11 +2,12 @@
   {
     "Author": "Ramen",
     "Name": "Meddle",
-    "InternalName": "Meddle.Plugin",
-    "Description": "Did I mention I'm a model?",
+    "InternalName": "Meddle",
+    "Description": "Did I mention I'm a model? Export models to glTF format.",
     "AssemblyVersion": "0.1.3",
     "TestingAssemblyVersion": "0.1.3",
     "RepoUrl": "https://github.com/PassiveModding/Meddle",
+    "IconUrl": "https://github.com/PassiveModding/Meddle/raw/main/icon.png",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 10,
     "Tags": [
