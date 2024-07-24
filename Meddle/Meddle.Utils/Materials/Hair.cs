@@ -78,11 +78,11 @@ public static partial class MaterialUtility
         
         output.WithBaseColor(BuildImage(outDiffuse, name, "diffuse"));
         output.WithNormal(BuildImage(outNormal, name, "normal"));
-        var roughMetImg = BuildImage(roughMet, name, "roughness_metallic_specular");
-        output.WithSpecularFactor(roughMetImg, 1.0f);
-        output.WithMetallicRoughness(roughMetImg, 0.0f, 1.0f);
-        output.WithMetallicRoughnessShader();
-        output.WithOcclusion(BuildImage(occ, name, "occlusion"));
+        //var roughMetImg = BuildImage(roughMet, name, "roughness_metallic_specular");
+        //output.WithSpecularFactor(roughMetImg, 1.0f);
+        //output.WithMetallicRoughness(roughMetImg, 0.0f, 1.0f);
+        //output.WithMetallicRoughnessShader();
+        //output.WithOcclusion(BuildImage(occ, name, "occlusion"));
         
         var alphaThreshold = material.GetConstantOrDefault(MaterialConstant.g_AlphaThreshold, 0.0f);
         if (alphaThreshold > 0)
