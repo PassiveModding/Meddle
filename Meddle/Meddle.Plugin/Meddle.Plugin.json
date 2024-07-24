@@ -1,9 +1,11 @@
 {
   "Author": "Ramen",
   "Name": "Meddle",
-  "Punchline": "Why not?",
-  "Description": "Did I mention I'm a model?",
+  "Punchline": "Did I mention I'm a model? Export models to glTF format.",
+  "Description": "Export models to glTF format.",
   "InternalName": "Meddle",
   "ApplicableVersion": "any",
-  "Tags": ["xande", "model", "exporting"]
+  "Tags": ["xande", "model", "exporting"], 
+  "IconUrl": "https://github.com/PassiveModding/Meddle/raw/main/icon.png",
+  "AssemblyVersion": ""
 }
