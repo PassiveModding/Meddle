@@ -69,6 +69,10 @@ public class MtrlFile
                     ColorDyeTable = new ColorDyeTable(dataSetReader.Read<LegacyColorDyeTable>());
             }
         }
+        else
+        {
+            ColorTable = ColorTable.Default();
+        }
         
         ShaderHeader = reader.Read<MaterialShaderHeader>();
 
