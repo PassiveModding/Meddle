@@ -16,6 +16,10 @@ public static partial class MaterialUtility
             var key = material.ShaderKeys.First(x => x.Category == (uint)ShaderCategory.CategoryHairType);
             hairType = (HairType)key.Value;
         }
+        else
+        {
+            hairType = HairType.Hair;
+        }
         
         SKTexture normal = material.GetTexture(TextureUsage.g_SamplerNormal).ToTexture();
         SKTexture mask = material.GetTexture(TextureUsage.g_SamplerMask).ToTexture((normal.Width, normal.Height)); // spec, roughness, sss thickness, ao
