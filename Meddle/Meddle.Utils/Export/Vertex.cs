@@ -117,7 +117,7 @@ public unsafe struct Vertex
             {
                 VertexType.UInt => [b[0], b[1], b[2], b[3]],
                 VertexType.ByteFloat4 => [b[0], b[1], b[2], b[3]],
-                VertexType.UByte8 => [b[0], b[2], b[4], b[6], b[1], b[3], b[5], b[7]],
+                VertexType.UByte8 => [b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]],
                 _ => throw new ArgumentException($"Unsupported float array type {type}")
             };
 
@@ -135,7 +135,7 @@ public unsafe struct Vertex
             return type switch
             {
                 VertexType.UInt => [b[0], b[1], b[2], b[3]],
-                VertexType.UByte8 => [b[0], b[2], b[4], b[6], b[1], b[3], b[5], b[7]],
+                VertexType.UByte8 => [b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]],
                 _ => throw new ArgumentException($"Unsupported byte array type {type}")
             };
         }
