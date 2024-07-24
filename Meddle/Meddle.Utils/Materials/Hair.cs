@@ -8,7 +8,8 @@ namespace Meddle.Utils.Materials;
 
 public static partial class MaterialUtility
 {
-    public static MaterialBuilder BuildHair(Material material, string name, CustomizeParameter parameters, CustomizeData data)
+    public static MaterialBuilder BuildHair(
+        Material material, string name, CustomizeParameter parameters, CustomizeData data)
     {
         HairType? hairType = null;
         if (material.ShaderKeys.Any(x => x.Category == (uint)ShaderCategory.CategoryHairType))
@@ -20,15 +21,17 @@ public static partial class MaterialUtility
         {
             hairType = HairType.Hair;
         }
-        
-        SKTexture normal = material.GetTexture(TextureUsage.g_SamplerNormal).ToTexture();
-        SKTexture mask = material.GetTexture(TextureUsage.g_SamplerMask).ToTexture((normal.Width, normal.Height)); // spec, roughness, sss thickness, ao
-        
+
+        var normal = material.GetTexture(TextureUsage.g_SamplerNormal).ToTexture();
+        var mask = material.GetTexture(TextureUsage.g_SamplerMask)
+                           .ToTexture((normal.Width, normal.Height)); // spec, roughness, sss thickness, ao
+
         var outDiffuse = new SKTexture(normal.Width, normal.Height);
-        var roughMet = new SKTexture(normal.Width, normal.Height); // R = SSS, G = roughness, B = metallic, A = specular strength
+        var roughMet =
+            new SKTexture(normal.Width, normal.Height); // R = SSS, G = roughness, B = metallic, A = specular strength
         var outNormal = new SKTexture(normal.Width, normal.Height);
         var occ = new SKTexture(normal.Width, normal.Height);
-        
+
         for (var x = 0; x < outDiffuse.Width; x++)
         for (var y = 0; y < outDiffuse.Height; y++)
         {
@@ -37,8 +40,8 @@ public static partial class MaterialUtility
 
             roughMet[x, y] = new Vector4(maskPixel.Z, maskPixel.Y, 0, maskPixel.X).ToSkColor();
             occ[x, y] = new Vector4(0, 0, 0, maskPixel.W).ToSkColor();
-            
-            
+
+
             // Base color
             var hairColor = parameters.MainColor;
 
@@ -72,10 +75,10 @@ public static partial class MaterialUtility
         //var doubleSided = (material.ShaderFlags & 0x1) == 0;
         //output.WithDoubleSide(doubleSided);
 
-        
+
         // using this kinda just makes everything look jank
         //var normalScale = material.GetConstantOrDefault(MaterialConstant.g_NormalScale, 1.0f);
-        
+
         output.WithBaseColor(BuildImage(outDiffuse, name, "diffuse"));
         output.WithNormal(BuildImage(outNormal, name, "normal"));
         //var roughMetImg = BuildImage(roughMet, name, "roughness_metallic_specular");
@@ -83,11 +86,11 @@ public static partial class MaterialUtility
         //output.WithMetallicRoughness(roughMetImg, 0.0f, 1.0f);
         //output.WithMetallicRoughnessShader();
         //output.WithOcclusion(BuildImage(occ, name, "occlusion"));
-        
+
         var alphaThreshold = material.GetConstantOrDefault(MaterialConstant.g_AlphaThreshold, 0.0f);
         if (alphaThreshold > 0)
             output.WithAlpha(AlphaMode.MASK, alphaThreshold);
-        
+
         return output;
     }
 }

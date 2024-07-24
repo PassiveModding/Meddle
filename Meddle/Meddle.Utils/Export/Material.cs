@@ -14,7 +14,7 @@ public enum ShaderCategory : uint
     CategoryHairType = 0x24826489,
     CategoryTextureType = 0xB616DC5A,  // DEFAULT, COMPATIBILITY, SIMPLE
     CategorySpecularType = 0xC8BD1DEF, // MASK, DEFAULT
-    CategoryFlowMapType = 0x40D1481E,   // STANDARD, FLOW
+    CategoryFlowMapType = 0x40D1481E,  // STANDARD, FLOW
     CategoryDiffuseAlpha = 0xA9A3EE25
 }
 
@@ -90,50 +90,14 @@ public enum MaterialConstant : uint
     g_OutlineWidth = 0x8870C938
 }
 
-public unsafe class Material
+public class Material
 {
-    public string HandlePath { get; }
-    public uint ShaderFlags { get; }
-    public IReadOnlyList<ShaderKey> ShaderKeys { get; }
-    public record Constant(MaterialConstant Id, float[] Values);
-    public Dictionary<MaterialConstant, float[]> MtrlConstants { get; }
-    
-    public string ShaderPackageName { get; }
-    //public ShaderPackage ShaderPackage { get; }
-    public IReadOnlyList<Texture> Textures { get; }
-    //public MaterialParameters MaterialParameters { get; }
-    
-    public bool TryGetTexture(TextureUsage usage, out Texture texture)
-    {
-        var match = Textures.FirstOrDefault(x => x.Usage == usage);
-        if (match == null)
-        {
-            texture = null!;
-            return false;
-        }
-
-        texture = match;
-        return true;
-    }
-    
-    public Texture GetTexture(TextureUsage usage)
-    {
-        if (!TryGetTexture(usage, out var texture))
-            throw new ArgumentException($"No texture for {usage}");
-        return texture!;
-    }
-    
-    [JsonIgnore]
-    public ColorTable ColorTable { get; }
-
-    public record MtrlGroup(string Path, MtrlFile MtrlFile, string ShpkPath, ShpkFile ShpkFile, Texture.TexGroup[] TexFiles);
-
     public Material(MtrlGroup mtrlGroup)
     {
         HandlePath = mtrlGroup.Path;
         ShaderFlags = mtrlGroup.MtrlFile.ShaderHeader.Flags;
         ShaderPackageName = mtrlGroup.MtrlFile.GetShaderPackageName();
-        
+
         var shaderKeys = new ShaderKey[mtrlGroup.MtrlFile.ShaderKeys.Length];
         for (var i = 0; i < mtrlGroup.MtrlFile.ShaderKeys.Length; i++)
         {
@@ -143,12 +107,12 @@ public unsafe class Material
                 Value = mtrlGroup.MtrlFile.ShaderKeys[i].Value
             };
         }
-        
+
         ShaderKeys = shaderKeys;
-        
+
         var textures = new List<Texture>();
         var texturePaths = mtrlGroup.MtrlFile.GetTexturePaths();
-        for (int i = 0; i < mtrlGroup.MtrlFile.Samplers.Length; i++)
+        for (var i = 0; i < mtrlGroup.MtrlFile.Samplers.Length; i++)
         {
             var sampler = mtrlGroup.MtrlFile.Samplers[i];
             if (sampler.TextureIndex != byte.MaxValue)
@@ -163,7 +127,7 @@ public unsafe class Material
                 textures.Add(texObj);
             }
         }
-        
+
         Textures = textures;
 
         var constants = new List<Constant>();
@@ -185,27 +149,72 @@ public unsafe class Material
             {
                 values[j] = floats[j];
             }
-            
+
             constants.Add(new Constant((MaterialConstant)constant.ConstantId, values));
         }
-        
+
         MtrlConstants = constants.ToDictionary(x => x.Id, x => x.Values);
 
         ColorTable = mtrlGroup.MtrlFile.ColorTable;
     }
-    
+
+    public string HandlePath { get; }
+    public uint ShaderFlags { get; }
+    public IReadOnlyList<ShaderKey> ShaderKeys { get; }
+    public Dictionary<MaterialConstant, float[]> MtrlConstants { get; }
+
+    public string ShaderPackageName { get; }
+
+    //public ShaderPackage ShaderPackage { get; }
+    public IReadOnlyList<Texture> Textures { get; }
+
+    [JsonIgnore]
+    public ColorTable ColorTable { get; }
+    //public MaterialParameters MaterialParameters { get; }
+
+    public bool TryGetTexture(TextureUsage usage, out Texture texture)
+    {
+        var match = Textures.FirstOrDefault(x => x.Usage == usage);
+        if (match == null)
+        {
+            texture = null!;
+            return false;
+        }
+
+        texture = match;
+        return true;
+    }
+
+    public Texture GetTexture(TextureUsage usage)
+    {
+        if (!TryGetTexture(usage, out var texture))
+            throw new ArgumentException($"No texture for {usage}");
+        return texture!;
+    }
+
     public float GetConstantOrDefault(MaterialConstant id, float @default)
     {
         return MtrlConstants.TryGetValue(id, out var values) ? values[0] : @default;
     }
-    
+
     public Vector3 GetConstantOrDefault(MaterialConstant id, Vector3 @default)
     {
         return MtrlConstants.TryGetValue(id, out var values) ? new Vector3(values[0], values[1], values[2]) : @default;
     }
-    
+
     public Vector4 GetConstantOrDefault(MaterialConstant id, Vector4 @default)
     {
-        return MtrlConstants.TryGetValue(id, out var values) ? new Vector4(values[0], values[1], values[2], values[3]) : @default;
+        return MtrlConstants.TryGetValue(id, out var values)
+                   ? new Vector4(values[0], values[1], values[2], values[3])
+                   : @default;
     }
+
+    public record Constant(MaterialConstant Id, float[] Values);
+
+    public record MtrlGroup(
+        string Path,
+        MtrlFile MtrlFile,
+        string ShpkPath,
+        ShpkFile ShpkFile,
+        Texture.TexGroup[] TexFiles);
 }

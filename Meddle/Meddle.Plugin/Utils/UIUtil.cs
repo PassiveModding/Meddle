@@ -27,13 +27,14 @@ public static class UIUtil
         if (ImGui.IsItemHovered())
         {
             ImGui.BeginTooltip();
-            ImGui.Text("Right Eye Color will not apply to computed textures as it is selected using the vertex shaders");
+            ImGui.Text(
+                "Right Eye Color will not apply to computed textures as it is selected using the vertex shaders");
             ImGui.EndTooltip();
         }
-        
+
         ImGui.ColorEdit3("Option Color", ref customize.OptionColor);
     }
-    
+
     public static void DrawCustomizeData(CustomizeData customize)
     {
         ImGui.Checkbox("Lipstick", ref customize.LipStick);
@@ -69,6 +70,7 @@ public static class UIUtil
 
         ImGui.Columns(1);
     }
+
     public static void DrawColorTable(MtrlFile file)
     {
         ImGui.Text($"Color Table: {file.HasTable}");
@@ -78,7 +80,7 @@ public static class UIUtil
         {
             return;
         }
-        
+
         DrawColorTable(file.ColorTable, file.HasDyeTable ? file.ColorDyeTable : null);
     }
 
@@ -87,30 +89,30 @@ public static class UIUtil
         ref var row = ref table.GetRow(i);
         ImGui.Text($"{i}");
         ImGui.NextColumn();
-        ImGui.ColorButton($"##rowdiff", new Vector4(row.Diffuse, 1f), ImGuiColorEditFlags.NoAlpha);
+        ImGui.ColorButton("##rowdiff", new Vector4(row.Diffuse, 1f), ImGuiColorEditFlags.NoAlpha);
         if (dyeTable != null)
         {
             ImGui.SameLine();
             var diff = dyeTable.Value[i].Diffuse;
-            ImGui.Checkbox($"##rowdiff", ref diff);
+            ImGui.Checkbox("##rowdiff", ref diff);
         }
 
         ImGui.NextColumn();
-        ImGui.ColorButton($"##rowspec", new Vector4(row.Specular, 1f), ImGuiColorEditFlags.NoAlpha);
+        ImGui.ColorButton("##rowspec", new Vector4(row.Specular, 1f), ImGuiColorEditFlags.NoAlpha);
         if (dyeTable != null)
         {
             ImGui.SameLine();
             var spec = dyeTable.Value[i].Specular;
-            ImGui.Checkbox($"##rowspec", ref spec);
+            ImGui.Checkbox("##rowspec", ref spec);
         }
 
         ImGui.NextColumn();
-        ImGui.ColorButton($"##rowemm", new Vector4(row.Emissive, 1f), ImGuiColorEditFlags.NoAlpha);
+        ImGui.ColorButton("##rowemm", new Vector4(row.Emissive, 1f), ImGuiColorEditFlags.NoAlpha);
         if (dyeTable != null)
         {
             ImGui.SameLine();
             var emm = dyeTable.Value[i].Emissive;
-            ImGui.Checkbox($"##rowemm", ref emm);
+            ImGui.Checkbox("##rowemm", ref emm);
         }
 
         ImGui.NextColumn();
@@ -121,7 +123,7 @@ public static class UIUtil
         if (dyeTable != null)
         {
             var spec = dyeTable.Value[i].SpecularStrength;
-            ImGui.Checkbox($"##rowspecstr", ref spec);
+            ImGui.Checkbox("##rowspecstr", ref spec);
             ImGui.SameLine();
         }
 
@@ -130,7 +132,7 @@ public static class UIUtil
         if (dyeTable != null)
         {
             var gloss = dyeTable.Value[i].Gloss;
-            ImGui.Checkbox($"##rowgloss", ref gloss);
+            ImGui.Checkbox("##rowgloss", ref gloss);
             ImGui.SameLine();
         }
 

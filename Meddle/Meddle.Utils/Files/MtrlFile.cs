@@ -1,37 +1,32 @@
-﻿using System.Numerics;
-using Meddle.Utils.Files.Structs.Material;
+﻿using Meddle.Utils.Files.Structs.Material;
 
 namespace Meddle.Utils.Files;
 
 public class MtrlFile
 {
     public const uint MtrlMagic = 0x1030000;
-    
+
+    private readonly byte[] _data;
+    public byte[] AdditionalData;
+    public ColorDyeTable ColorDyeTable;
+    public ColorSet[] ColorSets;
+
+    public ColorTable ColorTable;
+    public Constant[] Constants;
+
     public MaterialFileHeader FileHeader;
+    public Sampler[] Samplers;
+
+    public MaterialShaderHeader ShaderHeader;
+
+    public ShaderKey[] ShaderKeys;
+    public uint[] ShaderValues;
+    public byte[] Strings;
     public TextureOffset[] TextureOffsets;
     public UvColorSet[] UvColorSets;
-    public ColorSet[] ColorSets;
-    public byte[] Strings;
-    public byte[] AdditionalData;
-    
-    public bool LargeColorTable => AdditionalData.Length > 1 && AdditionalData[1] == 0x05 && (AdditionalData[0] & 0x30) == 0x30;
-    public bool HasTable => AdditionalData.Length > 0 && (AdditionalData[0] & 0x4) != 0;
-    public bool HasDyeTable => AdditionalData.Length > 0 && (AdditionalData[0] & 0x8) != 0;
-    
-    public ColorTable ColorTable;
-    public ColorDyeTable ColorDyeTable;
-    
-    public MaterialShaderHeader ShaderHeader;
-    
-    public ShaderKey[] ShaderKeys;
-    public Constant[] Constants;
-    public Sampler[] Samplers;
-    public uint[] ShaderValues;
-    
-    private byte[] _data;
-    public ReadOnlySpan<byte> RawData => _data;
 
     public MtrlFile(byte[] data) : this((ReadOnlySpan<byte>)data) { }
+
     public MtrlFile(ReadOnlySpan<byte> data)
     {
         _data = data.ToArray();
@@ -40,7 +35,7 @@ public class MtrlFile
         TextureOffsets = new TextureOffset[FileHeader.TextureCount];
 
         var offsets = reader.Read<uint>(FileHeader.TextureCount);
-        for (int i = 0; i < offsets.Length; i++)
+        for (var i = 0; i < offsets.Length; i++)
         {
             TextureOffsets[i].Offset = (ushort)offsets[i];
             TextureOffsets[i].Flags = (ushort)(offsets[i] >> 16);
@@ -48,10 +43,10 @@ public class MtrlFile
 
         UvColorSets = reader.Read<UvColorSet>(FileHeader.UvSetCount).ToArray();
         ColorSets = reader.Read<ColorSet>(FileHeader.ColorSetCount).ToArray();
-        
+
         Strings = reader.Read<byte>(FileHeader.StringTableSize).ToArray();
         AdditionalData = reader.Read<byte>(FileHeader.AdditionalDataSize).ToArray();
-        
+
         if (FileHeader.DataSetSize > 0)
         {
             var dataSet = reader.Read<byte>(FileHeader.DataSetSize).ToArray();
@@ -73,15 +68,22 @@ public class MtrlFile
         {
             ColorTable = ColorTable.Default();
         }
-        
+
         ShaderHeader = reader.Read<MaterialShaderHeader>();
 
         ShaderKeys = reader.Read<ShaderKey>(ShaderHeader.ShaderKeyCount).ToArray();
         Constants = reader.Read<Constant>(ShaderHeader.ConstantCount).ToArray();
         Samplers = reader.Read<Sampler>(ShaderHeader.SamplerCount).ToArray();
-        
+
         ShaderValues = reader.Read<uint>(ShaderHeader.ShaderValueListSize / 4).ToArray();
     }
+
+    public bool LargeColorTable =>
+        AdditionalData.Length > 1 && AdditionalData[1] == 0x05 && (AdditionalData[0] & 0x30) == 0x30;
+
+    public bool HasTable => AdditionalData.Length > 0 && (AdditionalData[0] & 0x4) != 0;
+    public bool HasDyeTable => AdditionalData.Length > 0 && (AdditionalData[0] & 0x8) != 0;
+    public ReadOnlySpan<byte> RawData => _data;
 }
 
 public struct Constant
@@ -119,7 +121,6 @@ public struct UvColorSet
     public byte Unknown1;
 }
 
-
 public struct TextureOffset
 {
     public ushort Offset;
@@ -138,7 +139,7 @@ public struct MaterialFileHeader
     public byte ColorSetCount;
     public byte AdditionalDataSize;
 }
-    
+
 public struct MaterialShaderHeader
 {
     public ushort ShaderValueListSize;

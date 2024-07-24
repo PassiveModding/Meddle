@@ -8,6 +8,7 @@ using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.Interop;
 using ImGuiNET;
+using Meddle.Plugin.Services;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Export;
@@ -15,39 +16,42 @@ using Meddle.Utils.Files;
 using Meddle.Utils.Files.Structs.Material;
 using Meddle.Utils.Materials;
 using Meddle.Utils.Models;
+using Microsoft.Extensions.Logging;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
-using CustomizeParameter = FFXIVClientStructs.FFXIV.Shader.CustomizeParameter;
 
 namespace Meddle.Plugin.UI;
 
-public unsafe partial class CharacterTab : ITab
+public unsafe class CharacterTab : ITab
 {
-    public string Name => "Character";
-    public int Order => 0;
-    public bool DisplayTab => true;
+    private readonly Dictionary<string, Channel> channelCache = new();
 
     private readonly IClientState clientState;
-    private readonly IPluginLog log;
-    private readonly InteropService interopService;
     private readonly ExportUtil exportUtil;
+    private readonly ILogger<CharacterTab> log;
     private readonly IObjectTable objectTable;
-    private readonly ITextureProvider textureProvider;
     private readonly ParseUtil parseUtil;
+    private readonly PluginState pluginState;
+
+    private readonly Dictionary<string, TextureImage> textureCache = new();
+    private readonly ITextureProvider textureProvider;
+
+    private ExportUtil.CharacterGroup? characterGroup;
     private Task? exportTask;
+    private ExportUtil.CharacterGroup? selectedSetGroup;
 
     public CharacterTab(
         IObjectTable objectTable,
         IClientState clientState,
         IFramework framework,
-        IPluginLog log,
-        InteropService interopService,
+        ILogger<CharacterTab> log,
+        PluginState pluginState,
         ExportUtil exportUtil,
-        IDataManager dataManager, 
+        IDataManager dataManager,
         ITextureProvider textureProvider,
         ParseUtil parseUtil)
     {
         this.log = log;
-        this.interopService = interopService;
+        this.pluginState = pluginState;
         this.exportUtil = exportUtil;
         this.objectTable = objectTable;
         this.clientState = clientState;
@@ -57,14 +61,29 @@ public unsafe partial class CharacterTab : ITab
 
     private ICharacter? SelectedCharacter { get; set; }
 
+    private bool ExportTaskIncomplete => exportTask?.IsCompleted == false;
+    public string Name => "Character";
+    public int Order => 0;
+    public bool DisplayTab => true;
+
     public void Draw()
     {
-        if (!interopService.IsResolved)
+        if (!pluginState.InteropRespolved)
         {
             ImGui.Text("Waiting for game data...");
             return;
         }
+
         DrawObjectPicker();
+    }
+
+
+    public void Dispose()
+    {
+        foreach (var (_, textureImage) in textureCache)
+        {
+            textureImage.Wrap.Dispose();
+        }
     }
 
     private void DrawObjectPicker()
@@ -111,6 +130,11 @@ public unsafe partial class CharacterTab : ITab
             }
         }
 
+        if (exportTask is {IsFaulted: true})
+        {
+            ImGui.Text("An Error Occured: " + exportTask.Exception?.Message);
+        }
+
         if (SelectedCharacter != null)
         {
             ImGui.BeginDisabled(ExportTaskIncomplete);
@@ -118,6 +142,7 @@ public unsafe partial class CharacterTab : ITab
             {
                 exportTask = ParseCharacter(SelectedCharacter);
             }
+
             ImGui.EndDisabled();
         }
         else
@@ -125,25 +150,24 @@ public unsafe partial class CharacterTab : ITab
             ImGui.TextWrapped("No character selected");
         }
 
-        
+
         if (characterGroup == null)
         {
             ImGui.Text("Parse a character to view data");
             return;
         }
-        
+
         DrawCharacterGroup();
     }
 
-    private ExportUtil.CharacterGroup? characterGroup;
-    private ExportUtil.CharacterGroup? selectedSetGroup;
     private void DrawSkeleton(Skeleton.Skeleton skeleton)
     {
         ImGui.Indent();
         foreach (var partialSkeleton in skeleton.PartialSkeletons)
         {
             ImGui.PushID(partialSkeleton.GetHashCode());
-            if (ImGui.CollapsingHeader($"[{partialSkeleton.ConnectedBoneIndex}] {partialSkeleton.HandlePath ?? "Unknown"}"))
+            if (ImGui.CollapsingHeader(
+                    $"[{partialSkeleton.ConnectedBoneIndex}] {partialSkeleton.HandlePath ?? "Unknown"}"))
             {
                 ImGui.Indent();
                 var hkSkeleton = partialSkeleton.HkSkeleton;
@@ -179,8 +203,10 @@ public unsafe partial class CharacterTab : ITab
 
                 ImGui.Unindent();
             }
+
             ImGui.PopID();
         }
+
         ImGui.Unindent();
     }
 
@@ -252,7 +278,7 @@ public unsafe partial class CharacterTab : ITab
                 }
             }
         }
-        
+
         ImGui.PopID();
     }
 
@@ -260,17 +286,40 @@ public unsafe partial class CharacterTab : ITab
     {
         if (characterGroup == null) return;
         var availWidth = ImGui.GetContentRegionAvail().X;
-        
+
         ImGui.BeginDisabled(ExportTaskIncomplete);
-        if (ImGui.Button($"Export All"))
+        if (ImGui.Button("Export All"))
         {
-            exportTask = Task.Run(() => exportUtil.Export(characterGroup));
+            exportTask = Task.Run(() =>
+            {
+                try
+                {
+                    exportUtil.Export(characterGroup);
+                }
+                catch (Exception e)
+                {
+                    log.LogError(e, "Failed to export character");
+                    throw;
+                }
+            });
         }
 
-        if (ImGui.Button($"Export Raw Textures"))
+        if (ImGui.Button("Export Raw Textures"))
         {
-            exportTask = Task.Run(() => exportUtil.ExportRawTextures(characterGroup));
+            exportTask = Task.Run(() =>
+            {
+                try
+                {
+                    exportUtil.ExportRawTextures(characterGroup);
+                }
+                catch (Exception e)
+                {
+                    log.LogError(e, "Failed to export raw textures");
+                    throw;
+                }
+            });
         }
+
         ImGui.EndDisabled();
 
         if (selectedSetGroup == null) return;
@@ -284,8 +333,21 @@ public unsafe partial class CharacterTab : ITab
                     MdlGroups = selectedSetGroup.MdlGroups,
                     AttachedModelGroups = selectedSetGroup.AttachedModelGroups
                 };
-                exportTask = Task.Run(() => exportUtil.Export(group));
+                exportTask = Task.Run(() =>
+                {
+                    log.LogInformation("Exporting selected models");
+                    try
+                    {
+                        exportUtil.Export(group);
+                    }
+                    catch (Exception e)
+                    {
+                        log.LogError(e, "Failed to export selected models");
+                        throw;
+                    }
+                });
             }
+
             ImGui.EndDisabled();
 
             ImGui.Columns(2, "ExportIndividual", true);
@@ -306,13 +368,25 @@ public unsafe partial class CharacterTab : ITab
                         var group = characterGroup with
                         {
                             MdlGroups = [mdlGroup],
-                            AttachedModelGroups = Array.Empty<ExportUtil.AttachedModelGroup>()
+                            AttachedModelGroups = []
                         };
-                        exportTask = Task.Run(() => exportUtil.Export(group));
+                        exportTask = Task.Run(() =>
+                        {
+                            try
+                            {
+                                exportUtil.Export(group);
+                            }
+                            catch (Exception e)
+                            {
+                                log.LogError(e, "Failed to export mdl group");
+                                throw;
+                            }
+                        });
                     }
+
                     ImGui.EndDisabled();
 
-                    bool selected = selectedSetGroup.MdlGroups.Contains(mdlGroup);
+                    var selected = selectedSetGroup.MdlGroups.Contains(mdlGroup);
 
                     ImGui.SameLine();
                     if (ImGui.Checkbox($"##{mdlGroup.GetHashCode()}", ref selected))
@@ -352,12 +426,24 @@ public unsafe partial class CharacterTab : ITab
                             AttachedModelGroups = [attachedModelGroup],
                             MdlGroups = Array.Empty<Model.MdlGroup>()
                         };
-                        exportTask = Task.Run(() => exportUtil.Export(group));
+                        exportTask = Task.Run(() =>
+                        {
+                            try
+                            {
+                                exportUtil.Export(group);
+                            }
+                            catch (Exception e)
+                            {
+                                log.LogError(e, "Failed to export attached model group");
+                                throw;
+                            }
+                        });
                     }
+
                     ImGui.EndDisabled();
-                
+
                     ImGui.SameLine();
-                    
+
                     var selected = selectedSetGroup.AttachedModelGroups.Contains(attachedModelGroup);
                     if (ImGui.Checkbox($"##{attachedModelGroup.GetHashCode()}", ref selected))
                     {
@@ -365,18 +451,20 @@ public unsafe partial class CharacterTab : ITab
                         {
                             selectedSetGroup = selectedSetGroup with
                             {
-                                AttachedModelGroups = selectedSetGroup.AttachedModelGroups.Append(attachedModelGroup).ToArray()
+                                AttachedModelGroups = selectedSetGroup.AttachedModelGroups.Append(attachedModelGroup)
+                                                                      .ToArray()
                             };
                         }
                         else
                         {
                             selectedSetGroup = selectedSetGroup with
                             {
-                                AttachedModelGroups = selectedSetGroup.AttachedModelGroups.Where(m => m != attachedModelGroup).ToArray()
+                                AttachedModelGroups = selectedSetGroup.AttachedModelGroups
+                                                                      .Where(m => m != attachedModelGroup).ToArray()
                             };
                         }
                     }
-                    
+
                     ImGui.NextColumn();
                     foreach (var attachMdl in attachedModelGroup.MdlGroups)
                     {
@@ -393,15 +481,13 @@ public unsafe partial class CharacterTab : ITab
         }
     }
 
-    private bool ExportTaskIncomplete => exportTask?.IsCompleted == false;
-    
     private Task ParseCharacter(ICharacter character)
     {
         if (!exportTask?.IsCompleted ?? false)
         {
             return exportTask;
         }
-        
+
         var charPtr = (CSCharacter*)character.Address;
         var drawObject = charPtr->GameObject.DrawObject;
         if (drawObject == null)
@@ -415,14 +501,14 @@ public unsafe partial class CharacterTab : ITab
 
         var modelType = ((CharacterBase*)drawObject)->GetModelType();
         var characterBase = (CharacterBase*)drawObject;
-        Meddle.Utils.Export.CustomizeParameter customizeParams;
+        CustomizeParameter customizeParams;
         CustomizeData customizeData;
         GenderRace genderRace;
         if (modelType == CharacterBase.ModelType.Human)
         {
             var human = (Human*)drawObject;
             var customizeCBuf = human->CustomizeParameterCBuffer->TryGetBuffer<Models.CustomizeParameter>()[0];
-            customizeParams = new Meddle.Utils.Export.CustomizeParameter
+            customizeParams = new CustomizeParameter
             {
                 SkinColor = customizeCBuf.SkinColor,
                 MuscleTone = customizeCBuf.MuscleTone,
@@ -446,7 +532,7 @@ public unsafe partial class CharacterTab : ITab
         }
         else
         {
-            customizeParams = new Meddle.Utils.Export.CustomizeParameter();
+            customizeParams = new CustomizeParameter();
             customizeData = new CustomizeData();
             genderRace = GenderRace.Unknown;
         }
@@ -497,36 +583,21 @@ public unsafe partial class CharacterTab : ITab
                 attachDict[weaponBase] = weaponColorTableTextures;
             }
         }
-        
+
         // begin background work
         return Task.Run(() =>
         {
-            var skeleton = new Skeleton.Skeleton(characterBase->Skeleton);
-            var mdlGroups = new List<Model.MdlGroup>();
-            for (var i = 0; i < characterBase->SlotCount; i++)
+            try
             {
-                var mdlGroup = parseUtil.HandleModelPtr(characterBase, i, colorTableTextures);
-                if (mdlGroup != null)
-                {
-                    mdlGroups.Add(mdlGroup);
-                }
+                characterGroup = parseUtil.HandleCharacterGroup(characterBase, colorTableTextures, attachDict,
+                                                                customizeParams, customizeData, genderRace);
+                selectedSetGroup = characterGroup;
             }
-
-            var attachGroups = new List<ExportUtil.AttachedModelGroup>();
-            foreach (var (attachBase, attachColorTableTextures) in attachDict)
+            catch (Exception e)
             {
-                var attachGroup = parseUtil.HandleAttachGroup(attachBase, attachColorTableTextures);
-                attachGroups.Add(attachGroup);
+                log.LogError(e, "Failed to parse character");
+                throw;
             }
-
-            characterGroup = new ExportUtil.CharacterGroup(
-                customizeParams,
-                customizeData,
-                genderRace,
-                mdlGroups.ToArray(),
-                skeleton,
-                attachGroups.ToArray());
-            selectedSetGroup = characterGroup;
         });
     }
 
@@ -705,28 +776,6 @@ public unsafe partial class CharacterTab : ITab
             ImGui.Columns(1);
         }
 
-        if (ImGui.CollapsingHeader($"Shader Values##{mtrlGroup.GetHashCode()}"))
-        {
-            var keys = mtrlGroup.MtrlFile.ShaderValues;
-            ImGui.Text("Values");
-            ImGui.Columns(2);
-            ImGui.Text("Index");
-            ImGui.NextColumn();
-            ImGui.Text("Value");
-            ImGui.NextColumn();
-
-            for (var i = 0; i < keys.Length; i++)
-            {
-                var key = keys[i];
-                ImGui.Text($"{i}");
-                ImGui.NextColumn();
-                ImGui.Text($"0x{key:X8}");
-                ImGui.NextColumn();
-            }
-
-            ImGui.Columns(1);
-        }
-
         if (ImGui.CollapsingHeader($"Color Table##{mtrlGroup.GetHashCode()}"))
         {
             UIUtil.DrawColorTable(mtrlGroup.MtrlFile);
@@ -753,22 +802,6 @@ public unsafe partial class CharacterTab : ITab
             ImGui.PopID();
         }
     }
-
-    private enum Channel
-    {
-        Red = 1,
-        Green = 2,
-        Blue = 4,
-        Alpha = 8,
-        Rgb = Red | Green | Blue,
-        All = Red | Green | Blue | Alpha
-    }
-
-    private readonly Dictionary<string, TextureImage> textureCache = new();
-
-    private record TextureImage(SKTexture Bitmap, IDalamudTextureWrap Wrap);
-
-    private readonly Dictionary<string, Channel> channelCache = new();
 
     private void DrawTexFile(string path, TexFile file)
     {
@@ -895,18 +928,21 @@ public unsafe partial class CharacterTab : ITab
 
         ImGui.Image(textureImage.Wrap.ImGuiHandle, new Vector2(displayWidth, displayHeight));
 
-        if (ImGui.Button($"Export as .png"))
+        if (ImGui.Button("Export as .png"))
         {
             exportUtil.ExportTexture(textureImage.Bitmap.Bitmap, path);
         }
     }
 
-
-    public void Dispose()
+    private enum Channel
     {
-        foreach (var (_, textureImage) in textureCache)
-        {
-            textureImage.Wrap.Dispose();
-        }
+        Red = 1,
+        Green = 2,
+        Blue = 4,
+        Alpha = 8,
+        Rgb = Red | Green | Blue,
+        All = Red | Green | Blue | Alpha
     }
+
+    private record TextureImage(SKTexture Bitmap, IDalamudTextureWrap Wrap);
 }

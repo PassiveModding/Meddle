@@ -22,9 +22,9 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="DalamudPackager" Version="2.1.13" />
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.1" />
-        <PackageReference Include="WebSocketSharp-netstandard" Version="1.0.1" />
+        <PackageReference Include="DalamudPackager" Version="2.1.13"/>
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.1"/>
+        <PackageReference Include="WebSocketSharp-netstandard" Version="1.0.1"/>
         <Reference Include="Dalamud">
             <HintPath>$(DalamudLibPath)Dalamud.dll</HintPath>
             <Private>false</Private>
@@ -35,9 +35,9 @@
         </Reference>
     </ItemGroup>
     <ItemGroup>
-      <ProjectReference Include="..\..\FFXIVClientStructs\FFXIVClientStructs.Generators\FFXIVClientStructs.Generators.csproj" />
-      <ProjectReference Include="..\..\FFXIVClientStructs\FFXIVClientStructs\FFXIVClientStructs.csproj" />
-      <ProjectReference Include="..\..\FFXIVClientStructs\InteropGenerator\InteropGenerator.csproj" />
+        <ProjectReference Include="..\..\FFXIVClientStructs\FFXIVClientStructs.Generators\FFXIVClientStructs.Generators.csproj"/>
+        <ProjectReference Include="..\..\FFXIVClientStructs\FFXIVClientStructs\FFXIVClientStructs.csproj"/>
+        <ProjectReference Include="..\..\FFXIVClientStructs\InteropGenerator\InteropGenerator.csproj"/>
     </ItemGroup>
 
 </Project>

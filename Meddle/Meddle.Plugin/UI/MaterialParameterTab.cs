@@ -17,13 +17,20 @@ namespace Meddle.Plugin.UI;
 
 public class MaterialParameterTab : ITab
 {
-    private readonly IObjectTable objectTable;
     private readonly IClientState clientState;
-    private readonly SqPack pack;
     private readonly Configuration config;
-    public string Name => "Material Parameters";
-    public int Order => 3;
-    public bool DisplayTab => config.ShowAdvanced;
+    private readonly IObjectTable objectTable;
+    private readonly SqPack pack;
+    private Vector4[]? CustomizeParameters;
+    private Pointer<Human> lastHuman;
+    private readonly Dictionary<string, Pointer<Material>> materialCache = new();
+    private readonly Dictionary<string, MtrlFile> mtrlCache = new();
+    private readonly Dictionary<string, float[]> mtrlConstantCache = new();
+
+    // only show values that are different from the shader default
+    private bool onlyShowChanged;
+
+    private readonly Dictionary<string, ShpkFile> shpkCache = new();
 
     public MaterialParameterTab(IObjectTable objectTable, IClientState clientState, SqPack pack, Configuration config)
     {
@@ -32,7 +39,13 @@ public class MaterialParameterTab : ITab
         this.pack = pack;
         this.config = config;
     }
-    
+
+
+    private ICharacter? SelectedCharacter { get; set; }
+    public string Name => "Material Parameters";
+    public int Order => 3;
+    public bool DisplayTab => config.ShowAdvanced;
+
     public void Dispose()
     {
         shpkCache.Clear();
@@ -40,9 +53,6 @@ public class MaterialParameterTab : ITab
         materialCache.Clear();
     }
 
-    
-    private ICharacter? SelectedCharacter { get; set; }
-    
     public void Draw()
     {
         ICharacter[] objects;
@@ -57,7 +67,7 @@ public class MaterialParameterTab : ITab
         {
             // login/char creator produces "invalid" characters but are still usable I guess
             objects = objectTable.OfType<ICharacter>()
-                                 .Where(obj =>  obj.IsValidHuman())
+                                 .Where(obj => obj.IsValidHuman())
                                  .OrderBy(c => clientState.GetDistanceToLocalPlayer(c).LengthSquared())
                                  .ToArray();
         }
@@ -69,7 +79,7 @@ public class MaterialParameterTab : ITab
         {
             SelectedCharacter = null;
         }
-        
+
         var preview = SelectedCharacter != null ? clientState.GetCharacterDisplayText(SelectedCharacter) : "None";
         using (var combo = ImRaii.Combo("##Character", preview))
         {
@@ -84,19 +94,13 @@ public class MaterialParameterTab : ITab
                 }
             }
         }
-        
+
         if (SelectedCharacter != null)
         {
             DrawCharacter(SelectedCharacter);
         }
     }
-    
-    private Dictionary<string, ShpkFile> shpkCache = new();
-    private Dictionary<string, MtrlFile> mtrlCache = new();
-    private Dictionary<string, float[]> mtrlConstantCache = new();
-    private Dictionary<string, Pointer<Material>> materialCache = new();
-    private Vector4[]? CustomizeParameters;
-    
+
     private bool ColorEditF4(string label, ref float r, ref float g, ref float b, ref float a)
     {
         var color = new Vector4(r, g, b, a);
@@ -107,7 +111,7 @@ public class MaterialParameterTab : ITab
         a = color.W;
         return changed;
     }
-    
+
     private bool ColorEditF3(string label, ref float r, ref float g, ref float b)
     {
         var color = new Vector3(r, g, b);
@@ -117,16 +121,12 @@ public class MaterialParameterTab : ITab
         b = color.Z;
         return changed;
     }
-    
-    // only show values that are different from the shader default
-    private bool onlyShowChanged;
-    private Pointer<Human> lastHuman;
-    
+
     public unsafe void DrawCustomizeParams(CharacterBase* cbase)
     {
         if (cbase->GetModelType() != CharacterBase.ModelType.Human) return;
         var human = (Human*)cbase;
-        
+
         if (ImGui.CollapsingHeader("Customize Parameters"))
         {
             if (human != lastHuman)
@@ -137,10 +137,11 @@ public class MaterialParameterTab : ITab
                     var lastParams = lastHuman.Value->CustomizeParameterCBuffer->TryGetBuffer<Vector4>();
                     CustomizeParameters.CopyTo(lastParams);
                 }
+
                 CustomizeParameters = null;
                 lastHuman = human;
             }
-            
+
             var parameter = human->CustomizeParameterCBuffer->TryGetBuffer<Vector4>();
             if (CustomizeParameters == null)
             {
@@ -150,14 +151,15 @@ public class MaterialParameterTab : ITab
                     var p = parameter[i];
                     initParams[i] = new Vector4(p.X, p.Y, p.Z, p.W);
                 }
+
                 CustomizeParameters = initParams;
             }
-            
+
             if (ImGui.Button("Restore all defaults"))
             {
                 CustomizeParameters.CopyTo(parameter);
             }
-            
+
             ImGui.ColorEdit4("Skin Color", ref parameter[0]);
             ImGui.SameLine();
             // restore
@@ -165,51 +167,56 @@ public class MaterialParameterTab : ITab
             {
                 parameter[0] = CustomizeParameters[0];
             }
-        
+
             ImGui.ColorEdit4("Skin Fresnel", ref parameter[1]);
             ImGui.SameLine();
             if (ImGui.Button("Restore##SkinFresnel"))
             {
                 parameter[1] = CustomizeParameters[1];
             }
+
             ImGui.ColorEdit4("Lip Color", ref parameter[2]);
             ImGui.SameLine();
             if (ImGui.Button("Restore##LipColor"))
             {
                 parameter[2] = CustomizeParameters[2];
             }
+
             ImGui.ColorEdit4("Main Color", ref parameter[3]);
             ImGui.SameLine();
             if (ImGui.Button("Restore##MainColor"))
             {
                 parameter[3] = CustomizeParameters[3];
             }
+
             ImGui.ColorEdit4("Hair Fresnel", ref parameter[4]);
             ImGui.SameLine();
             if (ImGui.Button("Restore##HairFresnel"))
             {
                 parameter[4] = CustomizeParameters[4];
             }
+
             ImGui.ColorEdit4("Mesh Color", ref parameter[5]);
             ImGui.SameLine();
             if (ImGui.Button("Restore##MeshColor"))
             {
                 parameter[5] = CustomizeParameters[5];
             }
-        
+
             ImGui.ColorEdit4("Left Color", ref parameter[6]);
             ImGui.SameLine();
             if (ImGui.Button("Restore##LeftColor"))
             {
                 parameter[6] = CustomizeParameters[6];
             }
-        
+
             ImGui.ColorEdit4("Right Color", ref parameter[7]);
             ImGui.SameLine();
             if (ImGui.Button("Restore##RightColor"))
             {
                 parameter[7] = CustomizeParameters[7];
             }
+
             ImGui.ColorEdit4("Option Color", ref parameter[8]);
             ImGui.SameLine();
             if (ImGui.Button("Restore##OptionColor"))
@@ -218,11 +225,11 @@ public class MaterialParameterTab : ITab
             }
         }
     }
-    
+
     public unsafe void DrawCharacter(ICharacter character)
     {
         ImGui.Checkbox("Only Show Changed", ref onlyShowChanged);
-        
+
         var charPtr = (CSCharacter*)character.Address;
         if (ImGui.Button("Restore all defaults"))
         {
@@ -231,11 +238,11 @@ public class MaterialParameterTab : ITab
             {
                 if (mtrlPtr == null)
                     continue;
-                
+
                 var material = mtrlPtr.Value;
                 if (material == null)
                     continue;
-                
+
                 var materialParams = material->MaterialParameterCBuffer->TryGetBuffer<float>();
                 var mtrlFileName = material->MaterialResourceHandle->ResourceHandle.FileName.ToString();
                 if (mtrlConstantCache.TryGetValue(mtrlFileName, out var mtrlConstants))
@@ -244,7 +251,7 @@ public class MaterialParameterTab : ITab
                 }
             }
         }
-        
+
         var cBase = (CharacterBase*)charPtr->GameObject.DrawObject;
         DrawCustomizeParams(cBase);
 
@@ -276,7 +283,7 @@ public class MaterialParameterTab : ITab
                                 continue;
 
                             var mtrlFileName = material->MaterialResourceHandle->ResourceHandle.FileName.ToString();
-                            
+
                             if (!materialCache.TryGetValue(mtrlFileName, out var materialPtr))
                             {
                                 materialCache[mtrlFileName] = material;
@@ -291,7 +298,7 @@ public class MaterialParameterTab : ITab
                                 materialCache.Remove(mtrlFileName);
                                 continue;
                             }
-                            
+
                             ImGui.PushID(mtrlFileName);
                             try
                             {
@@ -326,7 +333,7 @@ public class MaterialParameterTab : ITab
                                             throw new Exception($"Failed to load {shpkPath}");
                                         }
                                     }
-                                    
+
                                     ImGui.Text($"Shader Flags: 0x{material->ShaderFlags:X8}");
                                     ImGui.Text($"Shader Package: {shpkName}");
 
@@ -338,22 +345,30 @@ public class MaterialParameterTab : ITab
                                         materialParams.ToArray().CopyTo(mtrlConstants.AsSpan());
                                         mtrlConstantCache[mtrlFileName] = mtrlConstants;
                                     }
-                                    
-                                    var orderedMaterialParams = shpk.MaterialParams.Select((x, idx) => (x, idx)).OrderBy(x => x.idx).ToArray();
-                                    
-                                    if (ImGui.BeginTable("MaterialParams", 8, ImGuiTableFlags.Borders | 
-                                                                              ImGuiTableFlags.RowBg | 
+
+                                    var orderedMaterialParams = shpk.MaterialParams.Select((x, idx) => (x, idx))
+                                                                    .OrderBy(x => x.idx).ToArray();
+
+                                    if (ImGui.BeginTable("MaterialParams", 8, ImGuiTableFlags.Borders |
+                                                                              ImGuiTableFlags.RowBg |
                                                                               ImGuiTableFlags.Hideable |
                                                                               ImGuiTableFlags.Resizable))
                                     {
                                         // Set up column headers
-                                        ImGui.TableSetupColumn("ID", ImGuiTableColumnFlags.WidthFixed, availWidth * 0.05f);
-                                        ImGui.TableSetupColumn("Offset", ImGuiTableColumnFlags.WidthFixed, availWidth * 0.05f);
-                                        ImGui.TableSetupColumn("Size", ImGuiTableColumnFlags.WidthFixed, availWidth * 0.05f);
-                                        ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthFixed, availWidth * 0.2f);
-                                        ImGui.TableSetupColumn("Shader Defaults", ImGuiTableColumnFlags.WidthFixed, availWidth * 0.12f);
-                                        ImGui.TableSetupColumn("Mtrl Defaults", ImGuiTableColumnFlags.WidthFixed, availWidth * 0.12f);
-                                        ImGui.TableSetupColumn("Mtrl CBuf", ImGuiTableColumnFlags.WidthFixed, availWidth * 0.1f);
+                                        ImGui.TableSetupColumn("ID", ImGuiTableColumnFlags.WidthFixed,
+                                                               availWidth * 0.05f);
+                                        ImGui.TableSetupColumn("Offset", ImGuiTableColumnFlags.WidthFixed,
+                                                               availWidth * 0.05f);
+                                        ImGui.TableSetupColumn("Size", ImGuiTableColumnFlags.WidthFixed,
+                                                               availWidth * 0.05f);
+                                        ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthFixed,
+                                                               availWidth * 0.2f);
+                                        ImGui.TableSetupColumn("Shader Defaults", ImGuiTableColumnFlags.WidthFixed,
+                                                               availWidth * 0.12f);
+                                        ImGui.TableSetupColumn("Mtrl Defaults", ImGuiTableColumnFlags.WidthFixed,
+                                                               availWidth * 0.12f);
+                                        ImGui.TableSetupColumn("Mtrl CBuf", ImGuiTableColumnFlags.WidthFixed,
+                                                               availWidth * 0.1f);
                                         ImGui.TableSetupColumn("Edit", ImGuiTableColumnFlags.WidthFixed);
 
                                         ImGui.TableHeadersRow();
@@ -371,13 +386,13 @@ public class MaterialParameterTab : ITab
                                                                              .Take(materialParam.ByteSize / 4)
                                                                              .ToArray();
 
-                                                string nameLookup = $"0x{materialParam.Id:X8}";
+                                                var nameLookup = $"0x{materialParam.Id:X8}";
                                                 if (Enum.IsDefined((MaterialConstant)materialParam.Id))
                                                 {
                                                     nameLookup += $" ({(MaterialConstant)materialParam.Id})";
                                                 }
 
-                                                bool matchesDefault = shpkDefaults.SequenceEqual(cbufCache);
+                                                var matchesDefault = shpkDefaults.SequenceEqual(cbufCache);
                                                 if (onlyShowChanged && matchesDefault)
                                                 {
                                                     continue;
@@ -396,13 +411,16 @@ public class MaterialParameterTab : ITab
                                                 {
                                                     ImGui.SetClipboardText(nameLookup);
                                                 }
+
                                                 ImGui.TableNextColumn();
-                                                var shpkDefaultString = string.Join(", ", shpkDefaults.Select(x => x.ToString("F2")));
+                                                var shpkDefaultString =
+                                                    string.Join(", ", shpkDefaults.Select(x => x.ToString("F2")));
                                                 ImGui.Text(shpkDefaultString);
                                                 ImGui.TableNextColumn();
                                                 if (mtrl.Constants.Any(x => x.ConstantId == materialParam.Id))
                                                 {
-                                                    var constant = mtrl.Constants.First(x => x.ConstantId == materialParam.Id);
+                                                    var constant =
+                                                        mtrl.Constants.First(x => x.ConstantId == materialParam.Id);
                                                     var buf = new List<byte>();
                                                     for (var j = 0; j < constant.ValueSize / 4; j++)
                                                     {
@@ -413,11 +431,14 @@ public class MaterialParameterTab : ITab
 
                                                     var mtrlDefaults = MemoryMarshal.Cast<byte, float>(buf.ToArray())
                                                         .ToArray();
-                                                    var mtrlDefaultString = string.Join(", ", mtrlDefaults.Select(x => x.ToString("F2")));
+                                                    var mtrlDefaultString =
+                                                        string.Join(", ", mtrlDefaults.Select(x => x.ToString("F2")));
                                                     ImGui.Text(mtrlDefaultString);
                                                 }
+
                                                 ImGui.TableNextColumn();
-                                                var mtrlCbufString = string.Join(", ", cbufCache.Select(x => x.ToString("F2")));
+                                                var mtrlCbufString =
+                                                    string.Join(", ", cbufCache.Select(x => x.ToString("F2")));
                                                 if (!matchesDefault)
                                                 {
                                                     ImGui.TextColored(new Vector4(1, 0, 0, 1), mtrlCbufString);
@@ -426,10 +447,11 @@ public class MaterialParameterTab : ITab
                                                 {
                                                     ImGui.Text(mtrlCbufString);
                                                 }
+
                                                 ImGui.TableNextColumn();
 
                                                 var currentVal = materialParams.Slice(materialParam.ByteOffset / 4,
-                                                                                      materialParam.ByteSize / 4);
+                                                    materialParam.ByteSize / 4);
 
                                                 var changed = !currentVal.SequenceEqual(cbufCache);
                                                 if (changed)
@@ -455,7 +477,8 @@ public class MaterialParameterTab : ITab
                                                 }
                                                 else if (currentVal.Length == 4)
                                                 {
-                                                    var v4 = new Vector4(currentVal[0], currentVal[1], currentVal[2], currentVal[3]);
+                                                    var v4 = new Vector4(
+                                                        currentVal[0], currentVal[1], currentVal[2], currentVal[3]);
                                                     ImGui.InputFloat4($"##{materialParam.GetHashCode()}", ref v4);
                                                     currentVal[0] = v4.X;
                                                     currentVal[1] = v4.Y;
@@ -471,18 +494,19 @@ public class MaterialParameterTab : ITab
                                                         {
                                                             ImGui.SameLine();
                                                         }
-                                                        
+
                                                         ImGui.InputFloat($"##{materialParam.GetHashCode()}_{j}",
-                                                                         ref currentVal[j], step.Item1, step.Item2, "%.2f");
+                                                                         ref currentVal[j], step.Item1, step.Item2,
+                                                                         "%.2f");
                                                     }
                                                 }
-                                                
+
                                                 ImGui.SameLine();
                                                 if (ImGui.Button($"Restore##{materialParam.GetHashCode()}"))
                                                 {
                                                     cbufCache.CopyTo(currentVal);
                                                 }
-                                                
+
                                                 /*for (var j = 0; j < currentVal.Length; j++)
                                                 {
                                                     ImGui.SameLine();
@@ -493,7 +517,7 @@ public class MaterialParameterTab : ITab
                                                     if (currentVal.Length == 2)
                                                     {
                                                         var v2 = new Vector2(currentVal[0], currentVal[1]);
-                                                        
+
                                                     }
                                                     else
                                                     {
@@ -506,9 +530,7 @@ public class MaterialParameterTab : ITab
                                                 {
                                                     ImGui.PopStyleColor();
                                                 }
-
-                                            }
-                                            finally
+                                            } finally
                                             {
                                                 ImGui.PopID();
                                             }
@@ -517,8 +539,7 @@ public class MaterialParameterTab : ITab
                                         ImGui.EndTable();
                                     }
 
-                                    
-                                    
+
                                     /*ImGui.Columns(8);
                                     ImGui.SetColumnWidth(0, availWidth * 0.05f);
                                     ImGui.Text("ID");
@@ -544,7 +565,7 @@ public class MaterialParameterTab : ITab
                                     ImGui.Text("Edit");
                                     ImGui.NextColumn();
                                     ImGui.Separator();
-                                    
+
                                     foreach (var (materialParam, i) in orderedMaterialParams)
                                     {
                                         ImGui.PushID($"{materialParam.GetHashCode()}_{i}_{shpkName}");
@@ -557,13 +578,13 @@ public class MaterialParameterTab : ITab
                                             var cbufCache = mtrlConstants.Skip(materialParam.ByteOffset / 4)
                                                                          .Take(materialParam.ByteSize / 4)
                                                                          .ToArray();
-                                            
+
                                             string nameLookup = $"0x{materialParam.Id:X8}";
                                             if (Enum.IsDefined((MaterialConstant)materialParam.Id))
                                             {
                                                 nameLookup += $" ({(MaterialConstant)materialParam.Id})";
                                             }
-                                            
+
                                             bool matchesDefault = shpkDefaults.SequenceEqual(cbufCache);
                                             if (onlyShowChanged && matchesDefault)
                                             {
@@ -604,8 +625,8 @@ public class MaterialParameterTab : ITab
                                                 ImGui.Text(mtrlDefaultString);
                                             }
                                             ImGui.NextColumn();
-                                            
-                                            
+
+
                                             if (!matchesDefault)
                                             {
                                                 ImGui.TextColored(new Vector4(1, 0, 0, 1), mtrlCbufString);
@@ -620,14 +641,14 @@ public class MaterialParameterTab : ITab
                                             var currentVal =
                                                 materialParams.Slice(materialParam.ByteOffset / 4,
                                                                      materialParam.ByteSize / 4);
-                                            
+
                                             // if current val doesn't match mtrlDefault, highlight
                                             var changed = !currentVal.SequenceEqual(cbufCache);
                                             if (changed)
                                             {
                                                 ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1, 0, 0, 1));
                                             }
-                                            
+
                                             if (ImGui.Button($"Restore##{materialParam.GetHashCode()}"))
                                             {
                                                 cbufCache.CopyTo(currentVal);
@@ -642,7 +663,7 @@ public class MaterialParameterTab : ITab
                                                 ImGui.InputFloat($"##{materialParam.GetHashCode()}_{j}",
                                                                  ref currentVal[j], step.Item1, step.Item2, "%.2f");
                                             }
-                                            
+
                                             if (changed)
                                             {
                                                 ImGui.PopStyleColor();
@@ -655,7 +676,7 @@ public class MaterialParameterTab : ITab
                                             ImGui.PopID();
                                         }
                                     }
-                                    
+
                                     ImGui.Columns(1);*/
                                 }
                             } finally
@@ -668,19 +689,18 @@ public class MaterialParameterTab : ITab
                         ImGui.Unindent();
                     }
                 }
-            }
-            finally
+            } finally
             {
                 ImGui.PopID();
             }
         }
     }
-    
-    
+
 
     private (float, float) GetStepForConstantId(MaterialConstant constant)
     {
-        return constant switch {
+        return constant switch
+        {
             MaterialConstant.g_ShaderID => (1.0f, 1.0f),
             MaterialConstant.g_SphereMapIndex => (1.0f, 1.0f),
             MaterialConstant.g_TileIndex => (1.0f, 1.0f),

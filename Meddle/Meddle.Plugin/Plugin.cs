@@ -1,128 +1,107 @@
-using System.Reflection;
 using Dalamud.Configuration;
-using Dalamud.Game.Command;
-using Dalamud.Interface.Windowing;
+using Dalamud.IoC;
 using Dalamud.Plugin;
-using Dalamud.Plugin.Services;
-using Meddle.Plugin.UI;
+using Meddle.Plugin.Services;
 using Meddle.Plugin.Utils;
-using Meddle.Utils;
 using Meddle.Utils.Files.SqPack;
-//using Meddle.Plugin.UI.Shared;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
+using OpenTelemetry;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OtterTex;
 
 namespace Meddle.Plugin;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    private static readonly WindowSystem WindowSystem = new("Meddle");
     public static readonly string TempDirectory = Path.Combine(Path.GetTempPath(), "Meddle.Export");
-    private readonly MainWindow? mainWindow;
-    private readonly ICommandManager? commandManager;
-    private readonly IDalamudPluginInterface? pluginInterface;
-    private readonly IPluginLog? log;
-    private readonly ServiceProvider? services;
+    private readonly IHost? app;
+    private readonly ILogger<Plugin>? log;
 
     public Plugin(IDalamudPluginInterface pluginInterface)
     {
         try
         {
-            var serviceCollection = new ServiceCollection()
-                            .AddDalamud(pluginInterface)
-                            .AddUi()
-                            .AddSingleton(pluginInterface)
-                            .AddSingleton<InteropService>()
-                            .AddSingleton<ExportUtil>()
-                            .AddSingleton<ParseUtil>();
-            
-            Configuration.PluginInterface = pluginInterface;
+            var service = new Service();
+            var loggerProvider = new PluginLoggerProvider();
+            pluginInterface.Inject(service);
+            pluginInterface.Inject(loggerProvider);
             var config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
-            serviceCollection.AddSingleton(config);
-            
-            var gameDir = Environment.CurrentDirectory;
-            var sqPack = new SqPack(gameDir);
-            serviceCollection.AddSingleton(sqPack);
-            
-            services = serviceCollection
-                           .BuildServiceProvider();
-            log = services.GetRequiredService<IPluginLog>();
-            log.Info($"Game directory: {gameDir}");
-            commandManager = services.GetRequiredService<ICommandManager>();
-            this.pluginInterface = services.GetRequiredService<IDalamudPluginInterface>();
-            OtterTex.NativeDll.Initialize(this.pluginInterface.AssemblyLocation.DirectoryName);
+            pluginInterface.Inject(config);
 
-            commandManager.AddHandler("/meddle", new CommandInfo(OnCommand)
+            var host = Host.CreateDefaultBuilder();
+            host.ConfigureLogging(logging =>
             {
-                HelpMessage = "Open the menu"
+                logging.ClearProviders();
+                logging.AddProvider(loggerProvider);
             });
 
-            this.pluginInterface.UiBuilder.Draw += WindowSystem.Draw;
-            this.pluginInterface.UiBuilder.OpenMainUi += OpenUi;
-            this.pluginInterface.UiBuilder.OpenConfigUi += OpenUi;
-            this.pluginInterface.UiBuilder.DisableGposeUiHide = true;
-            this.pluginInterface.UiBuilder.DisableCutsceneUiHide = true;
-            mainWindow = services.GetRequiredService<MainWindow>();
-            WindowSystem.AddWindow(mainWindow);
-
-
-            if (config.OpenOnLoad)
+            host.ConfigureServices(services =>
             {
-                OpenUi();
-            }
-            
-            Task.Run(() =>
-            {
-                var interop = services.GetRequiredService<InteropService>();
-                interop.Initialize();
+                service.AddServices(services);
+                services.AddSingleton(config)
+                        .AddUi()
+                        .AddSingleton(pluginInterface)
+                        .AddSingleton<ExportUtil>()
+                        .AddSingleton<ParseUtil>()
+                        .AddSingleton<DXHelper>()
+                        .AddSingleton(new SqPack(Environment.CurrentDirectory))
+                        .AddSingleton<PluginState>()
+                        .AddHostedService<InteropService>();
+
+#if DEBUG
+                services.AddOpenTelemetry()
+                        .ConfigureResource(x => { x.AddService("Meddle"); })
+                        .WithTracing(x => { x.AddSource("Meddle.*"); })
+                        .WithMetrics(x =>
+                        {
+                            x.AddProcessInstrumentation();
+                            x.AddRuntimeInstrumentation();
+                        })
+                        .WithLogging()
+                        .UseOtlpExporter();
+#endif
             });
+
+            app = host.Build();
+            log = app.Services.GetRequiredService<ILogger<Plugin>>();
+            NativeDll.Initialize(app.Services.GetRequiredService<IDalamudPluginInterface>().AssemblyLocation
+                                    .DirectoryName);
+
+            app.Start();
         }
         catch (Exception e)
         {
-            log?.Error(e, "Failed to initialize plugin");
+            log?.LogError(e, "Failed to initialize plugin");
             Dispose();
         }
     }
 
-
-    private void OnCommand(string command, string args)
-    {
-        OpenUi();
-    }
-    
-    private void OpenUi()
-    {
-        if (mainWindow == null)
-            return;
-        mainWindow.IsOpen = true;
-        mainWindow.BringToFront();
-    }
-
     public void Dispose()
     {
-        mainWindow?.Dispose();
-        WindowSystem.RemoveAllWindows();
-        commandManager?.RemoveHandler("/meddle");
-
-        if (pluginInterface != null)
-        {
-            pluginInterface.UiBuilder.Draw -= WindowSystem.Draw;
-            pluginInterface.UiBuilder.OpenConfigUi -= OpenUi;
-            pluginInterface.UiBuilder.OpenMainUi -= OpenUi;
-        }
-        
-        services?.Dispose();
+        app?.StopAsync();
+        app?.WaitForShutdown();
+        app?.Dispose();
+        log?.LogInformation("Plugin disposed");
     }
 }
 
 public class Configuration : IPluginConfiguration
 {
-    public static IDalamudPluginInterface PluginInterface = null!;
-    public int Version { get; set; } = 1;
+    [PluginService]
+    [JsonIgnore]
+    private IDalamudPluginInterface PluginInterface { get; set; } = null!;
+
     public bool ShowAdvanced { get; set; }
     public bool OpenOnLoad { get; set; }
+
+    public int Version { get; set; } = 1;
+
     public void Save()
     {
         PluginInterface.SavePluginConfig(this);
     }
-
 }

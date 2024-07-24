@@ -8,6 +8,7 @@ using Meddle.Utils.Files.SqPack;
 using Meddle.Utils.Materials;
 using Meddle.Utils.Models;
 using Meddle.Utils.Skeletons;
+using Microsoft.Extensions.Logging;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
 using SkiaSharp;
@@ -20,26 +21,27 @@ namespace Meddle.Plugin.Utils;
 
 public class ExportUtil
 {
+    private static readonly ActivitySource ActivitySource = new("Meddle.Plugin.Utils.ExportUtil");
+    private readonly TexFile catchlightTex;
+    private readonly ILogger<ExportUtil> logger;
     private readonly SqPack pack;
     private readonly PbdFile pbdFile;
 
-    public record CharacterGroup(CustomizeParameter CustomizeParams, CustomizeData CustomizeData, GenderRace GenderRace, Model.MdlGroup[] MdlGroups, Skeleton.Skeleton Skeleton, AttachedModelGroup[] AttachedModelGroups);
-    public record AttachedModelGroup(Attach Attach, Model.MdlGroup[] MdlGroups, Skeleton.Skeleton Skeleton);
-
-    public ExportUtil(SqPack pack)
+    public ExportUtil(SqPack pack, ILogger<ExportUtil> logger)
     {
         this.pack = pack;
-        
+        this.logger = logger;
+
         // chara/xls/bonedeformer/human.pbd
         var pbdData = pack.GetFile("chara/xls/bonedeformer/human.pbd");
-        if (pbdData == null)
-        {
-            throw new Exception("Failed to load human.pbd");
-        }
-
+        if (pbdData == null) throw new Exception("Failed to load human.pbd");
         pbdFile = new PbdFile(pbdData.Value.file.RawData);
+
+        var catchlight = pack.GetFile("chara/common/texture/sphere_d_array.tex");
+        if (catchlight == null) throw new InvalidOperationException("Failed to get catchlight texture");
+        catchlightTex = new TexFile(catchlight.Value.file.RawData);
     }
-    
+
     private string GetPathForOutput()
     {
         var now = DateTime.Now;
@@ -51,12 +53,14 @@ public class ExportUtil
 
         return folder;
     }
-    
+
     public void ExportTexture(SKBitmap bitmap, string path)
     {
+        using var activity = ActivitySource.StartActivity();
+        activity?.SetTag("path", path);
         var folder = GetPathForOutput();
         var outputPath = Path.Combine(folder, $"{Path.GetFileNameWithoutExtension(path)}.png");
-            
+
         var str = new SKDynamicMemoryWStream();
         bitmap.Encode(str, SKEncodedImageFormat.Png, 100);
 
@@ -64,12 +68,14 @@ public class ExportUtil
         File.WriteAllBytes(outputPath, data.ToArray());
         Process.Start("explorer.exe", folder);
     }
-    
+
     public void ExportRawTextures(CharacterGroup characterGroup, CancellationToken token = default)
     {
         try
         {
             var folder = GetPathForOutput();
+            using var activity = ActivitySource.StartActivity();
+            activity?.SetTag("folder", folder);
 
             foreach (var mdlGroup in characterGroup.MdlGroups)
             {
@@ -88,34 +94,29 @@ public class ExportUtil
                     }
                 }
             }
+
             Process.Start("explorer.exe", folder);
         }
         catch (Exception e)
         {
-            Service.Log.Error(e, "Failed to export textures");
+            logger.LogError(e, "Failed to export textures");
             throw;
         }
     }
-    
+
     public void Export(CharacterGroup characterGroup, CancellationToken token = default)
     {
         try
         {
-            var catchlight = pack.GetFile("chara/common/texture/sphere_d_array.tex");
-            if (catchlight == null) throw new InvalidOperationException("Failed to get catchlight texture");
-            var catchlightTex = new TexFile(catchlight.Value.file.RawData);
-            
+            using var activity = ActivitySource.StartActivity();
             var scene = new SceneBuilder();
-
-            
             var bones = SkeletonUtils.GetBoneMap(characterGroup.Skeleton, out var root);
             //var bones = XmlUtils.GetBoneMap(characterGroup.Skeletons, out var root);
             if (root != null)
             {
                 scene.AddNode(root);
             }
-            
-            var meshOutput = new List<(Model, ModelBuilder.MeshExport)>();
+
             // precompute required bones in the case they don't exist
             foreach (var mdlGroup in characterGroup.MdlGroups)
             {
@@ -123,36 +124,45 @@ public class ExportUtil
                 foreach (var mesh in model.Meshes)
                 {
                     if (mesh.BoneTable == null) continue;
-                    
+
                     foreach (var boneName in mesh.BoneTable)
                     {
                         if (bones.All(b => !b.BoneName.Equals(boneName, StringComparison.Ordinal)))
                         {
-                            Service.Log.Information("Adding bone {BoneName} from mesh {MeshPath}", boneName, mdlGroup.Path);
+                            logger.LogInformation("Adding bone {BoneName} from mesh {MeshPath}", boneName,
+                                                  mdlGroup.Path);
                             var bone = new BoneNodeBuilder(boneName)
                             {
                                 IsGenerated = true
                             };
-                            
+
                             if (root == null) throw new InvalidOperationException("Root bone not found");
                             root.AddNode(bone);
-                            Service.Log.Information("Added bone {BoneName} to {ParentBone}", boneName, root.BoneName);
-                            
+                            logger.LogInformation("Added bone {BoneName} to {ParentBone}", boneName, root.BoneName);
+
                             bones.Add(bone);
                         }
                     }
                 }
             }
-            
+
+            var meshOutput = new List<(Model model, ModelBuilder.MeshExport mesh)>();
             foreach (var mdlGroup in characterGroup.MdlGroups)
             {
+                if (token.IsCancellationRequested) return;
                 if (mdlGroup.Path.Contains("b0003_top")) continue;
-                var meshes = HandleModel(characterGroup, mdlGroup, catchlightTex, bones, token);
-                meshOutput.AddRange(meshes);
+                var meshes = HandleModel(characterGroup, mdlGroup, bones, token);
+                foreach (var mesh in meshes)
+                {
+                    meshOutput.Add((mesh.model, mesh.mesh));
+                }
             }
-            
-            var meshOutputAttach = new List<(Matrix4x4 Position, Model Model, ModelBuilder.MeshExport Mesh, BoneNodeBuilder[] Bones)>();
-            for (int i = 0; i < characterGroup.AttachedModelGroups.Length; i++)
+
+            if (token.IsCancellationRequested) return;
+
+            var meshOutputAttach =
+                new List<(Matrix4x4 Position, Model Model, ModelBuilder.MeshExport Mesh, BoneNodeBuilder[] Bones)>();
+            for (var i = 0; i < characterGroup.AttachedModelGroups.Length; i++)
             {
                 var attachedModelGroup = characterGroup.AttachedModelGroups[i];
                 var attachName = characterGroup.Skeleton.PartialSkeletons[attachedModelGroup.Attach.PartialSkeletonIdx]
@@ -162,6 +172,7 @@ public class ExportUtil
                 {
                     throw new InvalidOperationException("Failed to get attach root");
                 }
+
                 attachRoot.SetSuffixRecursively(i);
 
                 if (attachedModelGroup.Attach.OffsetTransform is { } ct)
@@ -176,8 +187,9 @@ public class ExportUtil
                         attachRoot.UseTranslation().UseTrackBuilder("pose").WithPoint(0, ct.Translation);
                     }
                 }
-                
-                var attachPointBone = bones.FirstOrDefault(b => b.BoneName.Equals(attachName, StringComparison.Ordinal));
+
+                var attachPointBone =
+                    bones.FirstOrDefault(b => b.BoneName.Equals(attachName, StringComparison.Ordinal));
                 if (attachPointBone == null)
                 {
                     scene.AddNode(attachRoot);
@@ -186,8 +198,8 @@ public class ExportUtil
                 {
                     attachPointBone.AddNode(attachRoot);
                 }
-                
-                
+
+
                 var transform = Matrix4x4.Identity;
                 NodeBuilder c = attachRoot;
                 while (c != null)
@@ -195,10 +207,10 @@ public class ExportUtil
                     transform *= c.LocalMatrix;
                     c = c.Parent;
                 }
-                
+
                 foreach (var mdlGroup in attachedModelGroup.MdlGroups)
                 {
-                    var meshes = HandleModel(characterGroup, mdlGroup, catchlightTex, attachBones, token);
+                    var meshes = HandleModel(characterGroup, mdlGroup, attachBones, token);
                     foreach (var mesh in meshes)
                     {
                         meshOutputAttach.Add((transform, mesh.model, mesh.mesh, attachBones.ToArray()));
@@ -211,7 +223,7 @@ public class ExportUtil
                 if (token.IsCancellationRequested) return;
                 AddMesh(scene, Matrix4x4.Identity, model, mesh, bones.ToArray());
             }
-            
+
             foreach (var (position, model, mesh, attachBones) in meshOutputAttach)
             {
                 if (token.IsCancellationRequested) return;
@@ -226,12 +238,13 @@ public class ExportUtil
         }
         catch (Exception e)
         {
-            Service.Log.Error(e, "Failed to export character");
+            logger.LogError(e, "Failed to export character");
             throw;
         }
     }
 
-    public static void AddMesh(SceneBuilder scene, Matrix4x4 position, Model model, ModelBuilder.MeshExport mesh, BoneNodeBuilder[] bones)
+    public static void AddMesh(
+        SceneBuilder scene, Matrix4x4 position, Model model, ModelBuilder.MeshExport mesh, BoneNodeBuilder[] bones)
     {
         InstanceBuilder instance;
         if (mesh.UseSkinning && bones.Length > 0)
@@ -248,9 +261,9 @@ public class ExportUtil
         // Remove subMeshes that are not enabled
         if (mesh.Submesh != null)
         {
-            var enabledAttributes = Model.GetEnabledValues(model.EnabledAttributeMask, 
+            var enabledAttributes = Model.GetEnabledValues(model.EnabledAttributeMask,
                                                            model.AttributeMasks);
-                    
+
             if (!mesh.Submesh.Attributes.All(enabledAttributes.Contains))
             {
                 instance.Remove();
@@ -258,42 +271,56 @@ public class ExportUtil
         }
     }
 
-    private List<(Model model, ModelBuilder.MeshExport mesh)> HandleModel(CharacterGroup characterGroup, Model.MdlGroup mdlGroup, TexFile catchlightTex, List<BoneNodeBuilder> bones, CancellationToken token)
+    private MaterialBuilder HandleMaterial(CharacterGroup characterGroup, Material.MtrlGroup mtrlGroup)
     {
-        Service.Log.Information("Exporting {Path}", mdlGroup.Path);
+        using var activityMtrl = ActivitySource.StartActivity();
+        activityMtrl?.SetTag("mtrlPath", mtrlGroup.Path);
+
+        logger.LogInformation("Exporting {Path}", mtrlGroup.Path);
+        var material = new Material(mtrlGroup);
+        activityMtrl?.SetTag("shaderPackageName", material.ShaderPackageName);
+        var name =
+            $"{Path.GetFileNameWithoutExtension(material.HandlePath)}_{Path.GetFileNameWithoutExtension(material.ShaderPackageName)}";
+        var builder = material.ShaderPackageName switch
+        {
+            "bg.shpk" => MaterialUtility.BuildBg(material, name),
+            "bgprop.shpk" => MaterialUtility.BuildBgProp(material, name),
+            "character.shpk" => MaterialUtility.BuildCharacter(material, name),
+            "characterocclusion.shpk" => MaterialUtility.BuildCharacterOcclusion(material, name),
+            "characterlegacy.shpk" => MaterialUtility.BuildCharacterLegacy(material, name),
+            "charactertattoo.shpk" => MaterialUtility.BuildCharacterTattoo(
+                material, name, characterGroup.CustomizeParams, characterGroup.CustomizeData),
+            "hair.shpk" => MaterialUtility.BuildHair(material, name, characterGroup.CustomizeParams,
+                                                     characterGroup.CustomizeData),
+            "skin.shpk" => MaterialUtility.BuildSkin(material, name, characterGroup.CustomizeParams,
+                                                     characterGroup.CustomizeData),
+            "iris.shpk" => MaterialUtility.BuildIris(material, name, catchlightTex, characterGroup.CustomizeParams,
+                                                     characterGroup.CustomizeData),
+            _ => MaterialUtility.BuildFallback(material, name)
+        };
+
+        return builder;
+    }
+
+    private List<(Model model, ModelBuilder.MeshExport mesh)> HandleModel(
+        CharacterGroup characterGroup, Model.MdlGroup mdlGroup, List<BoneNodeBuilder> bones, CancellationToken token)
+    {
+        using var activity = ActivitySource.StartActivity();
+        activity?.SetTag("mdlPath", mdlGroup.Path);
+        logger.LogInformation("Exporting {Path}", mdlGroup.Path);
         var model = new Model(mdlGroup);
         var materials = new List<MaterialBuilder>();
         var meshOutput = new List<(Model, ModelBuilder.MeshExport)>();
-        //Parallel.ForEach(mdlGroup.MtrlFiles, mtrlGroup =>
-        foreach (var mtrlGroup in mdlGroup.MtrlFiles)
+        for (var i = 0; i < mdlGroup.MtrlFiles.Length; i++)
         {
             if (token.IsCancellationRequested) return meshOutput;
-            
-            Service.Log.Information("Exporting {Path}", mtrlGroup.Path);
-            var material = new Material(mtrlGroup);
-            var name =
-                $"{Path.GetFileNameWithoutExtension(material.HandlePath)}_{Path.GetFileNameWithoutExtension(material.ShaderPackageName)}";
-            var builder = material.ShaderPackageName switch
-            {
-                "bg.shpk" => MaterialUtility.BuildBg(material, name),
-                "bgprop.shpk" => MaterialUtility.BuildBgProp(material, name),
-                "character.shpk" => MaterialUtility.BuildCharacter(material, name),
-                "characterocclusion.shpk" => MaterialUtility.BuildCharacterOcclusion(material, name),
-                "characterlegacy.shpk" => MaterialUtility.BuildCharacterLegacy(material, name),
-                "charactertattoo.shpk" => MaterialUtility.BuildCharacterTattoo(
-                    material, name, characterGroup.CustomizeParams, characterGroup.CustomizeData),
-                "hair.shpk" => MaterialUtility.BuildHair(material, name, characterGroup.CustomizeParams,
-                                                         characterGroup.CustomizeData),
-                "skin.shpk" => MaterialUtility.BuildSkin(material, name, characterGroup.CustomizeParams,
-                                                         characterGroup.CustomizeData),
-                "iris.shpk" => MaterialUtility.BuildIris(material, name, catchlightTex, characterGroup.CustomizeParams,
-                                                         characterGroup.CustomizeData),
-                _ => MaterialUtility.BuildFallback(material, name)
-            };
-
+            var mtrlGroup = mdlGroup.MtrlFiles[i];
+            var builder = HandleMaterial(characterGroup, mtrlGroup);
             materials.Add(builder);
         }
-        
+
+        if (token.IsCancellationRequested) return meshOutput;
+
         var raceDeformerValue = (characterGroup.GenderRace, new RaceDeformer(pbdFile, bones));
 
         var meshes = ModelBuilder.BuildMeshes(model, materials, bones, raceDeformerValue);
@@ -301,10 +328,10 @@ public class ExportUtil
         {
             meshOutput.Add((model, mesh));
         }
-        
+
         return meshOutput;
     }
-    
+
     private static void ApplyMeshShapes(InstanceBuilder builder, Model model, IReadOnlyList<string>? appliedShapes)
     {
         if (model.Shapes.Count == 0 || appliedShapes == null) return;
@@ -318,7 +345,6 @@ public class ExportUtil
         builder.Content.UseMorphing().SetValue(shapes.Select(x => x.Item2 ? 1f : 0).ToArray());
     }
 
-    public record Resource(string mdlPath, Vector3 position, Quaternion rotation, Vector3 scale);
     public void ExportResource(Resource[] resources, Vector3 rootPosition)
     {
         try
@@ -327,26 +353,27 @@ public class ExportUtil
             var materialCache = new Dictionary<string, MaterialBuilder>();
             foreach (var resource in resources)
             {
-                var mdlFileData = pack.GetFile(resource.mdlPath);
+                var mdlFileData = pack.GetFile(resource.MdlPath);
                 if (mdlFileData == null) throw new InvalidOperationException("Failed to get resource");
                 var data = mdlFileData.Value.file.RawData;
                 var mdlFile = new MdlFile(data);
                 var mtrlGroups = new List<Material.MtrlGroup>();
-                foreach (var (mtrlOff, mtrlPath) in mdlFile.GetMaterialNames())
+                foreach (var (_, mtrlPath) in mdlFile.GetMaterialNames())
                 {
-                    if (mtrlPath.StartsWith('/')) throw new InvalidOperationException($"Relative path found on material {mtrlPath}");
+                    if (mtrlPath.StartsWith('/'))
+                        throw new InvalidOperationException($"Relative path found on material {mtrlPath}");
                     var mtrlResource = pack.GetFile(mtrlPath);
                     if (mtrlResource == null) throw new InvalidOperationException("Failed to get mtrl resource");
                     var mtrlData = mtrlResource.Value.file.RawData;
-                    
+
                     var mtrlFile = new MtrlFile(mtrlData);
-                    
+
                     var shpkPath = mtrlFile.GetShaderPackageName();
                     var shpkResource = pack.GetFile($"shader/sm5/shpk/{shpkPath}");
                     if (shpkResource == null) throw new InvalidOperationException("Failed to get shpk resource");
                     var shpkFile = new ShpkFile(shpkResource.Value.file.RawData);
                     var texGroups = new List<Texture.TexGroup>();
-                    foreach (var (texOff, texPath) in mtrlFile.GetTexturePaths())
+                    foreach (var (_, texPath) in mtrlFile.GetTexturePaths())
                     {
                         var texResource = pack.GetFile(texPath);
                         if (texResource == null) throw new InvalidOperationException("Failed to get tex resource");
@@ -357,8 +384,8 @@ public class ExportUtil
 
                     mtrlGroups.Add(new Material.MtrlGroup(mtrlPath, mtrlFile, shpkPath, shpkFile, texGroups.ToArray()));
                 }
-                
-                var model = new Model(new Model.MdlGroup(resource.mdlPath, mdlFile, mtrlGroups.ToArray(), null));
+
+                var model = new Model(new Model.MdlGroup(resource.MdlPath, mdlFile, mtrlGroups.ToArray(), null));
                 var materials = new List<MaterialBuilder>();
                 foreach (var mtrlGroup in mtrlGroups)
                 {
@@ -367,6 +394,7 @@ public class ExportUtil
                         materials.Add(builder);
                         continue;
                     }
+
                     var material = new Material(mtrlGroup);
                     var name =
                         $"{Path.GetFileNameWithoutExtension(material.HandlePath)}_{Path.GetFileNameWithoutExtension(material.ShaderPackageName)}";
@@ -380,19 +408,19 @@ public class ExportUtil
                     materials.Add(builder);
                     materialCache[mtrlGroup.Path] = builder;
                 }
-                
+
                 var meshes = ModelBuilder.BuildMeshes(model, materials, [], null);
-                var position = Matrix4x4.CreateTranslation(resource.position - rootPosition);
-                var rotation = Matrix4x4.CreateFromQuaternion(resource.rotation);
-                var scale = Matrix4x4.CreateScale(resource.scale);
+                var position = Matrix4x4.CreateTranslation(resource.Position - rootPosition);
+                var rotation = Matrix4x4.CreateFromQuaternion(resource.Rotation);
+                var scale = Matrix4x4.CreateScale(resource.Scale);
                 var transform = position * rotation * scale;
-                
+
                 foreach (var mesh in meshes)
                 {
                     scene.AddRigidMesh(mesh.Mesh, transform);
                 }
             }
-            
+
             var sceneGraph = scene.ToGltf2();
             var folder = GetPathForOutput();
             var outputPath = Path.Combine(folder, "resource.gltf");
@@ -401,8 +429,20 @@ public class ExportUtil
         }
         catch (Exception e)
         {
-            Service.Log.Error(e, "Failed to export resource");
+            logger.LogError(e, "Failed to export resource");
             throw;
         }
     }
+
+    public record CharacterGroup(
+        CustomizeParameter CustomizeParams,
+        CustomizeData CustomizeData,
+        GenderRace GenderRace,
+        Model.MdlGroup[] MdlGroups,
+        Skeleton.Skeleton Skeleton,
+        AttachedModelGroup[] AttachedModelGroups);
+
+    public record AttachedModelGroup(Attach Attach, Model.MdlGroup[] MdlGroups, Skeleton.Skeleton Skeleton);
+
+    public record Resource(string MdlPath, Vector3 Position, Quaternion Rotation, Vector3 Scale);
 }

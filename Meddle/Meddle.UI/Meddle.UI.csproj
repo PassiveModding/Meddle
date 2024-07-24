@@ -9,44 +9,44 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="ImGui.NET" Version="1.90.1.1" />
-      <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
-      <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.1" />
-      <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.0" />
-      <PackageReference Include="Veldrid" Version="4.9.0" />
-      <PackageReference Include="Veldrid.StartupUtilities" Version="4.9.0" />
-      <PackageReference Include="WebSocketSharp-netstandard" Version="1.0.1" />
+        <PackageReference Include="ImGui.NET" Version="1.90.1.1"/>
+        <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0"/>
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.1"/>
+        <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.0"/>
+        <PackageReference Include="Veldrid" Version="4.9.0"/>
+        <PackageReference Include="Veldrid.StartupUtilities" Version="4.9.0"/>
+        <PackageReference Include="WebSocketSharp-netstandard" Version="1.0.1"/>
     </ItemGroup>
 
     <ItemGroup>
-        <EmbeddedResource Include="res/Fonts/NotoSans-Medium.ttf" LogicalName="NotoSans-Medium.ttf" />
-        <EmbeddedResource Include="res/Fonts/NotoSansCJKjp-Medium.otf" LogicalName="NotoSansCJKjp-Medium.otf" />
-        <EmbeddedResource Include="res/Shaders/GLSL/imgui-vertex.glsl" LogicalName="imgui-vertex.glsl" />
-        <EmbeddedResource Include="res/Shaders/GLSL/imgui-frag.glsl" LogicalName="imgui-frag.glsl" />
-        <EmbeddedResource Include="res/Shaders/HLSL/imgui-vertex.hlsl.bytes" LogicalName="imgui-vertex.hlsl.bytes" />
-        <EmbeddedResource Include="res/Shaders/HLSL/imgui-frag.hlsl.bytes" LogicalName="imgui-frag.hlsl.bytes" />
-        <EmbeddedResource Include="res/Shaders/SPIR-V/imgui-vertex.spv" LogicalName="imgui-vertex.spv" />
-        <EmbeddedResource Include="res/Shaders/SPIR-V/imgui-frag.spv" LogicalName="imgui-frag.spv" />
-        <EmbeddedResource Include="res/Shaders/Metal/imgui-vertex.metallib" LogicalName="imgui-vertex.metallib" />
-        <EmbeddedResource Include="res/Shaders/Metal/imgui-frag.metallib" LogicalName="imgui-frag.metallib" />
+        <EmbeddedResource Include="res/Fonts/NotoSans-Medium.ttf" LogicalName="NotoSans-Medium.ttf"/>
+        <EmbeddedResource Include="res/Fonts/NotoSansCJKjp-Medium.otf" LogicalName="NotoSansCJKjp-Medium.otf"/>
+        <EmbeddedResource Include="res/Shaders/GLSL/imgui-vertex.glsl" LogicalName="imgui-vertex.glsl"/>
+        <EmbeddedResource Include="res/Shaders/GLSL/imgui-frag.glsl" LogicalName="imgui-frag.glsl"/>
+        <EmbeddedResource Include="res/Shaders/HLSL/imgui-vertex.hlsl.bytes" LogicalName="imgui-vertex.hlsl.bytes"/>
+        <EmbeddedResource Include="res/Shaders/HLSL/imgui-frag.hlsl.bytes" LogicalName="imgui-frag.hlsl.bytes"/>
+        <EmbeddedResource Include="res/Shaders/SPIR-V/imgui-vertex.spv" LogicalName="imgui-vertex.spv"/>
+        <EmbeddedResource Include="res/Shaders/SPIR-V/imgui-frag.spv" LogicalName="imgui-frag.spv"/>
+        <EmbeddedResource Include="res/Shaders/Metal/imgui-vertex.metallib" LogicalName="imgui-vertex.metallib"/>
+        <EmbeddedResource Include="res/Shaders/Metal/imgui-frag.metallib" LogicalName="imgui-frag.metallib"/>
     </ItemGroup>
-    
+
     <ItemGroup>
-      <ProjectReference Include="..\Meddle.Utils\Meddle.Utils.csproj" />
+        <ProjectReference Include="..\Meddle.Utils\Meddle.Utils.csproj"/>
     </ItemGroup>
-    
+
     <ItemGroup>
-      <Reference Include="OtterTex">
-        <HintPath>..\Meddle.Utils\Lib\OtterTex.dll</HintPath>
-      </Reference>
+        <Reference Include="OtterTex">
+            <HintPath>..\Meddle.Utils\Lib\OtterTex.dll</HintPath>
+        </Reference>
     </ItemGroup>
-    
+
     <ItemGroup>
-      <None Update="data\path_patterns.txt">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </None>
-      <None Update="data\mtrl_relative_paths.txt">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </None>
+        <None Update="data\path_patterns.txt">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <None Update="data\mtrl_relative_paths.txt">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
     </ItemGroup>
 </Project>

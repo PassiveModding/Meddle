@@ -6,8 +6,8 @@ public unsafe struct ColorDyeTable : IEnumerable<ColorDyeTable.Row>
 {
     public struct Row
     {
-        public const int  Size = 4;
-        private      uint _data;
+        public const int Size = 4;
+        private uint _data;
 
         public ushort Template
         {
@@ -46,7 +46,7 @@ public unsafe struct ColorDyeTable : IEnumerable<ColorDyeTable.Row>
         }
     }
 
-    public const  int  NumRows = 32;
+    public const int NumRows = 32;
     private fixed uint _rowData[NumRows];
 
     public ref Row this[int i]
@@ -63,11 +63,15 @@ public unsafe struct ColorDyeTable : IEnumerable<ColorDyeTable.Row>
     public IEnumerator<Row> GetEnumerator()
     {
         for (var i = 0; i < NumRows; ++i)
+        {
             yield return this[i];
+        }
     }
 
     IEnumerator IEnumerable.GetEnumerator()
-        => GetEnumerator();
+    {
+        return GetEnumerator();
+    }
 
     public ReadOnlySpan<byte> AsBytes()
     {
@@ -76,19 +80,19 @@ public unsafe struct ColorDyeTable : IEnumerable<ColorDyeTable.Row>
             return new ReadOnlySpan<byte>(ptr, NumRows * sizeof(ushort));
         }
     }
-    
+
     internal LegacyColorDyeTable ToLegacy()
     {
         var table = new LegacyColorDyeTable();
         for (var i = 0; i < LegacyColorDyeTable.NumRows; ++i)
         {
-            var     oldRow = table[i];
-            ref var row    = ref this[i];
-            oldRow.Template         = row.Template;
-            oldRow.Diffuse          = row.Diffuse;
-            oldRow.Specular         = row.Specular;
-            oldRow.Emissive         = row.Emissive;
-            oldRow.Gloss            = row.Gloss;
+            var oldRow = table[i];
+            ref var row = ref this[i];
+            oldRow.Template = row.Template;
+            oldRow.Diffuse = row.Diffuse;
+            oldRow.Specular = row.Specular;
+            oldRow.Emissive = row.Emissive;
+            oldRow.Gloss = row.Gloss;
             oldRow.SpecularStrength = row.SpecularStrength;
         }
 
@@ -99,13 +103,13 @@ public unsafe struct ColorDyeTable : IEnumerable<ColorDyeTable.Row>
     {
         for (var i = 0; i < LegacyColorDyeTable.NumRows; ++i)
         {
-            var     oldRow = oldTable[i];
-            ref var row    = ref this[i];
-            row.Template         = oldRow.Template;
-            row.Diffuse          = oldRow.Diffuse;
-            row.Specular         = oldRow.Specular;
-            row.Emissive         = oldRow.Emissive;
-            row.Gloss            = oldRow.Gloss;
+            var oldRow = oldTable[i];
+            ref var row = ref this[i];
+            row.Template = oldRow.Template;
+            row.Diffuse = oldRow.Diffuse;
+            row.Specular = oldRow.Specular;
+            row.Emissive = oldRow.Emissive;
+            row.Gloss = oldRow.Gloss;
             row.SpecularStrength = oldRow.SpecularStrength;
         }
     }

@@ -1,19 +1,23 @@
-﻿using System.Text;
+﻿using System.Diagnostics;
+using System.Text;
 
 namespace Meddle.Utils.Files.SqPack;
 
 public class SqPack
 {
+    private static readonly ActivitySource ActivitySource = new("Meddle.Utils.Files.SqPack");
+
+    private static uint[]? _crcTable;
     public readonly IEnumerable<Repository> Repositories;
-    
+
     public SqPack(string path)
     {
         if (!Directory.Exists(path))
         {
             throw new DirectoryNotFoundException();
         }
-        
-        
+
+
         if (path.Split(Path.DirectorySeparatorChar).Last() != "game")
         {
             path = Path.Combine(path, "game");
@@ -22,13 +26,13 @@ public class SqPack
                 throw new DirectoryNotFoundException();
             }
         }
-        
+
         var sqpackDir = Path.Combine(path, "sqpack");
         if (!Directory.Exists(sqpackDir))
         {
             throw new DirectoryNotFoundException();
         }
-        
+
         var directories = Directory.GetDirectories(sqpackDir);
         var repositories = new Repository[directories.Length];
         for (var i = 0; i < directories.Length; i++)
@@ -36,13 +40,17 @@ public class SqPack
             var directory = directories[i];
             repositories[i] = new Repository(directory);
         }
-        
+
         Repositories = repositories;
     }
 
     public bool FileExists(string path, out ParsedFilePath hash)
     {
+        using var activity = ActivitySource.StartActivity();
+        activity?.SetTag("path", path);
         hash = GetFileHash(path);
+        activity?.SetTag("hash", hash.IndexHash.ToString());
+
         var categoryName = path.Split('/')[0];
 
         byte? catId = null;
@@ -58,7 +66,7 @@ public class SqPack
             {
                 catMatch = catMatch.Where(x => x.Key.category == catId.Value).ToArray();
             }
-            
+
             if (catMatch.Length == 0)
             {
                 continue;
@@ -70,13 +78,19 @@ public class SqPack
                 if (category.FileExists(hash.Index2Hash)) return true;
             }
         }
-        
+
         return false;
     }
-    
-    public (Category category, IndexHashTableEntry hash, SqPackFile file)? GetFile(string path, FileType? fileType = null)
+
+    public (Category category, IndexHashTableEntry hash, SqPackFile file)? GetFile(
+        string path, FileType? fileType = null)
     {
+        using var activity = ActivitySource.StartActivity();
+        activity?.SetTag("path", path);
         var hash = GetFileHash(path);
+        activity?.SetTag("hash", hash.IndexHash.ToString());
+        activity?.SetTag("category", hash.Category);
+
         var categoryName = path.Split('/')[0];
 
         byte? catId = null;
@@ -92,7 +106,7 @@ public class SqPack
             {
                 catMatch = catMatch.Where(x => x.Key.category == catId.Value).ToArray();
             }
-            
+
             if (catMatch.Length == 0)
             {
                 continue;
@@ -104,7 +118,7 @@ public class SqPack
                 {
                     return (category, category.UnifiedIndexEntries[hash.IndexHash], data);
                 }
-                
+
                 if (category.TryGetFile(hash.Index2Hash, fileType, out var data2))
                 {
                     return (category, category.UnifiedIndexEntries[hash.Index2Hash], data2);
@@ -114,7 +128,7 @@ public class SqPack
 
         return null;
     }
-    
+
     public (Category category, IndexHashTableEntry hash, SqPackFile file)[] GetFiles(string path)
     {
         var hash = GetFileHash(path);
@@ -134,7 +148,7 @@ public class SqPack
             {
                 catMatch = catMatch.Where(x => x.Key.category == catId.Value).ToArray();
             }
-            
+
             if (catMatch.Length == 0)
             {
                 continue;
@@ -146,7 +160,7 @@ public class SqPack
                 {
                     files.Add((category, category.UnifiedIndexEntries[hash.IndexHash], data));
                 }
-                
+
                 if (category.TryGetFile(hash.Index2Hash, out var data2))
                 {
                     files.Add((category, category.UnifiedIndexEntries[hash.Index2Hash], data2));
@@ -156,20 +170,19 @@ public class SqPack
 
         return files.ToArray();
     }
-    
+
     public static ParsedFilePath GetFileHash(string path)
     {
         return new ParsedFilePath(path);
     }
 
-    private static uint[]? _crcTable;
     private static uint[] GetCrcTable()
     {
         if (_crcTable != null)
         {
             return _crcTable;
         }
-        
+
         var table = new uint[16 * 256];
         const uint poly = 0xedb88320u;
         for (uint i = 0; i < 256; i++)
@@ -179,25 +192,27 @@ public class SqPack
             {
                 for (var k = 0; k < 8; k++)
                 {
-                    res = (res & 1) == 1 ? poly ^ (res >> 1) : (res >> 1);
+                    res = (res & 1) == 1 ? poly ^ (res >> 1) : res >> 1;
                 }
 
                 table[(t * 256) + i] = res;
             }
         }
-        
+
         _crcTable = table;
         return table;
     }
+
     public static uint GetHash(string value)
     {
         var data = Encoding.UTF8.GetBytes(value);
         var crcLocal = uint.MaxValue ^ 0U;
         var table = GetCrcTable();
-        foreach (var ch in data) {
+        foreach (var ch in data)
+        {
             crcLocal = table[(byte)(crcLocal ^ ch)] ^ (crcLocal >> 8);
         }
-        
+
         var ret = ~(crcLocal ^ uint.MaxValue);
         return ret;
     }

@@ -6,12 +6,11 @@ namespace Meddle.Utils;
 
 public static class ModelBuilder
 {
-    public record MeshExport(IMeshBuilder<MaterialBuilder> Mesh, bool UseSkinning, SubMesh? Submesh, IReadOnlyList<string>? Shapes);
-    
-    public static IReadOnlyList<MeshExport> BuildMeshes(Model model, 
-                                                 IReadOnlyList<MaterialBuilder> materials, 
-                                                 IReadOnlyList<BoneNodeBuilder> boneMap, 
-                                                 (GenderRace targetDeform, RaceDeformer deformer)? raceDeformer)
+    public static IReadOnlyList<MeshExport> BuildMeshes(
+        Model model,
+        IReadOnlyList<MaterialBuilder> materials,
+        IReadOnlyList<BoneNodeBuilder> boneMap,
+        (GenderRace targetDeform, RaceDeformer deformer)? raceDeformer)
     {
         var meshes = new List<MeshExport>();
         (RaceDeformer deformer, ushort from, ushort to)? deform = null;
@@ -46,10 +45,10 @@ public static class ModelBuilder
             {
                 meshBuilder = new MeshBuilder(mesh, null, material, deform);
             }
-            
+
             meshBuilder.BuildVertices();
             var modelPathName = Path.GetFileNameWithoutExtension(model.Path);
-            
+
             if (mesh.SubMeshes.Count == 0)
             {
                 var mb = meshBuilder.BuildMesh();
@@ -57,7 +56,7 @@ public static class ModelBuilder
                 meshes.Add(new MeshExport(mb, useSkinning, null, null));
                 continue;
             }
-            
+
             for (var i = 0; i < mesh.SubMeshes.Count; i++)
             {
                 var modelSubMesh = mesh.SubMeshes[i];
@@ -67,7 +66,7 @@ public static class ModelBuilder
                 {
                     subMesh.Name += $";{string.Join(";", modelSubMesh.Attributes)}";
                 }
-                
+
 
                 var subMeshStart = (int)modelSubMesh.IndexOffset;
                 var subMeshEnd = subMeshStart + (int)modelSubMesh.IndexCount;
@@ -80,4 +79,10 @@ public static class ModelBuilder
 
         return meshes;
     }
+
+    public record MeshExport(
+        IMeshBuilder<MaterialBuilder> Mesh,
+        bool UseSkinning,
+        SubMesh? Submesh,
+        IReadOnlyList<string>? Shapes);
 }

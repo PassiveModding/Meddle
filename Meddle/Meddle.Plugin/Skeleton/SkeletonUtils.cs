@@ -24,8 +24,9 @@ public static class SkeletonUtils
                 var name = hkSkeleton.BoneNames[i];
                 if (string.IsNullOrEmpty(name))
                     continue;
-                
-                if (boneMap.FirstOrDefault(b => b.BoneName.Equals(name, StringComparison.OrdinalIgnoreCase)) is { } dupeBone)
+
+                if (boneMap.FirstOrDefault(b => b.BoneName.Equals(name, StringComparison.OrdinalIgnoreCase)) is
+                    { } dupeBone)
                 {
                     skeleBones[i] = dupeBone;
                     continue;
@@ -45,7 +46,7 @@ public static class SkeletonUtils
                     bone.UseRotation().UseTrackBuilder("pose").WithPoint(0, transform.Rotation);
                     bone.UseTranslation().UseTrackBuilder("pose").WithPoint(0, transform.Translation);
                 }
-                
+
                 bone.SetLocalTransform(hkSkeleton.ReferencePose[i].AffineTransform, false);
 
                 var parentIdx = hkSkeleton.BoneParents[i];

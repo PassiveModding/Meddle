@@ -4,19 +4,35 @@ using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using ImGuiNET;
+using Meddle.Plugin.Services;
 using Meddle.Plugin.Utils;
-using Meddle.Utils.Files.SqPack;
+using Microsoft.Extensions.Logging;
 
 namespace Meddle.Plugin.UI;
 
 public class WorldTab : ITab
 {
-    private readonly InteropService interop;
     private readonly IClientState clientState;
-    private readonly ExportUtil exportUtil;
-    private readonly SqPack pack;
-    private readonly IPluginLog log;
     private readonly Configuration config;
+    private readonly ExportUtil exportUtil;
+    private readonly ILogger<WorldTab> log;
+
+    private readonly List<ObjectData> objects = new();
+    private readonly PluginState pluginState;
+    private readonly List<ObjectData> selectedObjects = new();
+    private Task exportTask = Task.CompletedTask;
+
+    public WorldTab(
+        PluginState pluginState, IClientState clientState, ExportUtil exportUtil, ILogger<WorldTab> log,
+        Configuration config)
+    {
+        this.pluginState = pluginState;
+        this.clientState = clientState;
+        this.exportUtil = exportUtil;
+        this.log = log;
+        this.config = config;
+    }
+
     public bool DisplayTab => config.ShowAdvanced;
 
     public void Dispose()
@@ -27,63 +43,21 @@ public class WorldTab : ITab
     public string Name => "World";
     public int Order => 4;
 
-    public WorldTab(InteropService interop, IClientState clientState, ExportUtil exportUtil, SqPack pack, IPluginLog log, Configuration config)
-    {
-        this.interop = interop;
-        this.clientState = clientState;
-        this.exportUtil = exportUtil;
-        this.pack = pack;
-        this.log = log;
-        this.config = config;
-    }
-    
-    private record ObjectData(ObjectType Type, string Path, Vector3 Position, Quaternion Rotation, Vector3 Scale);
-
-    private readonly List<ObjectData> objects = new();
-    private readonly List<ObjectData> selectedObjects = new();
-    private Task exportTask = Task.CompletedTask;
-    
-    public unsafe void ParseWorld()
-    {
-        objects.Clear();
-        selectedObjects.Clear();
-
-        var world = World.Instance();
-        if (world == null) return;
-        foreach (var childObject in world->ChildObjects)
-        {
-            if (childObject == null) continue;
-            var type = childObject->GetObjectType();
-            if (type == ObjectType.BgObject)
-            {
-                var bgObject = (BgObject*)childObject;
-                if (bgObject->ResourceHandle == null) continue;
-                var path = bgObject->ResourceHandle->FileName.ToString();
-                objects.Add(new ObjectData(ObjectType.BgObject, path, childObject->Position, childObject->Rotation, childObject->Scale));
-            }
-            else if (type == ObjectType.Terrain)
-            {
-                var terrain = (Terrain*)childObject;
-                if (terrain->ResourceHandle == null) continue;
-                var path = terrain->ResourceHandle->FileName.ToString();
-                objects.Add(new ObjectData(ObjectType.Terrain, path, childObject->Position, childObject->Rotation, childObject->Scale));
-            }
-        }
-    }
-
     public void Draw()
     {
-        if (!interop.IsResolved) return;
+        if (!pluginState.InteropRespolved) return;
         var position = clientState.LocalPlayer?.Position ?? Vector3.Zero;
 
         if (ImGui.Button("Parse world objects"))
         {
             ParseWorld();
+            log.LogInformation("Parsed {ObjectCount} objects", objects.Count);
         }
 
         var availHeight = ImGui.GetContentRegionAvail().Y;
         ImGui.BeginChild("ObjectTable", new Vector2(0, availHeight / 4), true);
-        foreach (var obj in objects.Where(x => x.Path.EndsWith(".mdl")).OrderBy(o => Vector3.Distance(o.Position, position)))
+        foreach (var obj in objects.Where(x => x.Path.EndsWith(".mdl"))
+                                   .OrderBy(o => Vector3.Distance(o.Position, position)))
         {
             var distance = Vector3.Distance(obj.Position, position);
             if (ImGui.Selectable($"[{obj.Type}][{distance:F1}y] {obj.Path}"))
@@ -93,6 +67,7 @@ public class WorldTab : ITab
                 ImGui.SetClipboardText(obj.Path);
             }
         }
+
         ImGui.EndChild();
         /*ImGui.BeginChild("TeraTable", new Vector2(0, availHeight / 4), true);
         foreach (var obj in objects.Where(x => x.Path.EndsWith(".tera")).OrderBy(o => Vector3.Distance(o.Position, position)))
@@ -122,7 +97,7 @@ public class WorldTab : ITab
             if (ImGui.Button("Export") && exportTask.IsCompleted)
             {
                 var resources = new List<ExportUtil.Resource>();
-                
+
                 // NOTE: Position is players current position, so if they move the objects will be exported relative to that position
                 foreach (var obj in selectedObjectArr)
                 {
@@ -149,6 +124,7 @@ public class WorldTab : ITab
                         }*/
                     }
                 }
+
                 exportTask = Task.Run(() => exportUtil.ExportResource(resources.ToArray(), position));
             }
 
@@ -161,17 +137,50 @@ public class WorldTab : ITab
             ImGui.Text($"Export failed: {exception?.Message}");
         }
     }
+
+    public unsafe void ParseWorld()
+    {
+        objects.Clear();
+        selectedObjects.Clear();
+
+        var world = World.Instance();
+        if (world == null) return;
+        foreach (var childObject in world->ChildObjects)
+        {
+            if (childObject == null) continue;
+            var type = childObject->GetObjectType();
+            if (type == ObjectType.BgObject)
+            {
+                var bgObject = (BgObject*)childObject;
+                if (bgObject->ResourceHandle == null) continue;
+                var path = bgObject->ResourceHandle->FileName.ToString();
+                objects.Add(new ObjectData(ObjectType.BgObject, path, childObject->Position, childObject->Rotation,
+                                           childObject->Scale));
+            }
+            else if (type == ObjectType.Terrain)
+            {
+                var terrain = (Terrain*)childObject;
+                if (terrain->ResourceHandle == null) continue;
+                var path = terrain->ResourceHandle->FileName.ToString();
+                objects.Add(new ObjectData(ObjectType.Terrain, path, childObject->Position, childObject->Rotation,
+                                           childObject->Scale));
+            }
+        }
+    }
+
+    private record ObjectData(ObjectType Type, string Path, Vector3 Position, Quaternion Rotation, Vector3 Scale);
 }
 
-
 [StructLayout(LayoutKind.Explicit, Size = 0xD0)]
-public struct BgObject 
+public struct BgObject
 {
-    [FieldOffset(0x90)] public unsafe ResourceHandle* ResourceHandle;
+    [FieldOffset(0x90)]
+    public unsafe ResourceHandle* ResourceHandle;
 }
 
 [StructLayout(LayoutKind.Explicit, Size = 0x1F0)]
-public struct Terrain 
+public struct Terrain
 {
-    [FieldOffset(0x90)] public unsafe ResourceHandle* ResourceHandle;
+    [FieldOffset(0x90)]
+    public unsafe ResourceHandle* ResourceHandle;
 }

@@ -11,7 +11,7 @@ public static class PathUtil
         {
             path = path.Substring(path.IndexOf('|', 1) + 1);
         }
-        
+
         // if path is rooted, get from disk
         if (Path.IsPathRooted(path))
         {

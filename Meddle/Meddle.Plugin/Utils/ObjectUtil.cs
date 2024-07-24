@@ -23,10 +23,10 @@ public static class ObjectUtil
         {
             return false;
         }
-        
+
         return true;
     }
-    
+
     public static unsafe bool IsValidCharacterBase(this ICharacter obj)
     {
         var drawObject = ((CSCharacter*)obj.Address)->GameObject.DrawObject;
@@ -39,10 +39,10 @@ public static class ObjectUtil
         {
             return false;
         }
-        
+
         return true;
     }
-    
+
     public static Vector3 GetDistanceToLocalPlayer(this IClientState clientState, IGameObject obj)
     {
         if (clientState.LocalPlayer is {Position: var charPos})
@@ -55,12 +55,12 @@ public static class ObjectUtil
         var drawObject = ((GameObject*)obj.Address)->DrawObject;
         if (drawObject == null)
             return "Invalid Character";
-        
+
         if (drawObject->Object.GetObjectType() != ObjectType.CharacterBase)
             return "Invalid Character";
-        
+
         var modelType = ((CharacterBase*)drawObject)->GetModelType();
-        
+
         return
             $"[{obj.Address:X8}:{obj.GameObjectId:X}][{obj.ObjectKind}][{modelType}] - {(string.IsNullOrWhiteSpace(obj.Name.TextValue) ? "Unnamed" : obj.Name.TextValue)} - {clientState.GetDistanceToLocalPlayer(obj).Length():0.00}y";
     }
