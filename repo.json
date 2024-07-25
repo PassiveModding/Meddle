@@ -2,7 +2,7 @@
   {
     "Author": "Ramen",
     "Name": "Meddle",
-    "InternalName": "Meddle",
+    "InternalName": "Meddle.Plugin",
     "Description": "Did I mention I'm a model? Export models to glTF format.",
     "AssemblyVersion": "0.1.4.1",
     "TestingAssemblyVersion": "0.1.4.1",
