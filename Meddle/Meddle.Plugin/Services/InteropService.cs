@@ -43,7 +43,7 @@ public class InteropService : IHostedService, IDisposable
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        if (state.InteropRespolved)
+        if (state.InteropResolved)
             return Task.CompletedTask;
         log.LogInformation("Resolving ClientStructs");
         Addresses.Register();
@@ -53,7 +53,7 @@ public class InteropService : IHostedService, IDisposable
 
         Resolver.GetInstance.Setup(sigScanner.SearchBase, cacheFile: cacheFile);
         Resolver.GetInstance.Resolve();
-        state.InteropRespolved = true;
+        state.InteropResolved = true;
         log.LogInformation("Resolved ClientStructs");
         return Task.CompletedTask;
     }

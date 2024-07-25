@@ -45,7 +45,7 @@ public class WorldTab : ITab
 
     public void Draw()
     {
-        if (!pluginState.InteropRespolved) return;
+        if (!pluginState.InteropResolved) return;
         var position = clientState.LocalPlayer?.Position ?? Vector3.Zero;
 
         if (ImGui.Button("Parse world objects"))

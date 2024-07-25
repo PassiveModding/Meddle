@@ -2,5 +2,5 @@
 
 public class PluginState
 {
-    public bool InteropRespolved { get; set; }
+    public bool InteropResolved { get; set; }
 }

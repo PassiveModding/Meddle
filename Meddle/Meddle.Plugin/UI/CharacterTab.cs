@@ -75,7 +75,7 @@ public unsafe class CharacterTab : ITab
 
     public void Draw()
     {
-        if (!pluginState.InteropRespolved)
+        if (!pluginState.InteropResolved)
         {
             ImGui.Text("Waiting for game data...");
             return;
