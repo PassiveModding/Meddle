@@ -85,13 +85,19 @@ public unsafe class CharacterTab : ITab
     }
 
 
+    private bool IsDisposed { get; set; }
     public void Dispose()
     {
-        log.LogInformation("Disposing CharacterTab");
-        exportUtil.OnLogEvent -= HandleExportLog;
-        foreach (var (_, textureImage) in textureCache)
+        if (!IsDisposed)
         {
-            textureImage.Wrap.Dispose();
+            log.LogInformation("Disposing CharacterTab");
+            exportUtil.OnLogEvent -= HandleExportLog;
+            foreach (var (_, textureImage) in textureCache)
+            {
+                textureImage.Wrap.Dispose();
+            }
+            textureCache.Clear();
+            IsDisposed = true;
         }
     }
 
