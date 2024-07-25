@@ -43,7 +43,6 @@ public static partial class MaterialUtility
             flowType = FlowType.Standard;
         }
         
-        
         var normal = material.GetTexture(TextureUsage.g_SamplerNormal).ToTexture();
         var maskTexture = material.GetTexture(TextureUsage.g_SamplerMask).ToTexture((normal.Width, normal.Height));
         var indexTexture = material.GetTexture(TextureUsage.g_SamplerIndex).ToTexture((normal.Width, normal.Height));

@@ -19,18 +19,20 @@ using Model = Meddle.Utils.Export.Model;
 
 namespace Meddle.Plugin.Utils;
 
-public class ExportUtil
+public class ExportUtil : IDisposable
 {
     private static readonly ActivitySource ActivitySource = new("Meddle.Plugin.Utils.ExportUtil");
     private readonly TexFile catchlightTex;
-    private readonly ILogger<ExportUtil> logger;
+    private readonly EventLogger<ExportUtil> logger;
+    public event Action<LogLevel, string>? OnLogEvent; 
     private readonly SqPack pack;
     private readonly PbdFile pbdFile;
-
+    
     public ExportUtil(SqPack pack, ILogger<ExportUtil> logger)
     {
         this.pack = pack;
-        this.logger = logger;
+        this.logger = new EventLogger<ExportUtil>(logger);
+        this.logger.OnLogEvent += OnLog;
 
         // chara/xls/bonedeformer/human.pbd
         var pbdData = pack.GetFile("chara/xls/bonedeformer/human.pbd");
@@ -40,6 +42,11 @@ public class ExportUtil
         var catchlight = pack.GetFile("chara/common/texture/sphere_d_array.tex");
         if (catchlight == null) throw new InvalidOperationException("Failed to get catchlight texture");
         catchlightTex = new TexFile(catchlight.Value.file.RawData);
+    }
+    
+    private void OnLog(LogLevel logLevel, string message)
+    {
+        OnLogEvent?.Invoke(logLevel, message);
     }
 
     private string GetPathForOutput()
@@ -235,6 +242,7 @@ public class ExportUtil
             var outputPath = Path.Combine(folder, "character.gltf");
             sceneGraph.SaveGLTF(outputPath);
             Process.Start("explorer.exe", folder);
+            logger.LogInformation("Export complete");
         }
         catch (Exception e)
         {
@@ -426,6 +434,7 @@ public class ExportUtil
             var outputPath = Path.Combine(folder, "resource.gltf");
             sceneGraph.SaveGLTF(outputPath);
             Process.Start("explorer.exe", folder);
+            logger.LogInformation("Export complete");
         }
         catch (Exception e)
         {
@@ -445,4 +454,10 @@ public class ExportUtil
     public record AttachedModelGroup(Attach Attach, Model.MdlGroup[] MdlGroups, Skeleton.Skeleton Skeleton);
 
     public record Resource(string MdlPath, Vector3 Position, Quaternion Rotation, Vector3 Scale);
+
+    public void Dispose()
+    {
+        logger.LogInformation("Disposing ExportUtil");
+        OnLogEvent -= OnLog;
+    }
 }

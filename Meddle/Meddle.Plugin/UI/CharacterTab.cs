@@ -53,12 +53,19 @@ public unsafe class CharacterTab : ITab
         this.log = log;
         this.pluginState = pluginState;
         this.exportUtil = exportUtil;
+        this.exportUtil.OnLogEvent += HandleExportLog;
         this.objectTable = objectTable;
         this.clientState = clientState;
         this.textureProvider = textureProvider;
         this.parseUtil = parseUtil;
     }
 
+    private (LogLevel level, string message)? LastLog { get; set; }
+    private void HandleExportLog(LogLevel level, string message)
+    {
+        LastLog = (level, message);
+    }
+    
     private ICharacter? SelectedCharacter { get; set; }
 
     private bool ExportTaskIncomplete => exportTask?.IsCompleted == false;
@@ -80,6 +87,8 @@ public unsafe class CharacterTab : ITab
 
     public void Dispose()
     {
+        log.LogInformation("Disposing CharacterTab");
+        exportUtil.OnLogEvent -= HandleExportLog;
         foreach (var (_, textureImage) in textureCache)
         {
             textureImage.Wrap.Dispose();
@@ -238,6 +247,8 @@ public unsafe class CharacterTab : ITab
         {
             ImGui.Columns(1);
         }
+        
+        ImGui.Separator();
 
         DrawExportOptions();
 
@@ -287,6 +298,16 @@ public unsafe class CharacterTab : ITab
         if (characterGroup == null) return;
         var availWidth = ImGui.GetContentRegionAvail().X;
 
+        if (LastLog != null)
+        {
+            ImGui.TextColored(LastLog.Value.level switch
+            {
+                LogLevel.Warning => new Vector4(1.0f, 1.0f, 0.0f, 1.0f),
+                LogLevel.Error => new Vector4(1.0f, 0.0f, 0.0f, 1.0f),
+                _ => new Vector4(1.0f, 1.0f, 1.0f, 1.0f)
+            }, LastLog.Value.message);
+        }
+        
         ImGui.BeginDisabled(ExportTaskIncomplete);
         if (ImGui.Button("Export All"))
         {

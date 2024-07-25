@@ -41,6 +41,7 @@ public sealed class Plugin : IDalamudPlugin
 
             host.ConfigureServices(services =>
             {
+                services.Configure<ConsoleLifetimeOptions>(options => options.SuppressStatusMessages = true);
                 service.AddServices(services);
                 services.AddSingleton(config)
                         .AddUi()
