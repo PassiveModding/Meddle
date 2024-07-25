@@ -21,5 +21,5 @@ public class EventLogger<T> : ILogger
     
     public bool IsEnabled(LogLevel logLevel) => Logger.IsEnabled(logLevel);
     
-    public IDisposable BeginScope<TState>(TState state) => Logger.BeginScope(state);
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull => Logger.BeginScope(state);
 }
