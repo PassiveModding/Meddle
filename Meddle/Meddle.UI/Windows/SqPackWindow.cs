@@ -426,7 +426,7 @@ public class SqPackWindow
     }
 
 
-    private (Category category, IndexHashTableEntry hash, SqPackFile file)[]? discoverResults;
+    private (Repository repo, Category category, IndexHashTableEntry hash, SqPackFile file)[]? discoverResults;
 
     private void DrawFile()
     {
@@ -506,8 +506,8 @@ public class SqPackWindow
             ImGui.Text("Discovered files:");
             for (var i = 0; i < discoverResults.Length; i++)
             {
-                var (category, sHash, sFile) = discoverResults[i];
-                var repoName = category.Repository?.Path.Split(Path.DirectorySeparatorChar).Last();
+                var (repository, category, sHash, sFile) = discoverResults[i];
+                var repoName = repository.Path.Split(Path.DirectorySeparatorChar).Last();
                 if (ImGui.Selectable($"[{i}] - {repoName} {sHash.Hash:X16}"))
                 {
                     selectedFile = (selectedFile!.Value.index, category, sHash, sFile);

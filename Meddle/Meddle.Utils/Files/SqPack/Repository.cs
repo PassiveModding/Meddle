@@ -1,13 +1,14 @@
-﻿using System.Globalization;
+﻿using System.Collections.ObjectModel;
+using System.Globalization;
 
 namespace Meddle.Utils.Files.SqPack;
 
-public class Repository
+public class Repository : IDisposable
 {
     public string Version { get; }
     public int? ExpansionId { get; }
     public string Path { get; }
-    public Dictionary<(byte category, byte expansion, byte chunk), Category> Categories { get; } = new();
+    public ReadOnlyDictionary<(byte category, byte expansion, byte chunk), Category> Categories { get; private set; }
     
     public static string ParseVersion(DirectoryInfo info)
     {
@@ -67,6 +68,7 @@ public class Repository
         // {  XX  } is the expansion id
         // {    XX} is the chunk id
         var setGroups = allFiles.GroupBy(x => System.IO.Path.GetFileName(x)[..6]);
+        var categories = new Dictionary<(byte category, byte expansion, byte chunk), Category>();
         foreach (var setGroup in setGroups)
         {
             var setId = setGroup.Key;
@@ -92,11 +94,20 @@ public class Repository
             var categoryId = byte.Parse(setId[..2], NumberStyles.HexNumber);
             var expansionId = byte.Parse(setId[2..4], NumberStyles.HexNumber);
             var chunkId = byte.Parse(setId[4..6], NumberStyles.HexNumber);
-            var cat = new Category(categoryId, index, index2, datFiles)
-            {
-                Repository = this
-            };
-            Categories[(categoryId, expansionId, chunkId)] = cat;
+            var cat = new Category(categoryId, index, index2, datFiles);
+            categories.Add((categoryId, expansionId, chunkId), cat);
         }
+        
+        Categories = new ReadOnlyDictionary<(byte category, byte expansion, byte chunk), Category>(categories);
+    }
+
+    public void Dispose()
+    {
+        foreach (var (_, category) in Categories)
+        {
+            category.Dispose();
+        }
+        
+        Categories = null!;
     }
 }

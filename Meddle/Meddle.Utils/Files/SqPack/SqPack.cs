@@ -3,12 +3,12 @@ using System.Text;
 
 namespace Meddle.Utils.Files.SqPack;
 
-public class SqPack
+public class SqPack : IDisposable
 {
     private static readonly ActivitySource ActivitySource = new("Meddle.Utils.Files.SqPack");
 
-    private static uint[]? _crcTable;
-    public readonly IEnumerable<Repository> Repositories;
+    private static uint[]? CrcTable;
+    public IReadOnlyList<Repository> Repositories { get; private set; }
 
     public SqPack(string path)
     {
@@ -129,12 +129,12 @@ public class SqPack
         return null;
     }
 
-    public (Category category, IndexHashTableEntry hash, SqPackFile file)[] GetFiles(string path)
+    public (Repository repo, Category category, IndexHashTableEntry hash, SqPackFile file)[] GetFiles(string path)
     {
         var hash = GetFileHash(path);
         var categoryName = path.Split('/')[0];
 
-        var files = new List<(Category category, IndexHashTableEntry hash, SqPackFile file)>();
+        var files = new List<(Repository repo, Category category, IndexHashTableEntry hash, SqPackFile file)>();
         byte? catId = null;
         if (Category.CategoryNameToIdMap.TryGetValue(categoryName, out var id))
         {
@@ -158,12 +158,12 @@ public class SqPack
             {
                 if (category.TryGetFile(hash.IndexHash, out var data))
                 {
-                    files.Add((category, category.UnifiedIndexEntries[hash.IndexHash], data));
+                    files.Add((repo, category, category.UnifiedIndexEntries[hash.IndexHash], data));
                 }
 
                 if (category.TryGetFile(hash.Index2Hash, out var data2))
                 {
-                    files.Add((category, category.UnifiedIndexEntries[hash.Index2Hash], data2));
+                    files.Add((repo, category, category.UnifiedIndexEntries[hash.Index2Hash], data2));
                 }
             }
         }
@@ -178,9 +178,9 @@ public class SqPack
 
     private static uint[] GetCrcTable()
     {
-        if (_crcTable != null)
+        if (CrcTable != null)
         {
-            return _crcTable;
+            return CrcTable;
         }
 
         var table = new uint[16 * 256];
@@ -199,7 +199,7 @@ public class SqPack
             }
         }
 
-        _crcTable = table;
+        CrcTable = table;
         return table;
     }
 
@@ -215,5 +215,15 @@ public class SqPack
 
         var ret = ~(crcLocal ^ uint.MaxValue);
         return ret;
+    }
+
+    public void Dispose()
+    {
+        foreach (var repo in Repositories)
+        {
+            repo.Dispose();
+        }
+        
+        Repositories = null!;
     }
 }
