@@ -10,7 +10,6 @@ public static partial class MaterialUtility
 {
     public static MaterialBuilder BuildFallback(Material material, string name)
     {
-        Console.WriteLine($"Building fallback for {name}, {material.ShaderPackageName}");
         var output = BuildSharedBase(material, name)
                               .WithMetallicRoughnessShader()
                               .WithBaseColor(Vector4.One);
