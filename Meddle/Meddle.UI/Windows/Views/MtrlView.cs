@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using ImGuiNET;
+using Meddle.UI.Models;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
@@ -57,10 +58,7 @@ public class MtrlView : IView
             {
                 shpkFile = new ShpkFile(shpkSqFile.Value.file.RawData);
                 shpkView = new ShpkView(shpkFile, path);
-                var mtrlGroup = new Material.MtrlGroup("unknown.mdl", file, path, shpkFile,
-                                                       texFiles.Select(x => new Texture.TexGroup(x.Key, x.Value))
-                                                               .ToArray());
-                material = new Material(mtrlGroup);
+                material = new Material("unknown.mdl", file, texFiles, shpkFile);
             }
         }
         catch (Exception e)

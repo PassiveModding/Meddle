@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
+using Meddle.Plugin.Models;
 using Meddle.Plugin.Skeleton;
 using Meddle.Utils;
 using Meddle.Utils.Export;
@@ -91,8 +92,8 @@ public class ExportUtil : IDisposable
                     foreach (var texGroup in mtrlGroup.TexFiles)
                     {
                         if (token.IsCancellationRequested) return;
-                        var outputPath = Path.Combine(folder, $"{Path.GetFileNameWithoutExtension(texGroup.Path)}.png");
-                        var texture = new Texture(texGroup.Resource, texGroup.Path, null, null, null);
+                        var outputPath = Path.Combine(folder, $"{Path.GetFileNameWithoutExtension(texGroup.MtrlPath)}.png");
+                        var texture = new Texture(texGroup.Resource, texGroup.MtrlPath, null, null, null);
                         var str = new SKDynamicMemoryWStream();
                         texture.ToTexture().Bitmap.Encode(str, SKEncodedImageFormat.Png, 100);
 
@@ -258,13 +259,12 @@ public class ExportUtil : IDisposable
         }
     }
 
-    private MaterialBuilder HandleMaterial(CharacterGroup characterGroup, Material.MtrlGroup mtrlGroup)
+    private MaterialBuilder HandleMaterial(CharacterGroup characterGroup, Material material)
     {
         using var activityMtrl = ActivitySource.StartActivity();
-        activityMtrl?.SetTag("mtrlPath", mtrlGroup.Path);
+        activityMtrl?.SetTag("mtrlPath", material.HandlePath);
 
-        logger.LogInformation("Exporting {Path}", mtrlGroup.Path);
-        var material = new Material(mtrlGroup);
+        logger.LogInformation("Exporting {Path}", material.HandlePath);
         activityMtrl?.SetTag("shaderPackageName", material.ShaderPackageName);
         var name =
             $"{Path.GetFileNameWithoutExtension(material.HandlePath)}_{Path.GetFileNameWithoutExtension(material.ShaderPackageName)}";
@@ -290,12 +290,18 @@ public class ExportUtil : IDisposable
     }
 
     private List<(Model model, ModelBuilder.MeshExport mesh)> HandleModel(
-        CharacterGroup characterGroup, Model.MdlGroup mdlGroup, ref List<BoneNodeBuilder> bones, BoneNodeBuilder? root, CancellationToken token)
+        CharacterGroup characterGroup, MdlFileGroup mdlGroup, ref List<BoneNodeBuilder> bones, BoneNodeBuilder? root, CancellationToken token)
     {
         using var activity = ActivitySource.StartActivity();
         activity?.SetTag("mdlPath", mdlGroup.Path);
         logger.LogInformation("Exporting {Path}", mdlGroup.Path);
-        var model = new Model(mdlGroup);
+        var model = new Model(mdlGroup.Path, mdlGroup.MdlFile, 
+                              mdlGroup.MtrlFiles.Select(x => (
+                                x.Path, 
+                                x.MtrlFile, 
+                                x.TexFiles.ToDictionary(tf => tf.MtrlPath, tf => tf.Resource), 
+                                x.ShpkFile)).ToArray(), 
+                              mdlGroup.ShapeAttributeGroup);
         
         foreach (var mesh in model.Meshes)
         {
@@ -324,11 +330,11 @@ public class ExportUtil : IDisposable
         
         var materials = new List<MaterialBuilder>();
         var meshOutput = new List<(Model, ModelBuilder.MeshExport)>();
-        for (var i = 0; i < mdlGroup.MtrlFiles.Length; i++)
+        for (var i = 0; i < model.Materials.Count; i++)
         {
-            if (token.IsCancellationRequested) return meshOutput;
-            var mtrlGroup = mdlGroup.MtrlFiles[i];
-            var builder = HandleMaterial(characterGroup, mtrlGroup);
+            if (token.IsCancellationRequested) return meshOutput;            
+            var material = model.Materials[i];
+            var builder = HandleMaterial(characterGroup, material);
             materials.Add(builder);
         }
 
@@ -360,7 +366,6 @@ public class ExportUtil : IDisposable
 
     public void ExportResource(Resource[] resources, Vector3 rootPosition)
     {
-        throw new NotImplementedException();
         try
         {
             var scene = new SceneBuilder();
@@ -371,7 +376,7 @@ public class ExportUtil : IDisposable
                 if (mdlFileData == null) throw new InvalidOperationException("Failed to get resource");
                 var data = mdlFileData.Value.file.RawData;
                 var mdlFile = new MdlFile(data);
-                var mtrlGroups = new List<Material.MtrlGroup>();
+                var mtrlGroups = new List<MtrlFileGroup>();
                 foreach (var (_, mtrlPath) in mdlFile.GetMaterialNames())
                 {
                     if (mtrlPath.StartsWith('/'))
@@ -386,30 +391,38 @@ public class ExportUtil : IDisposable
                     var shpkResource = pack.GetFile($"shader/sm5/shpk/{shpkPath}");
                     if (shpkResource == null) throw new InvalidOperationException("Failed to get shpk resource");
                     var shpkFile = new ShpkFile(shpkResource.Value.file.RawData);
-                    var texGroups = new List<Texture.TexGroup>();
+                    var texGroups = new List<TexResourceGroup>();
                     foreach (var (_, texPath) in mtrlFile.GetTexturePaths())
                     {
                         var texResource = pack.GetFile(texPath);
                         if (texResource == null) throw new InvalidOperationException("Failed to get tex resource");
                         var texData = texResource.Value.file.RawData;
                         var texFile = new TexFile(texData);
-                        //texGroups.Add(new Texture.TexGroup(texPath, texFile));
+                        texGroups.Add(new TexResourceGroup(texPath, texPath, Texture.GetResource(texFile)));
                     }
 
-                    mtrlGroups.Add(new Material.MtrlGroup(mtrlPath, mtrlFile, shpkPath, shpkFile, texGroups.ToArray()));
+                    mtrlGroups.Add(new MtrlFileGroup(mtrlPath, mtrlFile, shpkPath, shpkFile, texGroups.ToArray()));
                 }
 
-                var model = new Model(new Model.MdlGroup(resource.MdlPath, mdlFile, mtrlGroups.ToArray(), null));
+                var model = new Model(resource.MdlPath, mdlFile,
+                                      mtrlGroups.Select(x => (
+                                                                 x.Path, 
+                                                                 x.MtrlFile,
+                                                                 x.TexFiles.ToDictionary(tf => tf.MtrlPath, tf => tf.Resource), 
+                                                                 x.ShpkFile)
+                                                    )
+                                                .ToArray(),
+                                      null);
                 var materials = new List<MaterialBuilder>();
-                foreach (var mtrlGroup in mtrlGroups)
+                foreach (var material in model.Materials)
                 {
-                    if (materialCache.TryGetValue(mtrlGroup.Path, out var builder))
+                    if (material == null) throw new InvalidOperationException("Material is null");
+                    
+                    if (materialCache.TryGetValue(material.HandlePath, out var builder))
                     {
                         materials.Add(builder);
                         continue;
                     }
-
-                    var material = new Material(mtrlGroup);
                     var name =
                         $"{Path.GetFileNameWithoutExtension(material.HandlePath)}_{Path.GetFileNameWithoutExtension(material.ShaderPackageName)}";
                     builder = material.ShaderPackageName switch
@@ -420,7 +433,7 @@ public class ExportUtil : IDisposable
                     };
 
                     materials.Add(builder);
-                    materialCache[mtrlGroup.Path] = builder;
+                    materialCache[material.HandlePath] = builder;
                 }
 
                 var meshes = ModelBuilder.BuildMeshes(model, materials, [], null);
@@ -448,19 +461,7 @@ public class ExportUtil : IDisposable
             throw;
         }
     }
-
-    public record CharacterGroup(
-        CustomizeParameter CustomizeParams,
-        CustomizeData CustomizeData,
-        GenderRace GenderRace,
-        Model.MdlGroup[] MdlGroups,
-        Skeleton.Skeleton Skeleton,
-        AttachedModelGroup[] AttachedModelGroups);
-
-    public record AttachedModelGroup(Attach Attach, Model.MdlGroup[] MdlGroups, Skeleton.Skeleton Skeleton);
-
-    public record Resource(string MdlPath, Vector3 Position, Quaternion Rotation, Vector3 Scale);
-
+    
     public void Dispose()
     {
         logger.LogInformation("Disposing ExportUtil");

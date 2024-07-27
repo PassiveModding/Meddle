@@ -92,53 +92,90 @@ public enum MaterialConstant : uint
 
 public class Material
 {
-    public Material(MtrlGroup mtrlGroup)
+    public Material(string path, MtrlFile file, Dictionary<string, TextureResource> texFiles, ShpkFile shpkFile)
     {
-        HandlePath = mtrlGroup.Path;
-        ShaderFlags = mtrlGroup.MtrlFile.ShaderHeader.Flags;
-        ShaderPackageName = mtrlGroup.MtrlFile.GetShaderPackageName();
-
-        var shaderKeys = new ShaderKey[mtrlGroup.MtrlFile.ShaderKeys.Length];
-        for (var i = 0; i < mtrlGroup.MtrlFile.ShaderKeys.Length; i++)
-        {
-            shaderKeys[i] = new ShaderKey
-            {
-                Category = mtrlGroup.MtrlFile.ShaderKeys[i].Category,
-                Value = mtrlGroup.MtrlFile.ShaderKeys[i].Value
-            };
-        }
-
-        ShaderKeys = shaderKeys;
-
+        HandlePath = path;
+        InitFromFile(file);
+        InitTextures(file, texFiles, shpkFile);
+    }
+    
+    public Material(string path, MtrlFile file, Dictionary<string, TexFile> texFiles, ShpkFile shpkFile)
+    {
+        HandlePath = path;
+        InitFromFile(file);
+        InitTextures(file, texFiles, shpkFile);
+    }
+    
+    private void InitTextures(MtrlFile file, Dictionary<string, TextureResource> texFiles, ShpkFile shpkFile)
+    {        
         var textures = new List<Texture>();
-        var texturePaths = mtrlGroup.MtrlFile.GetTexturePaths();
-        for (var i = 0; i < mtrlGroup.MtrlFile.Samplers.Length; i++)
+        var texturePaths = file.GetTexturePaths();
+        for (var i = 0; i < file.Samplers.Length; i++)
         {
-            var sampler = mtrlGroup.MtrlFile.Samplers[i];
+            var sampler = file.Samplers[i];
             if (sampler.TextureIndex != byte.MaxValue)
             {
-                var texture = mtrlGroup.MtrlFile.TextureOffsets[sampler.TextureIndex];
+                var texture = file.TextureOffsets[sampler.TextureIndex];
                 var path = texturePaths[texture.Offset];
-                var texFile = mtrlGroup.TexFiles.FirstOrDefault(x => x.Path == path);
-                if (texFile == null)
+                if (!texFiles.TryGetValue(path, out var textureResource))
                     throw new ArgumentException($"Texture {path} not found");
-                var texObj = new Texture(texFile.Resource, texFile.Path, sampler.Flags, sampler.SamplerId, mtrlGroup.ShpkFile);
+                var texObj = new Texture(textureResource, path, sampler.Flags, sampler.SamplerId, shpkFile);
 
                 textures.Add(texObj);
             }
         }
 
         Textures = textures;
+    }
 
+    private void InitTextures(MtrlFile file, Dictionary<string, TexFile> texFiles, ShpkFile shpkFile)
+    {        
+        var textures = new List<Texture>();
+        var texturePaths = file.GetTexturePaths();
+        for (var i = 0; i < file.Samplers.Length; i++)
+        {
+            var sampler = file.Samplers[i];
+            if (sampler.TextureIndex != byte.MaxValue)
+            {
+                var texture = file.TextureOffsets[sampler.TextureIndex];
+                var path = texturePaths[texture.Offset];
+                if (!texFiles.TryGetValue(path, out var texFile))
+                    throw new ArgumentException($"Texture {path} not found");
+                var texObj = new Texture(Texture.GetResource(texFile), path, sampler.Flags, sampler.SamplerId, shpkFile);
+
+                textures.Add(texObj);
+            }
+        }
+
+        Textures = textures;
+    }
+    
+    private void InitFromFile(MtrlFile file)
+    {
+        ShaderFlags = file.ShaderHeader.Flags;
+        ShaderPackageName = file.GetShaderPackageName();
+
+        var shaderKeys = new ShaderKey[file.ShaderKeys.Length];
+        for (var i = 0; i < file.ShaderKeys.Length; i++)
+        {
+            shaderKeys[i] = new ShaderKey
+            {
+                Category = file.ShaderKeys[i].Category,
+                Value = file.ShaderKeys[i].Value
+            };
+        }
+
+        ShaderKeys = shaderKeys;
+        
         var constants = new List<Constant>();
-        foreach (var constant in mtrlGroup.MtrlFile.Constants)
+        foreach (var constant in file.Constants)
         {
             var index = constant.ValueOffset / 4;
             var count = constant.ValueSize / 4;
             var buf = new List<byte>(128);
             for (var j = 0; j < count; j++)
             {
-                var value = mtrlGroup.MtrlFile.ShaderValues[index + j];
+                var value = file.ShaderValues[index + j];
                 var bytes = BitConverter.GetBytes(value);
                 buf.AddRange(bytes);
             }
@@ -154,23 +191,19 @@ public class Material
         }
 
         MtrlConstants = constants.ToDictionary(x => x.Id, x => x.Values);
-
-        ColorTable = mtrlGroup.MtrlFile.ColorTable;
+        ColorTable = file.ColorTable;
     }
 
-    public string HandlePath { get; }
-    public uint ShaderFlags { get; }
-    public IReadOnlyList<ShaderKey> ShaderKeys { get; }
-    public Dictionary<MaterialConstant, float[]> MtrlConstants { get; }
+    public string HandlePath { get; private set; }
+    public uint ShaderFlags { get; private set; }
+    public IReadOnlyList<ShaderKey> ShaderKeys { get; private set; }
+    public Dictionary<MaterialConstant, float[]> MtrlConstants { get; private set; }
 
-    public string ShaderPackageName { get; }
-
-    //public ShaderPackage ShaderPackage { get; }
-    public IReadOnlyList<Texture> Textures { get; }
+    public string ShaderPackageName { get; private set; }
+    public IReadOnlyList<Texture> Textures { get; private set; }
 
     [JsonIgnore]
-    public ColorTable ColorTable { get; }
-    //public MaterialParameters MaterialParameters { get; }
+    public ColorTable ColorTable { get; private set; }
 
     public bool TryGetTexture(TextureUsage usage, out Texture texture)
     {
@@ -210,11 +243,4 @@ public class Material
     }
 
     public record Constant(MaterialConstant Id, float[] Values);
-
-    public record MtrlGroup(
-        string Path,
-        MtrlFile MtrlFile,
-        string ShpkPath,
-        ShpkFile ShpkFile,
-        Texture.TexGroup[] TexFiles);
 }

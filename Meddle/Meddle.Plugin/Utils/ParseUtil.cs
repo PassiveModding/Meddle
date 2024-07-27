@@ -10,11 +10,12 @@ using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
 using Meddle.Utils.Files.Structs.Material;
-using Meddle.Utils.Models;
+using Meddle.Plugin.Models;
 using Meddle.Utils.Skeletons.Havok;
 using Meddle.Utils.Skeletons.Havok.Models;
 using Microsoft.Extensions.Logging;
 using Attach = Meddle.Plugin.Skeleton.Attach;
+using CustomizeParameter = Meddle.Plugin.Models.CustomizeParameter;
 using Texture = FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Texture;
 
 namespace Meddle.Plugin.Utils;
@@ -103,17 +104,17 @@ public class ParseUtil : IDisposable
             $"Color table is not 4x16 or 8x32 ({colorTableTexture->Width}x{colorTableTexture->Height})");
     }
 
-    public unsafe ExportUtil.CharacterGroup HandleCharacterGroup(
+    public unsafe CharacterGroup HandleCharacterGroup(
         CharacterBase* characterBase,
         Dictionary<int, ColorTable> colorTableTextures,
         Dictionary<Pointer<CharacterBase>, Dictionary<int, ColorTable>> attachDict,
-        CustomizeParameter customizeParams,
+        Meddle.Utils.Export.CustomizeParameter customizeParams,
         CustomizeData customizeData,
         GenderRace genderRace)
     {
         using var activity = ActivitySource.StartActivity();
         var skeleton = new Skeleton.Skeleton(characterBase->Skeleton);
-        var mdlGroups = new List<Model.MdlGroup>();
+        var mdlGroups = new List<MdlFileGroup>();
         for (var i = 0; i < characterBase->SlotCount; i++)
         {
             var mdlGroup = HandleModelPtr(characterBase, i, colorTableTextures);
@@ -123,14 +124,14 @@ public class ParseUtil : IDisposable
             }
         }
 
-        var attachGroups = new List<ExportUtil.AttachedModelGroup>();
+        var attachGroups = new List<AttachedModelGroup>();
         foreach (var (attachBase, attachColorTableTextures) in attachDict)
         {
             var attachGroup = HandleAttachGroup(attachBase, attachColorTableTextures);
             attachGroups.Add(attachGroup);
         }
 
-        return new ExportUtil.CharacterGroup(
+        return new CharacterGroup(
             customizeParams,
             customizeData,
             genderRace,
@@ -139,7 +140,7 @@ public class ParseUtil : IDisposable
             attachGroups.ToArray());
     }
 
-    public unsafe Model.MdlGroup? HandleModelPtr(
+    public unsafe MdlFileGroup? HandleModelPtr(
         CharacterBase* characterBase, int modelIdx, Dictionary<int, ColorTable> colorTables)
     {
         using var activity = ActivitySource.StartActivity();
@@ -178,7 +179,7 @@ public class ParseUtil : IDisposable
             new Model.ShapeAttributeGroup(shapesMask, attributeMask, shapes.ToArray(), attributes.ToArray());
 
         var mdlFile = new MdlFile(mdlFileResource);
-        var mtrlGroups = new List<Material.MtrlGroup>();
+        var mtrlGroups = new List<MtrlFileGroup>();
         for (var j = 0; j < model->MaterialsSpan.Length; j++)
         {
             var materialPtr = model->MaterialsSpan[j];
@@ -196,7 +197,7 @@ public class ParseUtil : IDisposable
             }
         }
 
-        return new Model.MdlGroup(mdlFileName, mdlFile, mtrlGroups.ToArray(), shapeAttributeGroup);
+        return new MdlFileGroup(mdlFileName, mdlFile, mtrlGroups.ToArray(), shapeAttributeGroup);
     }
 
     private ShpkFile HandleShpk(string shader)
@@ -219,7 +220,7 @@ public class ParseUtil : IDisposable
         return shpkFile;
     }
 
-    private unsafe Material.MtrlGroup? HandleMtrl(
+    private unsafe MtrlFileGroup? HandleMtrl(
         FFXIVClientStructs.FFXIV.Client.Graphics.Render.Material* material, int modelIdx, int j,
         Dictionary<int, ColorTable> colorTables)
     {
@@ -254,7 +255,7 @@ public class ParseUtil : IDisposable
         }
 
         var shpkFile = HandleShpk(shader);
-        var texGroups = new List<Meddle.Utils.Export.Texture.TexGroup>();
+        var texGroups = new List<TexResourceGroup>();
 
         for (int i = 0; i < material->MaterialResourceHandle->TextureCount; i++)
         {
@@ -266,22 +267,12 @@ public class ParseUtil : IDisposable
             }
             
             var texturePath = material->MaterialResourceHandle->TexturePathString(i);
+            var resourcePath = textureEntry.TextureResourceHandle->ResourceHandle.FileName.ToString();
             var data = dxHelper.ExportTextureResource(textureEntry.TextureResourceHandle->Texture);
-            var texResourceGroup = new Meddle.Utils.Export.Texture.TexGroup(texturePath, data.Resource);
+            var texResourceGroup = new TexResourceGroup(texturePath, resourcePath, data.Resource);
             texGroups.Add(texResourceGroup);
         }
-
-        /*var textureNames = mtrlFile.GetTexturePaths().Select(x => x.Value).ToArray();
-        foreach (var textureName in textureNames)
-        {
-            var texGroup = HandleTexture(textureName);
-            if (texGroup != null)
-            {
-                texGroups.Add(texGroup);
-            }
-        }*/
-
-        return new Material.MtrlGroup(mtrlFileName, mtrlFile, shader, shpkFile, texGroups.ToArray());
+        return new MtrlFileGroup(mtrlFileName, mtrlFile, shader, shpkFile, texGroups.ToArray());
     }
 
     /*private Meddle.Utils.Export.Texture.TexGroup? HandleTexture(string textureName)
@@ -298,12 +289,12 @@ public class ParseUtil : IDisposable
         return new Meddle.Utils.Export.Texture.TexGroup(textureName, texFile);
     }*/
 
-    public unsafe ExportUtil.AttachedModelGroup HandleAttachGroup(
+    public unsafe AttachedModelGroup HandleAttachGroup(
         CharacterBase* attachBase, Dictionary<int, ColorTable> colorTables)
     {
         using var activity = ActivitySource.StartActivity();
         var attach = new Attach(attachBase->Attach);
-        var models = new List<Model.MdlGroup>();
+        var models = new List<MdlFileGroup>();
         var skeleton = new Skeleton.Skeleton(attachBase->Skeleton);
         for (var i = 0; i < attachBase->ModelsSpan.Length; i++)
         {
@@ -314,7 +305,7 @@ public class ParseUtil : IDisposable
             }
         }
 
-        var attachGroup = new ExportUtil.AttachedModelGroup(attach, models.ToArray(), skeleton);
+        var attachGroup = new AttachedModelGroup(attach, models.ToArray(), skeleton);
         return attachGroup;
     }
 

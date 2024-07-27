@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
 using ImGuiNET;
+using Meddle.UI.Models;
 using Meddle.UI.Util;
 using Meddle.Utils;
 using Meddle.Utils.Export;
@@ -20,10 +21,9 @@ namespace Meddle.UI.Windows.Views;
 public class ExportView(SqPack pack, Configuration configuration, ImageHandler imageHandler, PathManager pathManager)
     : IView
 {
-    private record SklbGroup(SklbFile File, string Path);
 
-    private readonly Dictionary<string, Model.MdlGroup> models = new();
-    private readonly Dictionary<string, SklbGroup> skeletons = new();
+    private readonly Dictionary<string, MdlFileGroup> models = new();
+    private readonly Dictionary<string, SklbFileGroup> skeletons = new();
     private Dictionary<string, IView> views = new();
     private Task loadTask = Task.CompletedTask;
     private CancellationTokenSource cts = new();
@@ -49,9 +49,9 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
     };
 
     private string input = "";
-    private Dictionary<string, Model.MdlGroup> HandleMdls(string[] paths)
+    private Dictionary<string, MdlFileGroup> HandleMdls(string[] paths)
     {
-        var mdlGroups = new Dictionary<string, Model.MdlGroup>();
+        var mdlGroups = new Dictionary<string, MdlFileGroup>();
         var mdlLines = paths
                        .Select(x => x.Trim())
                        .Where(x => x.EndsWith(".mdl")).ToList();
@@ -64,7 +64,7 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
             }
 
             var mdlFile = new MdlFile(lookupResult.Value.file.RawData);
-            var mtrlGroups = new List<Material.MtrlGroup>();
+            var mtrlGroups = new List<MtrlFileGroup>();
             var mtrlNames = mdlFile.GetMaterialNames();
             foreach (var (offset, originalPath) in mtrlNames)
             {
@@ -102,7 +102,7 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
 
                 var shpkFile = new ShpkFile(shpkLookupResult.Value.file.RawData);
                 var textures = mtrlFile.GetTexturePaths();
-                var texGroups = new List<TexView.TexFileGroup>();
+                var texGroups = new List<TexFileGroup>();
                 foreach (var (texOffset, texPath) in textures)
                 {
                     var texLookupResult = pack.GetFile(texPath);
@@ -112,21 +112,21 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                     }
 
                     var texFile = new TexFile(texLookupResult.Value.file.RawData);
-                    texGroups.Add(new TexView.TexFileGroup(texPath, texFile));
+                    texGroups.Add(new TexFileGroup(texPath, texFile));
                 }
 
-                mtrlGroups.Add(new Material.MtrlGroup(mtrlPath, mtrlFile, shpkPath, shpkFile, texGroups.ToArray()));
+                mtrlGroups.Add(new MtrlFileGroup(mtrlPath, mtrlFile, shpkPath, shpkFile, texGroups.ToArray()));
             }
 
-            mdlGroups[mdlPath] = new Model.MdlGroup(mdlPath, mdlFile, mtrlGroups.ToArray(), null);
+            mdlGroups[mdlPath] = new MdlFileGroup(mdlPath, mdlFile, mtrlGroups.ToArray(), null);
         }
 
         return mdlGroups;
     }
 
-    private Dictionary<string, SklbGroup> HandleSklbs(string[] lines)
+    private Dictionary<string, SklbFileGroup> HandleSklbs(string[] lines)
     {
-        var sklbGroups = new Dictionary<string, SklbGroup>();
+        var sklbGroups = new Dictionary<string, SklbFileGroup>();
         var mdlLines = lines.Select(x => x.Trim()).Where(x => x.EndsWith(".sklb")).ToList();
         foreach (var sklbPath in mdlLines)
         {
@@ -137,7 +137,7 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
             }
 
             var sklbFile = new SklbFile(lookupResult.Value.file.RawData);
-            sklbGroups[sklbPath] = new SklbGroup(sklbFile, sklbPath);
+            sklbGroups[sklbPath] = new SklbFileGroup(sklbPath, sklbFile);
         }
 
         return sklbGroups;
@@ -176,7 +176,7 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                                     {
                                         if (!views.TryGetValue(texGroup.Path, out var texView))
                                         {
-                                            texView = new TexView(texGroup, imageHandler,
+                                            texView = new TexView(texGroup.TexFile, imageHandler,
                                                                   texGroup.Path);
                                             views[texGroup.Path] = texView;
                                         }
@@ -302,7 +302,7 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
         ImGui.Checkbox("Lip Stick", ref customizeData.LipStick);
     }
 
-    private void RunExport(Dictionary<string, Model.MdlGroup> modelDict, Dictionary<string, HavokSkeleton> sklbDict, CancellationToken token = default)
+    private void RunExport(Dictionary<string, MdlFileGroup> modelDict, Dictionary<string, HavokSkeleton> sklbDict, CancellationToken token = default)
     {
         var scene = new SceneBuilder();
         var havokXmls = sklbDict.Values.ToArray();
@@ -329,7 +329,14 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
             {
                 return;
             }
-            var model = new Model(mdlGroup);
+            var model = new Model(mdlGroup.Path, mdlGroup.MdlFile, 
+                                  mdlGroup.MtrlFiles
+                         .Select(x => (x.Path, 
+                                          x.MtrlFile, 
+                                          x.TexFiles.ToDictionary(y => y.Path, y => y.TexFile), 
+                                          x.ShpkFile))
+                         .ToArray(),
+                         mdlGroup.ShapeAttributeGroup);
 
             var materials = new MaterialBuilder[model.Materials.Count];
             //foreach (var mtrlGroup in mdlGroup.Mtrls)
@@ -426,7 +433,7 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                         Directory.CreateDirectory(texFolder);
                     }
 
-                    var texture = new Texture(texGroup.TexFile, texPath, null, null, null);
+                    var texture = new Texture(Texture.GetResource(texGroup.TexFile), texPath, null, null, null);
                     var skTex = texture.ToTexture().Bitmap;
 
                     var str = new SKDynamicMemoryWStream();

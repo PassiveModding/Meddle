@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
 using ImGuiNET;
+using Meddle.UI.Models;
 using Meddle.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
@@ -61,17 +62,16 @@ public class TeraView : IView
 
     private Task exportTask = Task.CompletedTask;
 
-    private record BgObjectGroup(LgbFile.Group.InstanceObject ObjectInfo, Model.MdlGroup MdlGroup);
 
     private BgObjectGroup ParseBgObject(
-        LgbFile.Group.InstanceObject obj, string mdlPath, Dictionary<string, Material.MtrlGroup> mtrlCache)
+        LgbFile.Group.InstanceObject obj, string mdlPath, Dictionary<string, MtrlFileGroup> mtrlCache)
     {
         var mdlFile = sqPack.GetFile(mdlPath);
         if (mdlFile == null) throw new Exception($"Failed to find {mdlPath}");
         var mdl = new MdlFile(mdlFile.Value.file.RawData);
 
         var mtrlPaths = mdl.GetMaterialNames().Select(x => x.Value).ToArray();
-        var mtrlFiles = new List<Material.MtrlGroup>();
+        var mtrlFiles = new List<MtrlFileGroup>();
         foreach (var mtrlFilePath in mtrlPaths)
         {
             if (mtrlCache.TryGetValue(mtrlFilePath, out var group))
@@ -92,30 +92,30 @@ public class TeraView : IView
             var shpkData = new ShpkFile(shpkFile.Value.file.RawData);
 
             var texPaths = mtrlFileData.GetTexturePaths().Select(x => x.Value).ToArray();
-            var texFiles = new List<Texture.TexGroup>();
+            var texFiles = new List<TexFileGroup>();
             foreach (var texPath in texPaths)
             {
                 var texFile = sqPack.GetFile(texPath);
                 if (texFile == null) throw new Exception($"Failed to find {texPath}");
                 var texData = new TexFile(texFile.Value.file.RawData);
-                texFiles.Add(new Texture.TexGroup(texPath, texData));
+                texFiles.Add(new TexFileGroup(texPath, texData));
             }
 
-            group = new Material.MtrlGroup(mtrlFilePath, mtrlFileData, shpkName, shpkData, texFiles.ToArray());
+            group = new MtrlFileGroup(mtrlFilePath, mtrlFileData, shpkName, shpkData, texFiles.ToArray());
             mtrlFiles.Add(group);
             mtrlCache.Add(mtrlFilePath, group);
         }
 
-        return new BgObjectGroup(obj, new Model.MdlGroup(mdlPath, mdl, mtrlFiles.ToArray(), null));
+        return new BgObjectGroup(obj, new MdlFileGroup(mdlPath, mdl, mtrlFiles.ToArray(), null));
     }
 
     private void RunExport()
     {
         try
         {
-            var mdlGroups = new List<(Model.MdlGroup, LgbFile.Group.InstanceObject)>();
-            var mdlFileCache = new Dictionary<string, Model.MdlGroup>();
-            var mtrlCache = new Dictionary<string, Material.MtrlGroup>();
+            var mdlGroups = new List<(MdlFileGroup, LgbFile.Group.InstanceObject)>();
+            var mdlFileCache = new Dictionary<string, MdlFileGroup>();
+            var mtrlCache = new Dictionary<string, MtrlFileGroup>();
             foreach (var bgObject in bgObjects)
             {
                 if (mdlFileCache.TryGetValue(bgObject.Path, out var group))
@@ -137,7 +137,13 @@ public class TeraView : IView
             foreach (var mdlGroup in mdlGroups)
             {
                 Console.WriteLine($"Exporting {mdlGroup.Item1.Path}");
-                var model = new Model(mdlGroup.Item1);
+                var mdl = mdlGroup.Item1;
+                var model = new Model(mdl.Path, mdl.MdlFile,
+                                      mdl.MtrlFiles
+                                         .Select(x => (x.Path, x.MtrlFile,
+                                                          x.TexFiles.ToDictionary(y => y.Path, y => y.TexFile),
+                                                          x.ShpkFile)).ToArray(),
+                                      mdl.ShapeAttributeGroup);
                 var materials = new MaterialBuilder[model.Materials.Count];
                 for (var i = 0; i < model.Materials.Count; i++)
                 {

@@ -4,6 +4,7 @@ using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using ImGuiNET;
+using Meddle.Plugin.Models;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.Utils;
 using Microsoft.Extensions.Logging;
@@ -96,14 +97,14 @@ public class WorldTab : ITab
             ImGui.BeginDisabled(!exportTask.IsCompleted);
             if (ImGui.Button("Export") && exportTask.IsCompleted)
             {
-                var resources = new List<ExportUtil.Resource>();
+                var resources = new List<Resource>();
 
                 // NOTE: Position is players current position, so if they move the objects will be exported relative to that position
                 foreach (var obj in selectedObjectArr)
                 {
                     if (obj.Path.EndsWith(".mdl"))
                     {
-                        resources.Add(new ExportUtil.Resource(obj.Path, obj.Position, obj.Rotation, obj.Scale));
+                        resources.Add(new Resource(obj.Path, obj.Position, obj.Rotation, obj.Scale));
                     }
                     else if (obj.Path.EndsWith(".tera"))
                     {

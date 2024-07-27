@@ -8,6 +8,7 @@ using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.Interop;
 using ImGuiNET;
+using Meddle.Plugin.Models;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
@@ -18,6 +19,7 @@ using Meddle.Utils.Materials;
 using Meddle.Utils.Models;
 using Microsoft.Extensions.Logging;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
+using CustomizeParameter = Meddle.Utils.Export.CustomizeParameter;
 
 namespace Meddle.Plugin.UI;
 
@@ -35,9 +37,9 @@ public unsafe class CharacterTab : ITab
     private readonly Dictionary<string, TextureImage> textureCache = new();
     private readonly ITextureProvider textureProvider;
 
-    private ExportUtil.CharacterGroup? characterGroup;
+    private CharacterGroup? characterGroup;
     private Task? exportTask;
-    private ExportUtil.CharacterGroup? selectedSetGroup;
+    private CharacterGroup? selectedSetGroup;
 
     public CharacterTab(
         IObjectTable objectTable,
@@ -452,7 +454,7 @@ public unsafe class CharacterTab : ITab
                         var group = characterGroup with
                         {
                             AttachedModelGroups = [attachedModelGroup],
-                            MdlGroups = Array.Empty<Model.MdlGroup>()
+                            MdlGroups = []
                         };
                         exportTask = Task.Run(() =>
                         {
@@ -628,7 +630,7 @@ public unsafe class CharacterTab : ITab
         return Task.CompletedTask;
     }
 
-    private void DrawMdlGroup(Model.MdlGroup mdlGroup)
+    private void DrawMdlGroup(MdlFileGroup mdlGroup)
     {
         ImGui.Text($"Path: {mdlGroup.Path}");
         ImGui.Text($"Mtrl Files: {mdlGroup.MtrlFiles.Length}");
@@ -694,7 +696,7 @@ public unsafe class CharacterTab : ITab
         }
     }
 
-    private void DrawMtrlGroup(Material.MtrlGroup mtrlGroup)
+    private void DrawMtrlGroup(MtrlFileGroup mtrlGroup)
     {
         ImGui.Text($"Path: {mtrlGroup.Path}");
         ImGui.Text($"Shpk Path: {mtrlGroup.ShpkPath}");
@@ -809,20 +811,24 @@ public unsafe class CharacterTab : ITab
 
         foreach (var texGroup in mtrlGroup.TexFiles)
         {
-            if (ImGui.CollapsingHeader($"{texGroup.Path}##{texGroup.GetHashCode()}"))
+            if (ImGui.CollapsingHeader($"{texGroup.MtrlPath}##{texGroup.GetHashCode()}"))
             {
                 DrawTexGroup(texGroup);
             }
         }
     }
 
-    private void DrawTexGroup(Texture.TexGroup texGroup)
+    private void DrawTexGroup(TexResourceGroup texGroup)
     {
-        ImGui.Text($"Path: {texGroup.Path}");
+        ImGui.Text($"Path: {texGroup.MtrlPath}");
+        if (texGroup.MtrlPath != texGroup.ResourcePath)
+        {
+            ImGui.Text($"Resource Path: {texGroup.ResourcePath}");
+        }
         ImGui.PushID(texGroup.GetHashCode());
         try
         {
-            DrawTexFile(texGroup.Path, texGroup.Resource);
+            DrawTexFile(texGroup.MtrlPath, texGroup.Resource);
         } finally
         {
             ImGui.PopID();

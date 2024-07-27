@@ -26,7 +26,6 @@ public unsafe class Model
         }
     }
     
-    public record MdlGroup(string Path, MdlFile MdlFile, Material.MtrlGroup[] MtrlFiles, ShapeAttributeGroup? ShapeAttributeGroup);
     public record ShapeAttributeGroup
     {
         public ShapeAttributeGroup(uint EnabledShapeMask, uint EnabledAttributeMask, (string name, short id)[] ShapeMasks, (string name, short id)[] AttributeMasks)
@@ -41,24 +40,47 @@ public unsafe class Model
         public (string name, short id)[] ShapeMasks { get; init; }
         public (string name, short id)[] AttributeMasks { get; init; }
     }
-
-    public Model(MdlGroup mdlGroup)
+    
+    public Model(string path, MdlFile mdlFile, 
+                 (string path, MtrlFile file, Dictionary<string,TextureResource> texFiles, ShpkFile shpkFile)[] mtrlFiles, 
+                 ShapeAttributeGroup? shapeAttributeGroup)
     {
-        HandlePath = mdlGroup.Path;
-        RaceCode = RaceDeformer.ParseRaceCode(Path);
+        HandlePath = path;
+        RaceCode = RaceDeformer.ParseRaceCode(path);
         
-        if (mdlGroup.MtrlFiles.Length != mdlGroup.MdlFile.ModelHeader.MaterialCount)
-            throw new ArgumentException($"Material count mismatch: {mdlGroup.MdlFile.ModelHeader.MaterialCount} != {mdlGroup.MtrlFiles.Length}");
+        if (mtrlFiles.Length != mdlFile.ModelHeader.MaterialCount)
+            throw new ArgumentException($"Material count mismatch: {mdlFile.ModelHeader.MaterialCount} != {mtrlFiles.Length}");
         
         // NOTE: Does not check for validity on files matching the mdlfile material names
-        Materials = mdlGroup.MtrlFiles.Select(x => new Material(x)).ToArray();
+        Materials = mtrlFiles.Select(x => new Material(x.path, x.file, x.texFiles, x.shpkFile)).ToArray();
         
-        AttributeMasks = mdlGroup.ShapeAttributeGroup?.AttributeMasks ?? Array.Empty<(string, short)>();
-        EnabledAttributeMask = mdlGroup.ShapeAttributeGroup?.EnabledAttributeMask ?? 0;
-        ShapeMasks = mdlGroup.ShapeAttributeGroup?.ShapeMasks ?? Array.Empty<(string, short)>();
-        EnabledShapeMask = mdlGroup.ShapeAttributeGroup?.EnabledShapeMask ?? 0;
+        AttributeMasks = shapeAttributeGroup?.AttributeMasks ?? Array.Empty<(string, short)>();
+        EnabledAttributeMask = shapeAttributeGroup?.EnabledAttributeMask ?? 0;
+        ShapeMasks = shapeAttributeGroup?.ShapeMasks ?? Array.Empty<(string, short)>();
+        EnabledShapeMask = shapeAttributeGroup?.EnabledShapeMask ?? 0;
         
-        InitFromFile(mdlGroup.MdlFile);
+        InitFromFile(mdlFile);
+    }
+    
+    public Model(string path, MdlFile mdlFile, 
+                 (string path, MtrlFile file, Dictionary<string,TexFile> texFiles, ShpkFile shpkFile)[] mtrlFiles, 
+                 ShapeAttributeGroup? shapeAttributeGroup)
+    {
+        HandlePath = path;
+        RaceCode = RaceDeformer.ParseRaceCode(path);
+        
+        if (mtrlFiles.Length != mdlFile.ModelHeader.MaterialCount)
+            throw new ArgumentException($"Material count mismatch: {mdlFile.ModelHeader.MaterialCount} != {mtrlFiles.Length}");
+        
+        // NOTE: Does not check for validity on files matching the mdlfile material names
+        Materials = mtrlFiles.Select(x => new Material(x.path, x.file, x.texFiles, x.shpkFile)).ToArray();
+        
+        AttributeMasks = shapeAttributeGroup?.AttributeMasks ?? Array.Empty<(string, short)>();
+        EnabledAttributeMask = shapeAttributeGroup?.EnabledAttributeMask ?? 0;
+        ShapeMasks = shapeAttributeGroup?.ShapeMasks ?? Array.Empty<(string, short)>();
+        EnabledShapeMask = shapeAttributeGroup?.EnabledShapeMask ?? 0;
+        
+        InitFromFile(mdlFile);
     }
     
     private void InitFromFile(MdlFile file)
