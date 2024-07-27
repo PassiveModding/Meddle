@@ -3,12 +3,22 @@ using ImGuiNET;
 
 namespace Meddle.UI.Windows;
 
-public class SettingsWindow(Configuration configuration)
+public class SettingsWindow
 {
     private bool showSettings;
-    private string gameDir = configuration.GameDirectory;
-    private int interopPort = configuration.InteropPort;
-    
+    private string gameDir;
+    private int interopPort;
+    private bool assetCCResolve;
+    private readonly Configuration configuration1;
+
+    public SettingsWindow(Configuration configuration)
+    {
+        configuration1 = configuration;
+        gameDir = configuration.GameDirectory;
+        interopPort = configuration.InteropPort;
+        assetCCResolve = configuration.AssetCcResolve;
+    }
+
     public event RedrawBrowserEventHandler? OnRedrawBrowser;
     public delegate void RedrawBrowserEventHandler();
 
@@ -35,7 +45,7 @@ public class SettingsWindow(Configuration configuration)
 
                 if (ImGui.MenuItem("Open in Explorer (Game Directory)"))
                 {
-                    Process.Start("explorer.exe", configuration.GameDirectory);
+                    Process.Start("explorer.exe", configuration1.GameDirectory);
                 }
 
                 ImGui.EndMenu();
@@ -55,14 +65,17 @@ public class SettingsWindow(Configuration configuration)
                 ImGui.Text("Interop Plugin Port");
                 ImGui.SameLine();
                 ImGui.InputInt("##InteropPort", ref interopPort);
+                ImGui.Checkbox("Use AssetCC Resolve", ref assetCCResolve);
+                
                 
                 if (ImGui.Button("OK"))
                 {
                     OnRedrawBrowser?.Invoke();
                     showSettings = false;
-                    configuration.GameDirectory = gameDir;
-                    configuration.InteropPort = interopPort;
-                    configuration.Save();
+                    configuration1.GameDirectory = gameDir;
+                    configuration1.InteropPort = interopPort;
+                    configuration1.AssetCcResolve = assetCCResolve;
+                    configuration1.Save();
                     ImGui.CloseCurrentPopup();
                 }
                 ImGui.EndPopup();
