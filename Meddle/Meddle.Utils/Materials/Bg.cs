@@ -48,11 +48,21 @@ public static partial class MaterialUtility
         
         var output = new MaterialBuilder(name)
             .WithDoubleSide(true)
-            .WithMetallicRoughnessShader()
-            .WithBaseColor(Vector4.One);
+            .WithAlpha(AlphaMode.MASK, 0.5f);
+
+        if (colorMap1 != null)
+        {
+            output.WithBaseColor(BuildImage(colorMap1, name, "colorMap1"));
+        }
+        else if (colorMap0 != null)
+        {
+            output.WithBaseColor(BuildImage(colorMap0, name, "colorMap0"));
+        }
+        else
+        {
+            output.WithBaseColor(Vector4.One);
+        }
         
-        if (colorMap1 != null) output.WithBaseColor(BuildImage(colorMap1, name, "colorMap1"));
-        if (colorMap0 != null) output.WithBaseColor(BuildImage(colorMap0, name, "colorMap0"));
         if (normalMap1 != null) output.WithNormal(BuildImage(normalMap1, name, "normalMap1"));
         if (normalMap0 != null) output.WithNormal(BuildImage(normalMap0, name, "normalMap0"));
         if (specularMap1 != null) output.WithSpecularColor(BuildImage(specularMap1, name, "specularMap1"));
@@ -84,10 +94,18 @@ public static partial class MaterialUtility
         
         var output = new MaterialBuilder(name)
             .WithDoubleSide(true)
-            .WithMetallicRoughnessShader()
-            .WithBaseColor(Vector4.One);
+            .WithAlpha(AlphaMode.MASK, 0.5f);
+
+        if (colorMap0 != null)
+        {
+            output.WithBaseColor(BuildImage(colorMap0, name, "colorMap0"));;
+        }
+        else
+        {
+            output.WithBaseColor(Vector4.One);
+        }
         
-        if (colorMap0 != null) output.WithBaseColor(BuildImage(colorMap0, name, "colorMap0"));
+        
         if (normalMap0 != null) output.WithNormal(BuildImage(normalMap0, name, "normalMap0"));
         if (specularMap0 != null) output.WithSpecularColor(BuildImage(specularMap0, name, "specularMap0"));
         
