@@ -103,7 +103,7 @@ public class Material
     {
         HandlePath = path;
         InitFromFile(file);
-        InitTextures(file, texFiles, shpkFile);
+        InitTextures(file, texFiles.ToDictionary(x => x.Key, x => Texture.GetResource(x.Value)), shpkFile);
     }
     
     private void InitTextures(MtrlFile file, Dictionary<string, TextureResource> texFiles, ShpkFile shpkFile)
@@ -120,28 +120,6 @@ public class Material
                 if (!texFiles.TryGetValue(path, out var textureResource))
                     throw new ArgumentException($"Texture {path} not found");
                 var texObj = new Texture(textureResource, path, sampler.Flags, sampler.SamplerId, shpkFile);
-
-                textures.Add(texObj);
-            }
-        }
-
-        Textures = textures;
-    }
-
-    private void InitTextures(MtrlFile file, Dictionary<string, TexFile> texFiles, ShpkFile shpkFile)
-    {        
-        var textures = new List<Texture>();
-        var texturePaths = file.GetTexturePaths();
-        for (var i = 0; i < file.Samplers.Length; i++)
-        {
-            var sampler = file.Samplers[i];
-            if (sampler.TextureIndex != byte.MaxValue)
-            {
-                var texture = file.TextureOffsets[sampler.TextureIndex];
-                var path = texturePaths[texture.Offset];
-                if (!texFiles.TryGetValue(path, out var texFile))
-                    throw new ArgumentException($"Texture {path} not found");
-                var texObj = new Texture(Texture.GetResource(texFile), path, sampler.Flags, sampler.SamplerId, shpkFile);
 
                 textures.Add(texObj);
             }
