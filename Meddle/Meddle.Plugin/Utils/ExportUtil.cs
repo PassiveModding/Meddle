@@ -92,7 +92,7 @@ public class ExportUtil : IDisposable
                     {
                         if (token.IsCancellationRequested) return;
                         var outputPath = Path.Combine(folder, $"{Path.GetFileNameWithoutExtension(texGroup.Path)}.png");
-                        var texture = new Texture(texGroup.TexFile, texGroup.Path, null, null, null);
+                        var texture = new Texture(texGroup.Resource, texGroup.Path, null, null, null);
                         var str = new SKDynamicMemoryWStream();
                         texture.ToTexture().Bitmap.Encode(str, SKEncodedImageFormat.Png, 100);
 
@@ -124,44 +124,23 @@ public class ExportUtil : IDisposable
                 scene.AddNode(root);
             }
 
-            // precompute required bones in the case they don't exist
-            foreach (var mdlGroup in characterGroup.MdlGroups)
-            {
-                var model = new Model(mdlGroup);
-                foreach (var mesh in model.Meshes)
-                {
-                    if (mesh.BoneTable == null) continue;
-
-                    foreach (var boneName in mesh.BoneTable)
-                    {
-                        if (bones.All(b => !b.BoneName.Equals(boneName, StringComparison.Ordinal)))
-                        {
-                            logger.LogInformation("Adding bone {BoneName} from mesh {MeshPath}", boneName,
-                                                  mdlGroup.Path);
-                            var bone = new BoneNodeBuilder(boneName)
-                            {
-                                IsGenerated = true
-                            };
-
-                            if (root == null) throw new InvalidOperationException("Root bone not found");
-                            root.AddNode(bone);
-                            logger.LogInformation("Added bone {BoneName} to {ParentBone}", boneName, root.BoneName);
-
-                            bones.Add(bone);
-                        }
-                    }
-                }
-            }
-
             var meshOutput = new List<(Model model, ModelBuilder.MeshExport mesh)>();
             foreach (var mdlGroup in characterGroup.MdlGroups)
             {
                 if (token.IsCancellationRequested) return;
                 if (mdlGroup.Path.Contains("b0003_top")) continue;
-                var meshes = HandleModel(characterGroup, mdlGroup, bones, token);
-                foreach (var mesh in meshes)
+                try
                 {
-                    meshOutput.Add((mesh.model, mesh.mesh));
+                    var meshes = HandleModel(characterGroup, mdlGroup, ref bones, root, token);
+                    foreach (var mesh in meshes)
+                    {
+                        meshOutput.Add((mesh.model, mesh.mesh));
+                    }
+                }
+                catch (Exception e)
+                {
+                    logger.LogError(e, "Failed to export model {Path}", mdlGroup.Path);
+                    throw;
                 }
             }
 
@@ -217,7 +196,7 @@ public class ExportUtil : IDisposable
 
                 foreach (var mdlGroup in attachedModelGroup.MdlGroups)
                 {
-                    var meshes = HandleModel(characterGroup, mdlGroup, attachBones, token);
+                    var meshes = HandleModel(characterGroup, mdlGroup, ref attachBones, attachPointBone, token);
                     foreach (var mesh in meshes)
                     {
                         meshOutputAttach.Add((transform, mesh.model, mesh.mesh, attachBones.ToArray()));
@@ -311,12 +290,38 @@ public class ExportUtil : IDisposable
     }
 
     private List<(Model model, ModelBuilder.MeshExport mesh)> HandleModel(
-        CharacterGroup characterGroup, Model.MdlGroup mdlGroup, List<BoneNodeBuilder> bones, CancellationToken token)
+        CharacterGroup characterGroup, Model.MdlGroup mdlGroup, ref List<BoneNodeBuilder> bones, BoneNodeBuilder? root, CancellationToken token)
     {
         using var activity = ActivitySource.StartActivity();
         activity?.SetTag("mdlPath", mdlGroup.Path);
         logger.LogInformation("Exporting {Path}", mdlGroup.Path);
         var model = new Model(mdlGroup);
+        
+        foreach (var mesh in model.Meshes)
+        {
+            if (mesh.BoneTable == null) continue;
+
+            foreach (var boneName in mesh.BoneTable)
+            {
+                if (bones.All(b => !b.BoneName.Equals(boneName, StringComparison.Ordinal)))
+                {
+                    logger.LogInformation("Adding bone {BoneName} from mesh {MeshPath}", boneName,
+                                          mdlGroup.Path);
+                    var bone = new BoneNodeBuilder(boneName)
+                    {
+                        IsGenerated = true
+                    };
+
+                    if (root == null) throw new InvalidOperationException("Root bone not found");
+                    root.AddNode(bone);
+                    logger.LogInformation("Added bone {BoneName} to {ParentBone}", boneName, root.BoneName);
+
+                    bones.Add(bone);
+                }
+            }
+        }
+        
+        
         var materials = new List<MaterialBuilder>();
         var meshOutput = new List<(Model, ModelBuilder.MeshExport)>();
         for (var i = 0; i < mdlGroup.MtrlFiles.Length; i++)
@@ -355,6 +360,7 @@ public class ExportUtil : IDisposable
 
     public void ExportResource(Resource[] resources, Vector3 rootPosition)
     {
+        throw new NotImplementedException();
         try
         {
             var scene = new SceneBuilder();
@@ -387,7 +393,7 @@ public class ExportUtil : IDisposable
                         if (texResource == null) throw new InvalidOperationException("Failed to get tex resource");
                         var texData = texResource.Value.file.RawData;
                         var texFile = new TexFile(texData);
-                        texGroups.Add(new Texture.TexGroup(texPath, texFile));
+                        //texGroups.Add(new Texture.TexGroup(texPath, texFile));
                     }
 
                     mtrlGroups.Add(new Material.MtrlGroup(mtrlPath, mtrlFile, shpkPath, shpkFile, texGroups.ToArray()));

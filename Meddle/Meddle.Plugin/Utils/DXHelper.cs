@@ -22,7 +22,7 @@ public unsafe class DXHelper
     }
 
 
-    public (TextureResource, int) ExportTextureResource(Texture* kernelTexture)
+    public (TextureResource Resource, int RowPitch) ExportTextureResource(Texture* kernelTexture)
     {
         if (kernelTexture->D3D11Texture2D == null)
             throw new ArgumentException("Texture's DX data is null");
@@ -37,7 +37,7 @@ public unsafe class DXHelper
         return ret;
     }
 
-    private (TextureResource resource, int rowPitch) GetData(ID3D11Texture2D1 r, MappedSubresource map)
+    private (TextureResource Resource, int RowPitch) GetData(ID3D11Texture2D1 r, MappedSubresource map)
     {
         var desc = r.Description1;
         if (desc.Format is Format.BC1_UNorm or Format.BC2_UNorm or Format.BC3_UNorm or Format.BC4_UNorm

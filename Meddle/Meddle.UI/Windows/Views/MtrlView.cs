@@ -243,7 +243,7 @@ public class MtrlView : IView
         ImGui.Text("Tile Set");
         ImGui.NextColumn();
 
-        for (var i = 0; i < (file.LargeColorTable ? ColorTable.NumRows : ColorTable.LegacyNumRows); i++)
+        for (var i = 0; i < file.ColorTable.Rows.Length; i++)
         {
             if (file.LargeColorTable)
             {
@@ -252,6 +252,7 @@ public class MtrlView : IView
             else
             {
                 ImGui.Text($"Legacy Row {i}");
+                DrawRow(i);
             }
         }
 
@@ -260,7 +261,7 @@ public class MtrlView : IView
 
     private void DrawRow(int i)
     {
-        ref var row = ref file.ColorTable.GetRow(i);
+        ref var row = ref file.ColorTable.Rows[i];
         ImGui.Text($"{i}");
         ImGui.NextColumn();
         ImGui.ColorButton("##rowdiff", new Vector4(row.Diffuse, 1f), ImGuiColorEditFlags.NoAlpha);

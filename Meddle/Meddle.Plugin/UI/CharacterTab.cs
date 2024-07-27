@@ -53,15 +53,16 @@ public unsafe class CharacterTab : ITab
         this.log = log;
         this.pluginState = pluginState;
         this.exportUtil = exportUtil;
-        this.exportUtil.OnLogEvent += HandleExportLog;
+        this.parseUtil = parseUtil;
+        this.exportUtil.OnLogEvent += HandleLogEvent;
+        this.parseUtil.OnLogEvent += HandleLogEvent;
         this.objectTable = objectTable;
         this.clientState = clientState;
         this.textureProvider = textureProvider;
-        this.parseUtil = parseUtil;
     }
 
     private (LogLevel level, string message)? LastLog { get; set; }
-    private void HandleExportLog(LogLevel level, string message)
+    private void HandleLogEvent(LogLevel level, string message)
     {
         LastLog = (level, message);
     }
@@ -91,7 +92,7 @@ public unsafe class CharacterTab : ITab
         if (!IsDisposed)
         {
             log.LogInformation("Disposing CharacterTab");
-            exportUtil.OnLogEvent -= HandleExportLog;
+            exportUtil.OnLogEvent -= HandleLogEvent;
             foreach (var (_, textureImage) in textureCache)
             {
                 textureImage.Wrap.Dispose();
@@ -110,6 +111,16 @@ public unsafe class CharacterTab : ITab
         ImGui.TextWrapped(
             "Exported models use a rudimentary approximation of the games pixel shaders, they will likely not match 1:1 to the in-game appearance.");
 
+        if (LastLog != null)
+        {
+            ImGui.TextColored(LastLog.Value.level switch
+            {
+                LogLevel.Warning => new Vector4(1.0f, 1.0f, 0.0f, 1.0f),
+                LogLevel.Error => new Vector4(1.0f, 0.0f, 0.0f, 1.0f),
+                _ => new Vector4(1.0f, 1.0f, 1.0f, 1.0f)
+            }, LastLog.Value.message);
+        }
+        
         ICharacter[] objects;
         if (clientState.LocalPlayer != null)
         {
@@ -303,16 +314,6 @@ public unsafe class CharacterTab : ITab
     {
         if (characterGroup == null) return;
         var availWidth = ImGui.GetContentRegionAvail().X;
-
-        if (LastLog != null)
-        {
-            ImGui.TextColored(LastLog.Value.level switch
-            {
-                LogLevel.Warning => new Vector4(1.0f, 1.0f, 0.0f, 1.0f),
-                LogLevel.Error => new Vector4(1.0f, 0.0f, 0.0f, 1.0f),
-                _ => new Vector4(1.0f, 1.0f, 1.0f, 1.0f)
-            }, LastLog.Value.message);
-        }
         
         ImGui.BeginDisabled(ExportTaskIncomplete);
         if (ImGui.Button("Export All"))
@@ -612,20 +613,19 @@ public unsafe class CharacterTab : ITab
         }
 
         // begin background work
-        return Task.Run(() =>
+        try
         {
-            try
-            {
-                characterGroup = parseUtil.HandleCharacterGroup(characterBase, colorTableTextures, attachDict,
-                                                                customizeParams, customizeData, genderRace);
-                selectedSetGroup = characterGroup;
-            }
-            catch (Exception e)
-            {
-                log.LogError(e, "Failed to parse character");
-                throw;
-            }
-        });
+            characterGroup = parseUtil.HandleCharacterGroup(characterBase, colorTableTextures, attachDict,
+                                                            customizeParams, customizeData, genderRace);
+            selectedSetGroup = characterGroup;
+        }
+        catch (Exception e)
+        {
+            log.LogError(e, "Failed to parse character");
+            throw;
+        }
+
+        return Task.CompletedTask;
     }
 
     private void DrawMdlGroup(Model.MdlGroup mdlGroup)
@@ -822,19 +822,19 @@ public unsafe class CharacterTab : ITab
         ImGui.PushID(texGroup.GetHashCode());
         try
         {
-            DrawTexFile(texGroup.Path, texGroup.TexFile);
+            DrawTexFile(texGroup.Path, texGroup.Resource);
         } finally
         {
             ImGui.PopID();
         }
     }
 
-    private void DrawTexFile(string path, TexFile file)
+    private void DrawTexFile(string path, TextureResource file)
     {
-        ImGui.Text($"Width: {file.Header.Width}");
-        ImGui.Text($"Height: {file.Header.Height}");
-        ImGui.Text($"Depth: {file.Header.Depth}");
-        ImGui.Text($"Mipmaps: {file.Header.CalculatedMips}");
+        ImGui.Text($"Width: {file.Width}");
+        ImGui.Text($"Height: {file.Height}");
+        //ImGui.Text($"Depth: {file}");
+        ImGui.Text($"Mipmaps: {file.MipLevels}");
 
         // select channels
         if (!channelCache.TryGetValue(path, out var channels))
@@ -931,7 +931,7 @@ public unsafe class CharacterTab : ITab
             var pixelsCopy = new byte[pixelSpan.Length];
             pixelSpan.CopyTo(pixelsCopy);
             var wrap = textureProvider.CreateFromRaw(
-                RawImageSpecification.Rgba32(file.Header.Width, file.Header.Height), pixelsCopy,
+                RawImageSpecification.Rgba32(file.Width, file.Height), pixelsCopy,
                 "Meddle.Texture");
 
             textureImage = new TextureImage(bitmap, wrap);
@@ -941,15 +941,15 @@ public unsafe class CharacterTab : ITab
         var availableWidth = ImGui.GetContentRegionAvail().X;
         float displayWidth;
         float displayHeight;
-        if (file.Header.Width > availableWidth)
+        if (file.Width > availableWidth)
         {
             displayWidth = availableWidth;
-            displayHeight = file.Header.Height * (displayWidth / file.Header.Width);
+            displayHeight = file.Height * (displayWidth / file.Width);
         }
         else
         {
-            displayWidth = file.Header.Width;
-            displayHeight = file.Header.Height;
+            displayWidth = file.Width;
+            displayHeight = file.Height;
         }
 
         ImGui.Image(textureImage.Wrap.ImGuiHandle, new Vector2(displayWidth, displayHeight));

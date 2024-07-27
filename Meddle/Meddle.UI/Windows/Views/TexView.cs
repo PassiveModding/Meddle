@@ -15,7 +15,8 @@ public class TexView : IView
         this.imageHandler = imageHandler;
         this.path = path;
     }
-
+    
+    public record TexFileGroup(string Path, TexFile TexFile);
     private readonly TexFile texFile;
     private readonly Dictionary<(int arrayLevel, int mipLevel, int slice), (Image image, nint binding)> imageCache = new();
     private int arrayLevel;

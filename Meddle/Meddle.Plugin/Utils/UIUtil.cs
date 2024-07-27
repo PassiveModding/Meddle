@@ -63,7 +63,7 @@ public static class UIUtil
         ImGui.Text("Tile Set");
         ImGui.NextColumn();
 
-        for (var i = 0; i < ColorTable.NumRows; i++)
+        for (var i = 0; i < table.Rows.Length; i++)
         {
             DrawRow(i, table, dyeTable);
         }
@@ -86,7 +86,7 @@ public static class UIUtil
 
     private static void DrawRow(int i, ColorTable table, ColorDyeTable? dyeTable)
     {
-        ref var row = ref table.GetRow(i);
+        ref var row = ref table.Rows[i];
         ImGui.Text($"{i}");
         ImGui.NextColumn();
         ImGui.ColorButton("##rowdiff", new Vector4(row.Diffuse, 1f), ImGuiColorEditFlags.NoAlpha);

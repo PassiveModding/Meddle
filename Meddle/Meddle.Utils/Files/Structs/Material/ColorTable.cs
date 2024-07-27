@@ -4,7 +4,7 @@ namespace Meddle.Utils.Files.Structs.Material;
 
 public unsafe struct ColorTable
 {
-    public ushort[] Data;
+    public ColorTableRow[] Rows;
     public const int RowSize = 32;
     public const int NumRows = 32;
     public const int LegacyRowSize = 16;
@@ -20,8 +20,8 @@ public unsafe struct ColorTable
 
         var nearestPair = weightArr.MinBy(v => Math.Abs(v - weight));
         var pairIdx = Array.IndexOf(weightArr, nearestPair) * 2;
-        var pair0 = GetRow(pairIdx);
-        var pair1 = GetRow(pairIdx + 1);
+        var pair0 = Rows[pairIdx];
+        var pair1 = Rows[pairIdx + 1];
 
         return (pair0, pair1);
     }
@@ -49,19 +49,11 @@ public unsafe struct ColorTable
         return row;
     }
 
-    public ref ColorTableRow GetRow(int idx)
-    {
-        fixed (ushort* ptr = Data)
-        {
-            return ref ((ColorTableRow*)ptr)[idx];
-        }
-    }
-
     public static ColorTable Load(ref SpanBinaryReader reader)
     {
         var table = new ColorTable
         {
-            Data = reader.Read<ushort>(RowSize * NumRows).ToArray()
+            Rows = reader.Read<ColorTableRow>(NumRows).ToArray()
         };
 
         return table;
@@ -71,7 +63,7 @@ public unsafe struct ColorTable
     {
         var table = new ColorTable
         {
-            Data = new ushort[RowSize * NumRows]
+            Rows = new ColorTableRow[NumRows]
         };
 
         return table;
@@ -79,16 +71,13 @@ public unsafe struct ColorTable
 
     public ColorTable LoadLegacy(ref SpanBinaryReader dataSetReader)
     {
-        var buf = dataSetReader.Read<ushort>(LegacyRowSize * LegacyNumRows);
+        var buf = dataSetReader.Read<LegacyColorTableRow>(LegacyNumRows);
+        var upgraded = buf.ToArray().Select(x => x.ToNew()).ToArray();
+        
         var table = new ColorTable
         {
-            Data = new ushort[RowSize * NumRows]
+            Rows = upgraded
         };
-
-        for (var i = 0; i < buf.Length; i++)
-        {
-            table.Data[i] = buf[i];
-        }
 
         return table;
     }
@@ -97,7 +86,7 @@ public unsafe struct ColorTable
     {
         var table = new ColorTable
         {
-            Data = new ushort[RowSize * NumRows]
+            Rows = new ColorTableRow[LegacyNumRows]
         };
 
         return table;

@@ -50,13 +50,27 @@ public unsafe class Texture
     public TextureResource Resource { get; }
 
     public TexMeta Meta { get; }
-
-    public record TexGroup(string Path, TexFile TexFile);
-    public Texture(TexFile file, string path, uint? samplerFlags, uint? id, ShpkFile? shpkFile)
+    
+    public record TexGroup(string Path, TextureResource Resource);
+    
+    public Texture(TextureResource resource, string path, uint? samplerFlags, uint? id, ShpkFile? shpkFile)
     {
+        Resource = resource;
+        HandlePath = path;
         SamplerFlags = samplerFlags;
         Id = id;
-        HandlePath = path;
+        Meta = ImageUtils.GetTexMeta(resource);
+        
+        if (shpkFile != null)
+        {
+            var shaderPackage = new ShaderPackage(shpkFile, null!);
+            if (Id.HasValue && shaderPackage.TextureLookup.TryGetValue(Id.Value, out var usage))
+                Usage = usage;
+        }
+    }
+    
+    public static TextureResource GetResource(TexFile file)
+    {
         var h = file.Header;
         var dimension = h.Type switch
         {
@@ -68,18 +82,10 @@ public unsafe class Texture
         D3DResourceMiscFlags flags = 0;
         if (h.Type.HasFlag(TexFile.Attribute.TextureTypeCube))
             flags |= D3DResourceMiscFlags.TextureCube;
-        Resource = new TextureResource(h.Format.ToDXGIFormat(), 
-                                       h.Width, 
-                                       h.Height, 
-                                       h.MipLevels, h.ArraySize, dimension, flags, 
-                                       file.TextureBuffer);
-        Meta = ImageUtils.GetTexMeta(file);
-
-        if (shpkFile != null)
-        {
-            var shaderPackage = new ShaderPackage(shpkFile, null!);
-            if (Id.HasValue && shaderPackage.TextureLookup.TryGetValue(Id.Value, out var usage))
-                Usage = usage;
-        }
+        return new TextureResource(h.Format.ToDXGIFormat(), 
+                                   h.Width, 
+                                   h.Height, 
+                                   h.MipLevels, h.ArraySize, dimension, flags, 
+                                   file.TextureBuffer);
     }
 }

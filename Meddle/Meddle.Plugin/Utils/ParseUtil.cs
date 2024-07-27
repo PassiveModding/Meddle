@@ -13,27 +13,37 @@ using Meddle.Utils.Files.Structs.Material;
 using Meddle.Utils.Models;
 using Meddle.Utils.Skeletons.Havok;
 using Meddle.Utils.Skeletons.Havok.Models;
+using Microsoft.Extensions.Logging;
 using Attach = Meddle.Plugin.Skeleton.Attach;
 using Texture = FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Texture;
 
 namespace Meddle.Plugin.Utils;
 
-public class ParseUtil
+public class ParseUtil : IDisposable
 {
     private static readonly ActivitySource ActivitySource = new("Meddle.Plugin.Utils.ParseUtil");
     private readonly DXHelper dxHelper;
+    private readonly EventLogger<ParseUtil> logger;
     private readonly IFramework framework;
     private readonly SqPack pack;
+    public event Action<LogLevel, string>? OnLogEvent; 
 
     private readonly Dictionary<string, ShpkFile> shpkCache = new();
 
-    public ParseUtil(SqPack pack, IFramework framework, DXHelper dxHelper)
+    public ParseUtil(SqPack pack, IFramework framework, DXHelper dxHelper, ILogger<ParseUtil> logger)
     {
         this.pack = pack;
         this.framework = framework;
         this.dxHelper = dxHelper;
+        this.logger = new EventLogger<ParseUtil>(logger);
+        this.logger.OnLogEvent += OnLog;
     }
-
+    
+    private void OnLog(LogLevel logLevel, string message)
+    {
+        OnLogEvent?.Invoke(logLevel, message);
+    }
+    
     public unsafe Dictionary<int, ColorTable> ParseColorTableTextures(CharacterBase* characterBase)
     {
         using var activity = ActivitySource.StartActivity();
@@ -41,18 +51,16 @@ public class ParseUtil
         for (var i = 0; i < characterBase->ColorTableTexturesSpan.Length; i++)
         {
             var colorTableTex = characterBase->ColorTableTexturesSpan[i];
-            //var colorTableTex = characterBase->ColorTableTexturesSpan[(modelIdx * CharacterBase.MaxMaterialCount) + j];
             if (colorTableTex == null) continue;
 
             var colorTableTexture = colorTableTex.Value;
             if (colorTableTexture != null)
             {
-                var textures = ParseColorTableTexture(colorTableTexture).AsSpan();
-                var colorTableBytes = MemoryMarshal.AsBytes(textures);
-                var colorTableBuf = new byte[colorTableBytes.Length];
-                colorTableBytes.CopyTo(colorTableBuf);
-                var reader = new SpanBinaryReader(colorTableBuf);
-                var cts = ColorTable.Load(ref reader);
+                var textures = ParseColorTableTexture(colorTableTexture);
+                var cts = new ColorTable
+                {
+                    Rows = textures
+                };
                 colorTableTextures[i] = cts;
             }
         }
@@ -71,17 +79,28 @@ public class ParseUtil
                 $"Color table is not R16G16B16A16F ({(TexFile.TextureFormat)colorTableTexture->TextureFormat})");
         }
 
-        if (colorTableTexture->Width != 8 || colorTableTexture->Height != 32)
+        if (colorTableTexture->Width == 4 && colorTableTexture->Height == 16)
         {
-            throw new ArgumentException(
-                $"Color table is not 4x16 ({colorTableTexture->Width}x{colorTableTexture->Height})");
+            // legacy table
+            var stridedData = ImageUtils.AdjustStride(stride, (int)colorTableTexture->Width * 8,
+            (int)colorTableTexture->Height, colorTableRes.Data);
+            var reader = new SpanBinaryReader(stridedData);
+            var tableData = reader.Read<LegacyColorTableRow>(16);
+            return tableData.ToArray().Select(x => x.ToNew()).ToArray();
         }
-
-        var stridedData = ImageUtils.AdjustStride(stride, (int)colorTableTexture->Width * 8,
-                                                  (int)colorTableTexture->Height, colorTableRes.Data);
-        var reader = new SpanBinaryReader(stridedData);
-        var tableData = reader.Read<ColorTableRow>(32);
-        return tableData.ToArray();
+        
+        if (colorTableTexture->Width == 8 && colorTableTexture->Height == 32)
+        {
+            // new table
+            var stridedData = ImageUtils.AdjustStride(stride, (int)colorTableTexture->Width * 8,
+                                                      (int)colorTableTexture->Height, colorTableRes.Data);
+            var reader = new SpanBinaryReader(stridedData);
+            var tableData = reader.Read<ColorTableRow>(32);
+            return tableData.ToArray();
+        }
+        
+        throw new ArgumentException(
+            $"Color table is not 4x16 or 8x32 ({colorTableTexture->Width}x{colorTableTexture->Height})");
     }
 
     public unsafe ExportUtil.CharacterGroup HandleCharacterGroup(
@@ -125,15 +144,19 @@ public class ParseUtil
     {
         using var activity = ActivitySource.StartActivity();
         var modelPtr = characterBase->ModelsSpan[modelIdx];
-        if (modelPtr == null) return null;
+        if (modelPtr == null || modelPtr.Value == null)
+        {
+            //logger.LogWarning("Model Ptr {ModelIndex} is null", modelIdx);
+            return null;
+        }
         var model = modelPtr.Value;
-        if (model == null) return null;
 
         var mdlFileName = model->ModelResourceHandle->ResourceHandle.FileName.ToString();
         activity?.SetTag("mdl", mdlFileName);
         var mdlFileResource = pack.GetFileOrReadFromDisk(mdlFileName);
         if (mdlFileResource == null)
         {
+            logger.LogWarning("Model file {MdlFileName} not found", mdlFileName);
             return null;
         }
 
@@ -162,6 +185,7 @@ public class ParseUtil
             var material = materialPtr.Value;
             if (material == null)
             {
+                logger.LogWarning("Material Ptr {MaterialIndex} is null for {MdlFileName}", j, mdlFileName);
                 continue;
             }
 
@@ -184,13 +208,13 @@ public class ParseUtil
             return shpk;
         }
 
-        var shpkFileResource = pack.GetFile($"shader/sm5/shpk/{shader}");
+        var shpkFileResource = pack.GetFileOrReadFromDisk($"shader/sm5/shpk/{shader}");
         if (shpkFileResource == null)
         {
             throw new Exception($"Failed to load shader package {shader}");
         }
 
-        var shpkFile = new ShpkFile(shpkFileResource.Value.file.RawData);
+        var shpkFile = new ShpkFile(shpkFileResource);
         shpkCache[shader] = shpkFile;
         return shpkFile;
     }
@@ -208,6 +232,7 @@ public class ParseUtil
         var mtrlFileResource = pack.GetFileOrReadFromDisk(mtrlFileName);
         if (mtrlFileResource == null)
         {
+            logger.LogWarning("Material file {MtrlFileName} not found", mtrlFileName);
             return null;
         }
 
@@ -231,7 +256,22 @@ public class ParseUtil
         var shpkFile = HandleShpk(shader);
         var texGroups = new List<Meddle.Utils.Export.Texture.TexGroup>();
 
-        var textureNames = mtrlFile.GetTexturePaths().Select(x => x.Value).ToArray();
+        for (int i = 0; i < material->MaterialResourceHandle->TextureCount; i++)
+        {
+            var textureEntry = material->MaterialResourceHandle->TexturesSpan[i];
+            if (textureEntry.TextureResourceHandle == null)
+            {
+                logger.LogWarning("Texture handle is null on {MtrlFileName}", mtrlFileName);
+                continue;
+            }
+            
+            var texturePath = material->MaterialResourceHandle->TexturePathString(i);
+            var data = dxHelper.ExportTextureResource(textureEntry.TextureResourceHandle->Texture);
+            var texResourceGroup = new Meddle.Utils.Export.Texture.TexGroup(texturePath, data.Resource);
+            texGroups.Add(texResourceGroup);
+        }
+
+        /*var textureNames = mtrlFile.GetTexturePaths().Select(x => x.Value).ToArray();
         foreach (var textureName in textureNames)
         {
             var texGroup = HandleTexture(textureName);
@@ -239,23 +279,24 @@ public class ParseUtil
             {
                 texGroups.Add(texGroup);
             }
-        }
+        }*/
 
         return new Material.MtrlGroup(mtrlFileName, mtrlFile, shader, shpkFile, texGroups.ToArray());
     }
 
-    private Meddle.Utils.Export.Texture.TexGroup? HandleTexture(string textureName)
+    /*private Meddle.Utils.Export.Texture.TexGroup? HandleTexture(string textureName)
     {
         using var activity = ActivitySource.StartActivity();
         var texFileResource = pack.GetFileOrReadFromDisk(textureName);
         if (texFileResource == null)
         {
+            logger.LogWarning("Texture file {TextureName} not found", textureName);
             return null;
         }
 
         var texFile = new TexFile(texFileResource);
         return new Meddle.Utils.Export.Texture.TexGroup(textureName, texFile);
-    }
+    }*/
 
     public unsafe ExportUtil.AttachedModelGroup HandleAttachGroup(
         CharacterBase* attachBase, Dictionary<int, ColorTable> colorTables)
@@ -318,5 +359,11 @@ public class ParseUtil
         }
 
         return skeletons;
+    }
+
+    public void Dispose()
+    {
+        logger.LogInformation("Disposing ParseUtil");
+        logger.OnLogEvent -= OnLog;
     }
 }

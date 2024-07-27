@@ -102,7 +102,7 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
 
                 var shpkFile = new ShpkFile(shpkLookupResult.Value.file.RawData);
                 var textures = mtrlFile.GetTexturePaths();
-                var texGroups = new List<Texture.TexGroup>();
+                var texGroups = new List<TexView.TexFileGroup>();
                 foreach (var (texOffset, texPath) in textures)
                 {
                     var texLookupResult = pack.GetFile(texPath);
@@ -112,7 +112,7 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                     }
 
                     var texFile = new TexFile(texLookupResult.Value.file.RawData);
-                    texGroups.Add(new Texture.TexGroup(texPath, texFile));
+                    texGroups.Add(new TexView.TexFileGroup(texPath, texFile));
                 }
 
                 mtrlGroups.Add(new Material.MtrlGroup(mtrlPath, mtrlFile, shpkPath, shpkFile, texGroups.ToArray()));
@@ -176,7 +176,7 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                                     {
                                         if (!views.TryGetValue(texGroup.Path, out var texView))
                                         {
-                                            texView = new TexView(texGroup.TexFile, imageHandler,
+                                            texView = new TexView(texGroup, imageHandler,
                                                                   texGroup.Path);
                                             views[texGroup.Path] = texView;
                                         }

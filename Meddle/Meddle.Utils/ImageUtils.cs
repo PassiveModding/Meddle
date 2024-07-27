@@ -75,6 +75,24 @@ public static class ImageUtils
             }
         }
     }
+    
+    public static TexMeta GetTexMeta(TextureResource resource)
+    {
+        var meta = new TexMeta
+        {
+            Width = resource.Width,
+            Height = resource.Height,
+            Depth = 1, // 3D textures would have other values, but we're only handling kernelTexture->D3D11Texture2D
+            MipLevels = resource.MipLevels,
+            ArraySize = resource.ArraySize,
+            Format = resource.Format,
+            Dimension = resource.Dimension,
+            MiscFlags = resource.MiscFlags.HasFlag(D3DResourceMiscFlags.TextureCube) ? D3DResourceMiscFlags.TextureCube : 0,
+            MiscFlags2 = 0,
+        };
+        
+        return meta;
+    }
 
     public static TexMeta GetTexMeta(TexFile tex)
     {
