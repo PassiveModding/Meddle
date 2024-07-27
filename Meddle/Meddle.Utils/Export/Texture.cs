@@ -78,8 +78,8 @@ public unsafe class Texture
             TexFile.GetDxgiFormatFromTextureFormat(h.Format), 
                h.Width, 
                h.Height, 
-               h.MipLevels, 
-               h.ArraySize, 
+               h.CalculatedMips, 
+               h.CalculatedArraySize, 
                TexFile.GetTexDimensionFromAttribute(h.Type), 
                flags, 
                file.TextureBuffer);
