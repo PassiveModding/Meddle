@@ -39,5 +39,12 @@ public class OptionsTab : ITab
             config.OpenOnLoad = openOnLoad;
             config.Save();
         }
+        
+        var playerNameOverride = config.PlayerNameOverride;
+        if (ImGui.InputText("Player Name Override", ref playerNameOverride, 64))
+        {
+            config.PlayerNameOverride = playerNameOverride;
+            config.Save();
+        }
     }
 }

@@ -32,6 +32,7 @@ public unsafe class CharacterTab : ITab
     private readonly ILogger<CharacterTab> log;
     private readonly IObjectTable objectTable;
     private readonly ParseUtil parseUtil;
+    private readonly Configuration config;
     private readonly PluginState pluginState;
 
     private readonly Dictionary<string, TextureImage> textureCache = new();
@@ -50,12 +51,14 @@ public unsafe class CharacterTab : ITab
         ExportUtil exportUtil,
         IDataManager dataManager,
         ITextureProvider textureProvider,
-        ParseUtil parseUtil)
+        ParseUtil parseUtil,
+        Configuration config)
     {
         this.log = log;
         this.pluginState = pluginState;
         this.exportUtil = exportUtil;
         this.parseUtil = parseUtil;
+        this.config = config;
         this.exportUtil.OnLogEvent += HandleLogEvent;
         this.parseUtil.OnLogEvent += HandleLogEvent;
         this.objectTable = objectTable;
@@ -143,14 +146,14 @@ public unsafe class CharacterTab : ITab
         SelectedCharacter ??= objects.FirstOrDefault() ?? clientState.LocalPlayer;
 
         ImGui.Text("Select Character");
-        var preview = SelectedCharacter != null ? clientState.GetCharacterDisplayText(SelectedCharacter) : "None";
+        var preview = SelectedCharacter != null ? clientState.GetCharacterDisplayText(SelectedCharacter, config.PlayerNameOverride) : "None";
         using (var combo = ImRaii.Combo("##Character", preview))
         {
             if (combo)
             {
                 foreach (var character in objects)
                 {
-                    if (ImGui.Selectable(clientState.GetCharacterDisplayText(character)))
+                    if (ImGui.Selectable(clientState.GetCharacterDisplayText(character, config.PlayerNameOverride)))
                     {
                         SelectedCharacter = character;
                     }

@@ -98,6 +98,7 @@ public class Configuration : IPluginConfiguration
 
     public bool ShowAdvanced { get; set; }
     public bool OpenOnLoad { get; set; }
+    public string PlayerNameOverride { get; set; } = string.Empty;
 
     public int Version { get; set; } = 1;
 
