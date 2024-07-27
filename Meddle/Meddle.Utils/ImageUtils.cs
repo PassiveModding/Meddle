@@ -1,5 +1,4 @@
-﻿using System.Numerics;
-using Meddle.Utils.Export;
+﻿using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Models;
 using OtterTex;
@@ -9,41 +8,6 @@ namespace Meddle.Utils;
 
 public static class ImageUtils
 {
-    /*public static SKColor ToSkColor(this Vector3 vec)
-    {
-        return new SKColor((byte)(vec.X * 255), (byte)(vec.Y * 255), (byte)(vec.Z * 255));
-    }
-    
-    public static SKColor ToSkColor(this Vector4 vec)
-    {
-        return new SKColor((byte)(vec.X * 255), (byte)(vec.Y * 255), (byte)(vec.Z * 255), (byte)(vec.W * 255));
-    }*/
-    
-    public static DXGIFormat ToDXGIFormat(this TexFile.TextureFormat format)
-    {
-        return format switch
-        {
-            TexFile.TextureFormat.Unknown => DXGIFormat.Unknown,
-            TexFile.TextureFormat.A8 => DXGIFormat.A8UNorm,
-            TexFile.TextureFormat.L8 => DXGIFormat.R8UNorm,
-            TexFile.TextureFormat.B4G4R4A4 => DXGIFormat.B4G4R4A4UNorm,
-            TexFile.TextureFormat.B5G5R5A1 => DXGIFormat.B5G5R5A1UNorm,
-            TexFile.TextureFormat.B8G8R8A8 => DXGIFormat.B8G8R8A8UNorm,
-            TexFile.TextureFormat.B8G8R8X8 => DXGIFormat.B8G8R8X8UNorm,
-            TexFile.TextureFormat.R32F => DXGIFormat.R32Float,
-            TexFile.TextureFormat.R16G16F => DXGIFormat.R16G16Float,
-            TexFile.TextureFormat.R32G32F => DXGIFormat.R32G32Float,
-            TexFile.TextureFormat.R16G16B16A16F => DXGIFormat.R16G16B16A16Float,
-            TexFile.TextureFormat.R32G32B32A32F => DXGIFormat.R32G32B32A32Float,
-            TexFile.TextureFormat.BC1 => DXGIFormat.BC1UNorm,
-            TexFile.TextureFormat.BC2 => DXGIFormat.BC2UNorm,
-            TexFile.TextureFormat.BC3 => DXGIFormat.BC3UNorm,
-            TexFile.TextureFormat.BC5 => DXGIFormat.BC5UNorm,
-            TexFile.TextureFormat.BC7 => DXGIFormat.BC7UNorm,
-            _ => throw new NotImplementedException($"Unknown texture format: {format} [{format:X2}]")
-        };
-    }
-    
     public static int GetStride(this TexFile.TextureFormat format, int width)
     {
         return format switch
@@ -222,7 +186,7 @@ public static class ImageUtils
                 var span = new Span<byte>(data, image.Pixels.Length);
                 if (resource.Resource.Data.Length > span.Length)
                 {
-                    // As far as I can tell this only happens when placeholder textures are used anyways
+                    // As far as I can tell this only happens when placeholder textures are used anyway
                     Console.WriteLine($"Data too large for scratch image. " +
                                       $"{resource.Resource.Data.Length} > {span.Length} " +
                                       $"{resource.Meta.Width}x{resource.Meta.Height} {resource.Meta.Format}");

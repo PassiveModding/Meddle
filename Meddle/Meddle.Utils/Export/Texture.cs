@@ -67,23 +67,21 @@ public unsafe class Texture
         }
     }
     
+    
     public static TextureResource GetResource(TexFile file)
     {
         var h = file.Header;
-        var dimension = h.Type switch
-        {
-            TexFile.Attribute.TextureType1D => TexDimension.Tex1D,
-            TexFile.Attribute.TextureType2D => TexDimension.Tex2D,
-            TexFile.Attribute.TextureType3D => TexDimension.Tex3D,
-            _ => TexDimension.Tex2D
-        };
         D3DResourceMiscFlags flags = 0;
         if (h.Type.HasFlag(TexFile.Attribute.TextureTypeCube))
             flags |= D3DResourceMiscFlags.TextureCube;
-        return new TextureResource(h.Format.ToDXGIFormat(), 
-                                   h.Width, 
-                                   h.Height, 
-                                   h.MipLevels, h.ArraySize, dimension, flags, 
-                                   file.TextureBuffer);
+        return new TextureResource(
+            TexFile.GetDxgiFormatFromTextureFormat(h.Format), 
+               h.Width, 
+               h.Height, 
+               h.MipLevels, 
+               h.ArraySize, 
+               TexFile.GetTexDimensionFromAttribute(h.Type), 
+               flags, 
+               file.TextureBuffer);
     }
 }
