@@ -188,12 +188,24 @@ public class SqPackWindow
 
             if (ImGui.InputText("Filter", ref filter, 100))
             {
-                pathManager.PathViewerCache = pathManager.ParsedPaths
-                                                         .Where(x => x.Path.Contains(filter))
-                                                         .OrderBy(x => x.Path)
-                                                         .GroupBy(x => x.Path.Split('/')[0])
-                                                         .ToList();
-                pathManager.FolderCache.Clear();
+                if (ulong.TryParse(filter, out var hash))
+                {
+                    pathManager.PathViewerCache = pathManager.ParsedPaths
+                                                             .Where(x => x.IndexHash == hash || x.Index2Hash == hash || x.FileHash == hash || x.FolderHash == hash)
+                                                             .OrderBy(x => x.Path)
+                                                             .GroupBy(x => x.Path.Split('/')[0])
+                                                             .ToList();
+                    pathManager.FolderCache.Clear();
+                }
+                else
+                {
+                    pathManager.PathViewerCache = pathManager.ParsedPaths
+                                                             .Where(x => x.Path.Contains(filter))
+                                                             .OrderBy(x => x.Path)
+                                                             .GroupBy(x => x.Path.Split('/')[0])
+                                                             .ToList();
+                    pathManager.FolderCache.Clear();
+                }
             }
             else if (pathManager.PathViewerCache.Count == 0)
             {
