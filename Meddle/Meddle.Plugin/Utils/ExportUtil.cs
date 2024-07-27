@@ -373,7 +373,7 @@ public class ExportUtil : IDisposable
             foreach (var resource in resources)
             {
                 var mdlFileData = pack.GetFile(resource.MdlPath);
-                if (mdlFileData == null) throw new InvalidOperationException("Failed to get resource");
+                if (mdlFileData == null) throw new InvalidOperationException($"Failed to get resource {resource.MdlPath}");
                 var data = mdlFileData.Value.file.RawData;
                 var mdlFile = new MdlFile(data);
                 var mtrlGroups = new List<MtrlFileGroup>();
@@ -382,20 +382,20 @@ public class ExportUtil : IDisposable
                     if (mtrlPath.StartsWith('/'))
                         throw new InvalidOperationException($"Relative path found on material {mtrlPath}");
                     var mtrlResource = pack.GetFile(mtrlPath);
-                    if (mtrlResource == null) throw new InvalidOperationException("Failed to get mtrl resource");
+                    if (mtrlResource == null) throw new InvalidOperationException($"Failed to get mtrl resource {mtrlPath}");
                     var mtrlData = mtrlResource.Value.file.RawData;
 
                     var mtrlFile = new MtrlFile(mtrlData);
 
                     var shpkPath = mtrlFile.GetShaderPackageName();
                     var shpkResource = pack.GetFile($"shader/sm5/shpk/{shpkPath}");
-                    if (shpkResource == null) throw new InvalidOperationException("Failed to get shpk resource");
+                    if (shpkResource == null) throw new InvalidOperationException($"Failed to get shpk resource {shpkPath}");
                     var shpkFile = new ShpkFile(shpkResource.Value.file.RawData);
                     var texGroups = new List<TexResourceGroup>();
                     foreach (var (_, texPath) in mtrlFile.GetTexturePaths())
                     {
                         var texResource = pack.GetFile(texPath);
-                        if (texResource == null) throw new InvalidOperationException("Failed to get tex resource");
+                        if (texResource == null) throw new InvalidOperationException($"Failed to get tex resource {texPath}");
                         var texData = texResource.Value.file.RawData;
                         var texFile = new TexFile(texData);
                         texGroups.Add(new TexResourceGroup(texPath, texPath, Texture.GetResource(texFile)));
@@ -429,7 +429,7 @@ public class ExportUtil : IDisposable
                     {
                         "bg.shpk" => MaterialUtility.BuildBg(material, name),
                         "bgprop.shpk" => MaterialUtility.BuildBgProp(material, name),
-                        _ => MaterialUtility.BuildFallback(material, name)
+                        _ => BuildAndLogFallbackMaterial(material, name)
                     };
 
                     materials.Add(builder);
@@ -460,6 +460,12 @@ public class ExportUtil : IDisposable
             logger.LogError(e, "Failed to export resource");
             throw;
         }
+    }
+    
+    private MaterialBuilder BuildAndLogFallbackMaterial(Material material, string name)
+    {
+        logger.LogWarning("Using fallback material for {Path}", material.HandlePath);
+        return MaterialUtility.BuildFallback(material, name);
     }
     
     public void Dispose()
