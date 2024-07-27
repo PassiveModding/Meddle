@@ -2,12 +2,38 @@
 
 This project is a Dalamud plugin which provides a GUI for exporting player models from FFXIV.
 
-- Much of this code is from [Penumbra](https://github.com/xivdev/Penumbra) and [Xande](https://github.com/xivdev/Xande) and would not have been possible without the contributions of the authors of those projects.
 - This is very much a work in progress, and is not yet fully functional.
 - There is no guarantee that memory safety is maintained, and it is possible that this plugin could crash your game.
 
 For single model export, use Penumbra. This plugin is intended for exporting multiple meshes at once, such as for a full character model.
 
+## Attributions
+Much of this code is from or based on the following projects and wouldn't have been possible without them:
+- [Xande](https://github.com/xivdev/Xande) [[GNU AGPL v3](https://github.com/xivdev/Xande/blob/main/LICENSE)]
+  - PBD file structure
+  - MeshBuilder
+  - RaceDeformer
+  - Havok Skeletons
+- [Penumbra](https://github.com/xivdev/Penumbra) 
+  - shader comp logic
+  - vertex type info
+  - SpanBinaryReader
+- [Lumina](https://github.com/NotAdam/Lumina/)
+  - file structures
+- [SaintCoinach](https://github.com/xivapi/SaintCoinach)
+  - terrain and level file structures
+- [Alpha](https://github.com/NotNite/Alpha) [[MIT](https://github.com/NotNite/Alpha/blob/main/LICENSE)]
+  - initial reference for Meddle.UI project setup and draw logic 
+
+Important contributors:
+- [WorkingRobot](https://github.com/WorkingRobot) 
+  - GPU texture exports 
+  - Character-tree structure for exports
+  - Shape and attribute data
+  - Attach structs
+  - Skeleton Parsing
+- Members of the Penumbra discord
+  - Testing and feedback
 
 ## Installation
 Meddle is written as a Dalamud plugin and as such, requires that you use FFXIVQuickLauncher to start your game.
