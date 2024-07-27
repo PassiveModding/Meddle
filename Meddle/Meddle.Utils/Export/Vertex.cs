@@ -8,6 +8,8 @@ public unsafe struct Vertex
 {
     public enum VertexType : byte
     {
+        Single1 = 0,
+        Single2 = 1,
         Single3 = 2,
         Single4 = 3,
         UInt = 5,
@@ -150,6 +152,7 @@ public unsafe struct Vertex
 
             return type switch
             {
+                VertexType.Single2 => new Vector4(f[0], f[1], 0, 0),
                 VertexType.ByteFloat4 => new Vector4(FromUNorm(b[0]), FromUNorm(b[1]), FromUNorm(b[2]), FromUNorm(b[3])),
                 VertexType.Single4 => new Vector4(f[0], f[1], f[2], f[3]),
                 VertexType.Half2 => new Vector4((float)h[0], (float)h[1], 0, 0),
