@@ -43,32 +43,26 @@ public static class UIUtil
 
     public static void DrawColorTable(ColorTable table, ColorDyeTable? dyeTable = null)
     {
-        ImGui.Columns(9, "ColorTable", true);
-        ImGui.Text("Row");
-        ImGui.NextColumn();
-        ImGui.Text("Diffuse");
-        ImGui.NextColumn();
-        ImGui.Text("Specular");
-        ImGui.NextColumn();
-        ImGui.Text("Emissive");
-        ImGui.NextColumn();
-        ImGui.Text("Material Repeat");
-        ImGui.NextColumn();
-        ImGui.Text("Material Skew");
-        ImGui.NextColumn();
-        ImGui.Text("Specular");
-        ImGui.NextColumn();
-        ImGui.Text("Gloss");
-        ImGui.NextColumn();
-        ImGui.Text("Tile Set");
-        ImGui.NextColumn();
-
-        for (var i = 0; i < table.Rows.Length; i++)
+        if (ImGui.BeginTable("ColorTable", 9, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable))
         {
-            DrawRow(i, table, dyeTable);
-        }
+            ImGui.TableSetupColumn("Row", ImGuiTableColumnFlags.WidthFixed, 50);
+            ImGui.TableSetupColumn("Diffuse", ImGuiTableColumnFlags.WidthFixed, 100);
+            ImGui.TableSetupColumn("Specular", ImGuiTableColumnFlags.WidthFixed, 100);
+            ImGui.TableSetupColumn("Emissive", ImGuiTableColumnFlags.WidthFixed, 100);
+            ImGui.TableSetupColumn("Material Repeat", ImGuiTableColumnFlags.WidthFixed, 100);
+            ImGui.TableSetupColumn("Material Skew", ImGuiTableColumnFlags.WidthFixed, 100);
+            ImGui.TableSetupColumn("Specular Strength", ImGuiTableColumnFlags.WidthFixed, 100);
+            ImGui.TableSetupColumn("Gloss", ImGuiTableColumnFlags.WidthFixed, 100);
+            ImGui.TableSetupColumn("Tile Set", ImGuiTableColumnFlags.WidthFixed, 100);
+            ImGui.TableHeadersRow();
 
-        ImGui.Columns(1);
+            for (var i = 0; i < table.Rows.Length; i++)
+            {
+                DrawRow(i, table, dyeTable);
+            }
+
+            ImGui.EndTable();
+        }
     }
 
     public static void DrawColorTable(MtrlFile file)
@@ -87,8 +81,10 @@ public static class UIUtil
     private static void DrawRow(int i, ColorTable table, ColorDyeTable? dyeTable)
     {
         ref var row = ref table.Rows[i];
+        ImGui.TableNextRow();
+        ImGui.TableSetColumnIndex(0);
         ImGui.Text($"{i}");
-        ImGui.NextColumn();
+        ImGui.TableSetColumnIndex(1);
         ImGui.ColorButton("##rowdiff", new Vector4(row.Diffuse, 1f), ImGuiColorEditFlags.NoAlpha);
         if (dyeTable != null)
         {
@@ -97,7 +93,7 @@ public static class UIUtil
             ImGui.Checkbox("##rowdiff", ref diff);
         }
 
-        ImGui.NextColumn();
+        ImGui.TableSetColumnIndex(2);
         ImGui.ColorButton("##rowspec", new Vector4(row.Specular, 1f), ImGuiColorEditFlags.NoAlpha);
         if (dyeTable != null)
         {
@@ -106,7 +102,7 @@ public static class UIUtil
             ImGui.Checkbox("##rowspec", ref spec);
         }
 
-        ImGui.NextColumn();
+        ImGui.TableSetColumnIndex(3);
         ImGui.ColorButton("##rowemm", new Vector4(row.Emissive, 1f), ImGuiColorEditFlags.NoAlpha);
         if (dyeTable != null)
         {
@@ -115,20 +111,20 @@ public static class UIUtil
             ImGui.Checkbox("##rowemm", ref emm);
         }
 
-        ImGui.NextColumn();
+        ImGui.TableSetColumnIndex(4);
         ImGui.Text($"{row.MaterialRepeat}");
-        ImGui.NextColumn();
+        ImGui.TableSetColumnIndex(5);
         ImGui.Text($"{row.MaterialSkew}");
-        ImGui.NextColumn();
+        ImGui.TableSetColumnIndex(6);
         if (dyeTable != null)
         {
-            var spec = dyeTable.Value[i].SpecularStrength;
-            ImGui.Checkbox("##rowspecstr", ref spec);
+            var specStrength = dyeTable.Value[i].SpecularStrength;
+            ImGui.Checkbox("##rowspecstr", ref specStrength);
             ImGui.SameLine();
         }
 
         ImGui.Text($"{row.SpecularStrength}");
-        ImGui.NextColumn();
+        ImGui.TableSetColumnIndex(7);
         if (dyeTable != null)
         {
             var gloss = dyeTable.Value[i].Gloss;
@@ -137,8 +133,7 @@ public static class UIUtil
         }
 
         ImGui.Text($"{row.GlossStrength}");
-        ImGui.NextColumn();
+        ImGui.TableSetColumnIndex(8);
         ImGui.Text($"{row.TileIndex}");
-        ImGui.NextColumn();
     }
 }

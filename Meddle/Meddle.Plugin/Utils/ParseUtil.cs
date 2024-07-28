@@ -11,6 +11,7 @@ using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
 using Meddle.Utils.Files.Structs.Material;
 using Meddle.Plugin.Models;
+using Meddle.Utils.Models;
 using Meddle.Utils.Skeletons.Havok;
 using Meddle.Utils.Skeletons.Havok.Models;
 using Microsoft.Extensions.Logging;
@@ -153,6 +154,7 @@ public class ParseUtil : IDisposable
         var model = modelPtr.Value;
 
         var mdlFileName = model->ModelResourceHandle->ResourceHandle.FileName.ToString();
+        var mdlFileActorName = characterBase->ResolveMdlPath((uint)modelIdx);
         activity?.SetTag("mdl", mdlFileName);
         var mdlFileResource = pack.GetFileOrReadFromDisk(mdlFileName);
         if (mdlFileResource == null)
@@ -179,6 +181,7 @@ public class ParseUtil : IDisposable
             new Model.ShapeAttributeGroup(shapesMask, attributeMask, shapes.ToArray(), attributes.ToArray());
 
         var mdlFile = new MdlFile(mdlFileResource);
+        var mtrlFileNames = mdlFile.GetMaterialNames().Select(x => x.Value).ToArray();
         var mtrlGroups = new List<MtrlFileGroup>();
         for (var j = 0; j < model->MaterialsSpan.Length; j++)
         {
@@ -190,14 +193,15 @@ public class ParseUtil : IDisposable
                 continue;
             }
 
-            var mtrlGroup = HandleMtrl(material, modelIdx, j, colorTables);
+            var mdlMtrlFileName = mtrlFileNames[j];
+            var mtrlGroup = HandleMtrl(mdlMtrlFileName, material, modelIdx, j, colorTables);
             if (mtrlGroup != null)
             {
                 mtrlGroups.Add(mtrlGroup);
             }
         }
 
-        return new MdlFileGroup(mdlFileName, mdlFile, mtrlGroups.ToArray(), shapeAttributeGroup);
+        return new MdlFileGroup(mdlFileActorName, mdlFileName, mdlFile, mtrlGroups.ToArray(), shapeAttributeGroup);
     }
 
     private ShpkFile HandleShpk(string shader)
@@ -221,6 +225,7 @@ public class ParseUtil : IDisposable
     }
 
     private unsafe MtrlFileGroup? HandleMtrl(
+        string mdlPath,
         FFXIVClientStructs.FFXIV.Client.Graphics.Render.Material* material, int modelIdx, int j,
         Dictionary<int, ColorTable> colorTables)
     {
@@ -272,7 +277,7 @@ public class ParseUtil : IDisposable
             var texResourceGroup = new TexResourceGroup(texturePath, resourcePath, data.Resource);
             texGroups.Add(texResourceGroup);
         }
-        return new MtrlFileGroup(mtrlFileName, mtrlFile, shader, shpkFile, texGroups.ToArray());
+        return new MtrlFileGroup(mdlPath, mtrlFileName, mtrlFile, shader, shpkFile, texGroups.ToArray());
     }
 
     /*private Meddle.Utils.Export.Texture.TexGroup? HandleTexture(string textureName)

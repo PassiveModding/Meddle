@@ -279,38 +279,152 @@ public unsafe class CharacterTab : ITab
             DrawSkeleton(characterGroup.Skeleton);
         }
 
-        foreach (var mdlGroup in characterGroup.MdlGroups)
+        if (ImGui.BeginTable("CharacterTable", 2, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable))
         {
-            ImGui.PushID(mdlGroup.GetHashCode());
-            if (ImGui.CollapsingHeader(mdlGroup.Path))
+            ImGui.TableSetupColumn("Options", ImGuiTableColumnFlags.WidthFixed, 100);
+            // Export button, export toggle checkbox
+            ImGui.TableSetupColumn("Character Data", ImGuiTableColumnFlags.WidthStretch);
+            // Character data
+            ImGui.TableHeadersRow();
+
+            foreach (var mdlGroup in characterGroup.MdlGroups)
             {
-                ImGui.Indent();
-                DrawMdlGroup(mdlGroup);
-                ImGui.Unindent();
+                ImGui.PushID(mdlGroup.GetHashCode());
+                ImGui.TableNextRow();
+                ImGui.TableSetColumnIndex(0);
+                if (ImGui.Button("Export"))
+                {
+                    exportTask = Task.Run(() =>
+                    {
+                        try
+                        {
+                            exportUtil.Export(characterGroup with {MdlGroups = [mdlGroup], AttachedModelGroups = []});
+                        }
+                        catch (Exception e)
+                        {
+                            log.LogError(e, "Failed to export mdl group");
+                            throw;
+                        }
+                    });
+                }
+
+                if (selectedSetGroup != null)
+                {
+                    ImGui.SameLine();
+                    // checkbox for selecting
+                    var selected = selectedSetGroup.MdlGroups.Contains(mdlGroup);
+                    if (ImGui.Checkbox($"##{mdlGroup.GetHashCode()}", ref selected))
+                    {
+                        // if selected, make sure mdlgroup is in selectedSetGroup
+                        if (selected)
+                        {
+                            selectedSetGroup = selectedSetGroup with
+                            {
+                                MdlGroups = selectedSetGroup.MdlGroups.Append(mdlGroup).ToArray()
+                            };
+                        }
+                        else
+                        {
+                            selectedSetGroup = selectedSetGroup with
+                            {
+                                MdlGroups = selectedSetGroup.MdlGroups.Where(m => m != mdlGroup).ToArray()
+                            };
+                        }
+                    }
+                }
+
+                ImGui.TableSetColumnIndex(1);
+                if (ImGui.CollapsingHeader(mdlGroup.CharacterPath))
+                {
+                    ImGui.Indent();
+                    DrawMdlGroup(mdlGroup);
+                    ImGui.Unindent();
+                }
+
+                ImGui.PopID();
             }
-
-            ImGui.PopID();
+            
+            ImGui.EndTable();
         }
-
+        
+        
         if (characterGroup.AttachedModelGroups.Length > 0)
         {
-            ImGui.Separator();
-            foreach (var attachedModelGroup in characterGroup.AttachedModelGroups)
+            if (ImGui.BeginTable("AttachedCharacterTable", 2, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable))
             {
-                foreach (var mdlGroup in attachedModelGroup.MdlGroups)
+                ImGui.TableSetupColumn("Options", ImGuiTableColumnFlags.WidthFixed, 100);
+                // Export button, export toggle checkbox
+                ImGui.TableSetupColumn("Attached Character Data", ImGuiTableColumnFlags.WidthStretch);
+                // Character data
+                ImGui.TableHeadersRow();
+
+                foreach (var attachedModelGroup in characterGroup.AttachedModelGroups)
                 {
-                    ImGui.PushID(mdlGroup.GetHashCode());
-                    if (ImGui.CollapsingHeader(mdlGroup.Path))
+                    ImGui.PushID(attachedModelGroup.GetHashCode());
+                    ImGui.TableNextRow();
+                    ImGui.TableSetColumnIndex(0);
+                    if (ImGui.Button("Export"))
                     {
-                        ImGui.Indent();
-                        DrawMdlGroup(mdlGroup);
-                        ImGui.Unindent();
+                        exportTask = Task.Run(() =>
+                        {
+                            try
+                            {
+                                exportUtil.Export(characterGroup with {AttachedModelGroups = [attachedModelGroup], MdlGroups = []});
+                            }
+                            catch (Exception e)
+                            {
+                                log.LogError(e, "Failed to export attached model group");
+                                throw;
+                            }
+                        });
                     }
 
+                    if (selectedSetGroup != null)
+                    {
+                        ImGui.SameLine();
+                        // checkbox for selecting
+                        var selected = selectedSetGroup.AttachedModelGroups.Contains(attachedModelGroup);
+                        if (ImGui.Checkbox($"##{attachedModelGroup.GetHashCode()}", ref selected))
+                        {
+                            // if selected, make sure mdlgroup is in selectedSetGroup
+                            if (selected)
+                            {
+                                selectedSetGroup = selectedSetGroup with
+                                {
+                                    AttachedModelGroups = selectedSetGroup.AttachedModelGroups.Append(attachedModelGroup).ToArray()
+                                };
+                            }
+                            else
+                            {
+                                selectedSetGroup = selectedSetGroup with
+                                {
+                                    AttachedModelGroups = selectedSetGroup.AttachedModelGroups.Where(m => m != attachedModelGroup).ToArray()
+                                };
+                            }
+                        }
+                    }
+
+                    ImGui.TableSetColumnIndex(1);
+                    foreach (var mdlGroup in attachedModelGroup.MdlGroups)
+                    {
+                        ImGui.PushID(mdlGroup.GetHashCode());
+                        if (ImGui.CollapsingHeader(mdlGroup.CharacterPath))
+                        {
+                            ImGui.Indent();
+                            DrawMdlGroup(mdlGroup);
+                            ImGui.Unindent();
+                        }
+
+                        ImGui.PopID();
+                    }
+                    
                     ImGui.PopID();
                 }
+                
+                ImGui.EndTable();
             }
         }
+        
 
         ImGui.PopID();
     }
@@ -336,7 +450,31 @@ public unsafe class CharacterTab : ITab
                 }
             });
         }
+        
+        ImGui.SameLine();
+        var selectedCount = (selectedSetGroup?.MdlGroups.Length ?? 0) + (selectedSetGroup?.AttachedModelGroups.Length ?? 0);
+        if (ImGui.Button($"Export {selectedCount} Selected##ExportSelected"))
+        {
+            if (selectedSetGroup == null)
+            {
+                log.LogWarning("No selected set group");
+                return;
+            }
+            exportTask = Task.Run(() =>
+            {
+                try
+                {
+                    exportUtil.Export(selectedSetGroup);
+                }
+                catch (Exception e)
+                {
+                    log.LogError(e, "Failed to export selected set group");
+                    throw;
+                }
+            });
+        }
 
+        ImGui.SameLine();
         if (ImGui.Button("Export Raw Textures"))
         {
             exportTask = Task.Run(() =>
@@ -354,164 +492,6 @@ public unsafe class CharacterTab : ITab
         }
 
         ImGui.EndDisabled();
-
-        if (selectedSetGroup == null) return;
-        if (ImGui.CollapsingHeader("Export Individual"))
-        {
-            ImGui.BeginDisabled(ExportTaskIncomplete);
-            if (ImGui.Button($"Export Selected Models##{characterGroup.GetHashCode()}"))
-            {
-                var group = characterGroup with
-                {
-                    MdlGroups = selectedSetGroup.MdlGroups,
-                    AttachedModelGroups = selectedSetGroup.AttachedModelGroups
-                };
-                exportTask = Task.Run(() =>
-                {
-                    log.LogInformation("Exporting selected models");
-                    try
-                    {
-                        exportUtil.Export(group);
-                    }
-                    catch (Exception e)
-                    {
-                        log.LogError(e, "Failed to export selected models");
-                        throw;
-                    }
-                });
-            }
-
-            ImGui.EndDisabled();
-
-            ImGui.Columns(2, "ExportIndividual", true);
-            try
-            {
-                // set size
-                ImGui.SetColumnWidth(0, availWidth * 0.2f);
-                ImGui.Text("Export");
-                ImGui.NextColumn();
-                ImGui.Text("Path");
-                ImGui.NextColumn();
-                foreach (var mdlGroup in characterGroup.MdlGroups)
-                {
-                    ImGui.PushID(mdlGroup.GetHashCode());
-                    ImGui.BeginDisabled(ExportTaskIncomplete);
-                    if (ImGui.Button("Export"))
-                    {
-                        var group = characterGroup with
-                        {
-                            MdlGroups = [mdlGroup],
-                            AttachedModelGroups = []
-                        };
-                        exportTask = Task.Run(() =>
-                        {
-                            try
-                            {
-                                exportUtil.Export(group);
-                            }
-                            catch (Exception e)
-                            {
-                                log.LogError(e, "Failed to export mdl group");
-                                throw;
-                            }
-                        });
-                    }
-
-                    ImGui.EndDisabled();
-
-                    var selected = selectedSetGroup.MdlGroups.Contains(mdlGroup);
-
-                    ImGui.SameLine();
-                    if (ImGui.Checkbox($"##{mdlGroup.GetHashCode()}", ref selected))
-                    {
-                        // if selected, make sure mdlgroup is in selectedSetGroup
-                        if (selected)
-                        {
-                            selectedSetGroup = selectedSetGroup with
-                            {
-                                MdlGroups = selectedSetGroup.MdlGroups.Append(mdlGroup).ToArray()
-                            };
-                        }
-                        else
-                        {
-                            selectedSetGroup = selectedSetGroup with
-                            {
-                                MdlGroups = selectedSetGroup.MdlGroups.Where(m => m != mdlGroup).ToArray()
-                            };
-                        }
-                    }
-
-                    ImGui.NextColumn();
-                    ImGui.Text(mdlGroup.Path);
-                    ImGui.NextColumn();
-                    ImGui.PopID();
-                }
-
-                ImGui.Separator();
-                foreach (var attachedModelGroup in characterGroup.AttachedModelGroups)
-                {
-                    ImGui.PushID(attachedModelGroup.GetHashCode());
-                    ImGui.BeginDisabled(ExportTaskIncomplete);
-                    if (ImGui.Button("Export"))
-                    {
-                        var group = characterGroup with
-                        {
-                            AttachedModelGroups = [attachedModelGroup],
-                            MdlGroups = []
-                        };
-                        exportTask = Task.Run(() =>
-                        {
-                            try
-                            {
-                                exportUtil.Export(group);
-                            }
-                            catch (Exception e)
-                            {
-                                log.LogError(e, "Failed to export attached model group");
-                                throw;
-                            }
-                        });
-                    }
-
-                    ImGui.EndDisabled();
-
-                    ImGui.SameLine();
-
-                    var selected = selectedSetGroup.AttachedModelGroups.Contains(attachedModelGroup);
-                    if (ImGui.Checkbox($"##{attachedModelGroup.GetHashCode()}", ref selected))
-                    {
-                        if (selected)
-                        {
-                            selectedSetGroup = selectedSetGroup with
-                            {
-                                AttachedModelGroups = selectedSetGroup.AttachedModelGroups.Append(attachedModelGroup)
-                                                                      .ToArray()
-                            };
-                        }
-                        else
-                        {
-                            selectedSetGroup = selectedSetGroup with
-                            {
-                                AttachedModelGroups = selectedSetGroup.AttachedModelGroups
-                                                                      .Where(m => m != attachedModelGroup).ToArray()
-                            };
-                        }
-                    }
-
-                    ImGui.NextColumn();
-                    foreach (var attachMdl in attachedModelGroup.MdlGroups)
-                    {
-                        ImGui.Text(attachMdl.Path);
-                    }
-
-                    ImGui.NextColumn();
-                    ImGui.PopID();
-                }
-            } finally
-            {
-                ImGui.Columns(1);
-            }
-        }
     }
 
     private Task ParseCharacter(ICharacter character)
@@ -635,55 +615,52 @@ public unsafe class CharacterTab : ITab
 
     private void DrawMdlGroup(MdlFileGroup mdlGroup)
     {
+        ImGui.Text($"Character Path: {mdlGroup.CharacterPath}");
         ImGui.Text($"Path: {mdlGroup.Path}");
         ImGui.Text($"Mtrl Files: {mdlGroup.MtrlFiles.Length}");
 
-        if (mdlGroup.ShapeAttributeGroup != null && ImGui.CollapsingHeader("Shape/Attribute Masks"))
+        var shouldShowShapeAttributeMenu = 
+            mdlGroup.ShapeAttributeGroup is {ShapeMasks.Length: > 0} or {AttributeMasks.Length: > 0};
+        
+        if (shouldShowShapeAttributeMenu && ImGui.CollapsingHeader("Shape/Attribute Masks"))
         {
-            var enabledShapes = Model.GetEnabledValues(mdlGroup.ShapeAttributeGroup.EnabledShapeMask,
+            var enabledShapes = Model.GetEnabledValues(mdlGroup.ShapeAttributeGroup!.EnabledShapeMask,
                                                        mdlGroup.ShapeAttributeGroup.ShapeMasks).ToArray();
             var enabledAttributes = Model.GetEnabledValues(mdlGroup.ShapeAttributeGroup.EnabledAttributeMask,
                                                            mdlGroup.ShapeAttributeGroup.AttributeMasks).ToArray();
 
-            ImGui.Text("Shapes");
-            ImGui.Columns(2);
-            ImGui.Text("Name");
-            ImGui.NextColumn();
-            ImGui.Text("Enabled");
-            ImGui.NextColumn();
-
-            foreach (var shape in mdlGroup.ShapeAttributeGroup.ShapeMasks)
+            if (ImGui.BeginTable("ShapeAttributeTable", 2, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable))
             {
-                ImGui.Text($"[{shape.id}] {shape.name}");
-                ImGui.NextColumn();
-                ImGui.Text(enabledShapes.Contains(shape.name) ? "Yes" : "No");
-                ImGui.NextColumn();
+                ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthFixed, 100);
+                ImGui.TableSetupColumn("Enabled", ImGuiTableColumnFlags.WidthStretch);
+                ImGui.TableHeadersRow();
+    
+                foreach (var shape in mdlGroup.ShapeAttributeGroup.ShapeMasks)
+                {
+                    ImGui.TableNextRow();
+                    ImGui.TableSetColumnIndex(0);
+                    ImGui.Text($"[{shape.id}] {shape.name}");
+                    ImGui.TableSetColumnIndex(1);
+                    ImGui.Text(enabledShapes.Contains(shape.name) ? "Yes" : "No");
+                }
+    
+                foreach (var attribute in mdlGroup.ShapeAttributeGroup.AttributeMasks)
+                {
+                    ImGui.TableNextRow();
+                    ImGui.TableSetColumnIndex(0);
+                    ImGui.Text($"[{attribute.id}] {attribute.name}");
+                    ImGui.TableSetColumnIndex(1);
+                    ImGui.Text(enabledAttributes.Contains(attribute.name) ? "Yes" : "No");
+                }
+    
+                ImGui.EndTable();
             }
-
-            ImGui.Columns(1);
-
-            ImGui.Text("Attributes");
-            ImGui.Columns(2);
-            ImGui.Text("Name");
-            ImGui.NextColumn();
-            ImGui.Text("Enabled");
-            ImGui.NextColumn();
-
-            foreach (var attribute in mdlGroup.ShapeAttributeGroup.AttributeMasks)
-            {
-                ImGui.Text($"[{attribute.id}] {attribute.name}");
-                ImGui.NextColumn();
-                ImGui.Text(enabledAttributes.Contains(attribute.name) ? "Yes" : "No");
-                ImGui.NextColumn();
-            }
-
-            ImGui.Columns(1);
         }
 
         foreach (var mtrlGroup in mdlGroup.MtrlFiles)
         {
             ImGui.PushID(mtrlGroup.GetHashCode());
-            if (ImGui.CollapsingHeader($"{mtrlGroup.Path}"))
+            if (ImGui.CollapsingHeader($"{mtrlGroup.MdlPath}"))
             {
                 try
                 {
@@ -701,23 +678,20 @@ public unsafe class CharacterTab : ITab
 
     private void DrawMtrlGroup(MtrlFileGroup mtrlGroup)
     {
+        ImGui.Text($"Mdl Path: {mtrlGroup.MdlPath}");
         ImGui.Text($"Path: {mtrlGroup.Path}");
         ImGui.Text($"Shpk Path: {mtrlGroup.ShpkPath}");
         ImGui.Text($"Tex Files: {mtrlGroup.TexFiles.Length}");
 
         if (ImGui.CollapsingHeader($"Constants##{mtrlGroup.GetHashCode()}"))
         {
-            try
+            if (ImGui.BeginTable("ConstantsTable", 4, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable))
             {
-                ImGui.Columns(4);
-                ImGui.Text("ID");
-                ImGui.NextColumn();
-                ImGui.Text("Offset");
-                ImGui.NextColumn();
-                ImGui.Text("Size");
-                ImGui.NextColumn();
-                ImGui.Text("Values");
-                ImGui.NextColumn();
+                ImGui.TableSetupColumn("ID", ImGuiTableColumnFlags.WidthFixed, 100);
+                ImGui.TableSetupColumn("Offset", ImGuiTableColumnFlags.WidthFixed, 100);
+                ImGui.TableSetupColumn("Size", ImGuiTableColumnFlags.WidthFixed, 100);
+                ImGui.TableSetupColumn("Values", ImGuiTableColumnFlags.WidthStretch);
+                ImGui.TableHeadersRow();
 
                 foreach (var constant in mtrlGroup.MtrlFile.Constants)
                 {
@@ -731,81 +705,72 @@ public unsafe class CharacterTab : ITab
                         buf.AddRange(bytes);
                     }
 
-                    // display as floats
+                    // Display as floats
                     var floats = MemoryMarshal.Cast<byte, float>(buf.ToArray());
+
+                    ImGui.TableNextRow();
+                    ImGui.TableSetColumnIndex(0);
                     ImGui.Text($"0x{constant.ConstantId:X4}");
-                    // if has named value in MaterialConstant enum, display
+                    // If has named value in MaterialConstant enum, display
                     if (Enum.IsDefined(typeof(MaterialConstant), constant.ConstantId))
                     {
                         ImGui.SameLine();
                         ImGui.Text($"({(MaterialConstant)constant.ConstantId})");
                     }
 
-                    ImGui.NextColumn();
+                    ImGui.TableSetColumnIndex(1);
                     ImGui.Text($"{constant.ValueOffset:X4}");
-                    ImGui.NextColumn();
+
+                    ImGui.TableSetColumnIndex(2);
                     ImGui.Text($"{count}");
-                    ImGui.NextColumn();
+
+                    ImGui.TableSetColumnIndex(3);
                     ImGui.Text(string.Join(", ", floats.ToArray()));
-                    ImGui.NextColumn();
                 }
-            } finally
-            {
-                ImGui.Columns(1);
+            
+                ImGui.EndTable();
             }
         }
 
         if (ImGui.CollapsingHeader($"Shader Keys##{mtrlGroup.GetHashCode()}"))
         {
             var keys = mtrlGroup.MtrlFile.ShaderKeys;
-            ImGui.Columns(2);
-            ImGui.Text("Category");
-            ImGui.NextColumn();
-            ImGui.Text("Value");
-            ImGui.NextColumn();
-
-            foreach (var key in keys)
+            if (ImGui.BeginTable("ShaderKeysTable", 2, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable))
             {
-                ImGui.Text($"0x{key.Category:X8}");
-                if (Enum.IsDefined(typeof(ShaderCategory), key.Category))
+                ImGui.TableSetupColumn("Category", ImGuiTableColumnFlags.WidthFixed, 150);
+                ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
+                ImGui.TableHeadersRow();
+
+                foreach (var key in keys)
                 {
-                    ImGui.SameLine();
-                    ImGui.Text($"({(ShaderCategory)key.Category})");
+                    ImGui.TableNextRow();
+                    ImGui.TableSetColumnIndex(0);
+                    ImGui.Text($"0x{key.Category:X8}");
+                    if (Enum.IsDefined(typeof(ShaderCategory), key.Category))
+                    {
+                        ImGui.SameLine();
+                        ImGui.Text($"({(ShaderCategory)key.Category})");
+                    }
+
+                    ImGui.TableSetColumnIndex(1);
+                    var catText = $"0x{key.Value:X8}";
+                    var catSuffix = (ShaderCategory)key.Category switch
+                    {
+                        ShaderCategory.CategoryHairType => $" ({(HairType)key.Value})",
+                        ShaderCategory.CategorySkinType => $" ({(SkinType)key.Value})",
+                        ShaderCategory.CategoryFlowMapType => $" ({(FlowType)key.Value})",
+                        ShaderCategory.CategoryTextureType => $" ({(TextureMode)key.Value})",
+                        ShaderCategory.CategorySpecularType => $" ({(SpecularMode)key.Value})",
+                        _ => ""
+                    };
+
+                    ImGui.Text($"{catText}{catSuffix}");
                 }
 
-                ImGui.NextColumn();
-                ImGui.Text($"0x{key.Value:X8}");
-
-                var shaderCategory = (ShaderCategory)key.Category;
-                switch (shaderCategory)
-                {
-                    case ShaderCategory.CategoryHairType:
-                        ImGui.SameLine();
-                        ImGui.Text($"({(HairType)key.Value})");
-                        break;
-                    case ShaderCategory.CategorySkinType:
-                        ImGui.SameLine();
-                        ImGui.Text($"({(SkinType)key.Value})");
-                        break;
-                    case ShaderCategory.CategoryFlowMapType:
-                        ImGui.SameLine();
-                        ImGui.Text($"({(FlowType)key.Value})");
-                        break;
-                    case ShaderCategory.CategoryTextureType:
-                        ImGui.SameLine();
-                        ImGui.Text($"({(TextureMode)key.Value})");
-                        break;
-                    case ShaderCategory.CategorySpecularType:
-                        ImGui.SameLine();
-                        ImGui.Text($"({(SpecularMode)key.Value})");
-                        break;
-                }
-
-                ImGui.NextColumn();
+                ImGui.EndTable();
             }
-
-            ImGui.Columns(1);
         }
+
 
         if (ImGui.CollapsingHeader($"Color Table##{mtrlGroup.GetHashCode()}"))
         {
@@ -823,11 +788,9 @@ public unsafe class CharacterTab : ITab
 
     private void DrawTexGroup(TexResourceGroup texGroup)
     {
-        ImGui.Text($"Path: {texGroup.MtrlPath}");
-        if (texGroup.MtrlPath != texGroup.ResourcePath)
-        {
-            ImGui.Text($"Resource Path: {texGroup.ResourcePath}");
-        }
+        ImGui.Text($"Mtrl Path: {texGroup.MtrlPath}");
+        ImGui.Text($"Path: {texGroup.Path}");
+        
         ImGui.PushID(texGroup.GetHashCode());
         try
         {
