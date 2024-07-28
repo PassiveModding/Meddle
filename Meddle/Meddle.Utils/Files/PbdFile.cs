@@ -9,11 +9,14 @@ public class PbdFile
     public readonly Header[] Headers;
     public readonly Link[] Links;                        // header.deformerId -> link
     public readonly Dictionary<int, Deformer> Deformers; // offset -> deformer
+    private readonly byte[] _data;
+    public ReadOnlySpan<byte> RawData => _data;
 
     public PbdFile(byte[] data) : this((ReadOnlySpan<byte>)data) { }
 
     public PbdFile(ReadOnlySpan<byte> data)
     {
+        _data = data.ToArray();
         var reader = new SpanBinaryReader(data);
         var entryCount = reader.ReadInt32();
 

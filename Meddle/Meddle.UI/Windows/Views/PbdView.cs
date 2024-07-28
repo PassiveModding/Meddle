@@ -7,10 +7,12 @@ namespace Meddle.UI.Windows.Views;
 public class PbdView : IView
 {
     private readonly PbdFile file;
+    private readonly HexView hexView;
 
     public PbdView(PbdFile file)
     {
         this.file = file;
+        this.hexView = new HexView(file.RawData);
     }
     
     public void Draw()
@@ -81,6 +83,20 @@ public class PbdView : IView
                     }
                 }
             }
+        }
+        
+        if (ImGui.CollapsingHeader("Links"))
+        {
+            foreach (var link in file.Links)
+            {
+                ImGui.Text($"ParentLinkIdx: {link.ParentLinkIdx}");
+                ImGui.Text($"HeaderIdx: {link.HeaderIdx}");
+            }
+        }
+        
+        if (ImGui.CollapsingHeader("Raw Data"))
+        {
+            hexView.DrawHexDump();
         }
     }
 }
