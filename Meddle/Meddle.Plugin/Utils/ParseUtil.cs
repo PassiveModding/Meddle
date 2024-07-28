@@ -16,7 +16,6 @@ using Meddle.Utils.Skeletons.Havok;
 using Meddle.Utils.Skeletons.Havok.Models;
 using Microsoft.Extensions.Logging;
 using Attach = Meddle.Plugin.Skeleton.Attach;
-using CustomizeParameter = Meddle.Plugin.Models.CustomizeParameter;
 using Texture = FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Texture;
 
 namespace Meddle.Plugin.Utils;
@@ -25,6 +24,7 @@ public class ParseUtil : IDisposable
 {
     private static readonly ActivitySource ActivitySource = new("Meddle.Plugin.Utils.ParseUtil");
     private readonly DXHelper dxHelper;
+    private readonly PbdHooks pbdHooks;
     private readonly EventLogger<ParseUtil> logger;
     private readonly IFramework framework;
     private readonly SqPack pack;
@@ -32,11 +32,12 @@ public class ParseUtil : IDisposable
 
     private readonly Dictionary<string, ShpkFile> shpkCache = new();
 
-    public ParseUtil(SqPack pack, IFramework framework, DXHelper dxHelper, ILogger<ParseUtil> logger)
+    public ParseUtil(SqPack pack, IFramework framework, DXHelper dxHelper, PbdHooks pbdHooks, ILogger<ParseUtil> logger)
     {
         this.pack = pack;
         this.framework = framework;
         this.dxHelper = dxHelper;
+        this.pbdHooks = pbdHooks;
         this.logger = new EventLogger<ParseUtil>(logger);
         this.logger.OnLogEvent += OnLog;
     }
@@ -142,19 +143,19 @@ public class ParseUtil : IDisposable
     }
 
     public unsafe MdlFileGroup? HandleModelPtr(
-        CharacterBase* characterBase, int modelIdx, Dictionary<int, ColorTable> colorTables)
+        CharacterBase* characterBase, int slotIdx, Dictionary<int, ColorTable> colorTables)
     {
         using var activity = ActivitySource.StartActivity();
-        var modelPtr = characterBase->ModelsSpan[modelIdx];
+        var modelPtr = characterBase->ModelsSpan[slotIdx];
         if (modelPtr == null || modelPtr.Value == null)
         {
             //logger.LogWarning("Model Ptr {ModelIndex} is null", modelIdx);
             return null;
         }
         var model = modelPtr.Value;
-
+        
         var mdlFileName = model->ModelResourceHandle->ResourceHandle.FileName.ToString();
-        var mdlFileActorName = characterBase->ResolveMdlPath((uint)modelIdx);
+        var mdlFileActorName = characterBase->ResolveMdlPath((uint)slotIdx);
         activity?.SetTag("mdl", mdlFileName);
         var mdlFileResource = pack.GetFileOrReadFromDisk(mdlFileName);
         if (mdlFileResource == null)
@@ -194,14 +195,21 @@ public class ParseUtil : IDisposable
             }
 
             var mdlMtrlFileName = mtrlFileNames[j];
-            var mtrlGroup = HandleMtrl(mdlMtrlFileName, material, modelIdx, j, colorTables);
+            var mtrlGroup = HandleMtrl(mdlMtrlFileName, material, slotIdx, j, colorTables);
             if (mtrlGroup != null)
             {
                 mtrlGroups.Add(mtrlGroup);
             }
         }
+        
+        var deformerData = pbdHooks.TryGetDeformer((nint)characterBase, (uint)slotIdx);
+        DeformerGroup? deformerGroup = null;
+        if (deformerData != null)
+        {
+            deformerGroup = new DeformerGroup(deformerData.Value.PbdPath, deformerData.Value.RaceSexId, deformerData.Value.DeformerId);
+        }
 
-        return new MdlFileGroup(mdlFileActorName, mdlFileName, mdlFile, mtrlGroups.ToArray(), shapeAttributeGroup);
+        return new MdlFileGroup(mdlFileActorName, mdlFileName, deformerGroup, mdlFile, mtrlGroups.ToArray(), shapeAttributeGroup);
     }
 
     private ShpkFile HandleShpk(string shader)

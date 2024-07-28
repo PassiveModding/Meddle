@@ -1,4 +1,5 @@
 using Dalamud.Configuration;
+using Dalamud.Hooking;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Meddle.Plugin.Services;
@@ -49,6 +50,7 @@ public sealed class Plugin : IDalamudPlugin
                         .AddSingleton<ExportUtil>()
                         .AddSingleton<ParseUtil>()
                         .AddSingleton<DXHelper>()
+                        .AddSingleton<PbdHooks>()
                         .AddSingleton(new SqPack(Environment.CurrentDirectory))
                         .AddSingleton<PluginState>()
                         .AddHostedService<InteropService>();

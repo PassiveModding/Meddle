@@ -7,7 +7,7 @@ public unsafe class Model
     public string HandlePath { get; private set; }
     public string? ResolvedPath { get; private set; }
     public string Path => ResolvedPath ?? HandlePath;
-    public GenderRace RaceCode { get; private set; }
+    public GenderRace RaceCode { get; set; }
 
     public IReadOnlyList<Material?> Materials { get; private set; }
     public IReadOnlyList<Mesh> Meshes { get; private set; }

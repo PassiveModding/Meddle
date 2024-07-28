@@ -45,11 +45,9 @@ public unsafe class CharacterTab : ITab
     public CharacterTab(
         IObjectTable objectTable,
         IClientState clientState,
-        IFramework framework,
         ILogger<CharacterTab> log,
         PluginState pluginState,
         ExportUtil exportUtil,
-        IDataManager dataManager,
         ITextureProvider textureProvider,
         ParseUtil parseUtil,
         Configuration config)
@@ -618,6 +616,17 @@ public unsafe class CharacterTab : ITab
         ImGui.Text($"Character Path: {mdlGroup.CharacterPath}");
         ImGui.Text($"Path: {mdlGroup.Path}");
         ImGui.Text($"Mtrl Files: {mdlGroup.MtrlFiles.Length}");
+
+        if (mdlGroup.DeformerGroup != null)
+        {
+            ImGui.Text($"Deformer Path: {mdlGroup.DeformerGroup.Path}");
+            ImGui.Text($"RaceSexId: {mdlGroup.DeformerGroup.RaceSexId}");
+            ImGui.Text($"DeformerId: {mdlGroup.DeformerGroup.DeformerId}");
+        }
+        else
+        {
+            ImGui.Text("No Deformer Group");
+        }
 
         var shouldShowShapeAttributeMenu = 
             mdlGroup.ShapeAttributeGroup is {ShapeMasks.Length: > 0} or {AttributeMasks.Length: > 0};

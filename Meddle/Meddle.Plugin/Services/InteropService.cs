@@ -4,6 +4,7 @@ using Dalamud.Plugin;
 using Dalamud.Utility.Signatures;
 using FFXIVClientStructs.Interop.Generated;
 using InteropGenerator.Runtime;
+using Meddle.Plugin.Utils;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -14,6 +15,7 @@ public class InteropService : IHostedService, IDisposable
     private readonly ILogger<InteropService> log;
     private readonly IDalamudPluginInterface pluginInterface;
     private readonly ISigScanner sigScanner;
+    private readonly PbdHooks pbdHooks;
     private readonly PluginState state;
 
     private bool disposed;
@@ -23,9 +25,10 @@ public class InteropService : IHostedService, IDisposable
     private readonly Hook<PostTickDelegate> postTickHook = null!;
 
     public InteropService(
-        ISigScanner sigScanner, ILogger<InteropService> log, IDalamudPluginInterface pluginInterface, PluginState state)
+        ISigScanner sigScanner, PbdHooks pbdHooks, ILogger<InteropService> log, IDalamudPluginInterface pluginInterface, PluginState state)
     {
         this.sigScanner = sigScanner;
+        this.pbdHooks = pbdHooks;
         this.log = log;
         this.pluginInterface = pluginInterface;
         this.state = state;
@@ -55,6 +58,9 @@ public class InteropService : IHostedService, IDisposable
         Resolver.GetInstance.Resolve();
         state.InteropResolved = true;
         log.LogInformation("Resolved ClientStructs");
+        
+        pbdHooks.Setup();
+        
         return Task.CompletedTask;
     }
 

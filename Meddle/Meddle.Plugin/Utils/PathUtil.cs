@@ -19,7 +19,7 @@ public static class PathUtil
             return data;
         }
 
-        var file = pack.GetFile(path);
+        var file = pack.GetFile(path.ToLower());
 
         return file?.file.RawData.ToArray();
     }

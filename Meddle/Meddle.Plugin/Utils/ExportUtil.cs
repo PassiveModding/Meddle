@@ -1,7 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
 using Meddle.Plugin.Models;
-using Meddle.Plugin.Skeleton;
 using Meddle.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
@@ -13,8 +12,6 @@ using Microsoft.Extensions.Logging;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
 using SkiaSharp;
-using CustomizeData = Meddle.Utils.Export.CustomizeData;
-using CustomizeParameter = Meddle.Utils.Export.CustomizeParameter;
 using Material = Meddle.Utils.Export.Material;
 using Model = Meddle.Utils.Export.Model;
 
@@ -35,7 +32,7 @@ public class ExportUtil : IDisposable
         this.logger = new EventLogger<ExportUtil>(logger);
         this.logger.OnLogEvent += OnLog;
 
-        // chara/xls/bonedeformer/human.pbd
+        // chara/xls/boneDeformer/human.pbd
         var pbdData = pack.GetFile("chara/xls/bonedeformer/human.pbd");
         if (pbdData == null) throw new Exception("Failed to load human.pbd");
         pbdFile = new PbdFile(pbdData.Value.file.RawData);
@@ -343,7 +340,19 @@ public class ExportUtil : IDisposable
 
         if (token.IsCancellationRequested) return meshOutput;
 
-        var raceDeformerValue = (characterGroup.GenderRace, new RaceDeformer(pbdFile, bones));
+        (GenderRace, RaceDeformer) raceDeformerValue;
+        if (mdlGroup.DeformerGroup != null)
+        {
+            var pbdFileData = pack.GetFileOrReadFromDisk(mdlGroup.DeformerGroup.Path);
+            if (pbdFileData == null) throw new InvalidOperationException($"Failed to get deformer pbd {mdlGroup.DeformerGroup.Path}");
+            raceDeformerValue = ((GenderRace)mdlGroup.DeformerGroup.RaceSexId, new RaceDeformer(new PbdFile(pbdFileData), bones));
+            model.RaceCode = (GenderRace)mdlGroup.DeformerGroup.DeformerId;
+            logger.LogInformation("Using deformer pbd {Path}", mdlGroup.DeformerGroup.Path);
+        }
+        else
+        {
+            raceDeformerValue = (characterGroup.GenderRace, new RaceDeformer(pbdFile, bones));
+        }
 
         var meshes = ModelBuilder.BuildMeshes(model, materials, bones, raceDeformerValue);
         foreach (var mesh in meshes)
