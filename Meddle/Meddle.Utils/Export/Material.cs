@@ -228,7 +228,12 @@ public class Material
     {
         return MtrlConstants.TryGetValue(id, out var values) ? values[0] : @default;
     }
-
+    
+    public Vector2 GetConstantOrDefault(MaterialConstant id, Vector2 @default)
+    {
+        return MtrlConstants.TryGetValue(id, out var values) ? new Vector2(values[0], values[1]) : @default;
+    }
+    
     public Vector3 GetConstantOrDefault(MaterialConstant id, Vector3 @default)
     {
         return MtrlConstants.TryGetValue(id, out var values) ? new Vector3(values[0], values[1], values[2]) : @default;

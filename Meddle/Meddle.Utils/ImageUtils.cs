@@ -147,7 +147,7 @@ public static class ImageUtils
         return img;
     }
     
-    public static unsafe SKTexture ToTexture(this Image img)
+    public static unsafe SKTexture ToTexture(this Image img, (int width, int height)? resize = null)
     {
         if (img.Format != DXGIFormat.R8G8B8A8UNorm)
             throw new ArgumentException("Image must be in RGBA format.", nameof(img));
@@ -157,6 +157,11 @@ public static class ImageUtils
         fixed (byte* ptr = data)
         {
             bitmap.InstallPixels(new SKImageInfo(img.Width, img.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul), (IntPtr)ptr, img.Width * 4);
+        }
+        
+        if (resize != null)
+        {
+            bitmap = bitmap.Resize(new SKImageInfo(resize.Value.width, resize.Value.height, SKColorType.Rgba8888, SKAlphaType.Unpremul), SKFilterQuality.High);
         }
         
         return new SKTexture(bitmap);

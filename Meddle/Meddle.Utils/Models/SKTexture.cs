@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Numerics;
+using System.Runtime.InteropServices;
 using SkiaSharp;
 
 namespace Meddle.Utils.Models;
@@ -72,6 +73,27 @@ public sealed class SKTexture
             return new SKTexture(resize);
         }
 
+        
+        public SKColor SampleWrap(Vector2 uv) => SampleWrap(uv.X, uv.Y);
+        public SKColor SampleWrap(float u, float v)
+        {
+            u %= 1;
+            v %= 1;
+            if (u < 0)
+                u += 1;
+            if (v < 0)
+                v += 1;
+            return Sample(u, v);
+        }
+        
+        public SKColor Sample(Vector2 uv) => Sample(uv.X, uv.Y);
+        public SKColor Sample(float u, float v)
+        {
+            var x = (int)(u * Width);
+            var y = (int)(v * Height);
+            return this[x, y];
+        }
+        
         private Span<byte> GetPixelData(int x, int y) =>
             Data.AsSpan().Slice((Width * y + x) * 4, 4);
 

@@ -21,6 +21,8 @@ public class ExportUtil : IDisposable
 {
     private static readonly ActivitySource ActivitySource = new("Meddle.Plugin.Utils.ExportUtil");
     private readonly TexFile catchlightTex;
+    private readonly TexFile tileNormTex;
+    private readonly TexFile tileOrbTex;
     private readonly EventLogger<ExportUtil> logger;
     public event Action<LogLevel, string>? OnLogEvent; 
     private readonly SqPack pack;
@@ -33,12 +35,20 @@ public class ExportUtil : IDisposable
         this.logger.OnLogEvent += OnLog;
 
         // chara/xls/boneDeformer/human.pbd
-        var pbdData = pack.GetFile("chara/xls/bonedeformer/human.pbd");
+        var pbdData = pack.GetFile("chara/xls/boneDeformer/human.pbd");
         if (pbdData == null) throw new Exception("Failed to load human.pbd");
         pbdFile = new PbdFile(pbdData.Value.file.RawData);
 
         var catchlight = pack.GetFile("chara/common/texture/sphere_d_array.tex");
         if (catchlight == null) throw new InvalidOperationException("Failed to get catchlight texture");
+        
+        var tileNorm = pack.GetFile("chara/common/texture/tile_norm_array.tex");
+        if (tileNorm == null) throw new InvalidOperationException("Failed to get tile norm texture");
+        
+        var tileOrb = pack.GetFile("chara/common/texture/tile_orb_array.tex");
+        if (tileOrb == null) throw new InvalidOperationException("Failed to get tile orb texture");
+        tileNormTex = new TexFile(tileNorm.Value.file.RawData);
+        tileOrbTex = new TexFile(tileOrb.Value.file.RawData);
         catchlightTex = new TexFile(catchlight.Value.file.RawData);
     }
     
@@ -47,7 +57,7 @@ public class ExportUtil : IDisposable
         OnLogEvent?.Invoke(logLevel, message);
     }
 
-    private string GetPathForOutput()
+    private static string GetPathForOutput()
     {
         var now = DateTime.Now;
         var folder = Path.Combine(Plugin.TempDirectory, "output", now.ToString("yyyy-MM-dd-HH-mm-ss"));
@@ -59,7 +69,7 @@ public class ExportUtil : IDisposable
         return folder;
     }
 
-    public void ExportTexture(SKBitmap bitmap, string path)
+    public static void ExportTexture(SKBitmap bitmap, string path)
     {
         using var activity = ActivitySource.StartActivity();
         activity?.SetTag("path", path);
@@ -277,7 +287,7 @@ public class ExportUtil : IDisposable
             "hair.shpk" => MaterialUtility.BuildHair(material, name, characterGroup.CustomizeParams,
                                                      characterGroup.CustomizeData),
             "skin.shpk" => MaterialUtility.BuildSkin(material, name, characterGroup.CustomizeParams,
-                                                     characterGroup.CustomizeData),
+                                                     characterGroup.CustomizeData, tileNormTex, tileOrbTex),
             "iris.shpk" => MaterialUtility.BuildIris(material, name, catchlightTex, characterGroup.CustomizeParams,
                                                      characterGroup.CustomizeData),
             _ => MaterialUtility.BuildFallback(material, name)

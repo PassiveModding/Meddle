@@ -937,7 +937,7 @@ public unsafe class CharacterTab : ITab
 
         if (ImGui.Button("Export as .png"))
         {
-            exportUtil.ExportTexture(textureImage.Bitmap.Bitmap, path);
+            ExportUtil.ExportTexture(textureImage.Bitmap.Bitmap, path);
         }
     }
 

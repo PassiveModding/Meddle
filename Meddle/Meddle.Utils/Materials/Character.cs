@@ -52,12 +52,7 @@ public static partial class MaterialUtility
             TextureMode.Compatibility => material.GetTexture(TextureUsage.g_SamplerDiffuse).ToTexture((normal.Width, normal.Height)),
             _ => null
         };
-        var specTexture = specMode switch
-        {
-            SpecularMode.Mask => new SKTexture(normal.Width, normal.Height),
-            SpecularMode.Default => material.GetTexture(TextureUsage.g_SamplerSpecular).ToTexture((normal.Width, normal.Height)),
-            _ => null
-        };
+        
         var flowTexture = flowType switch
         {
             FlowType.Flow => material.GetTexture(TextureUsage.g_SamplerFlow).ToTexture((normal.Width, normal.Height)),
@@ -68,7 +63,6 @@ public static partial class MaterialUtility
         var outDiffuse = new SKTexture(normal.Width, normal.Height);
         var outSpecular = new SKTexture(normal.Width, normal.Height);
         var outOcclusion = new SKTexture(normal.Width, normal.Height);
-        //for (var x = 0; x < normal.Width; x++)
         Parallel.For(0, normal.Width, x =>
         {
             for (var y = 0; y < normal.Height; y++)
@@ -107,8 +101,7 @@ public static partial class MaterialUtility
                 }
                 else if (specMode == SpecularMode.Default)
                 {
-                    var specPixel = specTexture![x, y].ToVector4();
-                    outSpecular[x, y] = specPixel.ToSkColor();
+                    outSpecular[x, y] = maskPixel.ToSkColor();
                 }
                 else
                 {
@@ -142,7 +135,7 @@ public static partial class MaterialUtility
         else
             output.WithAlpha();
         
-        output.WithDoubleSide((material.ShaderFlags & 0x1) == 0);
+        output.WithDoubleSide(material.RenderBackfaces);
         
         return output;
     }
@@ -162,8 +155,7 @@ public static partial class MaterialUtility
         }
 
         var output = new MaterialBuilder(name);
-        var doubleSided = (material.ShaderFlags & 0x1) == 0;
-        output.WithDoubleSide(doubleSided);
+        output.WithDoubleSide(material.RenderBackfaces);
         output.WithBaseColor(new Vector4(1, 1, 1, 0f));
         output.WithAlpha(AlphaMode.BLEND, 0.5f);
         
@@ -213,8 +205,7 @@ public static partial class MaterialUtility
                      .WithBaseColor(BuildImage(baseTexture, name, "diffuse"))
                      .WithNormal(BuildImage(normal, name, "normal"));
         
-        var doubleSided = (material.ShaderFlags & 0x1) == 0;
-        output.WithDoubleSide(doubleSided);
+        output.WithDoubleSide(material.RenderBackfaces);
         
         var alphaThreshold = material.GetConstantOrDefault(MaterialConstant.g_AlphaThreshold, 0.0f);
         if (alphaThreshold > 0)

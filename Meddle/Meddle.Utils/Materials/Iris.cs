@@ -55,8 +55,7 @@ public static partial class MaterialUtility
         
         
         var output = new MaterialBuilder(name);
-        var doubleSided = (material.ShaderFlags & 0x1) == 0;
-        output.WithDoubleSide(doubleSided);
+        output.WithDoubleSide(material.RenderBackfaces);
 
         output.WithBaseColor(BuildImage(outDiffuse, name, "diffuse"))
               .WithNormal(BuildImage(outNormal, name, "normal"))

@@ -47,7 +47,7 @@ public static partial class MaterialUtility
         }
         
         var output = new MaterialBuilder(name)
-            .WithDoubleSide(true)
+            .WithDoubleSide(material.RenderBackfaces)
             .WithAlpha(AlphaMode.MASK, 0.5f);
 
         if (colorMap1 != null)
@@ -93,7 +93,7 @@ public static partial class MaterialUtility
         }
         
         var output = new MaterialBuilder(name)
-            .WithDoubleSide(true)
+            .WithDoubleSide(material.RenderBackfaces)
             .WithAlpha(AlphaMode.MASK, 0.5f);
 
         if (colorMap0 != null)
