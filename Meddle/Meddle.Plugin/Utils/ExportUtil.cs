@@ -287,7 +287,7 @@ public class ExportUtil : IDisposable
             "hair.shpk" => MaterialUtility.BuildHair(material, name, characterGroup.CustomizeParams,
                                                      characterGroup.CustomizeData),
             "skin.shpk" => MaterialUtility.BuildSkin(material, name, characterGroup.CustomizeParams,
-                                                     characterGroup.CustomizeData, tileNormTex, tileOrbTex),
+                                                     characterGroup.CustomizeData, (tileNormTex, tileOrbTex)),
             "iris.shpk" => MaterialUtility.BuildIris(material, name, catchlightTex, characterGroup.CustomizeParams,
                                                      characterGroup.CustomizeData),
             _ => MaterialUtility.BuildFallback(material, name)

@@ -10,7 +10,7 @@ namespace Meddle.Utils.Materials;
 
 public static partial class MaterialUtility
 {
-    public static MaterialBuilder BuildSkin(Material material, string name, CustomizeParameter parameters, CustomizeData data, TexFile tileNormArray, TexFile tileOrbArray)
+    public static MaterialBuilder BuildSkin(Material material, string name, CustomizeParameter parameters, CustomizeData data, (TexFile tileNormArray, TexFile tileOrbArray)? tile = null)
     {
         SkinType skinType = SkinType.Face;
         if (material.ShaderKeys.Any(x => x.Category == (uint)ShaderCategory.CategorySkinType))
@@ -18,24 +18,19 @@ public static partial class MaterialUtility
             var key = material.ShaderKeys.First(x => x.Category == (uint)ShaderCategory.CategorySkinType);
             skinType = (SkinType)key.Value;
         }
-
-        TextureMode textureMode = TextureMode.Default;
-        if (material.ShaderKeys.Any(x => x.Category == (uint)ShaderCategory.CategoryTextureType))
-        {
-            var key = material.ShaderKeys.First(x => x.Category == (uint)ShaderCategory.CategoryTextureType);
-            textureMode = (TextureMode)key.Value;
-        }
         
         SKTexture normal = material.GetTexture(TextureUsage.g_SamplerNormal).ToTexture();
         SKTexture mask = material.GetTexture(TextureUsage.g_SamplerMask).ToTexture((normal.Width, normal.Height)); // spec, roughness, thickness
         SKTexture diffuse = material.GetTexture(TextureUsage.g_SamplerDiffuse).ToTexture((normal.Width, normal.Height));
-        
-        
-        var tileIndex = (int)material.GetConstantOrDefault(MaterialConstant.g_TileIndex, 0);
-        var tileScale = material.GetConstantOrDefault(MaterialConstant.g_TileScale, new Vector2(16.0f, 16.0f));
-        var tileAlpha = material.GetConstantOrDefault(MaterialConstant.g_TileAlpha, 1.0f);
-        var tileNorm = ImageUtils.GetTexData(tileNormArray, tileIndex, 0, 0).ToTexture();
-        var timeOrb = ImageUtils.GetTexData(tileOrbArray, tileIndex, 0, 0).ToTexture();
+
+        if (tile != null)
+        {
+            var tileIndex = (int)material.GetConstantOrDefault(MaterialConstant.g_TileIndex, 0);
+            var tileScale = material.GetConstantOrDefault(MaterialConstant.g_TileScale, new Vector2(16.0f, 16.0f));
+            var tileAlpha = material.GetConstantOrDefault(MaterialConstant.g_TileAlpha, 1.0f);
+            var tileNorm = ImageUtils.GetTexData(tile.Value.tileNormArray, tileIndex, 0, 0).ToTexture();
+            var timeOrb = ImageUtils.GetTexData(tile.Value.tileOrbArray, tileIndex, 0, 0).ToTexture();
+        }
         
         // PART_BODY = no additional color
         // PART_FACE/default = lip color
