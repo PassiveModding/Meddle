@@ -4,17 +4,17 @@ public record ParsedFilePath
 {
     public ParsedFilePath(string path)
     {
-        Path = path;
-        var pathParts = path.Split('/');
+        Path = path.ToLowerInvariant().Trim();
+        var pathParts = Path.Split('/');
         var category = pathParts[0];
         var fileName = pathParts[^1];
-        var folder = path.Substring(0, path.LastIndexOf('/'));
+        var folder = Path.Substring(0, Path.LastIndexOf('/'));
         
         var folderHash = SqPack.GetHash(folder);
         var fileHash = SqPack.GetHash(fileName);
         var indexHash = ((ulong)folderHash << 32) | fileHash;
 
-        var index2Hash = SqPack.GetHash(path);
+        var index2Hash = SqPack.GetHash(Path);
         Category = category;
         IndexHash = indexHash;
         Index2Hash = index2Hash;
