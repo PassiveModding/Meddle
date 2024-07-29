@@ -94,6 +94,45 @@ public class PbdView : IView
             }
         }
         
+        // follow deform path for each header
+        if (ImGui.CollapsingHeader("Deform Path"))
+        {
+            var deformerLists = new List<List<(PbdFile.Header, PbdFile.Deformer)>>();
+            foreach (var header in file.Headers)
+            {
+                var deformerList = new List<(PbdFile.Header, PbdFile.Deformer)>();
+                var currentRaceCode = header.Id;
+                do
+                {
+                    var hdr = file.Headers.First(h => h.Id == currentRaceCode);
+                    if (!file.Deformers.TryGetValue(hdr.Offset, out var deformer))
+                    {
+                        break;
+                    }
+                    
+                    deformerList.Add((hdr, deformer));
+                    var link = file.Links[hdr.DeformerId];
+                    if (link.ParentLinkIdx == ushort.MaxValue)
+                    {
+                        break;
+                    }
+                    
+                    var parentLink = file.Links[link.ParentLinkIdx];
+                    var parentHeader = file.Headers[parentLink.HeaderIdx];
+                    currentRaceCode = parentHeader.Id;
+                }
+                while (currentRaceCode != 0);
+                
+                deformerLists.Add(deformerList);
+            }
+
+            foreach (var deformerList in deformerLists.Where(x => x.Count > 0).OrderBy(x => x.First().Item1.Id))
+            {
+                var path = string.Join(" -> ", deformerList.Select(x => x.Item1.Id.ToString()));
+                ImGui.Text(path);
+            }
+        }
+        
         if (ImGui.CollapsingHeader("Raw Data"))
         {
             hexView.DrawHexDump();
