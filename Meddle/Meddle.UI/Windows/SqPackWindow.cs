@@ -173,12 +173,13 @@ public class SqPackWindow
             if (ImGui.Button("Add"))
             {
                 var hash = SqPack.GetFileHash(search);
-                var file = sqPack.GetFile(hash);
+                var file = sqPack.GetFile(search);
                 if (file != null)
                 {
                     selectedFile = (0, file.Value.category, file.Value.hash, file.Value.file);
                     view = null;
                     pathManager.ParsedPaths.Add(hash);
+                    pathManager.ParsedPathDict[hash.IndexHash] = hash;
                 }
                 else
                 {
