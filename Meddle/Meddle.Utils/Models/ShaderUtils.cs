@@ -31,8 +31,6 @@ public static class ShaderUtils
     public static unsafe string Disassemble(ReadOnlySpan<byte> blob, DisassembleFlags flags = 0, string comments = "")
     {
         ID3DBlob? disassembly = null;
-
-        flags = DisassembleFlags.PrintHexLiterals | DisassembleFlags.EnableInstructionNumbering;
         try
         {
             fixed (byte* pSrcData = blob)
