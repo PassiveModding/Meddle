@@ -119,7 +119,6 @@ public static partial class MaterialUtility
         var mr = BuildImage(metallicRoughness, name, "sss_roughness_metallic_specular");
         output.WithMetallicRoughness(mr, 0.0f, 1.0f); // metallic
         output.WithSpecularFactor(mr, 1.0f); // specular
-        output.WithVolumeThickness(mr, 1.0f); // subsurface scattering
         output.WithMetallicRoughnessShader();
         
         if (alphaThreshold > 0)
