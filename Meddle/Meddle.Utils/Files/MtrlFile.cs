@@ -148,3 +148,10 @@ public struct MaterialShaderHeader
     public ushort SamplerCount;
     public uint Flags;
 }
+
+[Flags]
+public enum ShaderFlags : uint
+{
+    HideBackfaces = 0x01,
+    EnableTranslucency = 0x10
+}

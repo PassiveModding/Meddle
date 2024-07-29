@@ -145,7 +145,7 @@ public class Material
 
         ShaderKeys = shaderKeys;
         
-        var constants = new List<Constant>();
+        var materialConstantDict = new Dictionary<MaterialConstant, float[]>();
         foreach (var constant in file.Constants)
         {
             var index = constant.ValueOffset / 4;
@@ -165,18 +165,39 @@ public class Material
                 values[j] = floats[j];
             }
 
-            constants.Add(new Constant((MaterialConstant)constant.ConstantId, values));
+            // even if duplicate, last probably takes precedence
+            var id = (MaterialConstant)constant.ConstantId;
+            materialConstantDict[id] = values;
         }
-
-        MtrlConstants = constants.ToDictionary(x => x.Id, x => x.Values);
+        
+        MtrlConstants = materialConstantDict;
         ColorTable = file.ColorTable;
     }
 
     public string HandlePath { get; private set; }
     public uint ShaderFlags { get; private set; }
+
+    public bool RenderBackfaces => (ShaderFlags & (uint)Files.ShaderFlags.HideBackfaces) == 0;
+    public bool IsTransparent => (ShaderFlags & (uint)Files.ShaderFlags.EnableTranslucency) != 0;
+    public float ComputeAlpha(float alpha)
+    {
+        if (IsTransparent)
+        {
+            return alpha;
+        }
+
+        if (alpha < 1.0f)
+        {
+            return 0.0f;
+        }
+
+        return 1.0f;
+    }
+
+
+    
     public IReadOnlyList<ShaderKey> ShaderKeys { get; private set; }
     public Dictionary<MaterialConstant, float[]> MtrlConstants { get; private set; }
-
     public string ShaderPackageName { get; private set; }
     public IReadOnlyList<Texture> Textures { get; private set; }
 
