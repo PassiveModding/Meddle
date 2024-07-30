@@ -63,6 +63,6 @@ public static class ObjectUtil
         
         var name = string.IsNullOrWhiteSpace(overrideName) ? obj.Name.TextValue : overrideName;
         return
-            $"[{obj.Address:X8}:{obj.GameObjectId:X}][{obj.ObjectKind}][{modelType}] - {(string.IsNullOrWhiteSpace(name) ? "Unnamed" : name)} - {clientState.GetDistanceToLocalPlayer(obj).Length():0.00}y";
+            $"[{obj.Address:X8}:{obj.GameObjectId:X}][{obj.ObjectKind}][{modelType}] - {(string.IsNullOrWhiteSpace(name) ? "Unnamed" : name)} - {clientState.GetDistanceToLocalPlayer(obj).Length():0.00}y##{obj.GameObjectId}";
     }
 }

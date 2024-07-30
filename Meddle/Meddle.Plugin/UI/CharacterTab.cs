@@ -185,7 +185,7 @@ public unsafe class CharacterTab : ITab
             ImGui.Text("Parse a character to view data");
             return;
         }
-
+        
         DrawCharacterGroup();
     }
 
@@ -439,7 +439,7 @@ public unsafe class CharacterTab : ITab
             {
                 try
                 {
-                    exportUtil.Export(characterGroup);
+                    exportUtil.Export(characterGroup, default);
                 }
                 catch (Exception e)
                 {

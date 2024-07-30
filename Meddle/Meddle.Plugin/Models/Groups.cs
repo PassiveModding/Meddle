@@ -2,6 +2,7 @@
 using Meddle.Plugin.Skeleton;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
+using SharpGLTF.Transforms;
 
 namespace Meddle.Plugin.Models;
 public record CharacterGroup(
@@ -19,3 +20,5 @@ public record TexResourceGroup(string MtrlPath, string Path, TextureResource Res
 public record SklbFileGroup(string Path, SklbFile File);
 public record Resource(string MdlPath, Vector3 Position, Quaternion Rotation, Vector3 Scale);
 public record DeformerGroup(string Path, ushort RaceSexId, ushort DeformerId);
+public record AnimationFrameData(DateTime Time, Skeleton.Skeleton Skeleton, AffineTransform Transform);
+

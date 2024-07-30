@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
+using FFXIVClientStructs.FFXIV.Common.Lua;
 using Meddle.Plugin.Models;
 using Meddle.Utils;
 using Meddle.Utils.Export;
@@ -9,6 +10,8 @@ using Meddle.Utils.Materials;
 using Meddle.Utils.Models;
 using Meddle.Utils.Skeletons;
 using Microsoft.Extensions.Logging;
+using SharpGLTF.Geometry;
+using SharpGLTF.Geometry.VertexTypes;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
 using SkiaSharp;
@@ -117,6 +120,63 @@ public class ExportUtil : IDisposable
             logger.LogError(e, "Failed to export textures");
             throw;
         }
+    }
+
+    public void ExportAnimation(List<AnimationFrameData> frames, bool includePositionalData, CancellationToken token = default)
+    {
+        try
+        {
+            using var activity = ActivitySource.StartActivity();
+            var scene = new SceneBuilder();
+            var bones = SkeletonUtils.GetAnimatedBoneMap(frames, includePositionalData, out var root);
+            var dummyMesh = GetDummyMesh();
+            var armature = new NodeBuilder("Armature");
+            if (root != null)
+            {
+                armature.AddNode(root);
+            }
+            scene.AddSkinnedMesh(dummyMesh, Matrix4x4.Identity, bones.Cast<NodeBuilder>().ToArray());
+            scene.AddNode(armature);
+            
+            var sceneGraph = scene.ToGltf2();
+            var folder = GetPathForOutput();
+            var outputPath = Path.Combine(folder, "motion.gltf");
+            sceneGraph.SaveGLTF(outputPath);
+            Process.Start("explorer.exe", folder);
+            logger.LogInformation("Export complete");
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Failed to export animation");
+            throw;
+        }
+    }
+    
+    // https://github.com/0ceal0t/Dalamud-VFXEditor/blob/be00131b93b3c6dd4014a4f27c2661093daf3a85/VFXEditor/Utils/Gltf/GltfSkeleton.cs#L132
+    public static MeshBuilder<VertexPosition, VertexEmpty, VertexJoints4> GetDummyMesh() {
+        var dummyMesh = new MeshBuilder<VertexPosition, VertexEmpty, VertexJoints4>( "DUMMY_MESH" );
+        var material = new MaterialBuilder( "material" );
+
+        var p1 = new VertexPosition
+        {
+            Position = new Vector3( 0.000001f, 0, 0 )
+        };
+        var p2 = new VertexPosition
+        {
+            Position = new Vector3( 0, 0.000001f, 0 )
+        };
+        var p3 = new VertexPosition
+        {
+            Position = new Vector3( 0, 0, 0.000001f )
+        };
+
+        dummyMesh.UsePrimitive( material ).AddTriangle(
+            (p1, new VertexEmpty(), new VertexJoints4( 0 )),
+            (p2, new VertexEmpty(), new VertexJoints4( 0 )),
+            (p3, new VertexEmpty(), new VertexJoints4( 0 ))
+        );
+
+        return dummyMesh;
     }
 
     public void Export(CharacterGroup characterGroup, CancellationToken token = default)
