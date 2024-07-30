@@ -10,7 +10,8 @@ public static class ModelBuilder
         Model model,
         IReadOnlyList<MaterialBuilder> materials,
         IReadOnlyList<BoneNodeBuilder> boneMap,
-        (GenderRace targetDeform, RaceDeformer deformer)? raceDeformer)
+        (GenderRace targetDeform, RaceDeformer deformer)? raceDeformer,
+        bool disableSkinning = false)
     {
         var meshes = new List<MeshExport>();
         (RaceDeformer deformer, ushort from, ushort to)? deform = null;
@@ -25,7 +26,7 @@ public static class ModelBuilder
             var useSkinning = mesh.BoneTable != null;
             MeshBuilder meshBuilder;
             var material = materials[mesh.MaterialIdx];
-            if (useSkinning)
+            if (useSkinning && !disableSkinning)
             {
                 var jointIdMapping = new List<int>();
                 var jointLut = boneMap

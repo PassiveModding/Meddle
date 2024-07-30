@@ -367,7 +367,8 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                         //"charactertattoo.shpk" => MaterialUtility.BuildCharacterTattoo(material, name, @params),
                         "hair.shpk" => MaterialUtility.BuildHair(material, name, customizeParameters, customizeData),
                         "skin.shpk" => MaterialUtility.BuildSkin(material, name, customizeParameters, customizeData),
-                        "iris.shpk" => MaterialUtility.BuildIris(material, name, catchlightTex, customizeParameters, customizeData),
+                        "iris.shpk" => MaterialUtility.BuildIris(material, name, catchlightTex, customizeParameters,
+                                                                 customizeData),
                         _ => MaterialUtility.BuildFallback(material, name)
                     };
 
@@ -380,7 +381,9 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                 }
             });
 
-            var meshes = ModelBuilder.BuildMeshes(model, materials, bones, null);
+            var disableSkinning = bones.Length == 0;
+            
+            var meshes = ModelBuilder.BuildMeshes(model, materials, bones, null, disableSkinning);
             foreach (var mesh in meshes)
             {
                 if (mesh.UseSkinning && boneNodes.Length > 0)
