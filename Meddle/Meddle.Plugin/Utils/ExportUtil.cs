@@ -129,13 +129,12 @@ public class ExportUtil : IDisposable
             using var activity = ActivitySource.StartActivity();
             var scene = new SceneBuilder();
             var bones = SkeletonUtils.GetAnimatedBoneMap(frames, includePositionalData, out var root);
-            var dummyMesh = GetDummyMesh();
             var armature = new NodeBuilder("Armature");
             if (root != null)
             {
                 armature.AddNode(root);
             }
-            scene.AddSkinnedMesh(dummyMesh, Matrix4x4.Identity, bones.Cast<NodeBuilder>().ToArray());
+            scene.AddSkinnedMesh(GetDummyMesh(), Matrix4x4.Identity, bones.Cast<NodeBuilder>().ToArray());
             scene.AddNode(armature);
             
             var sceneGraph = scene.ToGltf2();

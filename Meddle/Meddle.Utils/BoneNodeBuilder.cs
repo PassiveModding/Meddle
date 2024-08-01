@@ -6,6 +6,8 @@ public class BoneNodeBuilder(string name) : NodeBuilder(name)
 {
     public string BoneName { get; } = name;
     public int? Suffix { get; private set; }
+    public int? PartialSkeletonIndex { get; set; }
+    public int? BoneIndex { get; set; }
     public bool IsGenerated { get; set; } = false;
 
     /// <summary>

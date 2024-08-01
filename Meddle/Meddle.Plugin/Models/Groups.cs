@@ -20,5 +20,5 @@ public record TexResourceGroup(string MtrlPath, string Path, TextureResource Res
 public record SklbFileGroup(string Path, SklbFile File);
 public record Resource(string MdlPath, Vector3 Position, Quaternion Rotation, Vector3 Scale);
 public record DeformerGroup(string Path, ushort RaceSexId, ushort DeformerId);
-public record AnimationFrameData(DateTime Time, Skeleton.Skeleton Skeleton, AffineTransform Transform);
-
+public record AnimationFrameData(DateTime Time, Skeleton.Skeleton Skeleton, AffineTransform Transform, AttachedSkeleton[] Attachments);
+public record AttachedSkeleton(string AttachId, Skeleton.Skeleton Skeleton, Attach Attach);
