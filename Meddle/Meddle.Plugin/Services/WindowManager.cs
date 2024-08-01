@@ -32,6 +32,15 @@ public class WindowManager : IHostedService, IDisposable
         this.commandManager = commandManager;
         MainWindow = mainWindow;
         WindowSystem = windowSystem;
+        config.OnConfigurationSaved += OnSave;
+    }
+
+    private void OnSave()
+    {
+        pluginInterface.UiBuilder.DisableGposeUiHide = config.DisableGposeUiHide;
+        pluginInterface.UiBuilder.DisableCutsceneUiHide = config.DisableCutsceneUiHide;
+        pluginInterface.UiBuilder.DisableAutomaticUiHide = config.DisableAutomaticUiHide;
+        pluginInterface.UiBuilder.DisableUserUiHide = config.DisableUserUiHide;
     }
 
     public WindowSystem WindowSystem { get; set; }
@@ -44,6 +53,7 @@ public class WindowManager : IHostedService, IDisposable
         {
             log.LogInformation("Disposing window manager");
             commandManager.RemoveHandler(Command);
+            config.OnConfigurationSaved -= OnSave;
             pluginInterface.UiBuilder.Draw -= WindowSystem.Draw;
             pluginInterface.UiBuilder.OpenConfigUi -= OpenUi;
             pluginInterface.UiBuilder.OpenMainUi -= OpenUi;
@@ -60,8 +70,10 @@ public class WindowManager : IHostedService, IDisposable
         pluginInterface.UiBuilder.Draw += WindowSystem.Draw;
         pluginInterface.UiBuilder.OpenMainUi += OpenUi;
         pluginInterface.UiBuilder.OpenConfigUi += OpenUi;
-        pluginInterface.UiBuilder.DisableGposeUiHide = true;
-        pluginInterface.UiBuilder.DisableCutsceneUiHide = true;
+        pluginInterface.UiBuilder.DisableGposeUiHide = config.DisableGposeUiHide;
+        pluginInterface.UiBuilder.DisableCutsceneUiHide = config.DisableCutsceneUiHide;
+        pluginInterface.UiBuilder.DisableAutomaticUiHide = config.DisableAutomaticUiHide;
+        pluginInterface.UiBuilder.DisableUserUiHide = config.DisableUserUiHide;
 
         if (config.OpenOnLoad)
         {

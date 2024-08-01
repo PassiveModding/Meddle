@@ -40,6 +40,34 @@ public class OptionsTab : ITab
             config.Save();
         }
         
+        var disableUserUiHide = config.DisableUserUiHide;
+        if (ImGui.Checkbox("Disable User UI Hide", ref disableUserUiHide))
+        {
+            config.DisableUserUiHide = disableUserUiHide;
+            config.Save();
+        }
+        
+        var disableAutomaticUiHide = config.DisableAutomaticUiHide;
+        if (ImGui.Checkbox("Disable Automatic UI Hide", ref disableAutomaticUiHide))
+        {
+            config.DisableAutomaticUiHide = disableAutomaticUiHide;
+            config.Save();
+        }
+        
+        var disableCutsceneUiHide = config.DisableCutsceneUiHide;
+        if (ImGui.Checkbox("Disable Cutscene UI Hide", ref disableCutsceneUiHide))
+        {
+            config.DisableCutsceneUiHide = disableCutsceneUiHide;
+            config.Save();
+        }
+        
+        var disableGposeUiHide = config.DisableGposeUiHide;
+        if (ImGui.Checkbox("Disable Gpose UI Hide", ref disableGposeUiHide))
+        {
+            config.DisableGposeUiHide = disableGposeUiHide;
+            config.Save();
+        }
+        
         var playerNameOverride = config.PlayerNameOverride;
         if (ImGui.InputText("Player Name Override", ref playerNameOverride, 64))
         {

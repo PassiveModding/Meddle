@@ -98,8 +98,14 @@ public class Configuration : IPluginConfiguration
     [JsonIgnore]
     private IDalamudPluginInterface PluginInterface { get; set; } = null!;
 
+    public event Action? OnConfigurationSaved;
+    
     public bool ShowAdvanced { get; set; }
     public bool OpenOnLoad { get; set; }
+    public bool DisableUserUiHide { get; set; }
+    public bool DisableAutomaticUiHide { get; set; }
+    public bool DisableCutsceneUiHide { get; set; }
+    public bool DisableGposeUiHide { get; set; }
     public string PlayerNameOverride { get; set; } = string.Empty;
 
     public int Version { get; set; } = 1;
@@ -107,5 +113,6 @@ public class Configuration : IPluginConfiguration
     public void Save()
     {
         PluginInterface.SavePluginConfig(this);
+        OnConfigurationSaved?.Invoke();
     }
 }
