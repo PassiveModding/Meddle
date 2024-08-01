@@ -100,8 +100,6 @@ public class AnimationTab : ITab
             }
         }
         
-        Capture();
-        
         var frameCount = frames.Count;
         ImGui.Text($"Frames: {frameCount}");
         if (ImGui.Button("Export"))
