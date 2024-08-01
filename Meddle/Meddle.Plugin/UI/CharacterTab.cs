@@ -108,11 +108,8 @@ public unsafe class CharacterTab : ITab
     private void DrawObjectPicker()
     {
         // Warning text:
-        ImGui.TextWrapped("Meddle allows you to export character data. Select a character to begin.");
-        ImGui.Separator();
-        ImGui.TextWrapped("Warning: This plugin is experimental and may not work as expected.");
-        ImGui.TextWrapped(
-            "Exported models use a rudimentary approximation of the games pixel shaders, they will likely not match 1:1 to the in-game appearance.");
+        ImGui.TextWrapped("NOTE: Exported models use a rudimentary approximation of the games pixel shaders, " +
+                          "they will likely not match 1:1 to the in-game appearance.");
 
         if (LastLog != null)
         {

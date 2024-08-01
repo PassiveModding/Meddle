@@ -52,6 +52,9 @@ public class AnimationTab : ITab
 
     public unsafe void Draw()
     {
+        // Warning text:
+        ImGui.TextWrapped("NOTE: Animation exports are experimental, held weapons, mounts and other attached objects may not work as expected.");
+        
         ICharacter[] objects;
         if (clientState.LocalPlayer != null)
         {
@@ -124,18 +127,31 @@ public class AnimationTab : ITab
             {
                 if (ImGui.CollapsingHeader($"Frame: {frame.Time}##{frame.GetHashCode()}"))
                 {
-                    foreach (var partial in frame.Skeleton.PartialSkeletons)
+                    try
                     {
-                        ImGui.Text($"Partial: {partial.HandlePath}");
-                        ImGui.Text($"Connected Bone Index: {partial.ConnectedBoneIndex}");
-                        var poseData = partial.Poses.FirstOrDefault();
-                        if (poseData == null) continue;
-                        for (int i = 0; i < poseData.Pose.Count; i++)
+                        ImGui.Indent();
+                        foreach (var partial in frame.Skeleton.PartialSkeletons)
                         {
-                            var transform = poseData.Pose[i];
-                            ImGui.Text(
-                                $"Bone: {i} Scale: {transform.Scale} Rotation: {transform.Rotation} Translation: {transform.Translation}");
+                            if (ImGui.CollapsingHeader($"Partial: {partial.HandlePath}##{partial.GetHashCode()}"))
+                            {
+                                ImGui.Text($"Connected Bone Index: {partial.ConnectedBoneIndex}");
+                                var poseData = partial.Poses.FirstOrDefault();
+                                if (poseData == null) continue;
+                                for (int i = 0; i < poseData.Pose.Count; i++)
+                                {
+                                    var transform = poseData.Pose[i];
+                                    var boneName = partial.HkSkeleton?.BoneNames[i] ?? "Bone";
+                                    ImGui.Text($"[{i}]{boneName} " +
+                                               $"Scale: {transform.Scale} " +
+                                               $"Rotation: {transform.Rotation} " +
+                                               $"Translation: {transform.Translation}");
+                                }
+                            }
                         }
+                    } 
+                    finally
+                    {
+                        ImGui.Unindent();
                     }
                 }
             }
