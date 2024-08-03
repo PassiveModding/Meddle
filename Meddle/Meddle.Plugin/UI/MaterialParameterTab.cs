@@ -44,7 +44,7 @@ public class MaterialParameterTab : ITab
     private ICharacter? SelectedCharacter { get; set; }
     public string Name => "Material Parameters";
     public int Order => 3;
-    public bool DisplayTab => config.ShowAdvanced;
+    public bool DisplayTab => config.ShowDebug;
 
     public void Dispose()
     {
@@ -55,6 +55,8 @@ public class MaterialParameterTab : ITab
 
     public void Draw()
     {
+        ImGui.TextColored(new Vector4(1, 0, 0, 1), "Warning: This tab is for advanced users only. Modifying material parameters may cause crashes or other issues.");
+        
         ICharacter[] objects;
         if (clientState.LocalPlayer != null)
         {

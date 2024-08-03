@@ -38,7 +38,7 @@ public class InteropService : IHostedService, IDisposable
     {
         if (!disposed)
         {
-            log.LogInformation("Disposing InteropService");
+            log.LogDebug("Disposing InteropService");
             postTickHook?.Dispose();
             disposed = true;
         }
@@ -48,7 +48,7 @@ public class InteropService : IHostedService, IDisposable
     {
         if (state.InteropResolved)
             return Task.CompletedTask;
-        log.LogInformation("Resolving ClientStructs");
+        log.LogDebug("Resolving ClientStructs");
         Addresses.Register();
 
         var cacheFile =
@@ -57,7 +57,7 @@ public class InteropService : IHostedService, IDisposable
         Resolver.GetInstance.Setup(sigScanner.SearchBase, cacheFile: cacheFile);
         Resolver.GetInstance.Resolve();
         state.InteropResolved = true;
-        log.LogInformation("Resolved ClientStructs");
+        log.LogDebug("Resolved ClientStructs");
         
         pbdHooks.Setup();
         

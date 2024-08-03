@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using System.Runtime.InteropServices;
+using Dalamud.Interface.ImGuiNotification;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
@@ -34,7 +35,7 @@ public class WorldTab : ITab
         this.config = config;
     }
 
-    public bool DisplayTab => config.ShowAdvanced;
+    public bool DisplayTab => config.ShowTesting;
 
     public void Dispose()
     {
@@ -46,13 +47,15 @@ public class WorldTab : ITab
 
     public void Draw()
     {
+        ImGui.Text("This is a testing menu, functionality may not work as expected.");
+        
         if (!pluginState.InteropResolved) return;
         var position = clientState.LocalPlayer?.Position ?? Vector3.Zero;
-
+        
         if (ImGui.Button("Parse world objects"))
         {
             ParseWorld();
-            log.LogInformation("Parsed {ObjectCount} objects", objects.Count);
+            log.LogDebug("Parsed {ObjectCount} objects", objects.Count);
         }
 
         var availHeight = ImGui.GetContentRegionAvail().Y;
@@ -145,7 +148,12 @@ public class WorldTab : ITab
         selectedObjects.Clear();
 
         var world = World.Instance();
-        if (world == null) return;
+        if (world == null)
+        {
+            log.LogWarning("World is null, unable to parse objects");
+            return;
+        }
+        
         foreach (var childObject in world->ChildObjects)
         {
             if (childObject == null) continue;
@@ -168,9 +176,10 @@ public class WorldTab : ITab
             }
         }
     }
-
+    
     private record ObjectData(ObjectType Type, string Path, Vector3 Position, Quaternion Rotation, Vector3 Scale);
 }
+
 
 [StructLayout(LayoutKind.Explicit, Size = 0xD0)]
 public struct BgObject

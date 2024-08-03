@@ -28,7 +28,7 @@ public class PbdHooks : IDisposable
     {
         if (sigScanner.TryScanText(Human_CreateDeformerSig, out var humanCreateDeformerPtr))
         {
-            logger.LogInformation($"Found Human::CreateDeformer at {humanCreateDeformerPtr:X}");
+            logger.LogDebug("Found Human::CreateDeformer at {ptr:X}", humanCreateDeformerPtr);
             humanCreateDeformerHook = gameInterop.HookFromAddress<Human_CreateDeformerDelegate>(humanCreateDeformerPtr, Human_CreateDeformerDetour);
             humanCreateDeformerHook.Enable();
         }
@@ -102,7 +102,7 @@ public class PbdHooks : IDisposable
     
     public void Dispose()
     {
-        logger.LogInformation("Disposing PbdHooks");
+        logger.LogDebug("Disposing PbdHooks");
         humanCreateDeformerHook?.Dispose();
         deformerCache.Clear();
     }

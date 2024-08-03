@@ -416,7 +416,7 @@ public class ExportUtil : IDisposable
             if (pbdFileData == null) throw new InvalidOperationException($"Failed to get deformer pbd {mdlGroup.DeformerGroup.Path}");
             raceDeformerValue = ((GenderRace)mdlGroup.DeformerGroup.RaceSexId, new RaceDeformer(new PbdFile(pbdFileData), bones));
             model.RaceCode = (GenderRace)mdlGroup.DeformerGroup.DeformerId;
-            logger.LogInformation("Using deformer pbd {Path}", mdlGroup.DeformerGroup.Path);
+            logger.LogDebug("Using deformer pbd {Path}", mdlGroup.DeformerGroup.Path);
         }
         else
         {
@@ -551,7 +551,7 @@ public class ExportUtil : IDisposable
     
     public void Dispose()
     {
-        logger.LogInformation("Disposing ExportUtil");
+        logger.LogDebug("Disposing ExportUtil");
         OnLogEvent -= OnLog;
     }
 }

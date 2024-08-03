@@ -1,4 +1,5 @@
-﻿using Dalamud.IoC;
+﻿using Dalamud.Interface.ImGuiNotification;
+using Dalamud.IoC;
 using Dalamud.Plugin.Services;
 using Microsoft.Extensions.Logging;
 
@@ -6,12 +7,21 @@ namespace Meddle.Plugin.Services;
 
 public class PluginLoggerProvider : ILoggerProvider
 {
+    private readonly Configuration config;
+
     [PluginService]
     private IPluginLog PluginLog { get; set; } = null!;
+    
+    [PluginService]
+    private INotificationManager NotificationManager { get; set; } = null!;
 
+    public PluginLoggerProvider(Configuration config)
+    {
+        this.config = config;
+    }
     public ILogger CreateLogger(string categoryName)
     {
-        return new PluginLogger(PluginLog, categoryName);
+        return new PluginLogger(PluginLog, NotificationManager, config, categoryName);
     }
 
     public void Dispose()
@@ -24,17 +34,15 @@ public class PluginLogger : ILogger
 {
     private readonly string categoryName;
     private readonly IPluginLog log;
+    private readonly INotificationManager notificationManager;
+    private readonly Configuration config;
 
-    public PluginLogger(IPluginLog log, string categoryName)
+    public PluginLogger(IPluginLog log, INotificationManager notificationManager, Configuration config, string categoryName)
     {
         this.log = log;
+        this.notificationManager = notificationManager;
+        this.config = config;
         this.categoryName = categoryName;
-    }
-
-    public IDisposable? BeginScope<TState>(TState state)
-    {
-        log.Debug($"Scope: {state}");
-        return null;
     }
 
     public bool IsEnabled(LogLevel logLevel)
@@ -42,11 +50,44 @@ public class PluginLogger : ILogger
         return true;
     }
 
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull
+    {
+        return null;
+    }
+
+    private void LogNotification(string message, LogLevel level)
+    {
+        if (level < config.MinimumNotificationLogLevel) return;
+        
+        var type = level switch
+        {
+            LogLevel.Trace => NotificationType.Info,
+            LogLevel.Debug => NotificationType.Info,
+            LogLevel.Information => NotificationType.Info,
+            LogLevel.Warning => NotificationType.Warning,
+            LogLevel.Error => NotificationType.Error,
+            LogLevel.Critical => NotificationType.Error,
+            LogLevel.None => NotificationType.None,
+            _ => NotificationType.None
+        };
+
+        var notification = new Notification
+        {
+            Title = categoryName,
+            Content = message,
+            Type = type,
+            InitialDuration = TimeSpan.FromSeconds(2)
+        };
+        
+        notificationManager.AddNotification(notification);
+    }
+    
     public void Log<TState>(
         LogLevel logLevel, EventId eventId, TState state, Exception? exception,
         Func<TState, Exception?, string> formatter)
     {
-        var message = $"[{categoryName}] {formatter(state, exception)}";
+        var formattedMessage = formatter(state, exception);
+        var message = $"[{categoryName}] {formattedMessage}";
         switch (logLevel)
         {
             case LogLevel.Trace:
@@ -57,15 +98,19 @@ public class PluginLogger : ILogger
                 break;
             case LogLevel.Information:
                 log.Info(message);
+                LogNotification(formattedMessage, logLevel);
                 break;
             case LogLevel.Warning:
                 log.Warning(message);
+                LogNotification(formattedMessage, logLevel);
                 break;
             case LogLevel.Error:
                 log.Error(exception, message);
+                LogNotification(formattedMessage, logLevel);
                 break;
             case LogLevel.Critical:
                 log.Error(exception, message);
+                LogNotification(formattedMessage, logLevel);
                 break;
             case LogLevel.None:
                 break;

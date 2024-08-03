@@ -27,16 +27,17 @@ public sealed class Plugin : IDalamudPlugin
         try
         {
             var service = new Service();
-            var loggerProvider = new PluginLoggerProvider();
             pluginInterface.Inject(service);
-            pluginInterface.Inject(loggerProvider);
             var config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
             pluginInterface.Inject(config);
+            var loggerProvider = new PluginLoggerProvider(config);
+            pluginInterface.Inject(loggerProvider);
 
             var host = Host.CreateDefaultBuilder();
             host.ConfigureLogging(logging =>
             {
                 logging.ClearProviders();
+                logging.SetMinimumLevel(LogLevel.Trace);
                 logging.AddProvider(loggerProvider);
             });
 
@@ -88,7 +89,7 @@ public sealed class Plugin : IDalamudPlugin
         app?.StopAsync();
         app?.WaitForShutdown();
         app?.Dispose();
-        log?.LogInformation("Plugin disposed");
+        log?.LogDebug("Plugin disposed");
     }
 }
 
@@ -100,7 +101,9 @@ public class Configuration : IPluginConfiguration
 
     public event Action? OnConfigurationSaved;
     
-    public bool ShowAdvanced { get; set; }
+    public bool ShowDebug { get; set; }
+    public bool ShowTesting { get; set; }
+    public LogLevel MinimumNotificationLogLevel { get; set; } = LogLevel.Warning;
     public bool OpenOnLoad { get; set; }
     public bool DisableUserUiHide { get; set; }
     public bool DisableAutomaticUiHide { get; set; }

@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using ImGuiNET;
+using Microsoft.Extensions.Logging;
 
 namespace Meddle.Plugin.UI;
 
@@ -26,11 +27,32 @@ public class OptionsTab : ITab
             Process.Start("explorer.exe", Plugin.TempDirectory);
         }
 
-        var advanced = config.ShowAdvanced;
-        if (ImGui.Checkbox("Show Advanced", ref advanced))
+        var debug = config.ShowDebug;
+        if (ImGui.Checkbox("Show Debug Menus", ref debug))
         {
-            config.ShowAdvanced = advanced;
+            config.ShowDebug = debug;
             config.Save();
+        }
+        
+        var test = config.ShowTesting;
+        if (ImGui.Checkbox("Show Testing Menus", ref test))
+        {
+            config.ShowTesting = test;
+            config.Save();
+        }
+        
+        var minimumNotificationLogLevel = config.MinimumNotificationLogLevel;
+        if (ImGui.BeginCombo("Minimum Notification Log Level", minimumNotificationLogLevel.ToString()))
+        {
+            foreach (LogLevel level in (LogLevel[])Enum.GetValues(typeof(LogLevel)))
+            {
+                if (ImGui.Selectable(level.ToString(), level == minimumNotificationLogLevel))
+                {
+                    config.MinimumNotificationLogLevel = level;
+                    config.Save();
+                }
+            }
+            ImGui.EndCombo();
         }
 
         var openOnLoad = config.OpenOnLoad;

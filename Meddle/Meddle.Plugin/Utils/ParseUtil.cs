@@ -367,7 +367,7 @@ public class ParseUtil : IDisposable
 
     public void Dispose()
     {
-        logger.LogInformation("Disposing ParseUtil");
+        logger.LogDebug("Disposing ParseUtil");
         logger.OnLogEvent -= OnLog;
     }
 }

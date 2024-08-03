@@ -37,6 +37,9 @@ public class Service
 
     [PluginService]
     private IDataManager DataManager { get; set; } = null!;
+    
+    [PluginService]
+    private INotificationManager NotificationManager { get; set; } = null!;
 
     public void AddServices(IServiceCollection services)
     {
@@ -50,5 +53,6 @@ public class Service
         services.AddSingleton(GameInteropProvider);
         services.AddSingleton(DataManager);
         services.AddSingleton(TextureProvider);
+        services.AddSingleton(NotificationManager);
     }
 }

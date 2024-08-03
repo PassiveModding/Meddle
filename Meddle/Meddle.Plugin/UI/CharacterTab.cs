@@ -94,7 +94,7 @@ public unsafe class CharacterTab : ITab
     {
         if (!IsDisposed)
         {
-            log.LogInformation("Disposing CharacterTab");
+            log.LogDebug("Disposing CharacterTab");
             exportUtil.OnLogEvent -= HandleLogEvent;
             foreach (var (_, textureImage) in textureCache)
             {

@@ -51,7 +51,7 @@ public class WindowManager : IHostedService, IDisposable
     {
         if (!disposed)
         {
-            log.LogInformation("Disposing window manager");
+            log.LogDebug("Disposing window manager");
             commandManager.RemoveHandler(Command);
             config.OnConfigurationSaved -= OnSave;
             pluginInterface.UiBuilder.Draw -= WindowSystem.Draw;
