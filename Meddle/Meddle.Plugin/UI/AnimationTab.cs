@@ -368,6 +368,8 @@ public class AnimationTab : ITab
                 var scale = attach->Scale;
                 var aTransform = new AffineTransform(scale, rotation, position);
                 var transform = new Transform(aTransform);
+                ImGui.Text($"SkeletonIdx: {attachPoint.PartialSkeletonIdx}");
+                ImGui.Text($"BoneIdx: {attachPoint.BoneIdx}");
                 ImGui.Text($"Transform: {transform}");
                 ImGui.Text($"Root: {attachPoint.OffsetTransform}");
                 DrawSkeleton(skeleton);

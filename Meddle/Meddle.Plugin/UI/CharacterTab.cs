@@ -57,17 +57,9 @@ public unsafe class CharacterTab : ITab
         this.exportUtil = exportUtil;
         this.parseUtil = parseUtil;
         this.config = config;
-        this.exportUtil.OnLogEvent += HandleLogEvent;
-        this.parseUtil.OnLogEvent += HandleLogEvent;
         this.objectTable = objectTable;
         this.clientState = clientState;
         this.textureProvider = textureProvider;
-    }
-
-    private (LogLevel level, string message)? LastLog { get; set; }
-    private void HandleLogEvent(LogLevel level, string message)
-    {
-        LastLog = (level, message);
     }
     
     private ICharacter? SelectedCharacter { get; set; }
@@ -95,7 +87,6 @@ public unsafe class CharacterTab : ITab
         if (!IsDisposed)
         {
             log.LogDebug("Disposing CharacterTab");
-            exportUtil.OnLogEvent -= HandleLogEvent;
             foreach (var (_, textureImage) in textureCache)
             {
                 textureImage.Wrap.Dispose();
@@ -110,16 +101,6 @@ public unsafe class CharacterTab : ITab
         // Warning text:
         ImGui.TextWrapped("NOTE: Exported models use a rudimentary approximation of the games pixel shaders, " +
                           "they will likely not match 1:1 to the in-game appearance.");
-
-        if (LastLog != null)
-        {
-            ImGui.TextColored(LastLog.Value.level switch
-            {
-                LogLevel.Warning => new Vector4(1.0f, 1.0f, 0.0f, 1.0f),
-                LogLevel.Error => new Vector4(1.0f, 0.0f, 0.0f, 1.0f),
-                _ => new Vector4(1.0f, 1.0f, 1.0f, 1.0f)
-            }, LastLog.Value.message);
-        }
         
         ICharacter[] objects;
         if (clientState.LocalPlayer != null)
@@ -186,56 +167,6 @@ public unsafe class CharacterTab : ITab
         DrawCharacterGroup();
     }
 
-    private void DrawSkeleton(Skeleton.Skeleton skeleton)
-    {
-        ImGui.Indent();
-        foreach (var partialSkeleton in skeleton.PartialSkeletons)
-        {
-            ImGui.PushID(partialSkeleton.GetHashCode());
-            if (ImGui.CollapsingHeader(
-                    $"[{partialSkeleton.ConnectedBoneIndex}] {partialSkeleton.HandlePath ?? "Unknown"}"))
-            {
-                ImGui.Indent();
-                var hkSkeleton = partialSkeleton.HkSkeleton;
-                if (hkSkeleton == null)
-                {
-                    ImGui.Text("No skeleton data");
-                }
-                else
-                {
-                    ImGui.Text($"ConnectedBoneIdx: {partialSkeleton.ConnectedBoneIndex}");
-                    ImGui.Columns(3);
-                    ImGui.Text("Bone Names");
-                    ImGui.NextColumn();
-                    ImGui.Text("Bone Parents");
-                    ImGui.NextColumn();
-                    ImGui.Text("Transform");
-                    ImGui.NextColumn();
-                    for (var i = 0; i < hkSkeleton.BoneNames.Count; i++)
-                    {
-                        ImGui.Text(hkSkeleton.BoneNames[i]);
-                        ImGui.NextColumn();
-                        ImGui.Text($"{hkSkeleton.BoneParents[i]}");
-                        ImGui.NextColumn();
-                        var transform = hkSkeleton.ReferencePose[i].AffineTransform;
-                        ImGui.Text($"Scale: {transform.Scale}");
-                        ImGui.Text($"Rotation: {transform.Rotation}");
-                        ImGui.Text($"Translation: {transform.Translation}");
-                        ImGui.NextColumn();
-                    }
-
-                    ImGui.Columns(1);
-                }
-
-                ImGui.Unindent();
-            }
-
-            ImGui.PopID();
-        }
-
-        ImGui.Unindent();
-    }
-
     private void DrawCharacterGroup()
     {
         ImGui.PushID(characterGroup!.GetHashCode());
@@ -268,11 +199,6 @@ public unsafe class CharacterTab : ITab
         ImGui.Separator();
 
         DrawExportOptions();
-
-        if (ImGui.CollapsingHeader("Skeletons"))
-        {
-            DrawSkeleton(characterGroup.Skeleton);
-        }
 
         if (ImGui.BeginTable("CharacterTable", 2, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable))
         {
