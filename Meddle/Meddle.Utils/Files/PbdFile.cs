@@ -1,5 +1,8 @@
 ﻿using System.Numerics;
 using System.Runtime.InteropServices;
+using FFXIVClientStructs.Havok.Common.Base.Math.QsTransform;
+using FFXIVClientStructs.Havok.Common.Base.Math.Quaternion;
+using FFXIVClientStructs.Havok.Common.Base.Math.Vector;
 
 namespace Meddle.Utils.Files;
 
@@ -56,34 +59,34 @@ public class PbdFile
         public ushort HeaderIdx;
     }
 
-    public readonly struct DeformMatrix3x4
+    /*public readonly struct DeformMatrix4x4
     {
         private readonly float[] matrix;
 
         public float this[int index]
         {
-            get => index is >= 0 and < 12 ? matrix[index] : throw new IndexOutOfRangeException($"{index}");
+            get => index is >= 0 and < 16 ? matrix[index] : throw new IndexOutOfRangeException($"{index}");
             set
             {
-                if (index is >= 0 and < 12) matrix[index] = value;
+                if (index is >= 0 and < 16) matrix[index] = value;
                 else throw new IndexOutOfRangeException($"{index}");
             }
         }
 
-        public DeformMatrix3x4(ReadOnlySpan<float> matrix) : this(matrix.ToArray()) { }
+        public DeformMatrix4x4(ReadOnlySpan<float> matrix) : this(matrix.ToArray()) { }
 
-        public DeformMatrix3x4(float[] matrix)
+        public DeformMatrix4x4(float[] matrix)
         {
-            if (matrix.Length != 12)
-                throw new ArgumentException("Matrix must have 12 elements", nameof(matrix));
+            if (matrix.Length != 16)
+                throw new ArgumentException("Matrix must have 16 elements", nameof(matrix));
 
             this.matrix = matrix;
         }
 
-        public static DeformMatrix3x4 Identity => new([
+        public static DeformMatrix4x4 Identity => new([
             0, 0, 0, 0, // Translation (vec3 + unused)
             0, 0, 0, 1, // Rotation (vec4)
-            1, 1, 1, 0  // Scale (vec3 + unused)
+            1, 1, 1, 0,  // Scale (vec3 + unused)
         ]);
 
         // https://github.com/TexTools/xivModdingFramework/blob/459b863fdacf291ee0817feef379a18275f33010/xivModdingFramework/Models/Helpers/ModelModifiers.cs#L1202
@@ -93,13 +96,13 @@ public class PbdFile
                 (vector.X * matrix[4]) + (vector.Y * matrix[5]) + (vector.Z * matrix[6]) + (1.0f * matrix[7]),
                 (vector.X * matrix[8]) + (vector.Y * matrix[9]) + (vector.Z * matrix[10]) + (1.0f * matrix[11])
             );
-    }
+    }*/
 
     public struct Deformer
     {
         public int BoneCount;
         public string[] BoneNames;
-        public DeformMatrix3x4?[] DeformMatrices;
+        public hkQsTransformf?[] DeformMatrices;
 
         public static Deformer Read(SpanBinaryReader reader)
         {
@@ -119,11 +122,11 @@ public class PbdFile
             var padding = boneCount * 2 % 4;
             reader.Read<byte>(padding);
 
-            var matrixArray = new DeformMatrix3x4?[boneCount];
+            var matrixArray = new hkQsTransformf?[boneCount];
             for (var i = 0; i < boneCount; i++)
             {
-                var matrix = reader.Read<float>(12);
-                matrixArray[i] = new DeformMatrix3x4(matrix);
+                var matrix = reader.Read<hkQsTransformf>();
+                matrixArray[i] = matrix;
             }
 
             return new Deformer
@@ -133,6 +136,30 @@ public class PbdFile
                 DeformMatrices = matrixArray,
             };
         }
+
+        public static unsafe hkQsTransformf Identity()
+        {
+            var buf = new float[]
+            {
+                0, 0, 0, 0, // Translation (vec3 + unused)
+                0, 0, 0, 1, // Rotation (vec4)
+                1, 1, 1, 0,  // Scale (vec3 + unused)
+                0, 0, 0, 1, // Affine
+            };
+            
+            // marshal the buffer to a struct
+            fixed (float* ptr = buf)
+            {
+                return *(hkQsTransformf*)ptr;
+            }
+        }
+        
+        public static Vector3 TransformCoordinate(Vector3 vector, hkQsTransformf matrix) =>
+            new(
+                (vector.X * matrix.Translation.X) + (vector.Y * matrix.Translation.Y) + (vector.Z * matrix.Translation.Z) + (1.0f * matrix.Translation.W),
+                (vector.X * matrix.Rotation.X) + (vector.Y * matrix.Rotation.Y) + (vector.Z * matrix.Rotation.Z) + (1.0f * matrix.Rotation.W),
+                (vector.X * matrix.Scale.X) + (vector.Y * matrix.Scale.Y) + (vector.Z * matrix.Scale.Z) + (1.0f * matrix.Scale.W)
+            );
     }
 
     public IEnumerable<Deformer> GetDeformers(ushort from, ushort to)

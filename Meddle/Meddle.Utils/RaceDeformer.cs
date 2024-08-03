@@ -1,5 +1,6 @@
 using System.Numerics;
 using System.Text.RegularExpressions;
+using FFXIVClientStructs.Havok.Common.Base.Math.QsTransform;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 
@@ -11,7 +12,7 @@ public partial class RaceDeformer(PbdFile pbd, IReadOnlyList<BoneNodeBuilder> bo
     public PbdFile PbdFile { get; } = pbd;
     private IReadOnlyList<BoneNodeBuilder> BoneMap { get; } = boneMap;
 
-    private PbdFile.DeformMatrix3x4? ResolveDeformation(PbdFile.Deformer deformer, string name)
+    private hkQsTransformf? ResolveDeformation(PbdFile.Deformer deformer, string name)
     {
         // Try and fetch it from the PBD
         var boneNames = deformer.BoneNames;
@@ -31,7 +32,7 @@ public partial class RaceDeformer(PbdFile pbd, IReadOnlyList<BoneNodeBuilder> bo
         }
 
         // No deformation, just use identity
-        return PbdFile.DeformMatrix3x4.Identity;
+        return PbdFile.Deformer.Identity();
     }
 
     /// <summary>Deforms a vertex using a deformer.</summary>
@@ -42,7 +43,12 @@ public partial class RaceDeformer(PbdFile pbd, IReadOnlyList<BoneNodeBuilder> bo
     public Vector3? DeformVertex(PbdFile.Deformer deformer, int nameIndex, Vector3 origPos)
     {
         var matrix = ResolveDeformation(deformer, BoneMap[nameIndex].BoneName);
-        return matrix?.TransformCoordinate(origPos);
+        if (matrix != null)
+        {
+            return PbdFile.Deformer.TransformCoordinate(origPos, matrix.Value);
+        }
+
+        return null;
     }
     
     [GeneratedRegex(@"c(?'racecode'\d{4})", RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]

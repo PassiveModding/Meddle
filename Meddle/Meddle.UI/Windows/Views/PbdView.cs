@@ -69,16 +69,9 @@ public class PbdView : IView
                         var deformMatrix = deformer.Value.DeformMatrices[i];
                         if (deformMatrix != null)
                         {
-                            // draw as 3x4 matrix
-                            for (var j = 0; j < 3; j++)
-                            {
-                                var vec4 = new Vector4(deformMatrix.Value[j * 4], 
-                                                       deformMatrix.Value[j * 4 + 1], 
-                                                       deformMatrix.Value[j * 4 + 2], 
-                                                       deformMatrix.Value[j * 4 + 3]);
-                                ImGui.SameLine();
-                                ImGui.Text($"[{vec4.X:F4}, {vec4.Y:F4}, {vec4.Z:F4}, {vec4.W:F4}]");
-                            }
+                            ImGui.Text($"Translation: {deformMatrix.Value.Translation}");
+                            ImGui.Text($"Rotation: {deformMatrix.Value.Rotation}");
+                            ImGui.Text($"Scale: {deformMatrix.Value.Scale}");
                         }
                     }
                 }
