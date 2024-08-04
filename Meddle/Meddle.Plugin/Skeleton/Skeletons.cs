@@ -17,7 +17,14 @@ public class Skeleton
         var partialSkeletons = new List<PartialSkeleton>();
         for (var i = 0; i < skeleton->PartialSkeletonCount; ++i)
         {
-            partialSkeletons.Add(new PartialSkeleton(&skeleton->PartialSkeletons[i]));
+            try
+            {
+                partialSkeletons.Add(new PartialSkeleton(&skeleton->PartialSkeletons[i]));
+            }
+            catch (Exception e)
+            {
+                throw new Exception($"Failed to load partial skeleton {i}/{skeleton->PartialSkeletonCount}", e);
+            }
         }
 
         PartialSkeletons = partialSkeletons;
@@ -40,6 +47,7 @@ public class PartialSkeleton
             HandlePath = partialSkeleton->SkeletonResourceHandle->FileName.ToString();
         }
 
+        BoneCount = partialSkeleton->BoneCount;
         ConnectedBoneIndex = partialSkeleton->ConnectedBoneIndex;
 
         var poses = new List<SkeletonPose>();
@@ -64,6 +72,7 @@ public class PartialSkeleton
     public HkSkeleton? HkSkeleton { get; }
     public IReadOnlyList<SkeletonPose> Poses { get; }
     public int ConnectedBoneIndex { get; }
+    public uint BoneCount { get; }
 }
 
 public class HkSkeleton
