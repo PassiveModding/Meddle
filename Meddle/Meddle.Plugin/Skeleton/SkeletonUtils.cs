@@ -2,6 +2,7 @@
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Skeleton;
 using SharpGLTF.Scenes;
+using SharpGLTF.Transforms;
 
 namespace Meddle.Utils.Skeletons;
 
@@ -44,8 +45,9 @@ public static class SkeletonUtils
 
                 var bone = new BoneNodeBuilder(name)
                 {
-                    PartialSkeletonIndex = partialIdx,
-                    BoneIndex = i
+                    BoneIndex = i,
+                    PartialSkeletonHandle = partial.HandlePath ?? throw new InvalidOperationException($"No handle path for {name} [{partialIdx},{i}]"),
+                    PartialSkeletonIndex = partialIdx
                 };
                 if (pose != null && includePose)
                 {
@@ -81,13 +83,13 @@ public static class SkeletonUtils
         return boneMap;
     }
 
-    public static List<BoneNodeBuilder> GetBoneMap(Skeleton skeleton, out BoneNodeBuilder? root)
+    public static List<BoneNodeBuilder> GetBoneMap(Skeleton skeleton, bool includePose, out BoneNodeBuilder? root)
     {
-        return GetBoneMap(skeleton.PartialSkeletons, true, out root);
+        return GetBoneMap(skeleton.PartialSkeletons, includePose, out root);
     }
 
-    public static List<BoneNodeBuilder> GetAnimatedBoneMap(
-        List<AnimationFrameData> animation, bool includePositionalData, out BoneNodeBuilder? root)
+    /*public static List<BoneNodeBuilder> GetAnimatedBoneMap(
+        List<(DateTime, FrameData)> animation, bool includePositionalData, out BoneNodeBuilder? root)
     {
         root = null;
 
@@ -154,7 +156,7 @@ public static class SkeletonUtils
                 continue;
             
             var attachName = da.AttachFrame.Skeleton.PartialSkeletons[da.DistinctAttach.Attach.PartialSkeletonIdx]
-                                           .HkSkeleton!.BoneNames[da.DistinctAttach.Attach.BoneIdx];
+                                           .HkSkeleton!.BoneNames[(int)da.DistinctAttach.Attach.BoneIdx];
             var attachPointBone = boneMap.FirstOrDefault(x => x.BoneName.Equals(attachName, StringComparison.OrdinalIgnoreCase));
             if (attachPointBone == null)
                 continue;
@@ -221,7 +223,7 @@ public static class SkeletonUtils
         return attachBonePoseMap;
     }
     
-    private static Dictionary<DateTime, Dictionary<BoneNodeBuilder, Transform>> GetBonePoseMap(List<BoneNodeBuilder> boneMap, List<AnimationFrameData> animation)
+    private static Dictionary<DateTime, Dictionary<BoneNodeBuilder, Transform>> GetBonePoseMap(List<BoneNodeBuilder> boneMap, List<(DateTime time, FrameData data)> animation)
     {
         var bonePoseMap = new Dictionary<DateTime, Dictionary<BoneNodeBuilder, Transform>>();
 
@@ -232,15 +234,15 @@ public static class SkeletonUtils
 
             foreach (var frame in animation)
             {
-                var pose = frame.Skeleton.PartialSkeletons[bone.PartialSkeletonIndex.Value].Poses.FirstOrDefault();
+                var pose = frame.data.Skeleton.PartialSkeletons[bone.PartialSkeletonIndex.Value].Poses.FirstOrDefault();
                 if (pose == null)
                     continue;
 
                 var transform = pose.Pose[bone.BoneIndex.Value];
-                if (!bonePoseMap.TryGetValue(frame.Time, out var boneTransforms))
+                if (!bonePoseMap.TryGetValue(frame.time, out var boneTransforms))
                 {
                     boneTransforms = new Dictionary<BoneNodeBuilder, Transform>();
-                    bonePoseMap.Add(frame.Time, boneTransforms);
+                    bonePoseMap.Add(frame.time, boneTransforms);
                 }
 
                 boneTransforms.TryAdd(bone, transform);
@@ -248,6 +250,91 @@ public static class SkeletonUtils
         }
         
         return bonePoseMap;
-    }
+    }*/
 
+    public static Dictionary<string, (List<BoneNodeBuilder> Bones, BoneNodeBuilder? Root)> GetAnimatedBoneMap((DateTime Time, AttachSet[] Attaches)[] frames)
+    {
+        var attachDict = new Dictionary<string, (List<BoneNodeBuilder> Bones, BoneNodeBuilder? Root)>();
+        var attachTimelines = new Dictionary<string, List<(DateTime Time, AttachSet Attach)>>();
+        foreach (var frame in frames)
+        {
+            foreach (var attach in frame.Attaches)
+            {
+                if (!attachTimelines.TryGetValue(attach.Id, out var timeline))
+                {
+                    timeline = new List<(DateTime Time, AttachSet Attach)>();
+                    attachTimelines.Add(attach.Id, timeline);
+                }
+
+                timeline.Add((frame.Time, attach));
+            }
+        }
+        
+        var allTimes = frames.Select(x => x.Time).ToArray();
+        
+        var startTime = frames.Min(x => x.Time);
+        foreach (var (attachId, timeline) in attachTimelines)
+        {
+            var firstAttach = timeline.First().Attach;
+            if (!attachDict.TryGetValue(attachId, out var attachBoneMap))
+            {
+                attachBoneMap = ([], null);
+                attachDict.Add(attachId, attachBoneMap);
+            }
+
+            foreach (var time in allTimes)
+            {
+                var frame = timeline.FirstOrDefault(x => x.Time == time);
+                var frameTime = (float)(time - startTime).TotalSeconds;
+                if (frame != default)
+                {
+                    var newMap = GetBoneMap(frame.Attach.OwnerSkeleton, false, out var attachRoot);
+                    if (attachRoot == null)
+                        continue;
+
+                    attachBoneMap.Root ??= attachRoot;
+
+                    foreach (var attachBone in newMap)
+                    {
+                        var bone = attachBoneMap.Bones.FirstOrDefault(
+                            x => x.BoneName.Equals(attachBone.BoneName, StringComparison.OrdinalIgnoreCase));
+                        if (bone == null)
+                        {
+                            attachBoneMap.Bones.Add(attachBone);
+                            bone = attachBone;
+                        }
+
+                        var partial = frame.Attach.OwnerSkeleton.PartialSkeletons[attachBone.PartialSkeletonIndex];
+                        if (partial.Poses.Count == 0)
+                            continue;
+
+                        var transform = partial.Poses[0].Pose[bone.BoneIndex];
+                        bone.UseScale().UseTrackBuilder("pose").WithPoint(frameTime, transform.Scale);
+                        bone.UseRotation().UseTrackBuilder("pose").WithPoint(frameTime, transform.Rotation);
+                        bone.UseTranslation().UseTrackBuilder("pose").WithPoint(frameTime, transform.Translation);
+                    }
+
+                    var firstTranslation = firstAttach.Transform.Translation;
+                    attachRoot.UseScale().UseTrackBuilder("pose").WithPoint(frameTime, frame.Attach.Transform.Scale);
+                    attachRoot.UseRotation().UseTrackBuilder("pose").WithPoint(frameTime, frame.Attach.Transform.Rotation);
+                    attachRoot.UseTranslation().UseTrackBuilder("pose").WithPoint(frameTime, frame.Attach.Transform.Translation - firstTranslation);
+
+                    attachDict[attachId] = attachBoneMap;
+                }
+            }
+
+            foreach (var time in allTimes)
+            {
+                var frame = timeline.FirstOrDefault(x => x.Time == time);
+                if (frame != default) continue;
+                // set scaling to 0 when not present
+                foreach (var bone in attachBoneMap.Bones)
+                {
+                    bone.UseScale().UseTrackBuilder("pose").WithPoint((float)(time - startTime).TotalSeconds, Vector3.Zero);
+                }
+            }
+        }
+        
+        return attachDict;
+    }
 }

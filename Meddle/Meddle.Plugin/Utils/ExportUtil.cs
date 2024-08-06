@@ -14,6 +14,7 @@ using SharpGLTF.Geometry;
 using SharpGLTF.Geometry.VertexTypes;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
+using SharpGLTF.Transforms;
 using SkiaSharp;
 using Material = Meddle.Utils.Export.Material;
 using Model = Meddle.Utils.Export.Model;
@@ -122,20 +123,21 @@ public class ExportUtil : IDisposable
         }
     }
 
-    public void ExportAnimation(List<AnimationFrameData> frames, bool includePositionalData, CancellationToken token = default)
+    public void ExportAnimation(List<(DateTime, AttachSet[])> frames, bool includePositionalData, CancellationToken token = default)
     {
         try
         {
             using var activity = ActivitySource.StartActivity();
             var scene = new SceneBuilder();
-            var bones = SkeletonUtils.GetAnimatedBoneMap(frames, includePositionalData, out var root);
-            var armature = new NodeBuilder("Armature");
-            if (root != null)
+            var boneSets = SkeletonUtils.GetAnimatedBoneMap(frames.ToArray());
+
+            foreach (var (id, boneSet) in boneSets)
             {
-                armature.AddNode(root);
+                if (boneSet.Root == null) throw new InvalidOperationException("Root bone not found");
+                logger.LogInformation("Adding bone set {Id}", id);
+                scene.AddNode(boneSet.Root);
+                scene.AddSkinnedMesh(GetDummyMesh(id), Matrix4x4.Identity, boneSet.Bones.Cast<NodeBuilder>().ToArray());
             }
-            scene.AddSkinnedMesh(GetDummyMesh(), Matrix4x4.Identity, bones.Cast<NodeBuilder>().ToArray());
-            scene.AddNode(armature);
             
             var sceneGraph = scene.ToGltf2();
             var folder = GetPathForOutput();
@@ -152,8 +154,8 @@ public class ExportUtil : IDisposable
     }
     
     // https://github.com/0ceal0t/Dalamud-VFXEditor/blob/be00131b93b3c6dd4014a4f27c2661093daf3a85/VFXEditor/Utils/Gltf/GltfSkeleton.cs#L132
-    public static MeshBuilder<VertexPosition, VertexEmpty, VertexJoints4> GetDummyMesh() {
-        var dummyMesh = new MeshBuilder<VertexPosition, VertexEmpty, VertexJoints4>( "DUMMY_MESH" );
+    public static MeshBuilder<VertexPosition, VertexEmpty, VertexJoints4> GetDummyMesh(string name = "DUMMY_MESH") {
+        var dummyMesh = new MeshBuilder<VertexPosition, VertexEmpty, VertexJoints4>( name );
         var material = new MaterialBuilder( "material" );
 
         var p1 = new VertexPosition
@@ -184,7 +186,7 @@ public class ExportUtil : IDisposable
         {
             using var activity = ActivitySource.StartActivity();
             var scene = new SceneBuilder();
-            var bones = SkeletonUtils.GetBoneMap(characterGroup.Skeleton, out var root);
+            var bones = SkeletonUtils.GetBoneMap(characterGroup.Skeleton, true, out var root);
             //var bones = XmlUtils.GetBoneMap(characterGroup.Skeletons, out var root);
             if (root != null)
             {
@@ -219,8 +221,8 @@ public class ExportUtil : IDisposable
             {
                 var attachedModelGroup = characterGroup.AttachedModelGroups[i];
                 var attachName = characterGroup.Skeleton.PartialSkeletons[attachedModelGroup.Attach.PartialSkeletonIdx]
-                                               .HkSkeleton!.BoneNames[attachedModelGroup.Attach.BoneIdx];
-                var attachBones = SkeletonUtils.GetBoneMap(attachedModelGroup.Skeleton, out var attachRoot);
+                                               .HkSkeleton!.BoneNames[(int)attachedModelGroup.Attach.BoneIdx];
+                var attachBones = SkeletonUtils.GetBoneMap(attachedModelGroup.Skeleton, true, out var attachRoot);
                 if (attachRoot == null)
                 {
                     throw new InvalidOperationException("Failed to get attach root");
@@ -380,11 +382,7 @@ public class ExportUtil : IDisposable
                 {
                     logger.LogInformation("Adding bone {BoneName} from mesh {MeshPath}", boneName,
                                           mdlGroup.Path);
-                    var bone = new BoneNodeBuilder(boneName)
-                    {
-                        IsGenerated = true
-                    };
-
+                    var bone = new BoneNodeBuilder(boneName);
                     if (root == null) throw new InvalidOperationException("Root bone not found");
                     root.AddNode(bone);
                     logger.LogInformation("Added bone {BoneName} to {ParentBone}", boneName, root.BoneName);

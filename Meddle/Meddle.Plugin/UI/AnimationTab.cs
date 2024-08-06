@@ -4,7 +4,6 @@ using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.Havok.Common.Base.Math.QsTransform;
-using FFXIVClientStructs.Interop;
 using ImGuiNET;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Services;
@@ -13,7 +12,6 @@ using Meddle.Utils.Skeletons;
 using Microsoft.Extensions.Logging;
 using SharpGLTF.Transforms;
 using Attach = Meddle.Plugin.Skeleton.Attach;
-using Object = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Object;
 
 namespace Meddle.Plugin.UI;
 
@@ -31,7 +29,7 @@ public class AnimationTab : ITab
     public bool DisplayTab => true;
     private bool captureAnimation;
     private ICharacter? selectedCharacter;
-    private readonly List<AnimationFrameData> frames = new();
+    private readonly List<(DateTime Time, AttachSet[])> frames = [];
     private bool includePositionalData;
     
     public AnimationTab(IFramework framework, ILogger<AnimationTab> logger, 
@@ -136,7 +134,7 @@ public class AnimationTab : ITab
         
         ImGui.Separator();
 
-        if (ImGui.CollapsingHeader("Frames"))
+        /*if (ImGui.CollapsingHeader("Frames"))
         {
             // render frames
             foreach (var frame in frames.ToArray())
@@ -164,7 +162,7 @@ public class AnimationTab : ITab
                     }
                 }
             }
-        }
+        }*/
         
         if (ImGui.CollapsingHeader("Skeleton"))
         {
@@ -177,7 +175,6 @@ public class AnimationTab : ITab
         if (!captureAnimation) return;
         if (selectedCharacter == null) return;
         
-        // 60fps
         if (frames.Count > 0 && DateTime.UtcNow - frames[^1].Time < TimeSpan.FromMilliseconds(100))
         {
             return;
@@ -190,53 +187,91 @@ public class AnimationTab : ITab
             captureAnimation = false;
             return;
         }
-        var cBase = (CharacterBase*)charPtr->GameObject.DrawObject;
-        if (cBase == null)
+        var root = (CharacterBase*)charPtr->GameObject.DrawObject;
+        if (root == null)
         {
             logger.LogWarning("CharacterBase is null");
             captureAnimation = false;
             return;
         }
 
-        var skeleton = cBase->Skeleton;
-        if (skeleton == null)
+        var attachCollection = new List<AttachSet>();
+        var rootSkeleton = new Skeleton.Skeleton(root->Skeleton);
+        string rootName;
+        if (root->Attach.ExecuteType == 3)
         {
-            logger.LogWarning("Skeleton is null");
-            captureAnimation = false;
-            return;
+            var owner = root->Attach.OwnerCharacter;
+            var rootAttach = new Attach(root->Attach);
+            var ownerSkeleton = new Skeleton.Skeleton(owner->Skeleton);
+            var attachBoneName = ownerSkeleton.PartialSkeletons[rootAttach.PartialSkeletonIdx].HkSkeleton?.BoneNames[(int)rootAttach.BoneIdx] ?? "Bone";
+            rootName = $"{(nint)root:X8}_{attachBoneName}";
+            var rootAttachSet = new AttachSet(rootName, rootAttach, rootSkeleton, GetTransform(root), $"{(nint)owner:X8}");
+            attachCollection.Add(rootAttachSet);
+            attachCollection.Add(new AttachSet($"{(nint)owner:X8}", new Attach(owner->Attach), ownerSkeleton, GetTransform(owner), null));
+        } 
+        else
+        {
+            rootName = $"{(nint)root:X8}";
+            var rootAttach = new AttachSet(rootName, new Attach(root->Attach), rootSkeleton, GetTransform(root), null);
+            attachCollection.Add(rootAttach);
         }
 
-        var mSkele = new Skeleton.Skeleton(skeleton);
-        var position = cBase->Position;
-        var rotation = cBase->Rotation;
-        var scale = cBase->Scale;
-        var transform = new AffineTransform(scale, rotation, position);
+        foreach (var characterAttach in GetAttachData(charPtr, rootSkeleton, rootName))
+        {
+            // skip ie. mount may be the owner of the character already so we don't want to duplicate
+            if (attachCollection.Any(a => a.Id == characterAttach.Id))
+            {
+                continue;
+            }
+            attachCollection.Add(characterAttach);
+        }
         
-        var attachments = new List<AttachedSkeleton>();
-        
+        frames.Add((DateTime.UtcNow, attachCollection.ToArray()));
+    }
+    
+    public static unsafe AffineTransform GetTransform(CharacterBase* character)
+    {
+        var position = character->Position;
+        var rotation = character->Rotation;
+        var scale = character->Scale;
+        return new AffineTransform(scale, rotation, position);
+    }
+    
+    private unsafe AttachSet[] GetAttachData(Character* charPtr, Skeleton.Skeleton ownerSkeleton, string ownerId)
+    {
+        var attachments = new List<AttachSet>();
         var ornament = charPtr->OrnamentData.OrnamentObject;
         var companion = charPtr->CompanionData.CompanionObject;
         var mount = charPtr->Mount.MountObject;
         var weaponData = charPtr->DrawData.WeaponData;
-        
+
         if (ornament != null && ornament->DrawObject != null && ornament->DrawObject->GetObjectType() == ObjectType.CharacterBase)
         {
             var ornamentBase = (CharacterBase*)ornament->DrawObject;
-            attachments.Add(new AttachedSkeleton($"{(nint)ornamentBase:X8}", new Skeleton.Skeleton(ornamentBase->Skeleton), new Attach(ornamentBase->Attach)));
+            var ornamentAttach = new Attach(ornamentBase->Attach);
+            var attachBoneName = ownerSkeleton.PartialSkeletons[ornamentAttach.PartialSkeletonIdx].HkSkeleton?.BoneNames[(int)ornamentAttach.BoneIdx] ?? "Bone";
+            attachments.Add(new ($"{(nint)ornamentBase:X8}_{attachBoneName}", ornamentAttach, 
+                                 new Skeleton.Skeleton(ornamentBase->Skeleton), GetTransform(ornamentBase), ownerId));
         }
-        
+
         if (companion != null && companion->DrawObject != null && companion->DrawObject->GetObjectType() == ObjectType.CharacterBase)
         {
             var companionBase = (CharacterBase*)companion->DrawObject;
-            attachments.Add(new AttachedSkeleton($"{(nint)companionBase:X8}", new Skeleton.Skeleton(companionBase->Skeleton), new Attach(companionBase->Attach)));
+            var companionAttach = new Attach(companionBase->Attach);
+            var attachBoneName = ownerSkeleton.PartialSkeletons[companionAttach.PartialSkeletonIdx].HkSkeleton?.BoneNames[(int)companionAttach.BoneIdx] ?? "Bone";
+            attachments.Add(new ($"{(nint)companionBase:X8}_{attachBoneName}", companionAttach, 
+                                 new Skeleton.Skeleton(companionBase->Skeleton), GetTransform(companionBase), ownerId));
         }
-        
+
         if (mount != null && mount->DrawObject != null && mount->DrawObject->GetObjectType() == ObjectType.CharacterBase)
         {
             var mountBase = (CharacterBase*)mount->DrawObject;
-            attachments.Add(new AttachedSkeleton($"{(nint)mountBase:X8}", new Skeleton.Skeleton(mountBase->Skeleton), new Attach(mountBase->Attach)));
+            var mountAttach = new Attach(mountBase->Attach);
+            var attachBoneName = ownerSkeleton.PartialSkeletons[mountAttach.PartialSkeletonIdx].HkSkeleton?.BoneNames[(int)mountAttach.BoneIdx] ?? "Bone";
+            attachments.Add(new ($"{(nint)mountBase:X8}_{attachBoneName}", mountAttach, 
+                                 new Skeleton.Skeleton(mountBase->Skeleton), GetTransform(mountBase), ownerId));
         }
-        
+
         if (weaponData != null)
         {
             for (var i = 0; i < weaponData.Length; ++i)
@@ -245,13 +280,17 @@ public class AnimationTab : ITab
                 if (weapon.DrawObject != null && weapon.DrawObject->GetObjectType() == ObjectType.CharacterBase)
                 {
                     var weaponBase = (CharacterBase*)weapon.DrawObject;
-                    attachments.Add(new AttachedSkeleton($"{(nint)weaponBase:X8}", new Skeleton.Skeleton(weaponBase->Skeleton), new Attach(weaponBase->Attach)));
+                    var weaponAttach = new Attach(weaponBase->Attach);
+                    var attachBoneName = ownerSkeleton.PartialSkeletons[weaponAttach.PartialSkeletonIdx].HkSkeleton?.BoneNames[(int)weaponAttach.BoneIdx] ?? "Bone";
+                    attachments.Add(new ($"{(nint)weaponBase:X8}_{attachBoneName}", weaponAttach, 
+                                         new Skeleton.Skeleton(weaponBase->Skeleton), GetTransform(weaponBase), ownerId));
                 }
             }
         }
         
-        frames.Add(new AnimationFrameData(DateTime.UtcNow, mSkele, transform, attachments.ToArray()));
+        return attachments.ToArray();
     }
+    
 
     private void DrawSkeleton(Skeleton.Skeleton skeleton)
     {
@@ -477,10 +516,10 @@ public class AnimationTab : ITab
 
         var modelType = character->GetModelType();
         var attachHeader = $"[{modelType}]{name} Attach Pose ({attachPoint.ExecuteType},{attachPoint.AttachmentCount})";
-        if (character->Attach.ExecuteType > 3)
+        if (character->Attach.ExecuteType >= 3)
         {
             var attachedPartialSkeleton = attachPoint.OwnerSkeleton!.PartialSkeletons[attachPoint.PartialSkeletonIdx];
-            var boneName = attachedPartialSkeleton.HkSkeleton!.BoneNames[attachPoint.BoneIdx];
+            var boneName = attachedPartialSkeleton.HkSkeleton!.BoneNames[(int)attachPoint.BoneIdx];
             attachHeader += $" at {boneName}";
         }
         else if (character->Attach.ExecuteType == 3)
@@ -488,7 +527,7 @@ public class AnimationTab : ITab
             var attachedPartialSkeleton = attachPoint.OwnerSkeleton!.PartialSkeletons[attachPoint.PartialSkeletonIdx];
             if (attachedPartialSkeleton.HkSkeleton != null && attachPoint.BoneIdx < attachedPartialSkeleton.HkSkeleton.BoneNames.Count)
             {
-                var boneName = attachedPartialSkeleton.HkSkeleton.BoneNames[attachPoint.BoneIdx];
+                var boneName = attachedPartialSkeleton.HkSkeleton.BoneNames[(int)attachPoint.BoneIdx];
                 attachHeader += $" at {boneName}";
             }
             else
@@ -543,14 +582,30 @@ public class AnimationTab : ITab
 
     private unsafe void DrawModels(CharacterBase* character)
     {
+        using var modelIndent = ImRaii.PushIndent();
         var models = character->ModelsSpan;
         foreach (var model in models)
         {
             if (model == null)
                 continue;
-
-            var boneCount = model.Value->BoneCount;
-            ImGui.Text($"Model at: {model.Value->SlotIndex} Bone Count: {boneCount}");
+            if (model.Value->ModelResourceHandle == null)
+                continue;
+            var fileName = model.Value->ModelResourceHandle->FileName.ToString();
+            if (string.IsNullOrEmpty(fileName))
+                continue;
+            using var id = ImRaii.PushId($"{(nint)model.Value:X8}");
+            if (ImGui.CollapsingHeader($"Model: {fileName}"))
+            {
+                ImGui.Text($"Slot Index: {model.Value->SlotIndex}");
+                ImGui.Text($"Bone Count: {model.Value->BoneCount}");
+                ImGui.Text($"Material Count: {model.Value->MaterialCount}");
+                ImGui.Text($"Enabled Attribute Index Mask: {model.Value->EnabledAttributeIndexMask}");
+                ImGui.Text($"Enabled Shape Key Index Mask: {model.Value->EnabledShapeKeyIndexMask}");
+                if (model.Value->Skeleton != null)
+                {
+                    DrawSkeleton(model.Value->Skeleton, fileName);
+                }
+            }
         }
     }
     

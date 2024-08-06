@@ -1,6 +1,7 @@
 ﻿using FFXIVClientStructs.Interop;
 using Meddle.Utils.Skeletons;
 using CSAttach = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Attach;
+using CSSkeleton = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Skeleton;
 
 namespace Meddle.Plugin.Skeleton;
 
@@ -18,7 +19,6 @@ public unsafe class Attach
             case 0:
                 // nothing to do here
                 return;
-            // 1/2 -> not sure, seem to be transformed to a root item on exec
             case 3:
             {
                 if (attach.OwnerCharacter->Skeleton != null)
@@ -29,17 +29,33 @@ public unsafe class Attach
                 {
                     var transform = attach.SkeletonBoneAttachments[0];
                     OffsetTransform = new Transform(transform.ChildTransform);
-                    
-                    PartialSkeletonIdx = transform.SkeletonIdx;
-                    // not really sure how correct this is just yet
-                    if (OwnerSkeleton!.PartialSkeletons[PartialSkeletonIdx].BoneCount <= transform.BoneIdx)
+                    PartialSkeletonIdx = transform.BoneIndexMask.SkeletonIdx;
+
+                    var ownerSkeleton = attach.OwnerCharacter->Skeleton;
+
+                    CSSkeleton.Bone? foundBone = null;
+                    var foundBoneIdx = 0;
+                    for (var i = 0; i < ownerSkeleton->AttachBoneCount; i++)
                     {
-                        BoneIdx = 0; // TODO: sub_14041DCA0
+                        var bone = ownerSkeleton->AttachBonesSpan[i];
+                        if (bone.BoneIndex == transform.BoneIndexMask.BoneIdx)
+                        {
+                            foundBone = bone;
+                            foundBoneIdx = i;
+                            break;
+                        }
                     }
-                    else
+
+                    if (foundBone == null)
                     {
-                        BoneIdx = transform.BoneIdx;
+                        // should default but gonna throw for now
+                        throw new InvalidOperationException("Bone not found");
                     }
+
+                    var boneMask = ownerSkeleton->BoneMasksSpan[foundBoneIdx];
+                    // some case for if boneMask == -1 but meh
+                    PartialSkeletonIdx = boneMask.SkeletonIdx;
+                    BoneIdx = boneMask.BoneIdx;
                 }
                 break;
             }
@@ -53,8 +69,8 @@ public unsafe class Attach
                     var att = attach.SkeletonBoneAttachments[0];
                     OffsetTransform = new Transform(att.ChildTransform);
 
-                    PartialSkeletonIdx = att.SkeletonIdx;
-                    BoneIdx = att.BoneIdx;
+                    PartialSkeletonIdx = att.BoneIndexMask.SkeletonIdx;
+                    BoneIdx = att.BoneIndexMask.BoneIdx;
                 }
                 break;
             }
@@ -71,5 +87,5 @@ public unsafe class Attach
     public Skeleton? OwnerSkeleton { get; }
     public Transform? OffsetTransform { get; }
     public byte PartialSkeletonIdx { get; }
-    public ushort BoneIdx { get; }
+    public uint BoneIdx { get; }
 }
