@@ -3,6 +3,7 @@ using Dalamud.Hooking;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Meddle.Plugin.Services;
+using Meddle.Plugin.UI;
 using Meddle.Plugin.Utils;
 using Meddle.Utils.Files.SqPack;
 using Microsoft.Extensions.DependencyInjection;
@@ -47,6 +48,7 @@ public sealed class Plugin : IDalamudPlugin
                 service.AddServices(services);
                 services.AddSingleton(config)
                         .AddUi()
+                        .AddSingleton<TextureCache>()
                         .AddSingleton(pluginInterface)
                         .AddSingleton<ExportUtil>()
                         .AddSingleton<ParseUtil>()

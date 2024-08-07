@@ -1,4 +1,6 @@
 ﻿using System.Runtime.InteropServices;
+using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
+using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using Meddle.Utils.Export;
 using Microsoft.Extensions.Logging;
 using OtterTex;
@@ -35,6 +37,36 @@ public unsafe class DXHelper
                                   GetData);
 
         return ret;
+    }
+    
+    public byte[] ExportVertexBuffer(VertexBuffer* buffer)
+    {
+        if (buffer->DxPtr1 == nint.Zero)
+            throw new ArgumentException("Buffer's DX data is null");
+
+        using var res = new ID3D11Buffer(buffer->DxPtr1);
+        res.AddRef();
+
+        var ret = GetResourceData(res,
+                      CloneBuffer,
+                  (r, map) =>
+                  {
+                      var ret = new byte[r.Description.ByteWidth];
+                      Marshal.Copy(map.DataPointer, ret, 0, ret.Length);
+                      return ret;
+                  });
+
+        return ret;
+    }
+
+    private ID3D11Buffer CloneBuffer(ID3D11Buffer r)
+    {
+        var desc = r.Description with
+        {
+            Usage = ResourceUsage.Staging, BindFlags = 0, CPUAccessFlags = CpuAccessFlags.Read, MiscFlags = 0,
+        };
+
+        return r.Device.CreateBuffer(desc);
     }
 
     private (TextureResource Resource, int RowPitch) GetData(ID3D11Texture2D1 r, MappedSubresource map)

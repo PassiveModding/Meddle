@@ -142,6 +142,28 @@ public class ParseUtil : IDisposable
             attachGroups.ToArray());
     }
 
+    public unsafe Model.ShapeAttributeGroup ParseModelShapeAttributes(
+        FFXIVClientStructs.FFXIV.Client.Graphics.Render.Model* model)
+    {                
+        var shapesMask = model->EnabledShapeKeyIndexMask;
+        var shapes = new List<(string, short)>();
+        foreach (var shape in model->ModelResourceHandle->Shapes)
+        {
+            shapes.Add((MemoryHelper.ReadStringNullTerminated((nint)shape.Item1.Value), shape.Item2));
+        }
+                
+        var attributeMask = model->EnabledAttributeIndexMask;
+        var attributes = new List<(string, short)>();
+        foreach (var attribute in model->ModelResourceHandle->Attributes)
+        {
+            attributes.Add((MemoryHelper.ReadStringNullTerminated((nint)attribute.Item1.Value), attribute.Item2));
+        }
+                
+        var shapeAttributeGroup = new Model.ShapeAttributeGroup(shapesMask, attributeMask, shapes.ToArray(), attributes.ToArray());
+        
+        return shapeAttributeGroup;
+    }
+    
     public unsafe MdlFileGroup? HandleModelPtr(
         CharacterBase* characterBase, int slotIdx, Dictionary<int, ColorTable> colorTables)
     {
@@ -163,24 +185,8 @@ public class ParseUtil : IDisposable
             logger.LogWarning("Model file {MdlFileName} not found", mdlFileName);
             return null;
         }
-
-        var shapesMask = model->EnabledShapeKeyIndexMask;
-        var shapes = new List<(string, short)>();
-        foreach (var shape in model->ModelResourceHandle->Shapes)
-        {
-            shapes.Add((MemoryHelper.ReadStringNullTerminated((nint)shape.Item1.Value), shape.Item2));
-        }
-
-        var attributeMask = model->EnabledAttributeIndexMask;
-        var attributes = new List<(string, short)>();
-        foreach (var attribute in model->ModelResourceHandle->Attributes)
-        {
-            attributes.Add((MemoryHelper.ReadStringNullTerminated((nint)attribute.Item1.Value), attribute.Item2));
-        }
-
-        var shapeAttributeGroup =
-            new Model.ShapeAttributeGroup(shapesMask, attributeMask, shapes.ToArray(), attributes.ToArray());
-
+        
+        var shapeAttributeGroup = ParseModelShapeAttributes(model);
         var mdlFile = new MdlFile(mdlFileResource);
         var mtrlFileNames = mdlFile.GetMaterialNames().Select(x => x.Value).ToArray();
         var mtrlGroups = new List<MtrlFileGroup>();

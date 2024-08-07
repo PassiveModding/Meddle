@@ -1,8 +1,14 @@
 ﻿using System.Numerics;
+using Dalamud.Interface.Utility.Raii;
+using FFXIVClientStructs.FFXIV.Client.Game.Character;
+using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using ImGuiNET;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.Structs.Material;
+using Meddle.Utils.Skeletons;
+using SharpGLTF.Transforms;
+using Attach = Meddle.Plugin.Skeleton.Attach;
 using CustomizeData = Meddle.Utils.Export.CustomizeData;
 
 namespace Meddle.Plugin.Utils;
@@ -43,6 +49,11 @@ public static class UIUtil
 
     public static void DrawColorTable(ColorTable table, ColorDyeTable? dyeTable = null)
     {
+        DrawColorTable(table.Rows, dyeTable);
+    }
+
+    public static void DrawColorTable(ColorTableRow[] tableRows, ColorDyeTable? dyeTable = null)
+    {
         if (ImGui.BeginTable("ColorTable", 9, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable))
         {
             ImGui.TableSetupColumn("Row", ImGuiTableColumnFlags.WidthFixed, 50);
@@ -56,9 +67,9 @@ public static class UIUtil
             ImGui.TableSetupColumn("Tile Set", ImGuiTableColumnFlags.WidthFixed, 100);
             ImGui.TableHeadersRow();
 
-            for (var i = 0; i < table.Rows.Length; i++)
+            for (var i = 0; i < tableRows.Length; i++)
             {
-                DrawRow(i, table, dyeTable);
+                DrawRow(i, ref tableRows[i], dyeTable);
             }
 
             ImGui.EndTable();
@@ -78,9 +89,8 @@ public static class UIUtil
         DrawColorTable(file.ColorTable, file.HasDyeTable ? file.ColorDyeTable : null);
     }
 
-    private static void DrawRow(int i, ColorTable table, ColorDyeTable? dyeTable)
+    private static void DrawRow(int i, ref ColorTableRow row, ColorDyeTable? dyeTable)
     {
-        ref var row = ref table.Rows[i];
         ImGui.TableNextRow();
         ImGui.TableSetColumnIndex(0);
         ImGui.Text($"{i}");
@@ -135,5 +145,266 @@ public static class UIUtil
         ImGui.Text($"{row.GlossStrength}");
         ImGui.TableSetColumnIndex(8);
         ImGui.Text($"{row.TileIndex}");
+    }
+    
+    public static unsafe void DrawCharacterAttaches(Character* charPtr)
+    {
+        var cBase = (CharacterBase*)charPtr->GameObject.DrawObject;
+        DrawCharacterBase(cBase, "Main");
+        DrawOrnamentContainer(charPtr->OrnamentData);
+        DrawCompanionContainer(charPtr->CompanionData);
+        DrawMountContainer(charPtr->Mount);
+        DrawDrawDataContainer(charPtr->DrawData);
+    }
+    
+    private static unsafe void DrawDrawDataContainer(DrawDataContainer drawDataContainer)
+    {
+        if (drawDataContainer.OwnerObject == null)
+        {
+            ImGui.Text($"[DrawDataContainer] Owner is null");
+            return;
+        }
+        
+        var ownerObject = drawDataContainer.OwnerObject;
+        if (ownerObject == null)
+        {
+            ImGui.Text($"[DrawDataContainer] Owner is null");
+            return;
+        }
+        
+        var weaponData = drawDataContainer.WeaponData;
+        foreach (var weapon in weaponData)
+        {
+            var weaponDrawObject = weapon.DrawObject;
+            if (weaponDrawObject == null)
+            {
+                continue;
+            }
+            
+            var objectType = weaponDrawObject->GetObjectType();
+            if (objectType != ObjectType.CharacterBase)
+            {
+                ImGui.Text($"[Weapon:{weapon.ModelId.Id}] Weapon is not a CharacterBase ({objectType})");
+                return;
+            }
+
+            DrawCharacterBase((CharacterBase*)weaponDrawObject, "Weapon");
+        }
+    }
+    
+    private static unsafe void DrawCompanionContainer(CompanionContainer companionContainer)
+    {
+        var owner = companionContainer.OwnerObject;
+        if (owner == null)
+        {
+            ImGui.Text($"[Companion:{companionContainer.CompanionId}] Owner is null");
+            return;
+        }
+        var companion = companionContainer.CompanionObject;
+        if (companion == null)
+        {
+            return;
+        }
+
+        var objectType = companion->DrawObject->GetObjectType();
+        if (objectType != ObjectType.CharacterBase)
+        {
+            ImGui.Text($"[Companion:{companionContainer.CompanionId}] Companion is not a CharacterBase ({objectType})");
+            return;
+        }
+
+        DrawCharacterBase((CharacterBase*)companion->DrawObject, "Companion");
+    }
+    
+    private static unsafe void DrawMountContainer(MountContainer mountContainer)
+    {
+        var owner = mountContainer.OwnerObject;
+        if (owner == null)
+        {
+            ImGui.Text($"[Mount:{mountContainer.MountId}] Owner is null");
+            return;
+        }
+        var mount = mountContainer.MountObject;
+        if (mount == null)
+        {
+            return;
+        }
+        
+        var drawObject = mount->DrawObject;
+        if (drawObject == null)
+        {
+            ImGui.Text($"[Mount:{mountContainer.MountId}] DrawObject is null");
+            return;
+        }
+        
+        var objectType = drawObject->GetObjectType();
+        if (objectType != ObjectType.CharacterBase)
+        {
+            ImGui.Text($"[Mount:{mountContainer.MountId}] Mount is not a CharacterBase ({objectType})");
+            return;
+        }
+
+        DrawCharacterBase((CharacterBase*)drawObject, "Mount");
+    }
+
+    private static unsafe void DrawOrnamentContainer(OrnamentContainer ornamentContainer)
+    {
+        var owner = ornamentContainer.OwnerObject;
+        if (owner == null)
+        {
+            ImGui.Text($"[Ornament:{ornamentContainer.OrnamentId}] Owner is null");
+            return;
+        }
+        var ornament = ornamentContainer.OrnamentObject;
+        if (ornament == null)
+        {
+            return;
+        }
+
+        DrawCharacterBase((CharacterBase*)ornament->DrawObject, "Ornament");
+    }
+
+    private static unsafe void DrawCharacterBase(CharacterBase* character, string name)
+    {
+        if (character == null)
+            return;
+        var skeleton = character->Skeleton;
+        if (skeleton == null)
+            return;
+
+        Skeleton.Attach attachPoint;
+        try
+        {
+            attachPoint = new Skeleton.Attach(character->Attach);
+        }
+        catch (Exception e)
+        {
+            ImGui.Text($"Failed to parse attach: {e}");
+            return;
+        }
+
+        var modelType = character->GetModelType();
+        var attachHeader = $"[{modelType}]{name} Attach Pose ({attachPoint.ExecuteType},{attachPoint.AttachmentCount})";
+        if (character->Attach.ExecuteType >= 3)
+        {
+            var attachedPartialSkeleton = attachPoint.OwnerSkeleton!.PartialSkeletons[attachPoint.PartialSkeletonIdx];
+            var boneName = attachedPartialSkeleton.HkSkeleton!.BoneNames[(int)attachPoint.BoneIdx];
+            attachHeader += $" at {boneName}";
+        }
+        else if (character->Attach.ExecuteType == 3)
+        {
+            var attachedPartialSkeleton = attachPoint.OwnerSkeleton!.PartialSkeletons[attachPoint.PartialSkeletonIdx];
+            if (attachedPartialSkeleton.HkSkeleton != null && attachPoint.BoneIdx < attachedPartialSkeleton.HkSkeleton.BoneNames.Count)
+            {
+                var boneName = attachedPartialSkeleton.HkSkeleton.BoneNames[(int)attachPoint.BoneIdx];
+                attachHeader += $" at {boneName}";
+            }
+            else
+            {
+                attachHeader += $" at {attachPoint.BoneIdx} > {attachedPartialSkeleton.HandlePath}";
+            }
+        }
+
+        if (ImGui.CollapsingHeader(attachHeader))
+        {
+            using var attachId = ImRaii.PushId($"{(nint)character:X8}_Attach");
+            DrawAttachInfo(character, attachPoint);
+            using var attachIndent = ImRaii.PushIndent();
+            if (attachPoint.TargetSkeleton != null && ImGui.CollapsingHeader($"Target Skeleton {(nint)character->Attach.TargetSkeleton:X8}"))
+            {
+                using var id = ImRaii.PushId($"{(nint)character:X8}_Target");
+                DrawSkeleton(attachPoint.TargetSkeleton);
+            }
+
+            if (attachPoint.OwnerSkeleton != null && ImGui.CollapsingHeader($"Owner Skeleton {(nint)character->Attach.OwnerSkeleton:X8}"))
+            {
+                using var id = ImRaii.PushId($"{(nint)character:X8}_Owner");
+                DrawSkeleton(attachPoint.OwnerSkeleton);
+            }
+        }
+    }
+
+    private static unsafe void DrawAttachInfo(CharacterBase* character, Attach attachPoint)
+    {
+        var position = character->Position;
+        var rotation = character->Rotation;
+        var scale = character->Scale;
+        var aTransform = new AffineTransform(scale, rotation, position);
+        var transform = new Transform(aTransform);
+        ImGui.Text($"Attachment Count: {attachPoint.AttachmentCount}");
+        ImGui.Text($"ExecuteType: {attachPoint.ExecuteType}");
+        ImGui.Text($"SkeletonIdx: {attachPoint.PartialSkeletonIdx}");
+        ImGui.Text($"BoneIdx: {attachPoint.BoneIdx}");
+        ImGui.Text($"World Transform: {transform}");
+        ImGui.Text($"Root: {attachPoint.OffsetTransform?.ToString() ?? "None"}");
+        if (attachPoint.TargetSkeleton != null)
+        {
+            DrawSkeleton(attachPoint.TargetSkeleton);
+        }
+        else
+        {
+            var characterSkeleton = new Skeleton.Skeleton(character->Skeleton);
+            DrawSkeleton(characterSkeleton);
+        }
+        //DrawModels(character);
+    }
+    
+        public static void DrawSkeleton(Skeleton.Skeleton skeleton)
+    {
+        using var skeletonIndent = ImRaii.PushIndent();
+        ImGui.Text($"Partial Skeletons: {skeleton.PartialSkeletons.Count}");
+        ImGui.Text($"Transform: {skeleton.Transform}");
+        for (int i = 0; i < skeleton.PartialSkeletons.Count; i++)
+        {
+            var partial = skeleton.PartialSkeletons[i];
+            if (partial.HandlePath == null)
+            {
+                continue;
+            }
+            using var partialIndent = ImRaii.PushIndent();
+            using var partialId = ImRaii.PushId(i);
+            if (ImGui.CollapsingHeader($"[{i}]Partial: {partial.HandlePath}"))
+            {
+                ImGui.Text($"Connected Bone Index: {partial.ConnectedBoneIndex}");
+                var poseData = partial.Poses.FirstOrDefault();
+                if (poseData == null) continue;
+                for (int j = 0; j < poseData.Pose.Count; j++)
+                {
+                    var transform = poseData.Pose[j];
+                    var boneName = partial.HkSkeleton?.BoneNames[j] ?? "Bone";
+                    ImGui.Text($"[{j}]{boneName} {transform}");
+                }
+            }
+        }
+    }
+    
+    private static unsafe void DrawSkeleton(FFXIVClientStructs.FFXIV.Client.Graphics.Render.Skeleton* sk, string context)
+    {
+        using var skeletonIndent = ImRaii.PushIndent();
+        using var skeletonId = ImRaii.PushId($"{(nint)sk:X8}");
+        ImGui.Text($"Partial Skeletons: {sk->PartialSkeletonCount}");
+        ImGui.Text($"Transform: {new Transform(sk->Transform)}");
+        for (var i = 0; i < sk->PartialSkeletonCount; ++i)
+        {
+            using var partialId = ImRaii.PushId($"PartialSkeleton_{i}");
+            var handle = sk->PartialSkeletons[i].SkeletonResourceHandle;
+            if (handle == null)
+            {
+                continue;
+            }
+
+            if (ImGui.CollapsingHeader($"Partial {i}: {handle->FileName.ToString()}"))
+            {
+                var p = sk->PartialSkeletons[i].GetHavokPose(0);
+                if (p != null && p->Skeleton != null)
+                {
+                    for (var j = 0; j < p->Skeleton->Bones.Length; ++j)
+                    {
+                        var boneName = p->Skeleton->Bones[j].Name.String ?? $"Bone {j}";
+                        ImGui.TextUnformatted($"[{i}, {j}] => {boneName}");
+                    }
+                }
+            }
+        }
     }
 }

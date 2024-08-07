@@ -1,6 +1,5 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
-using FFXIVClientStructs.FFXIV.Common.Lua;
 using Meddle.Plugin.Models;
 using Meddle.Utils;
 using Meddle.Utils.Export;
@@ -14,7 +13,6 @@ using SharpGLTF.Geometry;
 using SharpGLTF.Geometry.VertexTypes;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
-using SharpGLTF.Transforms;
 using SkiaSharp;
 using Material = Meddle.Utils.Export.Material;
 using Model = Meddle.Utils.Export.Model;
@@ -80,7 +78,7 @@ public class ExportUtil : IDisposable
         var folder = GetPathForOutput();
         var outputPath = Path.Combine(folder, $"{Path.GetFileNameWithoutExtension(path)}.png");
 
-        var str = new SKDynamicMemoryWStream();
+        using var str = new SKDynamicMemoryWStream();
         bitmap.Encode(str, SKEncodedImageFormat.Png, 100);
 
         var data = str.DetachAsData().AsSpan();
@@ -128,21 +126,21 @@ public class ExportUtil : IDisposable
         try
         {
             using var activity = ActivitySource.StartActivity();
-            var scene = new SceneBuilder();
             var boneSets = SkeletonUtils.GetAnimatedBoneMap(frames.ToArray());
 
+            var folder = GetPathForOutput();
             foreach (var (id, boneSet) in boneSets)
             {
+                var scene = new SceneBuilder();
                 if (boneSet.Root == null) throw new InvalidOperationException("Root bone not found");
                 logger.LogInformation("Adding bone set {Id}", id);
                 scene.AddNode(boneSet.Root);
                 scene.AddSkinnedMesh(GetDummyMesh(id), Matrix4x4.Identity, boneSet.Bones.Cast<NodeBuilder>().ToArray());
+                var sceneGraph = scene.ToGltf2();
+                var outputPath = Path.Combine(folder, $"motion_{id}.gltf");
+                sceneGraph.SaveGLTF(outputPath);
             }
             
-            var sceneGraph = scene.ToGltf2();
-            var folder = GetPathForOutput();
-            var outputPath = Path.Combine(folder, "motion.gltf");
-            sceneGraph.SaveGLTF(outputPath);
             Process.Start("explorer.exe", folder);
             logger.LogInformation("Export complete");
         }
@@ -180,7 +178,7 @@ public class ExportUtil : IDisposable
         return dummyMesh;
     }
 
-    public void Export(CharacterGroup characterGroup, CancellationToken token = default)
+    public void Export(CharacterGroup characterGroup, string? outputFolder = null, CancellationToken token = default)
     {
         try
         {
@@ -286,7 +284,12 @@ public class ExportUtil : IDisposable
             }
 
             var sceneGraph = scene.ToGltf2();
-            var folder = GetPathForOutput();
+            if (outputFolder != null)
+            {
+                Directory.CreateDirectory(outputFolder);
+            }
+            
+            var folder = outputFolder ?? GetPathForOutput();
             var outputPath = Path.Combine(folder, "character.gltf");
             sceneGraph.SaveGLTF(outputPath);
             Process.Start("explorer.exe", folder);
@@ -545,6 +548,15 @@ public class ExportUtil : IDisposable
     {
         logger.LogWarning("Using fallback material for {Path}", material.HandlePath);
         return MaterialUtility.BuildFallback(material, name);
+    }
+
+    private void ExportTextureFromPath(string path)
+    {
+        var data = pack.GetFileOrReadFromDisk(path);
+        if (data == null) throw new InvalidOperationException($"Failed to get texture {path}");
+        var texFile = new TexFile(data);
+        var texture = new Texture(Texture.GetResource(texFile), path, null, null, null);
+        ExportTexture(texture.ToTexture().Bitmap, path);
     }
     
     public void Dispose()
