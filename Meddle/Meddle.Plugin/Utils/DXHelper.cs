@@ -1,6 +1,4 @@
 ﻿using System.Runtime.InteropServices;
-using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
-using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using Meddle.Utils.Export;
 using Microsoft.Extensions.Logging;
 using OtterTex;
@@ -39,7 +37,7 @@ public unsafe class DXHelper
         return ret;
     }
     
-    public byte[] ExportVertexBuffer(VertexBuffer* buffer)
+    /*public byte[] ExportVertexBuffer(VertexBuffer* buffer)
     {
         if (buffer->DxPtr1 == nint.Zero)
             throw new ArgumentException("Buffer's DX data is null");
@@ -67,7 +65,7 @@ public unsafe class DXHelper
         };
 
         return r.Device.CreateBuffer(desc);
-    }
+    }*/
 
     private (TextureResource Resource, int RowPitch) GetData(ID3D11Texture2D1 r, MappedSubresource map)
     {
