@@ -37,6 +37,7 @@ public unsafe class LiveCharacterTab : ITab
     private readonly DXHelper dxHelper;
     private readonly TextureCache textureCache;
     private readonly SqPack pack;
+    private readonly PbdHooks pbd;
     private readonly Configuration config;
     private readonly PluginState pluginState;
     private ICharacter? selectedCharacter;
@@ -58,6 +59,7 @@ public unsafe class LiveCharacterTab : ITab
         DXHelper dxHelper,
         TextureCache textureCache,
         SqPack pack,
+        PbdHooks pbd,
         Configuration config)
     {
         this.log = log;
@@ -68,6 +70,7 @@ public unsafe class LiveCharacterTab : ITab
         this.dxHelper = dxHelper;
         this.textureCache = textureCache;
         this.pack = pack;
+        this.pbd = pbd;
         this.config = config;
         this.objectTable = objectTable;
         this.clientState = clientState;
@@ -97,6 +100,7 @@ public unsafe class LiveCharacterTab : ITab
         {
             log.LogDebug("Disposing CharacterTabAlt");
             selectedModels.Clear();
+            humanCustomizeData.Clear();
             IsDisposed = true;
         }
     }
@@ -173,23 +177,32 @@ public unsafe class LiveCharacterTab : ITab
 
         if (character->Mount.MountObject != null)
         {
+            ImGui.Separator();
+            ImGui.Text("Mount");
             DrawCharacter(character->Mount.MountObject);
         }
         
         if (character->CompanionData.CompanionObject != null)
         {
-            DrawDrawObject(character->CompanionData.CompanionObject->DrawObject);
+            ImGui.Separator();
+            ImGui.Text("Companion");
+            DrawCharacter(&character->CompanionData.CompanionObject->Character);
         }
         
         if (character->OrnamentData.OrnamentObject != null)
         {
-            DrawDrawObject(character->OrnamentData.OrnamentObject->DrawObject);
+            ImGui.Separator();
+            ImGui.Text("Ornament");
+            DrawCharacter(&character->OrnamentData.OrnamentObject->Character);
         }
 
-        foreach (var weaponData in character->DrawData.WeaponData)
+        for (var weaponIdx = 0; weaponIdx < character->DrawData.WeaponData.Length; weaponIdx++)
         {
+            var weaponData = character->DrawData.WeaponData[weaponIdx];
             if (weaponData.DrawObject != null)
             {
+                ImGui.Separator();
+                ImGui.Text($"Weapon {weaponIdx}");
                 DrawDrawObject(weaponData.DrawObject);
             }
         }
@@ -286,7 +299,7 @@ public unsafe class LiveCharacterTab : ITab
         }
 
         using var modelTable = ImRaii.Table("##Models", 2, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable);
-        ImGui.TableSetupColumn("Options", ImGuiTableColumnFlags.WidthFixed, 100);
+        ImGui.TableSetupColumn("Options", ImGuiTableColumnFlags.WidthFixed, 80);
         ImGui.TableSetupColumn("Character Data", ImGuiTableColumnFlags.WidthStretch);
         ImGui.TableHeadersRow();
 
@@ -396,6 +409,18 @@ public unsafe class LiveCharacterTab : ITab
             UiUtil.Text($"File Name: {fileName}", fileName);
             ImGui.Text($"Slot Index: {model->SlotIndex}");
             UiUtil.Text($"Skeleton Ptr: {(nint)model->Skeleton:X8}", $"{(nint)model->Skeleton:X8}");
+            var deformerInfo = pbd.TryGetDeformer((nint)cBase, model->SlotIndex);
+            if (deformerInfo != null)
+            {
+                ImGui.Text($"Deformer Id: {(GenderRace)deformerInfo.Value.DeformerId} ({deformerInfo.Value.DeformerId})");
+                ImGui.Text($"RaceSex Id: {(GenderRace)deformerInfo.Value.RaceSexId} ({deformerInfo.Value.RaceSexId})");
+                ImGui.Text($"Pbd Path: {deformerInfo.Value.PbdPath}");
+            }
+            else
+            {
+                ImGui.Text("No deformer info found");
+            }
+            
             var modelShapeAttributes = parseService.ParseModelShapeAttributes(model);
             DrawShapeAttributeTable(modelShapeAttributes);
 
@@ -677,35 +702,62 @@ public unsafe class LiveCharacterTab : ITab
             ImGui.Image(wrap.ImGuiHandle, new Vector2(displayWidth, displayHeight));
         }
     }
-
+    
+    private Dictionary<Pointer<CSHuman>, (CustomizeData, CustomizeParameter)> humanCustomizeData = new();
+    private bool cacheHumanCustomizeData;
     private void DrawHumanCharacter(CSHuman* cBase, out CustomizeData customizeData, out CustomizeParameter customizeParams, out GenderRace genderRace)
     {
-        var customizeCBuf = cBase->CustomizeParameterCBuffer->TryGetBuffer<Models.CustomizeParameter>()[0];
-        customizeParams = new CustomizeParameter
+        if (cacheHumanCustomizeData && humanCustomizeData.TryGetValue(cBase, out var data))
         {
-            SkinColor = customizeCBuf.SkinColor,
-            MuscleTone = customizeCBuf.MuscleTone,
-            SkinFresnelValue0 = customizeCBuf.SkinFresnelValue0,
-            LipColor = customizeCBuf.LipColor,
-            MainColor = customizeCBuf.MainColor,
-            FacePaintUVMultiplier = customizeCBuf.FacePaintUVMultiplier,
-            HairFresnelValue0 = customizeCBuf.HairFresnelValue0,
-            MeshColor = customizeCBuf.MeshColor,
-            FacePaintUVOffset = customizeCBuf.FacePaintUVOffset,
-            LeftColor = customizeCBuf.LeftColor,
-            RightColor = customizeCBuf.RightColor,
-            OptionColor = customizeCBuf.OptionColor
-        };
-        customizeData = new CustomizeData
+            customizeData = data.Item1;
+            customizeParams = data.Item2;
+            genderRace = (GenderRace)cBase->RaceSexId;
+        }
+        else
         {
-            LipStick = cBase->Customize.Lipstick,
-            Highlights = cBase->Customize.Highlights
-        };
-        genderRace = (GenderRace)cBase->RaceSexId;
+            var customizeCBuf = cBase->CustomizeParameterCBuffer->TryGetBuffer<Models.CustomizeParameter>()[0];
+            customizeParams = new CustomizeParameter
+            {
+                SkinColor = customizeCBuf.SkinColor,
+                MuscleTone = customizeCBuf.MuscleTone,
+                SkinFresnelValue0 = customizeCBuf.SkinFresnelValue0,
+                LipColor = customizeCBuf.LipColor,
+                MainColor = customizeCBuf.MainColor,
+                FacePaintUVMultiplier = customizeCBuf.FacePaintUVMultiplier,
+                HairFresnelValue0 = customizeCBuf.HairFresnelValue0,
+                MeshColor = customizeCBuf.MeshColor,
+                FacePaintUVOffset = customizeCBuf.FacePaintUVOffset,
+                LeftColor = customizeCBuf.LeftColor,
+                RightColor = customizeCBuf.RightColor,
+                OptionColor = customizeCBuf.OptionColor
+            };
+            customizeData = new CustomizeData
+            {
+                LipStick = cBase->Customize.Lipstick,
+                Highlights = cBase->Customize.Highlights
+            };
+            genderRace = (GenderRace)cBase->RaceSexId;
+            humanCustomizeData[cBase] = (customizeData, customizeParams);
+        }
 
         if (ImGui.CollapsingHeader("Customize Options"))
         {
+            if (ImGui.Checkbox("Cache Human Customize Data", ref cacheHumanCustomizeData))
+            {
+                humanCustomizeData.Clear();
+            }
+
+            var width = ImGui.GetContentRegionAvail().X;
+            using var disable = ImRaii.Disabled(!cacheHumanCustomizeData);
+            using var table = ImRaii.Table("##CustomizeTable", 2, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable);
+            ImGui.TableSetupColumn("Params", ImGuiTableColumnFlags.WidthFixed, width * 0.75f);
+            ImGui.TableSetupColumn("Data");
+            ImGui.TableHeadersRow();
+                
+            ImGui.TableNextRow();
+            ImGui.TableSetColumnIndex(0);
             UiUtil.DrawCustomizeParams(ref customizeParams);
+            ImGui.TableSetColumnIndex(1);
             UiUtil.DrawCustomizeData(customizeData);
             ImGui.Text(genderRace.ToString());
         }
