@@ -176,5 +176,4 @@ public class DebugTab : ITab
     private int selectedBoneIndex;
 
     private ICharacter? selectedCharacter;
-    
 }

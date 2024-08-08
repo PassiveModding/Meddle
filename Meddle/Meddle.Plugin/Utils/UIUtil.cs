@@ -15,6 +15,19 @@ namespace Meddle.Plugin.Utils;
 
 public static class UiUtil
 {
+    public static void Text(string text, string? copyValue)
+    {
+        ImGui.Text(text);
+        if (ImGui.IsItemHovered() && copyValue != null)
+        {
+            ImGui.SetTooltip($"Click to copy {copyValue}");
+            if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
+            {
+                ImGui.SetClipboardText(copyValue);
+            }
+        }
+    }
+    
     public static void DrawCustomizeParams(ref CustomizeParameter customize)
     {
         ImGui.ColorEdit3("Skin Color", ref customize.SkinColor);

@@ -40,9 +40,9 @@ public unsafe class LiveCharacterTab : ITab
     private readonly Configuration config;
     private readonly PluginState pluginState;
     private ICharacter? selectedCharacter;
-    private Dictionary<Pointer<CSModel>, bool> selectedModels = new();
+    private readonly Dictionary<Pointer<CSModel>, bool> selectedModels = new();
 
-    private readonly FileDialogManager fileDialog = new FileDialogManager
+    private readonly FileDialogManager fileDialog = new()
     {
         AddedWindowFlags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoDocking
     };
@@ -96,6 +96,7 @@ public unsafe class LiveCharacterTab : ITab
         if (!IsDisposed)
         {
             log.LogDebug("Disposing CharacterTabAlt");
+            selectedModels.Clear();
             IsDisposed = true;
         }
     }
@@ -143,11 +144,11 @@ public unsafe class LiveCharacterTab : ITab
             }
         }
 
-        DrawCharacterGroup();
+        DrawSelectedCharacter();
         fileDialog.Draw();
     }
 
-    private void DrawCharacterGroup()
+    private void DrawSelectedCharacter()
     {
         if (selectedCharacter == null)
         {
@@ -156,26 +157,60 @@ public unsafe class LiveCharacterTab : ITab
         }
 
         var charPtr = (CSCharacter*)selectedCharacter.Address;
-        if (charPtr == null)
+        DrawCharacter(charPtr);
+    }
+    
+    private void DrawCharacter(CSCharacter* character)
+    {
+        if (character == null)
         {
             ImGui.Text("Character is null");
             return;
         }
 
-        var drawObject = charPtr->GameObject.DrawObject;
-        if (drawObject == null)
+        var drawObject = character->GameObject.DrawObject;
+        DrawDrawObject(drawObject);
+
+        if (character->Mount.MountObject != null)
         {
-            ImGui.Text("Character has no draw object");
-            return;
+            DrawCharacter(character->Mount.MountObject);
+        }
+        
+        if (character->CompanionData.CompanionObject != null)
+        {
+            DrawDrawObject(character->CompanionData.CompanionObject->DrawObject);
+        }
+        
+        if (character->OrnamentData.OrnamentObject != null)
+        {
+            DrawDrawObject(character->OrnamentData.OrnamentObject->DrawObject);
         }
 
+        foreach (var weaponData in character->DrawData.WeaponData)
+        {
+            if (weaponData.DrawObject != null)
+            {
+                DrawDrawObject(weaponData.DrawObject);
+            }
+        }
+    }
+    
+    private void DrawDrawObject(DrawObject* drawObject)
+    {
+        if (drawObject == null)
+        {
+            ImGui.Text("Draw object is null");
+            return;
+        }
+        
         var objectType = drawObject->Object.GetObjectType();
         if (objectType != ObjectType.CharacterBase)
         {
-            ImGui.Text("Selected object is not a character");
+            ImGui.Text($"Draw object is not a character base ({objectType})");
             return;
         }
-
+        
+        using var drawObjectId = ImRaii.PushId($"{(nint)drawObject}");
         var cBase = (CSCharacterBase*)drawObject;
         var modelType = cBase->GetModelType();
         CustomizeParameter? customizeParams = null;
@@ -184,6 +219,70 @@ public unsafe class LiveCharacterTab : ITab
         if (modelType == CSCharacterBase.ModelType.Human)
         {
             DrawHumanCharacter((CSHuman*)cBase, out customizeData, out customizeParams, out genderRace);
+        }
+
+        if (ImGui.Button("Export All Models"))
+        {
+            var colorTableTextures = parseService.ParseColorTableTextures(cBase);
+            var models = new List<MdlFileGroup>();
+            foreach (var modelPtr in cBase->ModelsSpan)
+            {
+                if (modelPtr == null) continue;
+                var model = modelPtr.Value;
+                if (model == null) continue;
+                var modelData = parseService.HandleModelPtr(cBase, (int)model->SlotIndex, colorTableTextures);
+                if (modelData == null) continue;
+                models.Add(modelData);
+            }
+
+            var skeleton = new Skeleton.Skeleton(cBase->Skeleton);
+            var cGroup = new CharacterGroup(customizeParams ?? new CustomizeParameter(),
+                                            customizeData ?? new CustomizeData(),
+                                            genderRace, models.ToArray(),
+                                            skeleton, []);
+            fileDialog.SaveFolderDialog("Save Model", "Character",
+                (result, path) =>
+                {
+                    if (!result) return;
+                   
+                    Task.Run(() => { exportService.Export(cGroup, path); });
+                }, Plugin.TempDirectory);
+        }
+
+        ImGui.SameLine();
+        var selectedModelCount = cBase->ModelsSpan.ToArray().Count(modelPtr =>
+        {
+            if (modelPtr == null) return false;
+            return selectedModels.ContainsKey(modelPtr.Value) && selectedModels[modelPtr.Value];
+        });
+        using (var disable = ImRaii.Disabled(selectedModelCount == 0))
+        {
+            if (ImGui.Button($"Export Selected Models ({selectedModelCount})") && selectedModelCount > 0)
+            {
+                var colorTableTextures = parseService.ParseColorTableTextures(cBase);
+                var models = new List<MdlFileGroup>();
+                foreach (var modelPtr in cBase->ModelsSpan)
+                {
+                    if (modelPtr == null) continue;
+                    if (!selectedModels.TryGetValue(modelPtr, out var isSelected) || !isSelected) continue;
+                    var model = modelPtr.Value;
+                    if (model == null) continue;
+                    var modelData = parseService.HandleModelPtr(cBase, (int)model->SlotIndex, colorTableTextures);
+                    if (modelData == null) continue;
+                    models.Add(modelData);
+                }
+
+                var skeleton = new Skeleton.Skeleton(cBase->Skeleton);
+                var cGroup = new CharacterGroup(customizeParams ?? new CustomizeParameter(), customizeData ?? new CustomizeData(), genderRace, models.ToArray(), skeleton, []);
+
+                fileDialog.SaveFolderDialog("Save Model", "Character",
+                    (result, path) =>
+                    {
+                        if (!result) return;
+                        
+                        Task.Run(() => { exportService.Export(cGroup, path); });
+                    }, Plugin.TempDirectory);
+            }
         }
 
         using var modelTable = ImRaii.Table("##Models", 2, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable);
@@ -218,7 +317,6 @@ public unsafe class LiveCharacterTab : ITab
         ImGui.TableNextRow();
         var fileName = model->ModelResourceHandle->FileName.ToString();
         var modelName = cBase->ResolveMdlPath(model->SlotIndex);
-        //var actualModelName = gamePathHandler.ClassifyMdlGamePath(modelName);
 
         ImGui.TableSetColumnIndex(0);
         using (ImRaii.PushFont(UiBuilder.IconFont))
@@ -294,9 +392,10 @@ public unsafe class LiveCharacterTab : ITab
 
         if (ImGui.CollapsingHeader($"[{model->SlotIndex}] {modelName}"))
         {
-            ImGui.Text($"Game File Name: {modelName}");
-            ImGui.Text($"File Name: {fileName}");
+            UiUtil.Text($"Game File Name: {modelName}", modelName);
+            UiUtil.Text($"File Name: {fileName}", fileName);
             ImGui.Text($"Slot Index: {model->SlotIndex}");
+            UiUtil.Text($"Skeleton Ptr: {(nint)model->Skeleton:X8}", $"{(nint)model->Skeleton:X8}");
             var modelShapeAttributes = parseService.ParseModelShapeAttributes(model);
             DrawShapeAttributeTable(modelShapeAttributes);
 
@@ -393,6 +492,25 @@ public unsafe class LiveCharacterTab : ITab
         // popup for export options
         if (ImGui.BeginPopupContextItem("ExportMaterialPopup"))
         {
+            if (ImGui.MenuItem("Export as mtrl"))
+            {
+                var defaultFileName = Path.GetFileName(materialName);
+                fileDialog.SaveFileDialog("Save Material", "Material File{.mtrl}", defaultFileName, ".mtrl",
+                (result, path) =>
+                {
+                    if (!result) return;
+                    var data = pack.GetFileOrReadFromDisk(materialFileName);
+                    if (data == null)
+                    {
+                        log.LogError("Failed to get material data from pack or disk for {MaterialFileName}",
+                            materialFileName);
+                        return;
+                    }
+
+                    File.WriteAllBytes(path, data);
+                });
+            }
+            
             if (ImGui.MenuItem("Export raw textures as pngs"))
             {
                 var textureBuffer = new Dictionary<string, SKBitmap>();
@@ -532,8 +650,8 @@ public unsafe class LiveCharacterTab : ITab
         ImGui.TableSetColumnIndex(1);
         if (ImGui.CollapsingHeader(textureName ?? textureFileName))
         {
-            ImGui.Text($"Game File Name: {textureName}");
-            ImGui.Text($"File Name: {textureFileName}");
+            UiUtil.Text($"Game File Name: {textureName}", textureName);
+            UiUtil.Text($"File Name: {textureFileName}", textureFileName);
             ImGui.Text($"Id: {textureEntry.Id}");
 
             var availableWidth = ImGui.GetContentRegionAvail().X;
