@@ -55,6 +55,8 @@ public class PluginLogger : ILogger
         return null;
     }
 
+    private readonly List<IActiveNotification> notifications = new();
+    
     private void LogNotification(string message, LogLevel level)
     {
         if (level < config.MinimumNotificationLogLevel) return;
@@ -79,7 +81,15 @@ public class PluginLogger : ILogger
             InitialDuration = TimeSpan.FromSeconds(2)
         };
         
-        notificationManager.AddNotification(notification);
+        var notif = notificationManager.AddNotification(notification);
+        notifications.Add(notif);
+        
+        if (notifications.Count > 5)
+        {
+            var toRemove = notifications[0];
+            notifications.RemoveAt(0);
+            toRemove.DismissNow();
+        }
     }
     
     public void Log<TState>(
