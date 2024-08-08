@@ -66,6 +66,8 @@ public static class ObjectUtil
         if (obj.ObjectKind == ObjectKind.Player && !string.IsNullOrWhiteSpace(overrideName))   
             name = overrideName;
         return
-            $"[{obj.Address:X8}:{obj.GameObjectId:X}][{obj.ObjectKind}][{modelType}] - {(string.IsNullOrWhiteSpace(name) ? "Unnamed" : name)} - {clientState.GetDistanceToLocalPlayer(obj).Length():0.00}y##{obj.GameObjectId}";
+            $"[{obj.Address:X8}:{obj.GameObjectId:X}][{obj.ObjectKind}][{modelType}] - " +
+            $"{(string.IsNullOrWhiteSpace(name) ? "Unnamed" : name)} - " +
+            $"{clientState.GetDistanceToLocalPlayer(obj).Length():0.00}y##{obj.GameObjectId}";
     }
 }
