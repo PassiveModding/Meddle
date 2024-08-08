@@ -6,6 +6,7 @@ using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Common.Math;
+using FFXIVClientStructs.Interop;
 using ImGuiNET;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Services;
@@ -39,6 +40,7 @@ public unsafe class LiveCharacterTab : ITab
     private readonly Configuration config;
     private readonly PluginState pluginState;
     private ICharacter? selectedCharacter;
+    private Dictionary<Pointer<CSModel>, bool> selectedModels = new();
 
     private readonly FileDialogManager fileDialog = new FileDialogManager
     {
@@ -224,6 +226,20 @@ public unsafe class LiveCharacterTab : ITab
             if (ImGui.Button(FontAwesomeIcon.FileExport.ToIconString()))
             {
                 ImGui.OpenPopup("ExportModelPopup");
+            }
+            
+            ImGui.SameLine();
+            var selected = selectedModels.ContainsKey(model);
+            if (ImGui.Checkbox("##Selected", ref selected))
+            {
+                if (selected)
+                {
+                    selectedModels[model] = true;
+                }
+                else
+                {
+                    selectedModels.Remove(model);
+                }
             }
         }
 
