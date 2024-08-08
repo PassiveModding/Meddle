@@ -252,9 +252,9 @@ public static class SkeletonUtils
         return bonePoseMap;
     }*/
 
-    public static Dictionary<string, (List<BoneNodeBuilder> Bones, BoneNodeBuilder? Root)> GetAnimatedBoneMap((DateTime Time, AttachSet[] Attaches)[] frames)
+    public static Dictionary<string, (List<BoneNodeBuilder> Bones, BoneNodeBuilder? Root, List<(DateTime Time, AttachSet Attach)> Timeline)> GetAnimatedBoneMap((DateTime Time, AttachSet[] Attaches)[] frames)
     {
-        var attachDict = new Dictionary<string, (List<BoneNodeBuilder> Bones, BoneNodeBuilder? Root)>();
+        var attachDict = new Dictionary<string, (List<BoneNodeBuilder> Bones, BoneNodeBuilder? Root, List<(DateTime Time, AttachSet Attach)> Timeline)>();
         var attachTimelines = new Dictionary<string, List<(DateTime Time, AttachSet Attach)>>();
         foreach (var frame in frames)
         {
@@ -278,14 +278,14 @@ public static class SkeletonUtils
             var firstAttach = timeline.First().Attach;
             if (!attachDict.TryGetValue(attachId, out var attachBoneMap))
             {
-                attachBoneMap = ([], null);
+                attachBoneMap = ([], null, timeline);
                 attachDict.Add(attachId, attachBoneMap);
             }
 
             foreach (var time in allTimes)
             {
                 var frame = timeline.FirstOrDefault(x => x.Time == time);
-                var frameTime = (float)(time - startTime).TotalSeconds;
+                var frameTime = TotalSeconds(time, startTime);
                 if (frame != default)
                 {
                     var newMap = GetBoneMap(frame.Attach.OwnerSkeleton, false, out var attachRoot);
@@ -330,11 +330,20 @@ public static class SkeletonUtils
                 // set scaling to 0 when not present
                 foreach (var bone in attachBoneMap.Bones)
                 {
-                    bone.UseScale().UseTrackBuilder("pose").WithPoint((float)(time - startTime).TotalSeconds, Vector3.Zero);
+                    bone.UseScale().UseTrackBuilder("pose").WithPoint(TotalSeconds(time, startTime), Vector3.Zero);
                 }
             }
         }
         
         return attachDict;
+    }
+    
+    public static float TotalSeconds(DateTime time, DateTime startTime)
+    {
+        var value = (float)(time - startTime).TotalSeconds;
+        // handle really close to 0 values
+        if (value < 0.0001f)
+            return 0;
+        return value;
     }
 }

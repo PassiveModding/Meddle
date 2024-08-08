@@ -128,13 +128,31 @@ public class ExportService : IDisposable
         {
             using var activity = ActivitySource.StartActivity();
             var boneSets = SkeletonUtils.GetAnimatedBoneMap(frames.ToArray());
-
+            var startTime = frames.Min(x => x.Item1);
             var folder = GetPathForOutput();
             foreach (var (id, boneSet) in boneSets)
             {
                 var scene = new SceneBuilder();
                 if (boneSet.Root == null) throw new InvalidOperationException("Root bone not found");
                 logger.LogInformation("Adding bone set {Id}", id);
+
+                if (includePositionalData)
+                {
+                    var startPos = boneSet.Timeline.First().Attach.Transform.Translation;
+                    foreach (var frameTime in boneSet.Timeline)
+                    {
+                        if (token.IsCancellationRequested) return;
+                        var pos = frameTime.Attach.Transform.Translation;
+                        var rot = frameTime.Attach.Transform.Rotation;
+                        var scale = frameTime.Attach.Transform.Scale;
+                        var time = SkeletonUtils.TotalSeconds(frameTime.Time, startTime);
+                        var root = boneSet.Root;
+                        root.UseTranslation().UseTrackBuilder("pose").WithPoint(time, pos - startPos);
+                        root.UseRotation().UseTrackBuilder("pose").WithPoint(time, rot);
+                        root.UseScale().UseTrackBuilder("pose").WithPoint(time, scale);
+                    }
+                }
+                
                 scene.AddNode(boneSet.Root);
                 scene.AddSkinnedMesh(GetDummyMesh(id), Matrix4x4.Identity, boneSet.Bones.Cast<NodeBuilder>().ToArray());
                 var sceneGraph = scene.ToGltf2();
