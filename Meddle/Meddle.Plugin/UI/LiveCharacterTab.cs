@@ -28,11 +28,11 @@ namespace Meddle.Plugin.UI;
 public unsafe class LiveCharacterTab : ITab
 {
     private readonly IClientState clientState;
-    private readonly ExportUtil exportUtil;
+    private readonly ExportService exportService;
     private readonly ITextureProvider textureProvider;
     private readonly ILogger<LiveCharacterTab> log;
     private readonly IObjectTable objectTable;
-    private readonly ParseUtil parseUtil;
+    private readonly ParseService parseService;
     private readonly DXHelper dxHelper;
     private readonly TextureCache textureCache;
     private readonly SqPack pack;
@@ -50,9 +50,9 @@ public unsafe class LiveCharacterTab : ITab
         IClientState clientState,
         ILogger<LiveCharacterTab> log,
         PluginState pluginState,
-        ExportUtil exportUtil,
+        ExportService exportService,
         ITextureProvider textureProvider,
-        ParseUtil parseUtil,
+        ParseService parseService,
         DXHelper dxHelper,
         TextureCache textureCache,
         SqPack pack,
@@ -60,9 +60,9 @@ public unsafe class LiveCharacterTab : ITab
     {
         this.log = log;
         this.pluginState = pluginState;
-        this.exportUtil = exportUtil;
+        this.exportService = exportService;
         this.textureProvider = textureProvider;
-        this.parseUtil = parseUtil;
+        this.parseService = parseService;
         this.dxHelper = dxHelper;
         this.textureCache = textureCache;
         this.pack = pack;
@@ -255,8 +255,8 @@ public unsafe class LiveCharacterTab : ITab
                     (result, path) =>
                     {
                         if (!result) return;
-                        var colorTableTextures = parseUtil.ParseColorTableTextures(cBase);
-                        var modelData = parseUtil.HandleModelPtr(cBase, (int)model->SlotIndex, colorTableTextures);
+                        var colorTableTextures = parseService.ParseColorTableTextures(cBase);
+                        var modelData = parseService.HandleModelPtr(cBase, (int)model->SlotIndex, colorTableTextures);
                         if (modelData == null)
                         {
                             log.LogError("Failed to get model data for {FileName}", fileName);
@@ -267,7 +267,7 @@ public unsafe class LiveCharacterTab : ITab
                         var cGroup = new CharacterGroup(customizeParams ?? new CustomizeParameter(), customizeData ?? new CustomizeData(), genderRace, [modelData], skeleton, []);
 
                         
-                        Task.Run(() => { exportUtil.Export(cGroup, path); });
+                        Task.Run(() => { exportService.Export(cGroup, path); });
                     }, Plugin.TempDirectory);
             }
 
@@ -281,7 +281,7 @@ public unsafe class LiveCharacterTab : ITab
             ImGui.Text($"Game File Name: {modelName}");
             ImGui.Text($"File Name: {fileName}");
             ImGui.Text($"Slot Index: {model->SlotIndex}");
-            var modelShapeAttributes = parseUtil.ParseModelShapeAttributes(model);
+            var modelShapeAttributes = parseService.ParseModelShapeAttributes(model);
             DrawShapeAttributeTable(modelShapeAttributes);
 
             for (var materialIdx = 0; materialIdx < model->MaterialsSpan.Length; materialIdx++)
@@ -436,8 +436,8 @@ public unsafe class LiveCharacterTab : ITab
                 ImGui.CollapsingHeader("Color Table"))
             {
                 var colorTableTexture = colorTableTexturePtr.Value;
-                var colorTable = parseUtil.ParseColorTableTexture(colorTableTexture);
-                UIUtil.DrawColorTable(colorTable);
+                var colorTable = parseService.ParseColorTableTexture(colorTableTexture);
+                UiUtil.DrawColorTable(colorTable);
             }
 
             for (var texIdx = 0; texIdx < material->TextureCount; texIdx++)
@@ -571,8 +571,8 @@ public unsafe class LiveCharacterTab : ITab
 
         if (ImGui.CollapsingHeader("Customize Options"))
         {
-            UIUtil.DrawCustomizeParams(ref customizeParams);
-            UIUtil.DrawCustomizeData(customizeData);
+            UiUtil.DrawCustomizeParams(ref customizeParams);
+            UiUtil.DrawCustomizeData(customizeData);
             ImGui.Text(genderRace.ToString());
         }
     }

@@ -5,16 +5,16 @@ using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using Microsoft.Extensions.Logging;
 
-namespace Meddle.Plugin.Utils;
+namespace Meddle.Plugin.Services;
 
 public class PbdHooks : IDisposable
 {
     private readonly ISigScanner sigScanner;
     private readonly IGameInteropProvider gameInterop;
     private readonly ILogger<PbdHooks> logger;
-    public const string Human_CreateDeformerSig = "40 53 48 83 EC 20 4C 8B C1 83 FA 0D";
-    private delegate nint Human_CreateDeformerDelegate(nint humanPtr, uint slot);
-    private Hook<Human_CreateDeformerDelegate>? humanCreateDeformerHook;
+    public const string HumanCreateDeformerSig = "40 53 48 83 EC 20 4C 8B C1 83 FA 0D";
+    private delegate nint HumanCreateDeformerDelegate(nint humanPtr, uint slot);
+    private Hook<HumanCreateDeformerDelegate>? humanCreateDeformerHook;
     private readonly Dictionary<nint, Dictionary<uint, DeformerCachedStruct>> deformerCache = new();
     
     public PbdHooks(ISigScanner sigScanner, IGameInteropProvider gameInterop, ILogger<PbdHooks> logger)
@@ -26,10 +26,10 @@ public class PbdHooks : IDisposable
 
     public void Setup()
     {
-        if (sigScanner.TryScanText(Human_CreateDeformerSig, out var humanCreateDeformerPtr))
+        if (sigScanner.TryScanText(HumanCreateDeformerSig, out var humanCreateDeformerPtr))
         {
             logger.LogDebug("Found Human::CreateDeformer at {ptr:X}", humanCreateDeformerPtr);
-            humanCreateDeformerHook = gameInterop.HookFromAddress<Human_CreateDeformerDelegate>(humanCreateDeformerPtr, Human_CreateDeformerDetour);
+            humanCreateDeformerHook = gameInterop.HookFromAddress<HumanCreateDeformerDelegate>(humanCreateDeformerPtr, Human_CreateDeformerDetour);
             humanCreateDeformerHook.Enable();
         }
         else

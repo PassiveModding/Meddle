@@ -21,7 +21,7 @@ public class AnimationTab : ITab
     private readonly ILogger<AnimationTab> logger;
     private readonly IClientState clientState;
     private readonly IObjectTable objectTable;
-    private readonly ExportUtil exportUtil;
+    private readonly ExportService exportService;
     private readonly PluginState pluginState;
     private readonly Configuration config;
     public string Name => "Animation";
@@ -35,7 +35,7 @@ public class AnimationTab : ITab
     public AnimationTab(IFramework framework, ILogger<AnimationTab> logger, 
                         IClientState clientState, 
                         IObjectTable objectTable,
-                        ExportUtil exportUtil,
+                        ExportService exportService,
                         PluginState pluginState,
                         Configuration config)
     {
@@ -43,7 +43,7 @@ public class AnimationTab : ITab
         this.logger = logger;
         this.clientState = clientState;
         this.objectTable = objectTable;
-        this.exportUtil = exportUtil;
+        this.exportService = exportService;
         this.pluginState = pluginState;
         this.config = config;
         this.framework.Update += OnFrameworkUpdate;
@@ -121,7 +121,7 @@ public class AnimationTab : ITab
         ImGui.Text($"Frames: {frameCount}");
         if (ImGui.Button("Export"))
         {
-            exportUtil.ExportAnimation(frames, includePositionalData);
+            exportService.ExportAnimation(frames, includePositionalData);
         }
         
         ImGui.SameLine();
@@ -269,7 +269,7 @@ public class AnimationTab : ITab
         var cBase = (CharacterBase*)charPtr->GameObject.DrawObject;
         if (cBase == null) return;
         
-        UIUtil.DrawCharacterAttaches(charPtr);
+        UiUtil.DrawCharacterAttaches(charPtr);
     }
     
     private static unsafe Dictionary<string, hkQsTransformf>? GetPose(FFXIVClientStructs.FFXIV.Client.Graphics.Render.Skeleton* skeleton)

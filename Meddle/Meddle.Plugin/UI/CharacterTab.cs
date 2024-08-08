@@ -28,10 +28,10 @@ public unsafe class CharacterTab : ITab
     private readonly Dictionary<string, Channel> channelCache = new();
 
     private readonly IClientState clientState;
-    private readonly ExportUtil exportUtil;
+    private readonly ExportService exportService;
     private readonly ILogger<CharacterTab> log;
     private readonly IObjectTable objectTable;
-    private readonly ParseUtil parseUtil;
+    private readonly ParseService parseService;
     private readonly Configuration config;
     private readonly PluginState pluginState;
 
@@ -47,15 +47,15 @@ public unsafe class CharacterTab : ITab
         IClientState clientState,
         ILogger<CharacterTab> log,
         PluginState pluginState,
-        ExportUtil exportUtil,
+        ExportService exportService,
         ITextureProvider textureProvider,
-        ParseUtil parseUtil,
+        ParseService parseService,
         Configuration config)
     {
         this.log = log;
         this.pluginState = pluginState;
-        this.exportUtil = exportUtil;
-        this.parseUtil = parseUtil;
+        this.exportService = exportService;
+        this.parseService = parseService;
         this.config = config;
         this.objectTable = objectTable;
         this.clientState = clientState;
@@ -182,12 +182,12 @@ public unsafe class CharacterTab : ITab
             ImGui.Separator();
             // draw customizeparams
             var customizeParams = characterGroup.CustomizeParams;
-            UIUtil.DrawCustomizeParams(ref customizeParams);
+            UiUtil.DrawCustomizeParams(ref customizeParams);
             ImGui.NextColumn();
             // draw customize data
 
             var customizeData = characterGroup.CustomizeData;
-            UIUtil.DrawCustomizeData(customizeData);
+            UiUtil.DrawCustomizeData(customizeData);
             ImGui.Text(characterGroup.GenderRace.ToString());
 
             ImGui.NextColumn();
@@ -219,7 +219,7 @@ public unsafe class CharacterTab : ITab
                     {
                         try
                         {
-                            exportUtil.Export(characterGroup with {MdlGroups = [mdlGroup], AttachedModelGroups = []});
+                            exportService.Export(characterGroup with {MdlGroups = [mdlGroup], AttachedModelGroups = []});
                         }
                         catch (Exception e)
                         {
@@ -290,7 +290,7 @@ public unsafe class CharacterTab : ITab
                         {
                             try
                             {
-                                exportUtil.Export(characterGroup with {AttachedModelGroups = [attachedModelGroup], MdlGroups = []});
+                                exportService.Export(characterGroup with {AttachedModelGroups = [attachedModelGroup], MdlGroups = []});
                             }
                             catch (Exception e)
                             {
@@ -362,7 +362,7 @@ public unsafe class CharacterTab : ITab
             {
                 try
                 {
-                    exportUtil.Export(characterGroup, default);
+                    exportService.Export(characterGroup, default);
                 }
                 catch (Exception e)
                 {
@@ -385,7 +385,7 @@ public unsafe class CharacterTab : ITab
             {
                 try
                 {
-                    exportUtil.Export(selectedSetGroup);
+                    exportService.Export(selectedSetGroup);
                 }
                 catch (Exception e)
                 {
@@ -402,7 +402,7 @@ public unsafe class CharacterTab : ITab
             {
                 try
                 {
-                    exportUtil.ExportRawTextures(characterGroup);
+                    exportService.ExportRawTextures(characterGroup);
                 }
                 catch (Exception e)
                 {
@@ -471,7 +471,7 @@ public unsafe class CharacterTab : ITab
             genderRace = GenderRace.Unknown;
         }
 
-        var colorTableTextures = parseUtil.ParseColorTableTextures(characterBase);
+        var colorTableTextures = parseService.ParseColorTableTextures(characterBase);
 
         var attachDict = new Dictionary<Pointer<CharacterBase>, Dictionary<int, ColorTable>>();
         if (charPtr->Mount.MountObject != null)
@@ -480,7 +480,7 @@ public unsafe class CharacterTab : ITab
             if (mountDrawObject != null && mountDrawObject->Object.GetObjectType() == ObjectType.CharacterBase)
             {
                 var mountBase = (CharacterBase*)mountDrawObject;
-                var mountColorTableTextures = parseUtil.ParseColorTableTextures(mountBase);
+                var mountColorTableTextures = parseService.ParseColorTableTextures(mountBase);
                 attachDict[mountBase] = mountColorTableTextures;
             }
         }
@@ -491,7 +491,7 @@ public unsafe class CharacterTab : ITab
             if (ornamentDrawObject != null && ornamentDrawObject->Object.GetObjectType() == ObjectType.CharacterBase)
             {
                 var ornamentBase = (CharacterBase*)ornamentDrawObject;
-                var ornamentColorTableTextures = parseUtil.ParseColorTableTextures(ornamentBase);
+                var ornamentColorTableTextures = parseService.ParseColorTableTextures(ornamentBase);
                 attachDict[ornamentBase] = ornamentColorTableTextures;
             }
         }
@@ -513,7 +513,7 @@ public unsafe class CharacterTab : ITab
                 }
 
                 var weaponBase = (CharacterBase*)draw;
-                var weaponColorTableTextures = parseUtil.ParseColorTableTextures(weaponBase);
+                var weaponColorTableTextures = parseService.ParseColorTableTextures(weaponBase);
                 attachDict[weaponBase] = weaponColorTableTextures;
             }
         }
@@ -521,7 +521,7 @@ public unsafe class CharacterTab : ITab
         // begin background work
         try
         {
-            characterGroup = parseUtil.HandleCharacterGroup(characterBase, colorTableTextures, attachDict,
+            characterGroup = parseService.HandleCharacterGroup(characterBase, colorTableTextures, attachDict,
                                                             customizeParams, customizeData, genderRace);
             selectedSetGroup = characterGroup;
         }
@@ -706,7 +706,7 @@ public unsafe class CharacterTab : ITab
 
         if (ImGui.CollapsingHeader($"Color Table##{mtrlGroup.GetHashCode()}"))
         {
-            UIUtil.DrawColorTable(mtrlGroup.MtrlFile);
+            UiUtil.DrawColorTable(mtrlGroup.MtrlFile);
         }
 
         foreach (var texGroup in mtrlGroup.TexFiles)
@@ -860,7 +860,7 @@ public unsafe class CharacterTab : ITab
 
         if (ImGui.Button("Export as .png"))
         {
-            ExportUtil.ExportTexture(textureImage.Bitmap.Bitmap, path);
+            ExportService.ExportTexture(textureImage.Bitmap.Bitmap, path);
         }
     }
 

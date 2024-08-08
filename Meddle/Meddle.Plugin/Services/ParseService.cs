@@ -3,42 +3,40 @@ using System.Runtime.InteropServices;
 using Dalamud.Memory;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
-using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using FFXIVClientStructs.Interop;
+using Meddle.Plugin.Models;
+using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
 using Meddle.Utils.Files.Structs.Material;
-using Meddle.Plugin.Models;
 using Meddle.Utils.Models;
-using Meddle.Utils.Skeletons.Havok;
-using Meddle.Utils.Skeletons.Havok.Models;
 using Microsoft.Extensions.Logging;
 using Attach = Meddle.Plugin.Skeleton.Attach;
 using Texture = FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Texture;
 
-namespace Meddle.Plugin.Utils;
+namespace Meddle.Plugin.Services;
 
-public class ParseUtil : IDisposable
+public class ParseService : IDisposable
 {
     private static readonly ActivitySource ActivitySource = new("Meddle.Plugin.Utils.ParseUtil");
     private readonly DXHelper dxHelper;
     private readonly PbdHooks pbdHooks;
-    private readonly EventLogger<ParseUtil> logger;
+    private readonly EventLogger<ParseService> logger;
     private readonly IFramework framework;
     private readonly SqPack pack;
     public event Action<LogLevel, string>? OnLogEvent; 
 
     private readonly Dictionary<string, ShpkFile> shpkCache = new();
 
-    public ParseUtil(SqPack pack, IFramework framework, DXHelper dxHelper, PbdHooks pbdHooks, ILogger<ParseUtil> logger)
+    public ParseService(SqPack pack, IFramework framework, DXHelper dxHelper, PbdHooks pbdHooks, ILogger<ParseService> logger)
     {
         this.pack = pack;
         this.framework = framework;
         this.dxHelper = dxHelper;
         this.pbdHooks = pbdHooks;
-        this.logger = new EventLogger<ParseUtil>(logger);
+        this.logger = new EventLogger<ParseService>(logger);
         this.logger.OnLogEvent += OnLog;
     }
     
@@ -327,50 +325,7 @@ public class ParseUtil : IDisposable
         var attachGroup = new AttachedModelGroup(attach, models.ToArray(), skeleton);
         return attachGroup;
     }
-
-    private unsafe List<HavokSkeleton> ParseSkeletons(Human* human)
-    {
-        var skeletonResourceHandles =
-            new Span<Pointer<SkeletonResourceHandle>>(human->Skeleton->SkeletonResourceHandles,
-                                                      human->Skeleton->PartialSkeletonCount);
-        var skeletons = new List<HavokSkeleton>();
-        foreach (var skeletonPtr in skeletonResourceHandles)
-        {
-            var skeletonResourceHandle = skeletonPtr.Value;
-            if (skeletonResourceHandle == null)
-            {
-                continue;
-            }
-
-            var fileName = skeletonResourceHandle->ResourceHandle.FileName.ToString();
-            var skeletonFileResource = pack.GetFileOrReadFromDisk(fileName);
-            if (skeletonFileResource == null)
-            {
-                continue;
-            }
-
-            var sklbFile = new SklbFile(skeletonFileResource);
-            var tempFile = Path.GetTempFileName();
-            try
-            {
-                File.WriteAllBytes(tempFile, sklbFile.Skeleton.ToArray());
-                var hkXml = framework.RunOnTick(() =>
-                {
-                    var xml = HkUtil.HkxToXml(tempFile);
-                    return xml;
-                }).GetAwaiter().GetResult();
-                var havokXml = HavokUtils.ParseHavokXml(hkXml);
-
-                skeletons.Add(havokXml);
-            } finally
-            {
-                File.Delete(tempFile);
-            }
-        }
-
-        return skeletons;
-    }
-
+    
     public void Dispose()
     {
         logger.LogDebug("Disposing ParseUtil");

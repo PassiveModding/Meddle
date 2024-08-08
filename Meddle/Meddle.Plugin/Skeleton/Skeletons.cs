@@ -1,6 +1,7 @@
 ﻿using System.Text.Json.Serialization;
 using FFXIVClientStructs.Havok.Animation.Rig;
 using FFXIVClientStructs.Interop;
+using Meddle.Plugin.Utils;
 using Meddle.Utils.Skeletons;
 using PartialCSSkeleton = FFXIVClientStructs.FFXIV.Client.Graphics.Render.PartialSkeleton;
 using CSSkeleton = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Skeleton;
@@ -115,7 +116,11 @@ public class SkeletonPose
         var boneCount = pose->LocalPose.Length;
         for (var i = 0; i < boneCount; ++i)
         {
-            var localSpace = pose->AccessBoneLocalSpace(i);
+            var localSpace = PoseUtil.AccessBoneLocalSpace(pose, i);
+            if (localSpace == null)
+            {
+                throw new Exception("Failed to access bone local space");
+            }
             transforms.Add(new Transform(*localSpace));
         }
 

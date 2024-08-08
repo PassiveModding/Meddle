@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
 using Meddle.Plugin.Models;
+using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
@@ -17,23 +18,23 @@ using SkiaSharp;
 using Material = Meddle.Utils.Export.Material;
 using Model = Meddle.Utils.Export.Model;
 
-namespace Meddle.Plugin.Utils;
+namespace Meddle.Plugin.Services;
 
-public class ExportUtil : IDisposable
+public class ExportService : IDisposable
 {
     private static readonly ActivitySource ActivitySource = new("Meddle.Plugin.Utils.ExportUtil");
     private readonly TexFile catchlightTex;
     private readonly TexFile tileNormTex;
     private readonly TexFile tileOrbTex;
-    private readonly EventLogger<ExportUtil> logger;
+    private readonly EventLogger<ExportService> logger;
     public event Action<LogLevel, string>? OnLogEvent; 
     private readonly SqPack pack;
     private readonly PbdFile pbdFile;
     
-    public ExportUtil(SqPack pack, ILogger<ExportUtil> logger)
+    public ExportService(SqPack pack, ILogger<ExportService> logger)
     {
         this.pack = pack;
-        this.logger = new EventLogger<ExportUtil>(logger);
+        this.logger = new EventLogger<ExportService>(logger);
         this.logger.OnLogEvent += OnLog;
 
         // chara/xls/boneDeformer/human.pbd

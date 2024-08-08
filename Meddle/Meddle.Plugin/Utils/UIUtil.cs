@@ -13,7 +13,7 @@ using CustomizeData = Meddle.Utils.Export.CustomizeData;
 
 namespace Meddle.Plugin.Utils;
 
-public static class UIUtil
+public static class UiUtil
 {
     public static void DrawCustomizeParams(ref CustomizeParameter customize)
     {
@@ -272,10 +272,10 @@ public static class UIUtil
         if (skeleton == null)
             return;
 
-        Skeleton.Attach attachPoint;
+        Attach attachPoint;
         try
         {
-            attachPoint = new Skeleton.Attach(character->Attach);
+            attachPoint = new Attach(character->Attach);
         }
         catch (Exception e)
         {

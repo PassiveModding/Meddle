@@ -16,7 +16,7 @@ public class WorldTab : ITab
 {
     private readonly IClientState clientState;
     private readonly Configuration config;
-    private readonly ExportUtil exportUtil;
+    private readonly ExportService exportService;
     private readonly ILogger<WorldTab> log;
 
     private readonly List<ObjectData> objects = new();
@@ -25,12 +25,12 @@ public class WorldTab : ITab
     private Task exportTask = Task.CompletedTask;
 
     public WorldTab(
-        PluginState pluginState, IClientState clientState, ExportUtil exportUtil, ILogger<WorldTab> log,
+        PluginState pluginState, IClientState clientState, ExportService exportService, ILogger<WorldTab> log,
         Configuration config)
     {
         this.pluginState = pluginState;
         this.clientState = clientState;
-        this.exportUtil = exportUtil;
+        this.exportService = exportService;
         this.log = log;
         this.config = config;
     }
@@ -129,7 +129,7 @@ public class WorldTab : ITab
                     }
                 }
 
-                exportTask = Task.Run(() => exportUtil.ExportResource(resources.ToArray(), position));
+                exportTask = Task.Run(() => exportService.ExportResource(resources.ToArray(), position));
             }
 
             ImGui.EndDisabled();
