@@ -77,6 +77,14 @@ public unsafe class LiveCharacterTab : ITab
         this.config = config;
         this.objectTable = objectTable;
         this.clientState = clientState;
+        this.exportService.OnLogEvent += ExportServiceOnOnLogEvent;
+    }
+
+    private (LogLevel level, string message)? LogEvent { get; set; }
+    
+    private void ExportServiceOnOnLogEvent(LogLevel level, string message)
+    {
+        LogEvent = (level, message);
     }
 
 
@@ -89,6 +97,19 @@ public unsafe class LiveCharacterTab : ITab
     public void Draw()
     {
         DrawObjectPicker();
+        
+        if (LogEvent != null)
+        {
+            var (level, message) = LogEvent.Value;
+            ImGui.TextColored(level switch
+            {
+                LogLevel.Information => new Vector4(1, 1, 1, 1),
+                LogLevel.Warning => new Vector4(1, 1, 0, 1),
+                LogLevel.Error => new Vector4(1, 0, 0, 1),
+                _ => new Vector4(1, 1, 1, 1)
+            }, message);
+        }
+        
         DrawSelectedCharacter();
         fileDialog.Draw();
     }
