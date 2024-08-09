@@ -15,6 +15,7 @@ using Meddle.Plugin.Services;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Export;
+using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
 using Meddle.Utils.Skeletons;
 using Microsoft.Extensions.Logging;
@@ -635,6 +636,92 @@ public unsafe class LiveCharacterTab : ITab
         }
     }
 
+    private readonly Dictionary<string, ShpkFile> shpkCache = new();
+    private void DrawConstantsTable(Pointer<CSMaterial> mtPtr)
+    {
+        if (mtPtr == null || mtPtr.Value == null)
+        {
+            return;
+        }
+        
+        var material = mtPtr.Value;
+        var materialParams = material->MaterialParameterCBuffer->TryGetBuffer<float>();
+        var shpkName = material->MaterialResourceHandle->ShpkNameString;
+        var shpkPath = $"shader/sm5/shpk/{shpkName}";
+        if (!shpkCache.TryGetValue(shpkPath, out var shpk))
+        {
+            var shpkData = pack.GetFileOrReadFromDisk(shpkPath);
+            if (shpkData != null)
+            {
+                shpk = new ShpkFile(shpkData);
+                shpkCache[shpkPath] = shpk;
+            }
+            else
+            {
+                throw new Exception($"Failed to load {shpkPath}");
+            }
+        }
+        
+        var orderedMaterialParams = shpk.MaterialParams.Select((x, idx) => (x, idx))
+                                        .OrderBy(x => x.idx).ToArray();
+        var availWidth = ImGui.GetContentRegionAvail().X;
+        if (ImGui.BeginTable("MaterialParams", 6, 
+                             ImGuiTableFlags.Borders |
+                                  ImGuiTableFlags.RowBg |
+                                  ImGuiTableFlags.Hideable |
+                                  ImGuiTableFlags.Resizable))
+        {
+            // Set up column headers
+            ImGui.TableSetupColumn("ID", ImGuiTableColumnFlags.WidthFixed,
+                                   availWidth * 0.05f);
+            ImGui.TableSetupColumn("Offset", ImGuiTableColumnFlags.WidthFixed,
+                                   availWidth * 0.05f);
+            ImGui.TableSetupColumn("Size", ImGuiTableColumnFlags.WidthFixed,
+                                   availWidth * 0.05f);
+            ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthFixed,
+                                   availWidth * 0.3f);
+            ImGui.TableSetupColumn("Shader Defaults", ImGuiTableColumnFlags.WidthFixed,
+                                   availWidth * 0.25f);
+            ImGui.TableSetupColumn("Mtrl CBuf", ImGuiTableColumnFlags.WidthFixed,
+                                   availWidth * 0.25f);
+            ImGui.TableHeadersRow();
+
+            foreach (var (materialParam, i) in orderedMaterialParams)
+            {
+                var shpkDefaults = shpk.MaterialParamDefaults
+                                       .Skip(materialParam.ByteOffset / 4)
+                                       .Take(materialParam.ByteSize / 4).ToArray();
+                
+                var cbuf = materialParams.Slice(materialParam.ByteOffset / 4,
+                    materialParam.ByteSize / 4);
+
+                var nameLookup = $"0x{materialParam.Id:X8}";
+                if (Enum.IsDefined((MaterialConstant)materialParam.Id))
+                {
+                    nameLookup += $" ({(MaterialConstant)materialParam.Id})";
+                }
+
+                ImGui.TableNextRow();
+                ImGui.TableSetColumnIndex(0);
+                ImGui.Text(i.ToString());
+                ImGui.TableSetColumnIndex(1);
+                ImGui.Text($"{materialParam.ByteOffset}");
+                ImGui.TableSetColumnIndex(2);
+                ImGui.Text($"{materialParam.ByteSize}");
+                ImGui.TableSetColumnIndex(3);
+                UiUtil.Text(nameLookup, nameLookup);
+                ImGui.TableSetColumnIndex(4);
+                var shpkDefaultString = string.Join(", ", shpkDefaults.Select(x => x.ToString("F2")));
+                ImGui.Text(shpkDefaultString);
+                ImGui.TableSetColumnIndex(5);
+                var mtrlCbufString = string.Join(", ", cbuf.ToArray().Select(x => x.ToString("F2")));
+                ImGui.Text(mtrlCbufString);
+            }
+
+            ImGui.EndTable();
+        }
+    }
+    
     private void DrawMaterial(
         Pointer<CharacterBase> cPtr, Pointer<CSModel> mPtr, Pointer<CSMaterial> mtPtr, int materialIdx)
     {
@@ -758,6 +845,11 @@ public unsafe class LiveCharacterTab : ITab
                 var colorTableTexture = colorTableTexturePtr.Value;
                 var colorTable = parseService.ParseColorTableTexture(colorTableTexture);
                 UiUtil.DrawColorTable(colorTable);
+            }
+            
+            if (ImGui.CollapsingHeader("Constants"))
+            {
+                DrawConstantsTable(mtPtr);
             }
 
             for (var texIdx = 0; texIdx < material->TextureCount; texIdx++)
