@@ -101,13 +101,14 @@ public unsafe class LiveCharacterTab : ITab
         if (LogEvent != null)
         {
             var (level, message) = LogEvent.Value;
-            ImGui.TextColored(level switch
+            using var col = ImRaii.PushColor(ImGuiCol.Text, level switch
             {
                 LogLevel.Information => new Vector4(1, 1, 1, 1),
                 LogLevel.Warning => new Vector4(1, 1, 0, 1),
                 LogLevel.Error => new Vector4(1, 0, 0, 1),
                 _ => new Vector4(1, 1, 1, 1)
-            }, message);
+            });
+            ImGui.TextWrapped(message);
         }
         
         DrawSelectedCharacter();
