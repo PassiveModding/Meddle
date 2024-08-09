@@ -122,6 +122,7 @@ public unsafe class LiveCharacterTab : ITab
             log.LogDebug("Disposing CharacterTabAlt");
             selectedModels.Clear();
             humanCustomizeData.Clear();
+            exportService.OnLogEvent -= ExportServiceOnOnLogEvent;
             IsDisposed = true;
         }
     }
