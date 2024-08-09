@@ -38,7 +38,7 @@ public class Service
 
     [PluginService]
     private IDataManager DataManager { get; set; } = null!;
-    
+
     [PluginService]
     private INotificationManager NotificationManager { get; set; } = null!;
 

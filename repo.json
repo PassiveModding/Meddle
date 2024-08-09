@@ -8,7 +8,7 @@
     "TestingAssemblyVersion": "0.1.9",
     "RepoUrl": "https://github.com/PassiveModding/Meddle",
     "IconUrl": "https://github.com/PassiveModding/Meddle/raw/main/icon.png", 
-    "ApplicableVersion": "2024.08.02.0000.0000",
+    "ApplicableVersion": "any",
     "DalamudApiLevel": 10,
     "Tags": [
       "Xande",

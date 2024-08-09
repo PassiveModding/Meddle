@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
 using Meddle.Plugin.Models;
+using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Export;
@@ -8,7 +9,6 @@ using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
 using Meddle.Utils.Materials;
 using Meddle.Utils.Models;
-using Meddle.Utils.Skeletons;
 using Microsoft.Extensions.Logging;
 using SharpGLTF.Geometry;
 using SharpGLTF.Geometry.VertexTypes;
@@ -24,13 +24,12 @@ public class ExportService : IDisposable
 {
     private static readonly ActivitySource ActivitySource = new("Meddle.Plugin.Utils.ExportUtil");
     private readonly TexFile catchlightTex;
-    private readonly TexFile tileNormTex;
-    private readonly TexFile tileOrbTex;
     private readonly EventLogger<ExportService> logger;
-    public event Action<LogLevel, string>? OnLogEvent; 
     private readonly SqPack pack;
     private readonly PbdFile pbdFile;
-    
+    private readonly TexFile tileNormTex;
+    private readonly TexFile tileOrbTex;
+
     public ExportService(SqPack pack, ILogger<ExportService> logger)
     {
         this.pack = pack;
@@ -44,17 +43,25 @@ public class ExportService : IDisposable
 
         var catchlight = pack.GetFile("chara/common/texture/sphere_d_array.tex");
         if (catchlight == null) throw new InvalidOperationException("Failed to get catchlight texture");
-        
+
         var tileNorm = pack.GetFile("chara/common/texture/tile_norm_array.tex");
         if (tileNorm == null) throw new InvalidOperationException("Failed to get tile norm texture");
-        
+
         var tileOrb = pack.GetFile("chara/common/texture/tile_orb_array.tex");
         if (tileOrb == null) throw new InvalidOperationException("Failed to get tile orb texture");
         tileNormTex = new TexFile(tileNorm.Value.file.RawData);
         tileOrbTex = new TexFile(tileOrb.Value.file.RawData);
         catchlightTex = new TexFile(catchlight.Value.file.RawData);
     }
-    
+
+    public void Dispose()
+    {
+        logger.LogDebug("Disposing ExportUtil");
+        OnLogEvent -= OnLog;
+    }
+
+    public event Action<LogLevel, string>? OnLogEvent;
+
     private void OnLog(LogLevel logLevel, string message)
     {
         OnLogEvent?.Invoke(logLevel, message);
@@ -102,7 +109,8 @@ public class ExportService : IDisposable
                     foreach (var texGroup in mtrlGroup.TexFiles)
                     {
                         if (token.IsCancellationRequested) return;
-                        var outputPath = Path.Combine(folder, $"{Path.GetFileNameWithoutExtension(texGroup.MtrlPath)}.png");
+                        var outputPath =
+                            Path.Combine(folder, $"{Path.GetFileNameWithoutExtension(texGroup.MtrlPath)}.png");
                         var texture = new Texture(texGroup.Resource, texGroup.MtrlPath, null, null, null);
                         var str = new SKDynamicMemoryWStream();
                         texture.ToTexture().Bitmap.Encode(str, SKEncodedImageFormat.Png, 100);
@@ -122,7 +130,8 @@ public class ExportService : IDisposable
         }
     }
 
-    public void ExportAnimation(List<(DateTime, AttachSet[])> frames, bool includePositionalData, CancellationToken token = default)
+    public void ExportAnimation(
+        List<(DateTime, AttachSet[])> frames, bool includePositionalData, CancellationToken token = default)
     {
         try
         {
@@ -152,14 +161,14 @@ public class ExportService : IDisposable
                         root.UseScale().UseTrackBuilder("pose").WithPoint(time, scale);
                     }
                 }
-                
+
                 scene.AddNode(boneSet.Root);
                 scene.AddSkinnedMesh(GetDummyMesh(id), Matrix4x4.Identity, boneSet.Bones.Cast<NodeBuilder>().ToArray());
                 var sceneGraph = scene.ToGltf2();
                 var outputPath = Path.Combine(folder, $"motion_{id}.gltf");
                 sceneGraph.SaveGLTF(outputPath);
             }
-            
+
             Process.Start("explorer.exe", folder);
             logger.LogInformation("Export complete");
         }
@@ -169,29 +178,30 @@ public class ExportService : IDisposable
             throw;
         }
     }
-    
+
     // https://github.com/0ceal0t/Dalamud-VFXEditor/blob/be00131b93b3c6dd4014a4f27c2661093daf3a85/VFXEditor/Utils/Gltf/GltfSkeleton.cs#L132
-    public static MeshBuilder<VertexPosition, VertexEmpty, VertexJoints4> GetDummyMesh(string name = "DUMMY_MESH") {
-        var dummyMesh = new MeshBuilder<VertexPosition, VertexEmpty, VertexJoints4>( name );
-        var material = new MaterialBuilder( "material" );
+    public static MeshBuilder<VertexPosition, VertexEmpty, VertexJoints4> GetDummyMesh(string name = "DUMMY_MESH")
+    {
+        var dummyMesh = new MeshBuilder<VertexPosition, VertexEmpty, VertexJoints4>(name);
+        var material = new MaterialBuilder("material");
 
         var p1 = new VertexPosition
         {
-            Position = new Vector3( 0.000001f, 0, 0 )
+            Position = new Vector3(0.000001f, 0, 0)
         };
         var p2 = new VertexPosition
         {
-            Position = new Vector3( 0, 0.000001f, 0 )
+            Position = new Vector3(0, 0.000001f, 0)
         };
         var p3 = new VertexPosition
         {
-            Position = new Vector3( 0, 0, 0.000001f )
+            Position = new Vector3(0, 0, 0.000001f)
         };
 
-        dummyMesh.UsePrimitive( material ).AddTriangle(
-            (p1, new VertexEmpty(), new VertexJoints4( 0 )),
-            (p2, new VertexEmpty(), new VertexJoints4( 0 )),
-            (p3, new VertexEmpty(), new VertexJoints4( 0 ))
+        dummyMesh.UsePrimitive(material).AddTriangle(
+            (p1, new VertexEmpty(), new VertexJoints4(0)),
+            (p2, new VertexEmpty(), new VertexJoints4(0)),
+            (p3, new VertexEmpty(), new VertexJoints4(0))
         );
 
         return dummyMesh;
@@ -307,7 +317,7 @@ public class ExportService : IDisposable
             {
                 Directory.CreateDirectory(outputFolder);
             }
-            
+
             var folder = outputFolder ?? GetPathForOutput();
             var outputPath = Path.Combine(folder, "character.gltf");
             sceneGraph.SaveGLTF(outputPath);
@@ -380,20 +390,22 @@ public class ExportService : IDisposable
     }
 
     private List<(Model model, ModelBuilder.MeshExport mesh)> HandleModel(
-        CharacterGroup characterGroup, MdlFileGroup mdlGroup, ref List<BoneNodeBuilder> bones, BoneNodeBuilder? root, CancellationToken token)
+        CharacterGroup characterGroup, MdlFileGroup mdlGroup, ref List<BoneNodeBuilder> bones, BoneNodeBuilder? root,
+        CancellationToken token)
     {
         using var activity = ActivitySource.StartActivity();
         activity?.SetTag("characterPath", mdlGroup.CharacterPath);
         activity?.SetTag("path", mdlGroup.Path);
         logger.LogInformation("Exporting {CharacterPath} => {Path}", mdlGroup.CharacterPath, mdlGroup.Path);
-        var model = new Model(mdlGroup.CharacterPath, mdlGroup.MdlFile, 
+        var model = new Model(mdlGroup.CharacterPath, mdlGroup.MdlFile,
                               mdlGroup.MtrlFiles.Select(x => (
-                                x.MdlPath, 
-                                x.MtrlFile, 
-                                x.TexFiles.ToDictionary(tf => tf.MtrlPath, tf => tf.Resource), 
-                                x.ShpkFile)).ToArray(), 
+                                                                 x.MdlPath,
+                                                                 x.MtrlFile,
+                                                                 x.TexFiles.ToDictionary(
+                                                                     tf => tf.MtrlPath, tf => tf.Resource),
+                                                                 x.ShpkFile)).ToArray(),
                               mdlGroup.ShapeAttributeGroup);
-        
+
         foreach (var mesh in model.Meshes)
         {
             if (mesh.BoneTable == null) continue;
@@ -413,13 +425,13 @@ public class ExportService : IDisposable
                 }
             }
         }
-        
-        
+
+
         var materials = new List<MaterialBuilder>();
         var meshOutput = new List<(Model, ModelBuilder.MeshExport)>();
         for (var i = 0; i < model.Materials.Count; i++)
         {
-            if (token.IsCancellationRequested) return meshOutput;            
+            if (token.IsCancellationRequested) return meshOutput;
             var material = model.Materials[i];
             var materialGroup = mdlGroup.MtrlFiles[i];
             if (material == null) throw new InvalidOperationException("Material is null");
@@ -433,8 +445,10 @@ public class ExportService : IDisposable
         if (mdlGroup.DeformerGroup != null)
         {
             var pbdFileData = pack.GetFileOrReadFromDisk(mdlGroup.DeformerGroup.Path);
-            if (pbdFileData == null) throw new InvalidOperationException($"Failed to get deformer pbd {mdlGroup.DeformerGroup.Path}");
-            raceDeformerValue = ((GenderRace)mdlGroup.DeformerGroup.RaceSexId, new RaceDeformer(new PbdFile(pbdFileData), bones));
+            if (pbdFileData == null)
+                throw new InvalidOperationException($"Failed to get deformer pbd {mdlGroup.DeformerGroup.Path}");
+            raceDeformerValue = ((GenderRace)mdlGroup.DeformerGroup.RaceSexId,
+                                    new RaceDeformer(new PbdFile(pbdFileData), bones));
             model.RaceCode = (GenderRace)mdlGroup.DeformerGroup.DeformerId;
             logger.LogDebug("Using deformer pbd {Path}", mdlGroup.DeformerGroup.Path);
         }
@@ -474,7 +488,8 @@ public class ExportService : IDisposable
             foreach (var resource in resources)
             {
                 var mdlFileData = pack.GetFile(resource.MdlPath);
-                if (mdlFileData == null) throw new InvalidOperationException($"Failed to get resource {resource.MdlPath}");
+                if (mdlFileData == null)
+                    throw new InvalidOperationException($"Failed to get resource {resource.MdlPath}");
                 var data = mdlFileData.Value.file.RawData;
                 var mdlFile = new MdlFile(data);
                 var mtrlGroups = new List<MtrlFileGroup>();
@@ -483,47 +498,53 @@ public class ExportService : IDisposable
                     if (mtrlPath.StartsWith('/'))
                         throw new InvalidOperationException($"Relative path found on material {mtrlPath}");
                     var mtrlResource = pack.GetFile(mtrlPath);
-                    if (mtrlResource == null) throw new InvalidOperationException($"Failed to get mtrl resource {mtrlPath}");
+                    if (mtrlResource == null)
+                        throw new InvalidOperationException($"Failed to get mtrl resource {mtrlPath}");
                     var mtrlData = mtrlResource.Value.file.RawData;
 
                     var mtrlFile = new MtrlFile(mtrlData);
 
                     var shpkPath = mtrlFile.GetShaderPackageName();
                     var shpkResource = pack.GetFile($"shader/sm5/shpk/{shpkPath}");
-                    if (shpkResource == null) throw new InvalidOperationException($"Failed to get shpk resource {shpkPath}");
+                    if (shpkResource == null)
+                        throw new InvalidOperationException($"Failed to get shpk resource {shpkPath}");
                     var shpkFile = new ShpkFile(shpkResource.Value.file.RawData);
                     var texGroups = new List<TexResourceGroup>();
                     foreach (var (_, texPath) in mtrlFile.GetTexturePaths())
                     {
                         var texResource = pack.GetFile(texPath);
-                        if (texResource == null) throw new InvalidOperationException($"Failed to get tex resource {texPath}");
+                        if (texResource == null)
+                            throw new InvalidOperationException($"Failed to get tex resource {texPath}");
                         var texData = texResource.Value.file.RawData;
                         var texFile = new TexFile(texData);
                         texGroups.Add(new TexResourceGroup(texPath, texPath, Texture.GetResource(texFile)));
                     }
 
-                    mtrlGroups.Add(new MtrlFileGroup(mtrlPath, mtrlPath, mtrlFile, shpkPath, shpkFile, texGroups.ToArray()));
+                    mtrlGroups.Add(new MtrlFileGroup(mtrlPath, mtrlPath, mtrlFile, shpkPath, shpkFile,
+                                                     texGroups.ToArray()));
                 }
 
                 var model = new Model(resource.MdlPath, mdlFile,
                                       mtrlGroups.Select(x => (
-                                                                 x.Path, 
+                                                                 x.Path,
                                                                  x.MtrlFile,
-                                                                 x.TexFiles.ToDictionary(tf => tf.MtrlPath, tf => tf.Resource), 
+                                                                 x.TexFiles.ToDictionary(
+                                                                     tf => tf.MtrlPath, tf => tf.Resource),
                                                                  x.ShpkFile)
-                                                    )
+                                                )
                                                 .ToArray(),
                                       null);
                 var materials = new List<MaterialBuilder>();
                 foreach (var material in model.Materials)
                 {
                     if (material == null) throw new InvalidOperationException("Material is null");
-                    
+
                     if (materialCache.TryGetValue(material.HandlePath, out var builder))
                     {
                         materials.Add(builder);
                         continue;
                     }
+
                     var name =
                         $"{Path.GetFileNameWithoutExtension(material.HandlePath)}_{Path.GetFileNameWithoutExtension(material.ShaderPackageName)}";
                     builder = material.ShaderPackageName switch
@@ -562,7 +583,7 @@ public class ExportService : IDisposable
             throw;
         }
     }
-    
+
     private MaterialBuilder BuildAndLogFallbackMaterial(Material material, string name)
     {
         logger.LogWarning("Using fallback material for {Path}", material.HandlePath);
@@ -576,11 +597,5 @@ public class ExportService : IDisposable
         var texFile = new TexFile(data);
         var texture = new Texture(Texture.GetResource(texFile), path, null, null, null);
         ExportTexture(texture.ToTexture().Bitmap, path);
-    }
-    
-    public void Dispose()
-    {
-        logger.LogDebug("Disposing ExportUtil");
-        OnLogEvent -= OnLog;
     }
 }

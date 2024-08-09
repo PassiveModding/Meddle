@@ -2,14 +2,16 @@
 using Dalamud.Interface.Utility.Raii;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
+using FFXIVClientStructs.Interop;
 using ImGuiNET;
-using Meddle.Utils.Export;
+using Meddle.Plugin.Models;
+using Meddle.Plugin.Models.Skeletons;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.Structs.Material;
 using Meddle.Utils.Skeletons;
 using SharpGLTF.Transforms;
-using Attach = Meddle.Plugin.Skeleton.Attach;
 using CustomizeData = Meddle.Utils.Export.CustomizeData;
+using CustomizeParameter = Meddle.Utils.Export.CustomizeParameter;
 
 namespace Meddle.Plugin.Utils;
 
@@ -27,7 +29,7 @@ public static class UiUtil
             }
         }
     }
-    
+
     public static void DrawCustomizeParams(ref CustomizeParameter customize)
     {
         ImGui.ColorEdit3("Skin Color", ref customize.SkinColor);
@@ -159,32 +161,52 @@ public static class UiUtil
         ImGui.TableSetColumnIndex(8);
         ImGui.Text($"{row.TileIndex}");
     }
-    
-    public static unsafe void DrawCharacterAttaches(Character* charPtr)
+
+    public static unsafe void DrawCharacterAttaches(Pointer<Character> characterPointer)
     {
-        var cBase = (CharacterBase*)charPtr->GameObject.DrawObject;
+        if (characterPointer == null || characterPointer.Value == null)
+        {
+            ImGui.Text("Character is null");
+            return;
+        }
+
+        var drawObject = characterPointer.Value->GameObject.GetDrawObject();
+        if (drawObject == null)
+        {
+            ImGui.Text("DrawObject is null");
+            return;
+        }
+
+        var objectType = drawObject->GetObjectType();
+        if (objectType != ObjectType.CharacterBase)
+        {
+            ImGui.Text($"Character is not a CharacterBase ({objectType})");
+            return;
+        }
+
+        var cBase = (CharacterBase*)characterPointer.Value->GameObject.DrawObject;
         DrawCharacterBase(cBase, "Main");
-        DrawOrnamentContainer(charPtr->OrnamentData);
-        DrawCompanionContainer(charPtr->CompanionData);
-        DrawMountContainer(charPtr->Mount);
-        DrawDrawDataContainer(charPtr->DrawData);
+        DrawOrnamentContainer(characterPointer.Value->OrnamentData);
+        DrawCompanionContainer(characterPointer.Value->CompanionData);
+        DrawMountContainer(characterPointer.Value->Mount);
+        DrawDrawDataContainer(characterPointer.Value->DrawData);
     }
-    
+
     private static unsafe void DrawDrawDataContainer(DrawDataContainer drawDataContainer)
     {
         if (drawDataContainer.OwnerObject == null)
         {
-            ImGui.Text($"[DrawDataContainer] Owner is null");
+            ImGui.Text("[DrawDataContainer] Owner is null");
             return;
         }
-        
+
         var ownerObject = drawDataContainer.OwnerObject;
         if (ownerObject == null)
         {
-            ImGui.Text($"[DrawDataContainer] Owner is null");
+            ImGui.Text("[DrawDataContainer] Owner is null");
             return;
         }
-        
+
         var weaponData = drawDataContainer.WeaponData;
         foreach (var weapon in weaponData)
         {
@@ -193,7 +215,7 @@ public static class UiUtil
             {
                 continue;
             }
-            
+
             var objectType = weaponDrawObject->GetObjectType();
             if (objectType != ObjectType.CharacterBase)
             {
@@ -204,7 +226,7 @@ public static class UiUtil
             DrawCharacterBase((CharacterBase*)weaponDrawObject, "Weapon");
         }
     }
-    
+
     private static unsafe void DrawCompanionContainer(CompanionContainer companionContainer)
     {
         var owner = companionContainer.OwnerObject;
@@ -213,6 +235,7 @@ public static class UiUtil
             ImGui.Text($"[Companion:{companionContainer.CompanionId}] Owner is null");
             return;
         }
+
         var companion = companionContainer.CompanionObject;
         if (companion == null)
         {
@@ -228,7 +251,7 @@ public static class UiUtil
 
         DrawCharacterBase((CharacterBase*)companion->DrawObject, "Companion");
     }
-    
+
     private static unsafe void DrawMountContainer(MountContainer mountContainer)
     {
         var owner = mountContainer.OwnerObject;
@@ -237,19 +260,20 @@ public static class UiUtil
             ImGui.Text($"[Mount:{mountContainer.MountId}] Owner is null");
             return;
         }
+
         var mount = mountContainer.MountObject;
         if (mount == null)
         {
             return;
         }
-        
+
         var drawObject = mount->DrawObject;
         if (drawObject == null)
         {
             ImGui.Text($"[Mount:{mountContainer.MountId}] DrawObject is null");
             return;
         }
-        
+
         var objectType = drawObject->GetObjectType();
         if (objectType != ObjectType.CharacterBase)
         {
@@ -268,6 +292,7 @@ public static class UiUtil
             ImGui.Text($"[Ornament:{ornamentContainer.OrnamentId}] Owner is null");
             return;
         }
+
         var ornament = ornamentContainer.OrnamentObject;
         if (ornament == null)
         {
@@ -277,18 +302,20 @@ public static class UiUtil
         DrawCharacterBase((CharacterBase*)ornament->DrawObject, "Ornament");
     }
 
-    private static unsafe void DrawCharacterBase(CharacterBase* character, string name)
+    private static unsafe void DrawCharacterBase(Pointer<CharacterBase> characterPointer, string name)
     {
-        if (character == null)
+        if (characterPointer == null || characterPointer.Value == null)
             return;
+        var character = characterPointer.Value;
         var skeleton = character->Skeleton;
         if (skeleton == null)
             return;
 
-        Attach attachPoint;
+        var attach = characterPointer.GetAttach();
+        ParsedAttach attachPoint;
         try
         {
-            attachPoint = new Attach(character->Attach);
+            attachPoint = new ParsedAttach(attach);
         }
         catch (Exception e)
         {
@@ -298,16 +325,17 @@ public static class UiUtil
 
         var modelType = character->GetModelType();
         var attachHeader = $"[{modelType}]{name} Attach Pose ({attachPoint.ExecuteType},{attachPoint.AttachmentCount})";
-        if (character->Attach.ExecuteType >= 3)
+        if (attachPoint.ExecuteType >= 3)
         {
             var attachedPartialSkeleton = attachPoint.OwnerSkeleton!.PartialSkeletons[attachPoint.PartialSkeletonIdx];
             var boneName = attachedPartialSkeleton.HkSkeleton!.BoneNames[(int)attachPoint.BoneIdx];
             attachHeader += $" at {boneName}";
         }
-        else if (character->Attach.ExecuteType == 3)
+        else if (attachPoint.ExecuteType == 3)
         {
             var attachedPartialSkeleton = attachPoint.OwnerSkeleton!.PartialSkeletons[attachPoint.PartialSkeletonIdx];
-            if (attachedPartialSkeleton.HkSkeleton != null && attachPoint.BoneIdx < attachedPartialSkeleton.HkSkeleton.BoneNames.Count)
+            if (attachedPartialSkeleton.HkSkeleton != null &&
+                attachPoint.BoneIdx < attachedPartialSkeleton.HkSkeleton.BoneNames.Count)
             {
                 var boneName = attachedPartialSkeleton.HkSkeleton.BoneNames[(int)attachPoint.BoneIdx];
                 attachHeader += $" at {boneName}";
@@ -323,13 +351,15 @@ public static class UiUtil
             using var attachId = ImRaii.PushId($"{(nint)character:X8}_Attach");
             DrawAttachInfo(character, attachPoint);
             using var attachIndent = ImRaii.PushIndent();
-            if (attachPoint.TargetSkeleton != null && ImGui.CollapsingHeader($"Target Skeleton {(nint)character->Attach.TargetSkeleton:X8}"))
+            if (attachPoint.TargetSkeleton != null &&
+                ImGui.CollapsingHeader($"Target Skeleton {(nint)attach.TargetSkeleton:X8}"))
             {
                 using var id = ImRaii.PushId($"{(nint)character:X8}_Target");
                 DrawSkeleton(attachPoint.TargetSkeleton);
             }
 
-            if (attachPoint.OwnerSkeleton != null && ImGui.CollapsingHeader($"Owner Skeleton {(nint)character->Attach.OwnerSkeleton:X8}"))
+            if (attachPoint.OwnerSkeleton != null &&
+                ImGui.CollapsingHeader($"Owner Skeleton {(nint)attach.OwnerSkeleton:X8}"))
             {
                 using var id = ImRaii.PushId($"{(nint)character:X8}_Owner");
                 DrawSkeleton(attachPoint.OwnerSkeleton);
@@ -337,8 +367,11 @@ public static class UiUtil
         }
     }
 
-    private static unsafe void DrawAttachInfo(CharacterBase* character, Attach attachPoint)
+    private static unsafe void DrawAttachInfo(Pointer<CharacterBase> characterPointer, ParsedAttach attachPoint)
     {
+        if (characterPointer == null || characterPointer.Value == null)
+            return;
+        var character = characterPointer.Value;
         var position = character->Position;
         var rotation = character->Rotation;
         var scale = character->Scale;
@@ -356,24 +389,24 @@ public static class UiUtil
         }
         else
         {
-            var characterSkeleton = new Skeleton.Skeleton(character->Skeleton);
+            var characterSkeleton = characterPointer.GetParsedSkeleton();
             DrawSkeleton(characterSkeleton);
         }
-        //DrawModels(character);
     }
-    
-        public static void DrawSkeleton(Skeleton.Skeleton skeleton)
+
+    public static void DrawSkeleton(ParsedSkeleton skeleton)
     {
         using var skeletonIndent = ImRaii.PushIndent();
         ImGui.Text($"Partial Skeletons: {skeleton.PartialSkeletons.Count}");
         ImGui.Text($"Transform: {skeleton.Transform}");
-        for (int i = 0; i < skeleton.PartialSkeletons.Count; i++)
+        for (var i = 0; i < skeleton.PartialSkeletons.Count; i++)
         {
             var partial = skeleton.PartialSkeletons[i];
             if (partial.HandlePath == null)
             {
                 continue;
             }
+
             using var partialIndent = ImRaii.PushIndent();
             using var partialId = ImRaii.PushId(i);
             if (ImGui.CollapsingHeader($"[{i}]Partial: {partial.HandlePath}"))
@@ -381,41 +414,11 @@ public static class UiUtil
                 ImGui.Text($"Connected Bone Index: {partial.ConnectedBoneIndex}");
                 var poseData = partial.Poses.FirstOrDefault();
                 if (poseData == null) continue;
-                for (int j = 0; j < poseData.Pose.Count; j++)
+                for (var j = 0; j < poseData.Pose.Count; j++)
                 {
                     var transform = poseData.Pose[j];
                     var boneName = partial.HkSkeleton?.BoneNames[j] ?? "Bone";
                     ImGui.Text($"[{j}]{boneName} {transform}");
-                }
-            }
-        }
-    }
-    
-    private static unsafe void DrawSkeleton(FFXIVClientStructs.FFXIV.Client.Graphics.Render.Skeleton* sk, string context)
-    {
-        using var skeletonIndent = ImRaii.PushIndent();
-        using var skeletonId = ImRaii.PushId($"{(nint)sk:X8}");
-        ImGui.Text($"Partial Skeletons: {sk->PartialSkeletonCount}");
-        ImGui.Text($"Transform: {new Transform(sk->Transform)}");
-        for (var i = 0; i < sk->PartialSkeletonCount; ++i)
-        {
-            using var partialId = ImRaii.PushId($"PartialSkeleton_{i}");
-            var handle = sk->PartialSkeletons[i].SkeletonResourceHandle;
-            if (handle == null)
-            {
-                continue;
-            }
-
-            if (ImGui.CollapsingHeader($"Partial {i}: {handle->FileName.ToString()}"))
-            {
-                var p = sk->PartialSkeletons[i].GetHavokPose(0);
-                if (p != null && p->Skeleton != null)
-                {
-                    for (var j = 0; j < p->Skeleton->Bones.Length; ++j)
-                    {
-                        var boneName = p->Skeleton->Bones[j].Name.String ?? $"Bone {j}";
-                        ImGui.TextUnformatted($"[{i}, {j}] => {boneName}");
-                    }
                 }
             }
         }

@@ -1,10 +1,10 @@
 ﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
-using Dalamud.Memory;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.Interop;
 using Meddle.Plugin.Models;
+using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Export;
@@ -13,7 +13,7 @@ using Meddle.Utils.Files.SqPack;
 using Meddle.Utils.Files.Structs.Material;
 using Meddle.Utils.Models;
 using Microsoft.Extensions.Logging;
-using Attach = Meddle.Plugin.Skeleton.Attach;
+using Material = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Material;
 using Texture = FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Texture;
 
 namespace Meddle.Plugin.Services;
@@ -22,15 +22,15 @@ public class ParseService : IDisposable
 {
     private static readonly ActivitySource ActivitySource = new("Meddle.Plugin.Utils.ParseUtil");
     private readonly DXHelper dxHelper;
-    private readonly PbdHooks pbdHooks;
-    private readonly EventLogger<ParseService> logger;
     private readonly IFramework framework;
+    private readonly EventLogger<ParseService> logger;
     private readonly SqPack pack;
-    public event Action<LogLevel, string>? OnLogEvent; 
+    private readonly PbdHooks pbdHooks;
 
     private readonly Dictionary<string, ShpkFile> shpkCache = new();
 
-    public ParseService(SqPack pack, IFramework framework, DXHelper dxHelper, PbdHooks pbdHooks, ILogger<ParseService> logger)
+    public ParseService(
+        SqPack pack, IFramework framework, DXHelper dxHelper, PbdHooks pbdHooks, ILogger<ParseService> logger)
     {
         this.pack = pack;
         this.framework = framework;
@@ -39,12 +39,20 @@ public class ParseService : IDisposable
         this.logger = new EventLogger<ParseService>(logger);
         this.logger.OnLogEvent += OnLog;
     }
-    
+
+    public void Dispose()
+    {
+        logger.LogDebug("Disposing ParseUtil");
+        logger.OnLogEvent -= OnLog;
+    }
+
+    public event Action<LogLevel, string>? OnLogEvent;
+
     private void OnLog(LogLevel logLevel, string message)
     {
         OnLogEvent?.Invoke(logLevel, message);
     }
-    
+
     public unsafe Dictionary<int, ColorTable> ParseColorTableTextures(CharacterBase* characterBase)
     {
         using var activity = ActivitySource.StartActivity();
@@ -84,12 +92,12 @@ public class ParseService : IDisposable
         {
             // legacy table
             var stridedData = ImageUtils.AdjustStride(stride, (int)colorTableTexture->Width * 8,
-            (int)colorTableTexture->Height, colorTableRes.Data);
+                                                      (int)colorTableTexture->Height, colorTableRes.Data);
             var reader = new SpanBinaryReader(stridedData);
             var tableData = reader.Read<LegacyColorTableRow>(16);
             return tableData.ToArray().Select(x => x.ToNew()).ToArray();
         }
-        
+
         if (colorTableTexture->Width == 8 && colorTableTexture->Height == 32)
         {
             // new table
@@ -99,7 +107,7 @@ public class ParseService : IDisposable
             var tableData = reader.Read<ColorTableRow>(32);
             return tableData.ToArray();
         }
-        
+
         throw new ArgumentException(
             $"Color table is not 4x16 or 8x32 ({colorTableTexture->Width}x{colorTableTexture->Height})");
     }
@@ -108,12 +116,12 @@ public class ParseService : IDisposable
         CharacterBase* characterBase,
         Dictionary<int, ColorTable> colorTableTextures,
         Dictionary<Pointer<CharacterBase>, Dictionary<int, ColorTable>> attachDict,
-        Meddle.Utils.Export.CustomizeParameter customizeParams,
+        CustomizeParameter customizeParams,
         CustomizeData customizeData,
         GenderRace genderRace)
     {
         using var activity = ActivitySource.StartActivity();
-        var skeleton = new Skeleton.Skeleton(characterBase->Skeleton);
+        var skeleton = new ParsedSkeleton(characterBase->Skeleton);
         var mdlGroups = new List<MdlFileGroup>();
         for (var i = 0; i < characterBase->SlotCount; i++)
         {
@@ -140,28 +148,6 @@ public class ParseService : IDisposable
             attachGroups.ToArray());
     }
 
-    public unsafe Model.ShapeAttributeGroup ParseModelShapeAttributes(
-        FFXIVClientStructs.FFXIV.Client.Graphics.Render.Model* model)
-    {                
-        var shapesMask = model->EnabledShapeKeyIndexMask;
-        var shapes = new List<(string, short)>();
-        foreach (var shape in model->ModelResourceHandle->Shapes)
-        {
-            shapes.Add((MemoryHelper.ReadStringNullTerminated((nint)shape.Item1.Value), shape.Item2));
-        }
-                
-        var attributeMask = model->EnabledAttributeIndexMask;
-        var attributes = new List<(string, short)>();
-        foreach (var attribute in model->ModelResourceHandle->Attributes)
-        {
-            attributes.Add((MemoryHelper.ReadStringNullTerminated((nint)attribute.Item1.Value), attribute.Item2));
-        }
-                
-        var shapeAttributeGroup = new Model.ShapeAttributeGroup(shapesMask, attributeMask, shapes.ToArray(), attributes.ToArray());
-        
-        return shapeAttributeGroup;
-    }
-    
     public unsafe MdlFileGroup? HandleModelPtr(
         CharacterBase* characterBase, int slotIdx, Dictionary<int, ColorTable> colorTables)
     {
@@ -172,8 +158,9 @@ public class ParseService : IDisposable
             //logger.LogWarning("Model Ptr {ModelIndex} is null", modelIdx);
             return null;
         }
+
         var model = modelPtr.Value;
-        
+
         var mdlFileName = model->ModelResourceHandle->ResourceHandle.FileName.ToString();
         var mdlFileActorName = characterBase->ResolveMdlPath((uint)slotIdx);
         activity?.SetTag("mdl", mdlFileName);
@@ -183,8 +170,8 @@ public class ParseService : IDisposable
             logger.LogWarning("Model file {MdlFileName} not found", mdlFileName);
             return null;
         }
-        
-        var shapeAttributeGroup = ParseModelShapeAttributes(model);
+
+        var shapeAttributeGroup = StructExtensions.ParseModelShapeAttributes(model);
         var mdlFile = new MdlFile(mdlFileResource);
         var mtrlFileNames = mdlFile.GetMaterialNames().Select(x => x.Value).ToArray();
         var mtrlGroups = new List<MtrlFileGroup>();
@@ -205,15 +192,17 @@ public class ParseService : IDisposable
                 mtrlGroups.Add(mtrlGroup);
             }
         }
-        
+
         var deformerData = pbdHooks.TryGetDeformer((nint)characterBase, (uint)slotIdx);
         DeformerGroup? deformerGroup = null;
         if (deformerData != null)
         {
-            deformerGroup = new DeformerGroup(deformerData.Value.PbdPath, deformerData.Value.RaceSexId, deformerData.Value.DeformerId);
+            deformerGroup = new DeformerGroup(deformerData.Value.PbdPath, deformerData.Value.RaceSexId,
+                                              deformerData.Value.DeformerId);
         }
 
-        return new MdlFileGroup(mdlFileActorName, mdlFileName, deformerGroup, mdlFile, mtrlGroups.ToArray(), shapeAttributeGroup);
+        return new MdlFileGroup(mdlFileActorName, mdlFileName, deformerGroup, mdlFile, mtrlGroups.ToArray(),
+                                shapeAttributeGroup);
     }
 
     private ShpkFile HandleShpk(string shader)
@@ -238,7 +227,7 @@ public class ParseService : IDisposable
 
     private unsafe MtrlFileGroup? HandleMtrl(
         string mdlPath,
-        FFXIVClientStructs.FFXIV.Client.Graphics.Render.Material* material, int modelIdx, int j,
+        Material* material, int modelIdx, int j,
         Dictionary<int, ColorTable> colorTables)
     {
         using var activity = ActivitySource.StartActivity();
@@ -274,7 +263,7 @@ public class ParseService : IDisposable
         var shpkFile = HandleShpk(shader);
         var texGroups = new List<TexResourceGroup>();
 
-        for (int i = 0; i < material->MaterialResourceHandle->TextureCount; i++)
+        for (var i = 0; i < material->MaterialResourceHandle->TextureCount; i++)
         {
             var textureEntry = material->MaterialResourceHandle->TexturesSpan[i];
             if (textureEntry.TextureResourceHandle == null)
@@ -282,38 +271,25 @@ public class ParseService : IDisposable
                 logger.LogWarning("Texture handle is null on {MtrlFileName}", mtrlFileName);
                 continue;
             }
-            
+
             var texturePath = material->MaterialResourceHandle->TexturePathString(i);
             var resourcePath = textureEntry.TextureResourceHandle->ResourceHandle.FileName.ToString();
             var data = dxHelper.ExportTextureResource(textureEntry.TextureResourceHandle->Texture);
             var texResourceGroup = new TexResourceGroup(texturePath, resourcePath, data.Resource);
             texGroups.Add(texResourceGroup);
         }
+
         return new MtrlFileGroup(mdlPath, mtrlFileName, mtrlFile, shader, shpkFile, texGroups.ToArray());
     }
 
-    /*private Meddle.Utils.Export.Texture.TexGroup? HandleTexture(string textureName)
-    {
-        using var activity = ActivitySource.StartActivity();
-        var texFileResource = pack.GetFileOrReadFromDisk(textureName);
-        if (texFileResource == null)
-        {
-            logger.LogWarning("Texture file {TextureName} not found", textureName);
-            return null;
-        }
-
-        var texFile = new TexFile(texFileResource);
-        return new Meddle.Utils.Export.Texture.TexGroup(textureName, texFile);
-    }*/
-
     public unsafe AttachedModelGroup HandleAttachGroup(
-        CharacterBase* attachBase, Dictionary<int, ColorTable> colorTables)
+        Pointer<CharacterBase> attachBase, Dictionary<int, ColorTable> colorTables)
     {
         using var activity = ActivitySource.StartActivity();
-        var attach = new Attach(attachBase->Attach);
+        var attach = new ParsedAttach(attachBase.GetAttach());
         var models = new List<MdlFileGroup>();
-        var skeleton = new Skeleton.Skeleton(attachBase->Skeleton);
-        for (var i = 0; i < attachBase->ModelsSpan.Length; i++)
+        var skeleton = new ParsedSkeleton(attachBase.Value->Skeleton);
+        for (var i = 0; i < attachBase.Value->ModelsSpan.Length; i++)
         {
             var mdlGroup = HandleModelPtr(attachBase, i, colorTables);
             if (mdlGroup != null)
@@ -324,11 +300,5 @@ public class ParseService : IDisposable
 
         var attachGroup = new AttachedModelGroup(attach, models.ToArray(), skeleton);
         return attachGroup;
-    }
-    
-    public void Dispose()
-    {
-        logger.LogDebug("Disposing ParseUtil");
-        logger.OnLogEvent -= OnLog;
     }
 }

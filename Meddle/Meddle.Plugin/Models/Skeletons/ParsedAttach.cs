@@ -1,13 +1,11 @@
-﻿using FFXIVClientStructs.Interop;
+﻿using Meddle.Plugin.Models.Structs;
 using Meddle.Utils.Skeletons;
-using CSAttach = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Attach;
-using CSSkeleton = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Skeleton;
 
-namespace Meddle.Plugin.Skeleton;
+namespace Meddle.Plugin.Models.Skeletons;
 
-public unsafe class Attach
+public unsafe class ParsedAttach
 {
-    public Attach(CSAttach attach)
+    public ParsedAttach(Attach attach)
     {
         // 0 => Root
         // 3 => Fashion Accessories
@@ -22,8 +20,8 @@ public unsafe class Attach
             case 3:
             {
                 if (attach.OwnerCharacter->Skeleton != null)
-                    OwnerSkeleton = new Skeleton(attach.OwnerCharacter->Skeleton);
-                TargetSkeleton = new Skeleton(attach.TargetSkeleton);
+                    OwnerSkeleton = new ParsedSkeleton(attach.OwnerCharacter->Skeleton);
+                TargetSkeleton = new ParsedSkeleton(attach.TargetSkeleton);
                 AttachmentCount = attach.AttachmentCount;
                 if (attach.AttachmentCount != 0)
                 {
@@ -31,9 +29,9 @@ public unsafe class Attach
                     OffsetTransform = new Transform(transform.ChildTransform);
                     PartialSkeletonIdx = transform.BoneIndexMask.SkeletonIdx;
 
-                    var ownerSkeleton = attach.OwnerCharacter->Skeleton;
+                    var ownerSkeleton = (Skeleton*)attach.OwnerCharacter->Skeleton;
 
-                    CSSkeleton.Bone? foundBone = null;
+                    Skeleton.Bone? foundBone = null;
                     var foundBoneIdx = 0;
                     for (var i = 0; i < ownerSkeleton->AttachBoneCount; i++)
                     {
@@ -57,12 +55,13 @@ public unsafe class Attach
                     PartialSkeletonIdx = boneMask.SkeletonIdx;
                     BoneIdx = boneMask.BoneIdx;
                 }
+
                 break;
             }
             case 4:
             {
-                OwnerSkeleton = new Skeleton(attach.OwnerSkeleton);
-                TargetSkeleton = new Skeleton(attach.TargetSkeleton);
+                OwnerSkeleton = new ParsedSkeleton(attach.OwnerSkeleton);
+                TargetSkeleton = new ParsedSkeleton(attach.TargetSkeleton);
                 AttachmentCount = attach.AttachmentCount;
                 if (attach.AttachmentCount != 0)
                 {
@@ -72,6 +71,7 @@ public unsafe class Attach
                     PartialSkeletonIdx = att.BoneIndexMask.SkeletonIdx;
                     BoneIdx = att.BoneIndexMask.BoneIdx;
                 }
+
                 break;
             }
             default:
@@ -83,8 +83,8 @@ public unsafe class Attach
 
     public int AttachmentCount { get; }
     public int ExecuteType { get; }
-    public Skeleton? TargetSkeleton { get; }
-    public Skeleton? OwnerSkeleton { get; }
+    public ParsedSkeleton? TargetSkeleton { get; }
+    public ParsedSkeleton? OwnerSkeleton { get; }
     public Transform? OffsetTransform { get; }
     public byte PartialSkeletonIdx { get; }
     public uint BoneIdx { get; }

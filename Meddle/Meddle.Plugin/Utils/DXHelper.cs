@@ -36,7 +36,7 @@ public unsafe class DXHelper
 
         return ret;
     }
-    
+
     /*public byte[] ExportVertexBuffer(VertexBuffer* buffer)
     {
         if (buffer->DxPtr1 == nint.Zero)
@@ -75,14 +75,18 @@ public unsafe class DXHelper
         {
             var blockHeight = Math.Max(1, (desc.Height + 3) / 4);
             if (map.RowPitch * blockHeight != map.DepthPitch)
+            {
                 throw new InvalidDataException(
                     $"Invalid/unknown texture size for {desc.Format}: RowPitch = {map.RowPitch}; Height = {desc.Height}; Block Height = {blockHeight}; DepthPitch = {map.DepthPitch}");
+            }
         }
         else
         {
             if (map.RowPitch * desc.Height != map.DepthPitch)
+            {
                 throw new InvalidDataException(
                     $"Invalid/unknown texture size for {desc.Format}: RowPitch = {map.RowPitch}; Height = {desc.Height}; DepthPitch = {map.DepthPitch}");
+            }
         }
 
         var buf = new byte[map.DepthPitch];

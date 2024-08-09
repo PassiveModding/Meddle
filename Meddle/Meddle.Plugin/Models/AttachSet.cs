@@ -1,12 +1,12 @@
-﻿using Meddle.Plugin.Skeleton;
+﻿using Meddle.Plugin.Models.Skeletons;
 using SharpGLTF.Transforms;
 
 namespace Meddle.Plugin.Models;
 
-
 public class AttachSet
 {
-    public AttachSet(string id, Attach attach, Skeleton.Skeleton ownerSkeleton, AffineTransform transform, string? ownerId)
+    public AttachSet(
+        string id, ParsedAttach attach, ParsedSkeleton ownerSkeleton, AffineTransform transform, string? ownerId)
     {
         Id = id;
         Attach = attach;
@@ -14,10 +14,10 @@ public class AttachSet
         Transform = transform;
         OwnerId = ownerId;
     }
-    
+
     public string Id { get; set; }
     public string? OwnerId { get; set; }
-    public Attach Attach { get; set; }
-    public Skeleton.Skeleton OwnerSkeleton { get; set; }
+    public ParsedAttach Attach { get; set; }
+    public ParsedSkeleton OwnerSkeleton { get; set; }
     public AffineTransform Transform { get; set; }
 }

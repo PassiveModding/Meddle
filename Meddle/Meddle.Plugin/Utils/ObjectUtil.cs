@@ -51,7 +51,8 @@ public static class ObjectUtil
         return new Vector3(obj.YalmDistanceX, 0, obj.YalmDistanceZ);
     }
 
-    public static unsafe string GetCharacterDisplayText(this IClientState clientState, IGameObject obj, string overrideName = "")
+    public static unsafe string GetCharacterDisplayText(
+        this IClientState clientState, IGameObject obj, string overrideName = "")
     {
         var drawObject = ((GameObject*)obj.Address)->DrawObject;
         if (drawObject == null)
@@ -63,7 +64,7 @@ public static class ObjectUtil
         var modelType = ((CharacterBase*)drawObject)->GetModelType();
 
         var name = obj.Name.TextValue;
-        if (obj.ObjectKind == ObjectKind.Player && !string.IsNullOrWhiteSpace(overrideName))   
+        if (obj.ObjectKind == ObjectKind.Player && !string.IsNullOrWhiteSpace(overrideName))
             name = overrideName;
         return
             $"[{obj.Address:X8}:{obj.GameObjectId:X}][{obj.ObjectKind}][{modelType}] - " +

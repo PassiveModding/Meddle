@@ -35,14 +35,6 @@ public class WindowManager : IHostedService, IDisposable
         config.OnConfigurationSaved += OnSave;
     }
 
-    private void OnSave()
-    {
-        pluginInterface.UiBuilder.DisableGposeUiHide = config.DisableGposeUiHide;
-        pluginInterface.UiBuilder.DisableCutsceneUiHide = config.DisableCutsceneUiHide;
-        pluginInterface.UiBuilder.DisableAutomaticUiHide = config.DisableAutomaticUiHide;
-        pluginInterface.UiBuilder.DisableUserUiHide = config.DisableUserUiHide;
-    }
-
     public WindowSystem WindowSystem { get; set; }
     public MainWindow MainWindow { get; set; }
 
@@ -92,6 +84,14 @@ public class WindowManager : IHostedService, IDisposable
     {
         Dispose();
         return Task.CompletedTask;
+    }
+
+    private void OnSave()
+    {
+        pluginInterface.UiBuilder.DisableGposeUiHide = config.DisableGposeUiHide;
+        pluginInterface.UiBuilder.DisableCutsceneUiHide = config.DisableCutsceneUiHide;
+        pluginInterface.UiBuilder.DisableAutomaticUiHide = config.DisableAutomaticUiHide;
+        pluginInterface.UiBuilder.DisableUserUiHide = config.DisableUserUiHide;
     }
 
     public void OpenUi()

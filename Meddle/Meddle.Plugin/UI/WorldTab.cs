@@ -1,13 +1,11 @@
 ﻿using System.Numerics;
 using System.Runtime.InteropServices;
-using Dalamud.Interface.ImGuiNotification;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using ImGuiNET;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Services;
-using Meddle.Plugin.Utils;
 using Microsoft.Extensions.Logging;
 
 namespace Meddle.Plugin.UI;
@@ -20,15 +18,13 @@ public class WorldTab : ITab
     private readonly ILogger<WorldTab> log;
 
     private readonly List<ObjectData> objects = new();
-    private readonly PluginState pluginState;
     private readonly List<ObjectData> selectedObjects = new();
     private Task exportTask = Task.CompletedTask;
 
     public WorldTab(
-        PluginState pluginState, IClientState clientState, ExportService exportService, ILogger<WorldTab> log,
+        IClientState clientState, ExportService exportService, ILogger<WorldTab> log,
         Configuration config)
     {
-        this.pluginState = pluginState;
         this.clientState = clientState;
         this.exportService = exportService;
         this.log = log;
@@ -48,10 +44,9 @@ public class WorldTab : ITab
     public void Draw()
     {
         ImGui.Text("This is a testing menu, functionality may not work as expected.");
-        
-        if (!pluginState.InteropResolved) return;
+
         var position = clientState.LocalPlayer?.Position ?? Vector3.Zero;
-        
+
         if (ImGui.Button("Parse world objects"))
         {
             ParseWorld();
@@ -153,7 +148,7 @@ public class WorldTab : ITab
             log.LogWarning("World is null, unable to parse objects");
             return;
         }
-        
+
         foreach (var childObject in world->ChildObjects)
         {
             if (childObject == null) continue;
@@ -176,10 +171,9 @@ public class WorldTab : ITab
             }
         }
     }
-    
+
     private record ObjectData(ObjectType Type, string Path, Vector3 Position, Quaternion Rotation, Vector3 Scale);
 }
-
 
 [StructLayout(LayoutKind.Explicit, Size = 0xD0)]
 public struct BgObject

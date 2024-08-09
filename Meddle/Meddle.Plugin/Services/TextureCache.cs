@@ -13,7 +13,7 @@ public class CachedTexture : IDisposable
 
     public IDalamudTextureWrap Wrap { get; set; }
     public DateTime LastAccessTime { get; set; }
-    
+
     public void Dispose()
     {
         Wrap.Dispose();
@@ -23,15 +23,21 @@ public class CachedTexture : IDisposable
 public sealed class TextureCache : IDisposable
 {
     private readonly Dictionary<string, CachedTexture> cache = new();
+    private readonly Timer cleanupTimer;
     private readonly TimeSpan expirationTime;
     private readonly ILogger<TextureCache> logger;
-    private readonly Timer cleanupTimer;
 
     public TextureCache(ILogger<TextureCache> logger)
     {
-        this.expirationTime = TimeSpan.FromSeconds(10);
+        expirationTime = TimeSpan.FromSeconds(10);
         this.logger = logger;
         cleanupTimer = new Timer(CleanupExpiredTextures, null, expirationTime, expirationTime);
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
     }
 
     public IDalamudTextureWrap GetOrAdd(string key, Func<IDalamudTextureWrap> createWrap)
@@ -85,12 +91,6 @@ public sealed class TextureCache : IDisposable
         }
     }
 
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-    
     ~TextureCache()
     {
         Dispose(false);

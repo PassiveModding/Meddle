@@ -19,18 +19,18 @@ public class MaterialParameterTab : ITab
 {
     private readonly IClientState clientState;
     private readonly Configuration config;
-    private readonly IObjectTable objectTable;
-    private readonly SqPack pack;
-    private Vector4[]? CustomizeParameters;
-    private Pointer<Human> lastHuman;
     private readonly Dictionary<string, Pointer<Material>> materialCache = new();
     private readonly Dictionary<string, MtrlFile> mtrlCache = new();
     private readonly Dictionary<string, float[]> mtrlConstantCache = new();
+    private readonly IObjectTable objectTable;
+    private readonly SqPack pack;
+
+    private readonly Dictionary<string, ShpkFile> shpkCache = new();
+    private Vector4[]? CustomizeParameters;
+    private Pointer<Human> lastHuman;
 
     // only show values that are different from the shader default
     private bool onlyShowChanged;
-
-    private readonly Dictionary<string, ShpkFile> shpkCache = new();
 
     public MaterialParameterTab(IObjectTable objectTable, IClientState clientState, SqPack pack, Configuration config)
     {
@@ -55,8 +55,9 @@ public class MaterialParameterTab : ITab
 
     public void Draw()
     {
-        ImGui.TextColored(new Vector4(1, 0, 0, 1), "Warning: This tab is for advanced users only. Modifying material parameters may cause crashes or other issues.");
-        
+        ImGui.TextColored(new Vector4(1, 0, 0, 1),
+                          "Warning: This tab is for advanced users only. Modifying material parameters may cause crashes or other issues.");
+
         ICharacter[] objects;
         if (clientState.LocalPlayer != null)
         {
