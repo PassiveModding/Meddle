@@ -91,20 +91,30 @@ public class AnimationTab : ITab
         }
 
         if (selectedCharacter == null) return;
-        if (ImGui.Checkbox("Capture Animation", ref captureAnimation))
+
+        switch (captureAnimation)
         {
-            if (captureAnimation)
-            {
-                logger.LogInformation("Capturing animation");
-            }
-            else
-            {
+            case true when ImGui.Button("Stop Capture"):
+                captureAnimation = false;
                 logger.LogInformation("Stopped capturing animation");
-            }
+                break;
+            case false when ImGui.Button("Start Capture"):
+                captureAnimation = true;
+                logger.LogInformation("Capturing animation");
+                break;
+        }
+        
+        ImGui.SameLine();
+        if (ImGui.Button("Clear"))
+        {
+            frames.Clear();
         }
 
+        ImGui.SameLine();
         var frameCount = frames.Count;
         ImGui.Text($"Frames: {frameCount}");
+        
+        
         if (ImGui.Button("Export"))
         {
             exportService.ExportAnimation(frames, includePositionalData);
@@ -112,18 +122,9 @@ public class AnimationTab : ITab
 
         ImGui.SameLine();
         ImGui.Checkbox("Include Positional Data", ref includePositionalData);
-
-        if (ImGui.Button("Clear"))
-        {
-            frames.Clear();
-        }
-
         ImGui.Separator();
 
-        if (ImGui.CollapsingHeader("Skeleton"))
-        {
-            DrawSelectedCharacter();
-        }
+        DrawSelectedCharacter();
     }
 
     public void Dispose()

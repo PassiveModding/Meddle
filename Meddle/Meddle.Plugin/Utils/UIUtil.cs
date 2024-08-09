@@ -184,6 +184,12 @@ public static class UiUtil
             return;
         }
 
+        using var table = ImRaii.Table("AttachTable", 3, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable);
+        ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthFixed, 100);
+        ImGui.TableSetupColumn("Model Type", ImGuiTableColumnFlags.WidthFixed, 100);
+        ImGui.TableSetupColumn("Skeleton");
+        ImGui.TableHeadersRow();
+        
         var cBase = (CharacterBase*)characterPointer.Value->GameObject.DrawObject;
         DrawCharacterBase(cBase, "Main");
         DrawOrnamentContainer(characterPointer.Value->OrnamentData);
@@ -324,33 +330,37 @@ public static class UiUtil
         }
 
         var modelType = character->GetModelType();
-        var attachHeader = $"[{modelType}]{name} Attach Pose ({attachPoint.ExecuteType},{attachPoint.AttachmentCount})";
-        if (attachPoint.ExecuteType >= 3)
+        var attachType = attachPoint.ExecuteType switch
+        {
+            0 => "Root",
+            3 => "Owner Attach",
+            4 => "Skeleton Attach",
+            _ => "Unknown"
+        };
+        
+
+        ImGui.TableNextRow();
+        ImGui.TableSetColumnIndex(0);
+        ImGui.Text(name);
+        ImGui.TableSetColumnIndex(1);
+        ImGui.Text(modelType.ToString());
+        ImGui.TableSetColumnIndex(2);
+        
+        string attachHeader;
+        if (attachPoint.ExecuteType != 0)
         {
             var attachedPartialSkeleton = attachPoint.OwnerSkeleton!.PartialSkeletons[attachPoint.PartialSkeletonIdx];
             var boneName = attachedPartialSkeleton.HkSkeleton!.BoneNames[(int)attachPoint.BoneIdx];
-            attachHeader += $" at {boneName}";
+            attachHeader = $"[{attachPoint.ExecuteType}]{attachType} at {boneName}";
         }
-        else if (attachPoint.ExecuteType == 3)
+        else
         {
-            var attachedPartialSkeleton = attachPoint.OwnerSkeleton!.PartialSkeletons[attachPoint.PartialSkeletonIdx];
-            if (attachedPartialSkeleton.HkSkeleton != null &&
-                attachPoint.BoneIdx < attachedPartialSkeleton.HkSkeleton.BoneNames.Count)
-            {
-                var boneName = attachedPartialSkeleton.HkSkeleton.BoneNames[(int)attachPoint.BoneIdx];
-                attachHeader += $" at {boneName}";
-            }
-            else
-            {
-                attachHeader += $" at {attachPoint.BoneIdx} > {attachedPartialSkeleton.HandlePath}";
-            }
+            attachHeader = $"[{attachPoint.ExecuteType}]{attachType}";
         }
-
         if (ImGui.CollapsingHeader(attachHeader))
         {
             using var attachId = ImRaii.PushId($"{(nint)character:X8}_Attach");
             DrawAttachInfo(character, attachPoint);
-            using var attachIndent = ImRaii.PushIndent();
             if (attachPoint.TargetSkeleton != null &&
                 ImGui.CollapsingHeader($"Target Skeleton {(nint)attach.TargetSkeleton:X8}"))
             {
@@ -385,20 +395,21 @@ public static class UiUtil
         ImGui.Text($"Root: {attachPoint.OffsetTransform?.ToString() ?? "None"}");
         if (attachPoint.TargetSkeleton != null)
         {
+            ImGui.Text($"Skeleton Transform: {attachPoint.TargetSkeleton.Transform}");
+            ImGui.Text($"Partial Skeletons: {attachPoint.TargetSkeleton.PartialSkeletons.Count}");
             DrawSkeleton(attachPoint.TargetSkeleton);
         }
         else
         {
             var characterSkeleton = characterPointer.GetParsedSkeleton();
+            ImGui.Text($"Skeleton Transform: {characterSkeleton.Transform}");
+            ImGui.Text($"Partial Skeletons: {characterSkeleton.PartialSkeletons.Count}");
             DrawSkeleton(characterSkeleton);
         }
     }
 
     public static void DrawSkeleton(ParsedSkeleton skeleton)
     {
-        using var skeletonIndent = ImRaii.PushIndent();
-        ImGui.Text($"Partial Skeletons: {skeleton.PartialSkeletons.Count}");
-        ImGui.Text($"Transform: {skeleton.Transform}");
         for (var i = 0; i < skeleton.PartialSkeletons.Count; i++)
         {
             var partial = skeleton.PartialSkeletons[i];
@@ -407,7 +418,6 @@ public static class UiUtil
                 continue;
             }
 
-            using var partialIndent = ImRaii.PushIndent();
             using var partialId = ImRaii.PushId(i);
             if (ImGui.CollapsingHeader($"[{i}]Partial: {partial.HandlePath}"))
             {
