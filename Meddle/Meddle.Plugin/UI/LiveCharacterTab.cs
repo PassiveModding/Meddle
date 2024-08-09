@@ -9,12 +9,14 @@ using FFXIVClientStructs.FFXIV.Common.Math;
 using FFXIVClientStructs.Interop;
 using ImGuiNET;
 using Meddle.Plugin.Models;
+using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files.SqPack;
+using Meddle.Utils.Skeletons;
 using Microsoft.Extensions.Logging;
 using SkiaSharp;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
@@ -159,8 +161,14 @@ public unsafe class LiveCharacterTab : ITab
         DrawCharacter(charPtr, "Character");
     }
 
-    private void DrawCharacter(CSCharacter* character, string name)
+    private void DrawCharacter(CSCharacter* character, string name, int depth = 0)
     {
+        if (depth > 3)
+        {
+            ImGui.Text("Bad things happened, too deep");
+            return;
+        }
+        
         if (character == null)
         {
             ImGui.Text("Character is null");
@@ -169,6 +177,11 @@ public unsafe class LiveCharacterTab : ITab
 
         var drawObject = character->GameObject.DrawObject;
         ImGui.Text(name);
+        if (drawObject == null)
+        {
+            ImGui.Text("Draw object is null");
+            return;
+        }
         if (drawObject->GetObjectType() != ObjectType.CharacterBase)
         {
             ImGui.Text("Draw object is not a character base");
@@ -199,19 +212,19 @@ public unsafe class LiveCharacterTab : ITab
         if (character->Mount.MountObject != null)
         {
             ImGui.Separator();
-            DrawCharacter(character->Mount.MountObject, "Mount");
+            DrawCharacter(character->Mount.MountObject, "Mount", depth + 1);
         }
 
         if (character->CompanionData.CompanionObject != null)
         {
             ImGui.Separator();
-            DrawCharacter(&character->CompanionData.CompanionObject->Character, "Companion");
+            DrawCharacter(&character->CompanionData.CompanionObject->Character, "Companion", depth + 1);
         }
 
         if (character->OrnamentData.OrnamentObject != null)
         {
             ImGui.Separator();
-            DrawCharacter(&character->OrnamentData.OrnamentObject->Character, "Ornament");
+            DrawCharacter(&character->OrnamentData.OrnamentObject->Character, "Ornament", depth + 1);
         }
 
         for (var weaponIdx = 0; weaponIdx < character->DrawData.WeaponData.Length; weaponIdx++)
@@ -333,9 +346,33 @@ public unsafe class LiveCharacterTab : ITab
         if (character->Mount.MountObject != null)
         {
             var draw = character->Mount.MountObject->GetDrawObject();
-            var attachGroup = parseService.ParseDrawObjectAsAttach(draw);
+            var attachGroup = parseService.ParseDrawObjectAsAttach(draw);            
+
             if (attachGroup != null)
             {
+                // hacky workaround since mount is actually a "root" and the character is attached to them
+                // TODO: transform needs to be adjusted to be relative to the mount
+                /*var playerAttach = StructExtensions.GetParsedAttach(cBase);
+                var attachPointName =
+                    playerAttach.OwnerSkeleton!.PartialSkeletons[playerAttach.PartialSkeletonIdx].HkSkeleton!.BoneNames[
+                        (int)playerAttach.BoneIdx];
+
+                attachGroup.Attach.OwnerSkeleton = playerAttach.TargetSkeleton;
+                attachGroup.Attach.TargetSkeleton = attachGroup.Skeleton;
+                for (int i = 0; i < attachGroup.Skeleton.PartialSkeletons.Count; i++)
+                {
+                    var partial = attachGroup.Skeleton.PartialSkeletons[i];
+                    for (int j = 0; j < partial.HkSkeleton!.BoneNames.Count; j++)
+                    {
+                        if (partial.HkSkeleton.BoneNames[j] == attachPointName)
+                        {
+                            attachGroup.Attach.BoneIdx = (uint)j;
+                            attachGroup.Attach.PartialSkeletonIdx = (byte)i;
+                            break;
+                        }
+                    }
+                }*/
+                    
                 attaches.Add(attachGroup);
             }
         }
@@ -373,7 +410,7 @@ public unsafe class LiveCharacterTab : ITab
                                         });
                                     }, Plugin.TempDirectory);
     }
-
+    
     private void ExportAllModels(CSCharacterBase* cBase, CustomizeParameter? customizeParams, CustomizeData? customizeData, GenderRace genderRace)
     {
         var group = parseService.ParseCharacterBase(cBase) with
