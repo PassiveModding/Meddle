@@ -720,12 +720,12 @@ public unsafe class LiveCharacterTab : ITab
         ImGui.TableSetColumnIndex(1);
         if (ImGui.CollapsingHeader(materialName))
         {
-            ImGui.Text($"Game File Name: {materialName}");
-            ImGui.Text($"File Name: {materialFileName}");
+            UiUtil.Text($"Game File Name: {materialName}", materialName);
+            UiUtil.Text($"File Name: {materialFileName}", materialFileName);
             ImGui.Text($"Material Index: {materialIdx}");
             ImGui.Text($"Texture Count: {material->TextureCount}");
             var shpkName = material->MaterialResourceHandle->ShpkNameString;
-            ImGui.Text($"Shader Package: {shpkName}");
+            UiUtil.Text($"Shader Package: {shpkName}", shpkName);
 
             var colorTableTexturePtr =
                 cBase->ColorTableTexturesSpan[((int)model->SlotIndex * CSCharacterBase.MaterialsPerSlot) + materialIdx];
