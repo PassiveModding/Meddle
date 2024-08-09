@@ -77,6 +77,17 @@ public class ParseService : IDisposable
         return colorTableTextures;
     }
 
+    public unsafe AttachedModelGroup? ParseDrawObjectAsAttach(DrawObject* drawObject)
+    {
+        if (drawObject == null) return null;
+        if (drawObject->GetObjectType() != ObjectType.CharacterBase) return null;
+        var drawCharacterBase = (CharacterBase*)drawObject;
+        var attachGroup = ParseCharacterBase(drawCharacterBase);
+        var attach = StructExtensions.GetParsedAttach(drawCharacterBase);
+        return new AttachedModelGroup(attach, attachGroup.MdlGroups, attachGroup.Skeleton);
+
+    }
+
     // Only call from main thread or you will probably crash
     public unsafe ColorTableRow[] ParseColorTableTexture(Texture* colorTableTexture)
     {
@@ -112,7 +123,29 @@ public class ParseService : IDisposable
             $"Color table is not 4x16 or 8x32 ({colorTableTexture->Width}x{colorTableTexture->Height})");
     }
 
-    public unsafe CharacterGroup HandleCharacterGroup(
+    /// <summary>
+    /// Parse a character base into a character group excluding attach data and customize data
+    /// </summary>
+    /// <param name="characterBase"></param>
+    /// <returns></returns>
+    public unsafe CharacterGroup ParseCharacterBase(CharacterBase* characterBase)
+    {
+        var colorTableTextures = ParseColorTableTextures(characterBase);
+        var models = new List<MdlFileGroup>();
+        foreach (var modelPtr in characterBase->ModelsSpan)
+        {
+            if (modelPtr == null) continue;
+            var model = modelPtr.Value;
+            if (model == null) continue;
+            var modelData = HandleModelPtr(characterBase, (int)model->SlotIndex, colorTableTextures);
+            if (modelData == null) continue;
+            models.Add(modelData);
+        }
+        var skeleton = StructExtensions.GetParsedSkeleton(characterBase);
+        return new CharacterGroup(new CustomizeParameter(), new CustomizeData(), GenderRace.Unknown, models.ToArray(), skeleton, []);
+    }
+
+    /*public unsafe CharacterGroup HandleCharacterGroup(
         CharacterBase* characterBase,
         Dictionary<int, ColorTable> colorTableTextures,
         Dictionary<Pointer<CharacterBase>, Dictionary<int, ColorTable>> attachDict,
@@ -146,10 +179,9 @@ public class ParseService : IDisposable
             mdlGroups.ToArray(),
             skeleton,
             attachGroups.ToArray());
-    }
+    }*/
 
-    public unsafe MdlFileGroup? HandleModelPtr(
-        CharacterBase* characterBase, int slotIdx, Dictionary<int, ColorTable> colorTables)
+    public unsafe MdlFileGroup? HandleModelPtr(CharacterBase* characterBase, int slotIdx, Dictionary<int, ColorTable> colorTables)
     {
         using var activity = ActivitySource.StartActivity();
         var modelPtr = characterBase->ModelsSpan[slotIdx];
@@ -186,7 +218,7 @@ public class ParseService : IDisposable
             }
 
             var mdlMtrlFileName = mtrlFileNames[j];
-            var mtrlGroup = HandleMtrl(mdlMtrlFileName, material, slotIdx, j, colorTables);
+            var mtrlGroup = ParseMtrl(mdlMtrlFileName, material, slotIdx, j, colorTables);
             if (mtrlGroup != null)
             {
                 mtrlGroups.Add(mtrlGroup);
@@ -225,7 +257,7 @@ public class ParseService : IDisposable
         return shpkFile;
     }
 
-    private unsafe MtrlFileGroup? HandleMtrl(
+    private unsafe MtrlFileGroup? ParseMtrl(
         string mdlPath,
         Material* material, int modelIdx, int j,
         Dictionary<int, ColorTable> colorTables)
@@ -282,7 +314,7 @@ public class ParseService : IDisposable
         return new MtrlFileGroup(mdlPath, mtrlFileName, mtrlFile, shader, shpkFile, texGroups.ToArray());
     }
 
-    public unsafe AttachedModelGroup HandleAttachGroup(
+    /*public unsafe AttachedModelGroup HandleAttachGroup(
         Pointer<CharacterBase> attachBase, Dictionary<int, ColorTable> colorTables)
     {
         using var activity = ActivitySource.StartActivity();
@@ -300,5 +332,5 @@ public class ParseService : IDisposable
 
         var attachGroup = new AttachedModelGroup(attach, models.ToArray(), skeleton);
         return attachGroup;
-    }
+    }*/
 }

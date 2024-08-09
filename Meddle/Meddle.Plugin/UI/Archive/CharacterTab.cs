@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+﻿/*using System.Numerics;
 using System.Runtime.InteropServices;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface.Textures;
@@ -65,9 +65,9 @@ public unsafe class CharacterTab : ITab
 
 
     private bool IsDisposed { get; set; }
-    public string Name => "Character";
-    public int Order => 0;
-    public bool DisplayTab => true;
+    public string Name => "(Old)Character";
+    public int Order => 999;
+    public bool DisplayTab => config.ShowTesting;
 
     public void Draw()
     {
@@ -881,3 +881,4 @@ public unsafe class CharacterTab : ITab
 
     private record TextureImage(SKTexture Bitmap, IDalamudTextureWrap Wrap);
 }
+*/

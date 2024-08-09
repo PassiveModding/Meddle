@@ -49,18 +49,6 @@ public static class StructExtensions
         return (flags >> 5) & 0xFFFu;
     }
 
-    public static unsafe (uint EnabledAttributeIndexMask, uint EnabledShapeKeyIndexMask) GetModelMasks(
-        this Pointer<Model> model)
-    {
-        if (model == null) throw new ArgumentNullException(nameof(model));
-        if (model.Value == null) throw new ArgumentNullException(nameof(model));
-
-        var modelBase = model.Value;
-        var enabledAttributeIndexMask = *(uint*)((nint)modelBase + ModelEnabledAttributeIndexMaskOffset);
-        var enabledShapeKeyIndexMask = *(uint*)((nint)modelBase + ModelEnabledShapeKeyIndexMaskOffset);
-        return (enabledAttributeIndexMask, enabledShapeKeyIndexMask);
-    }
-
     public static unsafe ParsedSkeleton GetParsedSkeleton(this Pointer<CharacterBase> character)
     {
         if (character == null) throw new ArgumentNullException(nameof(character));
@@ -81,6 +69,18 @@ public static class StructExtensions
         return new ParsedSkeleton(skeleton.Value);
     }
 
+    public static unsafe (uint EnabledAttributeIndexMask, uint EnabledShapeKeyIndexMask) GetModelMasks(
+        this Pointer<Model> model)
+    {
+        if (model == null) throw new ArgumentNullException(nameof(model));
+        if (model.Value == null) throw new ArgumentNullException(nameof(model));
+
+        var modelBase = model.Value;
+        var enabledAttributeIndexMask = *(uint*)((nint)modelBase + ModelEnabledAttributeIndexMaskOffset);
+        var enabledShapeKeyIndexMask = *(uint*)((nint)modelBase + ModelEnabledShapeKeyIndexMaskOffset);
+        return (enabledAttributeIndexMask, enabledShapeKeyIndexMask);
+    }
+    
     public static unsafe Meddle.Utils.Export.Model.ShapeAttributeGroup ParseModelShapeAttributes(
         Pointer<Model> modelPointer)
     {

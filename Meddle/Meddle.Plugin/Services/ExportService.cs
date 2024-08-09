@@ -94,42 +94,6 @@ public class ExportService : IDisposable
         Process.Start("explorer.exe", folder);
     }
 
-    public void ExportRawTextures(CharacterGroup characterGroup, CancellationToken token = default)
-    {
-        try
-        {
-            var folder = GetPathForOutput();
-            using var activity = ActivitySource.StartActivity();
-            activity?.SetTag("folder", folder);
-
-            foreach (var mdlGroup in characterGroup.MdlGroups)
-            {
-                foreach (var mtrlGroup in mdlGroup.MtrlFiles)
-                {
-                    foreach (var texGroup in mtrlGroup.TexFiles)
-                    {
-                        if (token.IsCancellationRequested) return;
-                        var outputPath =
-                            Path.Combine(folder, $"{Path.GetFileNameWithoutExtension(texGroup.MtrlPath)}.png");
-                        var texture = new Texture(texGroup.Resource, texGroup.MtrlPath, null, null, null);
-                        var str = new SKDynamicMemoryWStream();
-                        texture.ToTexture().Bitmap.Encode(str, SKEncodedImageFormat.Png, 100);
-
-                        var data = str.DetachAsData().AsSpan();
-                        File.WriteAllBytes(outputPath, data.ToArray());
-                    }
-                }
-            }
-
-            Process.Start("explorer.exe", folder);
-        }
-        catch (Exception e)
-        {
-            logger.LogError(e, "Failed to export textures");
-            throw;
-        }
-    }
-
     public void ExportAnimation(
         List<(DateTime, AttachSet[])> frames, bool includePositionalData, CancellationToken token = default)
     {
@@ -250,6 +214,7 @@ public class ExportService : IDisposable
                 var attachName = characterGroup.Skeleton.PartialSkeletons[attachedModelGroup.Attach.PartialSkeletonIdx]
                                                .HkSkeleton!.BoneNames[(int)attachedModelGroup.Attach.BoneIdx];
                 var attachBones = SkeletonUtils.GetBoneMap(attachedModelGroup.Skeleton, true, out var attachRoot);
+                logger.LogDebug("Adding attach {AttachName} to {ParentBone}", attachName, attachRoot?.BoneName);
                 if (attachRoot == null)
                 {
                     throw new InvalidOperationException("Failed to get attach root");
@@ -383,10 +348,16 @@ public class ExportService : IDisposable
                                                      characterGroup.CustomizeData, (tileNormTex, tileOrbTex)),
             "iris.shpk" => MaterialUtility.BuildIris(material, name, catchlightTex, characterGroup.CustomizeParams,
                                                      characterGroup.CustomizeData),
-            _ => MaterialUtility.BuildFallback(material, name)
+            _ => BuildAndLogFallbackMaterial(material, name)
         };
 
         return builder;
+    }
+    
+    private MaterialBuilder BuildAndLogFallbackMaterial(Material material, string name)
+    {
+        logger.LogWarning("[{Shpk}] Using fallback material for {Path}", material.ShaderPackageName, material.HandlePath);
+        return MaterialUtility.BuildFallback(material, name);
     }
 
     private List<(Model model, ModelBuilder.MeshExport mesh)> HandleModel(
@@ -479,7 +450,7 @@ public class ExportService : IDisposable
         builder.Content.UseMorphing().SetValue(shapes.Select(x => x.Item2 ? 1f : 0).ToArray());
     }
 
-    public void ExportResource(Resource[] resources, Vector3 rootPosition)
+    /*public void ExportResource(Resource[] resources, Vector3 rootPosition)
     {
         try
         {
@@ -582,14 +553,44 @@ public class ExportService : IDisposable
             logger.LogError(e, "Failed to export resource");
             throw;
         }
-    }
-
-    private MaterialBuilder BuildAndLogFallbackMaterial(Material material, string name)
+    }*/
+    
+    /*public void ExportRawTextures(CharacterGroup characterGroup, CancellationToken token = default)
     {
-        logger.LogWarning("Using fallback material for {Path}", material.HandlePath);
-        return MaterialUtility.BuildFallback(material, name);
-    }
+        try
+        {
+            var folder = GetPathForOutput();
+            using var activity = ActivitySource.StartActivity();
+            activity?.SetTag("folder", folder);
 
+            foreach (var mdlGroup in characterGroup.MdlGroups)
+            {
+                foreach (var mtrlGroup in mdlGroup.MtrlFiles)
+                {
+                    foreach (var texGroup in mtrlGroup.TexFiles)
+                    {
+                        if (token.IsCancellationRequested) return;
+                        var outputPath =
+                            Path.Combine(folder, $"{Path.GetFileNameWithoutExtension(texGroup.MtrlPath)}.png");
+                        var texture = new Texture(texGroup.Resource, texGroup.MtrlPath, null, null, null);
+                        var str = new SKDynamicMemoryWStream();
+                        texture.ToTexture().Bitmap.Encode(str, SKEncodedImageFormat.Png, 100);
+
+                        var data = str.DetachAsData().AsSpan();
+                        File.WriteAllBytes(outputPath, data.ToArray());
+                    }
+                }
+            }
+
+            Process.Start("explorer.exe", folder);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Failed to export textures");
+            throw;
+        }
+    }
+    
     private void ExportTextureFromPath(string path)
     {
         var data = pack.GetFileOrReadFromDisk(path);
@@ -597,5 +598,5 @@ public class ExportService : IDisposable
         var texFile = new TexFile(data);
         var texture = new Texture(Texture.GetResource(texFile), path, null, null, null);
         ExportTexture(texture.ToTexture().Bitmap, path);
-    }
+    }*/
 }

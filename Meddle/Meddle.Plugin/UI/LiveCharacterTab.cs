@@ -80,7 +80,7 @@ public unsafe class LiveCharacterTab : ITab
 
     private bool IsDisposed { get; set; }
 
-    public string Name => "CharacterAlt";
+    public string Name => "Character";
     public int Order => 1;
     public bool DisplayTab => true;
 
@@ -140,6 +140,7 @@ public unsafe class LiveCharacterTab : ITab
                     if (ImGui.Selectable(clientState.GetCharacterDisplayText(character, config.PlayerNameOverride)))
                     {
                         selectedCharacter = character;
+                        
                     }
                 }
             }
@@ -155,10 +156,10 @@ public unsafe class LiveCharacterTab : ITab
         }
 
         var charPtr = (CSCharacter*)selectedCharacter.Address;
-        DrawCharacter(charPtr);
+        DrawCharacter(charPtr, "Character");
     }
 
-    private void DrawCharacter(CSCharacter* character)
+    private void DrawCharacter(CSCharacter* character, string name)
     {
         if (character == null)
         {
@@ -167,27 +168,50 @@ public unsafe class LiveCharacterTab : ITab
         }
 
         var drawObject = character->GameObject.DrawObject;
-        DrawDrawObject(drawObject);
-
+        ImGui.Text(name);
+        if (drawObject->GetObjectType() != ObjectType.CharacterBase)
+        {
+            ImGui.Text("Draw object is not a character base");
+            return;
+        }
+        var cBase = (CSCharacterBase*)drawObject;
+        var modelType = cBase->GetModelType();
+        CustomizeData? customizeData;
+        CustomizeParameter? customizeParams;
+        GenderRace genderRace;
+        if (modelType == CSCharacterBase.ModelType.Human)
+        {
+            DrawHumanCharacter((CSHuman*)cBase, out customizeData, out customizeParams, out genderRace);
+            if (ImGui.Button("Export All Models With Attaches"))
+            {
+                ExportAllModelsWithAttaches(character, customizeParams, customizeData, genderRace);
+            }
+        }
+        else
+        {
+            customizeData = null;
+            customizeParams = null;
+            genderRace = GenderRace.Unknown;
+        }
+        
+        DrawDrawObject(drawObject, customizeData, customizeParams, genderRace);
+        
         if (character->Mount.MountObject != null)
         {
             ImGui.Separator();
-            ImGui.Text("Mount");
-            DrawCharacter(character->Mount.MountObject);
+            DrawCharacter(character->Mount.MountObject, "Mount");
         }
 
         if (character->CompanionData.CompanionObject != null)
         {
             ImGui.Separator();
-            ImGui.Text("Companion");
-            DrawCharacter(&character->CompanionData.CompanionObject->Character);
+            DrawCharacter(&character->CompanionData.CompanionObject->Character, "Companion");
         }
 
         if (character->OrnamentData.OrnamentObject != null)
         {
             ImGui.Separator();
-            ImGui.Text("Ornament");
-            DrawCharacter(&character->OrnamentData.OrnamentObject->Character);
+            DrawCharacter(&character->OrnamentData.OrnamentObject->Character, "Ornament");
         }
 
         for (var weaponIdx = 0; weaponIdx < character->DrawData.WeaponData.Length; weaponIdx++)
@@ -197,12 +221,12 @@ public unsafe class LiveCharacterTab : ITab
             {
                 ImGui.Separator();
                 ImGui.Text($"Weapon {weaponIdx}");
-                DrawDrawObject(weaponData.DrawObject);
+                DrawDrawObject(weaponData.DrawObject, null, null, GenderRace.Unknown);
             }
         }
     }
 
-    private void DrawDrawObject(DrawObject* drawObject)
+    private void DrawDrawObject(DrawObject* drawObject, CustomizeData? customizeData, CustomizeParameter? customizeParams, GenderRace genderRace)
     {
         if (drawObject == null)
         {
@@ -219,41 +243,9 @@ public unsafe class LiveCharacterTab : ITab
 
         using var drawObjectId = ImRaii.PushId($"{(nint)drawObject}");
         var cBase = (CSCharacterBase*)drawObject;
-        var modelType = cBase->GetModelType();
-        CustomizeParameter? customizeParams = null;
-        CustomizeData? customizeData = null;
-        var genderRace = GenderRace.Unknown;
-        if (modelType == CharacterBase.ModelType.Human)
-        {
-            DrawHumanCharacter((CSHuman*)cBase, out customizeData, out customizeParams, out genderRace);
-        }
-
         if (ImGui.Button("Export All Models"))
         {
-            var colorTableTextures = parseService.ParseColorTableTextures(cBase);
-            var models = new List<MdlFileGroup>();
-            foreach (var modelPtr in cBase->ModelsSpan)
-            {
-                if (modelPtr == null) continue;
-                var model = modelPtr.Value;
-                if (model == null) continue;
-                var modelData = parseService.HandleModelPtr(cBase, (int)model->SlotIndex, colorTableTextures);
-                if (modelData == null) continue;
-                models.Add(modelData);
-            }
-
-            var skeleton = StructExtensions.GetParsedSkeleton(cBase);
-            var cGroup = new CharacterGroup(customizeParams ?? new CustomizeParameter(),
-                                            customizeData ?? new CustomizeData(),
-                                            genderRace, models.ToArray(),
-                                            skeleton, []);
-            fileDialog.SaveFolderDialog("Save Model", "Character",
-                                        (result, path) =>
-                                        {
-                                            if (!result) return;
-
-                                            Task.Run(() => { exportService.Export(cGroup, path); });
-                                        }, Plugin.TempDirectory);
+            ExportAllModels(cBase, customizeParams, customizeData, genderRace);
         }
 
         ImGui.SameLine();
@@ -308,6 +300,99 @@ public unsafe class LiveCharacterTab : ITab
 
             DrawModel(cBase, modelPtr.Value, customizeParams, customizeData, genderRace);
         }
+    }
+
+    private void ExportAllModelsWithAttaches(CSCharacter* character, CustomizeParameter? customizeParams, CustomizeData? customizeData, GenderRace genderRace)
+    {
+        var drawObject = character->GameObject.DrawObject;
+        if (drawObject == null)
+        {
+            log.LogError("Draw object is null");
+            return;
+        }
+        
+        var cBase = (CSCharacterBase*)drawObject;
+        var group = parseService.ParseCharacterBase(cBase) with
+        {
+            CustomizeParams = customizeParams ?? new CustomizeParameter(), 
+            CustomizeData = customizeData ?? new CustomizeData(),
+            GenderRace = genderRace
+        };
+        
+        var attaches = new List<AttachedModelGroup>();
+        if (character->OrnamentData.OrnamentObject != null)
+        {
+            var draw = character->OrnamentData.OrnamentObject->GetDrawObject();
+            var attachGroup = parseService.ParseDrawObjectAsAttach(draw);
+            if (attachGroup != null)
+            {
+                attaches.Add(attachGroup);
+            }
+        }
+        
+        if (character->Mount.MountObject != null)
+        {
+            var draw = character->Mount.MountObject->GetDrawObject();
+            var attachGroup = parseService.ParseDrawObjectAsAttach(draw);
+            if (attachGroup != null)
+            {
+                attaches.Add(attachGroup);
+            }
+        }
+        
+        if (character->CompanionData.CompanionObject != null)
+        {
+            var draw = character->CompanionData.CompanionObject->GetDrawObject();
+            var attachGroup = parseService.ParseDrawObjectAsAttach(draw);
+            if (attachGroup != null)
+            {
+                attaches.Add(attachGroup);
+            }
+        }
+
+        foreach (var weaponData in character->DrawData.WeaponData)
+        {
+            if (weaponData.DrawObject == null) continue;
+            var draw = weaponData.DrawObject;
+            var attachGroup = parseService.ParseDrawObjectAsAttach(draw);
+            if (attachGroup != null)
+            {
+                attaches.Add(attachGroup);
+            }
+        }
+        
+        group = group with { AttachedModelGroups = attaches.ToArray() };
+        fileDialog.SaveFolderDialog("Save Model", "Character",
+                                    (result, path) =>
+                                    {
+                                        if (!result) return;
+
+                                        Task.Run(() =>
+                                        {
+                                            exportService.Export(group, path); 
+                                        });
+                                    }, Plugin.TempDirectory);
+    }
+
+    private void ExportAllModels(CSCharacterBase* cBase, CustomizeParameter? customizeParams, CustomizeData? customizeData, GenderRace genderRace)
+    {
+        var group = parseService.ParseCharacterBase(cBase) with
+        {
+            CustomizeParams = customizeParams ?? new CustomizeParameter(),
+            CustomizeData = customizeData ?? new CustomizeData(),
+            GenderRace = genderRace
+        };
+        
+        fileDialog.SaveFolderDialog("Save Model", "Character",
+                                    (result, path) =>
+                                    {
+                                        if (!result) return;
+
+                                        Task.Run(() =>
+                                        {
+                                            exportService.Export(group, path); 
+                                        });
+                                    }, Plugin.TempDirectory);
     }
 
     private void DrawModel(

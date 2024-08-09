@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+﻿/*using System.Numerics;
 using System.Runtime.InteropServices;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
@@ -68,18 +68,18 @@ public class WorldTab : ITab
         }
 
         ImGui.EndChild();
-        /*ImGui.BeginChild("TeraTable", new Vector2(0, availHeight / 4), true);
-        foreach (var obj in objects.Where(x => x.Path.EndsWith(".tera")).OrderBy(o => Vector3.Distance(o.Position, position)))
-        {
-            var distance = Vector3.Distance(obj.Position, position);
-            if (ImGui.Selectable($"[{obj.Type}][{distance:F1}y] {obj.Path}"))
-            {
-                selectedObjects.Add(obj);
-                // set clipboard
-                ImGui.SetClipboardText(obj.Path);
-            }
-        }
-        ImGui.EndChild();*/
+        // ImGui.BeginChild("TeraTable", new Vector2(0, availHeight / 4), true);
+        // foreach (var obj in objects.Where(x => x.Path.EndsWith(".tera")).OrderBy(o => Vector3.Distance(o.Position, position)))
+        // {
+        //     var distance = Vector3.Distance(obj.Position, position);
+        //     if (ImGui.Selectable($"[{obj.Type}][{distance:F1}y] {obj.Path}"))
+        //     {
+        //         selectedObjects.Add(obj);
+        //         // set clipboard
+        //         ImGui.SetClipboardText(obj.Path);
+        //     }
+        // }
+        // ImGui.EndChild();
 
         if (selectedObjects.Count > 0)
         {
@@ -106,21 +106,20 @@ public class WorldTab : ITab
                     }
                     else if (obj.Path.EndsWith(".tera"))
                     {
-                        /*
-                        var fileData = pack.GetFile(obj.Path);
-                        if (fileData != null)
-                        {
-                            var teraFile = new TeraFile(fileData.Value.file.RawData);
-                            // bg/ffxiv/..../bgplate/terrain.tera
-                            // need to get bg.lgb file
-                            // bg/ffxiv/..../level/bg.lgb
-                            var bgLgbPath = obj.Path.Replace("bgplate/terrain.tera", "level/bg.lgb");
-                            var bgLgbData = pack.GetFile(bgLgbPath);
-                            if (bgLgbData != null)
-                            {
-                                var lgbFile = new LgbFile(bgLgbData.Value.file.RawData);
-                            }
-                        }*/
+                        // var fileData = pack.GetFile(obj.Path);
+                        // if (fileData != null)
+                        // {
+                        //     var teraFile = new TeraFile(fileData.Value.file.RawData);
+                        //     // bg/ffxiv/..../bgplate/terrain.tera
+                        //     // need to get bg.lgb file
+                        //     // bg/ffxiv/..../level/bg.lgb
+                        //     var bgLgbPath = obj.Path.Replace("bgplate/terrain.tera", "level/bg.lgb");
+                        //     var bgLgbData = pack.GetFile(bgLgbPath);
+                        //     if (bgLgbData != null)
+                        //     {
+                        //         var lgbFile = new LgbFile(bgLgbData.Value.file.RawData);
+                        //     }
+                        // }
                     }
                 }
 
@@ -188,3 +187,4 @@ public struct Terrain
     [FieldOffset(0x90)]
     public unsafe ResourceHandle* ResourceHandle;
 }
+*/
