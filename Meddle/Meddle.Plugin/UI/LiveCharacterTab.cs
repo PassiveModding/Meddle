@@ -836,6 +836,7 @@ public unsafe class LiveCharacterTab : ITab
             ImGui.Text($"Texture Count: {material->TextureCount}");
             var shpkName = material->MaterialResourceHandle->ShpkNameString;
             UiUtil.Text($"Shader Package: {shpkName}", shpkName);
+            ImGui.Text($"Shader Flags: 0x{material->ShaderFlags:X8}");
 
             var colorTableTexturePtr =
                 cBase->ColorTableTexturesSpan[((int)model->SlotIndex * CSCharacterBase.MaterialsPerSlot) + materialIdx];
