@@ -48,6 +48,9 @@
         <Reference Include="OtterTex">
             <HintPath>..\Meddle.Utils\Lib\OtterTex.dll</HintPath>
         </Reference>
+        <Reference Include="FFXIVClientStructs">
+            <HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath>
+        </Reference>
     </ItemGroup>
 
     <ItemGroup>

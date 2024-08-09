@@ -66,13 +66,13 @@ public class PbdView : IView
                     for (var i = 0; i < deformer.Value.BoneCount; i++)
                     {
                         ImGui.Text($"Bone Name: {deformer.Value.BoneNames[i]}");
-                        var deformMatrix = deformer.Value.DeformMatrices[i];
+                        /*var deformMatrix = deformer.Value.DeformMatrices[i];
                         if (deformMatrix != null)
                         {
                             ImGui.Text($"Translation: {deformMatrix.Value.Translation}");
                             ImGui.Text($"Rotation: {deformMatrix.Value.Rotation}");
                             ImGui.Text($"Scale: {deformMatrix.Value.Scale}");
-                        }
+                        }*/
                     }
                 }
             }

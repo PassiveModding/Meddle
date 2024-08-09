@@ -37,6 +37,36 @@ public unsafe class DXHelper
         return ret;
     }
 
+    /*public byte[] ExportVertexBuffer(VertexBuffer* buffer)
+    {
+        if (buffer->DxPtr1 == nint.Zero)
+            throw new ArgumentException("Buffer's DX data is null");
+
+        using var res = new ID3D11Buffer(buffer->DxPtr1);
+        res.AddRef();
+
+        var ret = GetResourceData(res,
+                      CloneBuffer,
+                  (r, map) =>
+                  {
+                      var ret = new byte[r.Description.ByteWidth];
+                      Marshal.Copy(map.DataPointer, ret, 0, ret.Length);
+                      return ret;
+                  });
+
+        return ret;
+    }
+
+    private ID3D11Buffer CloneBuffer(ID3D11Buffer r)
+    {
+        var desc = r.Description with
+        {
+            Usage = ResourceUsage.Staging, BindFlags = 0, CPUAccessFlags = CpuAccessFlags.Read, MiscFlags = 0,
+        };
+
+        return r.Device.CreateBuffer(desc);
+    }*/
+
     private (TextureResource Resource, int RowPitch) GetData(ID3D11Texture2D1 r, MappedSubresource map)
     {
         var desc = r.Description1;
@@ -45,14 +75,18 @@ public unsafe class DXHelper
         {
             var blockHeight = Math.Max(1, (desc.Height + 3) / 4);
             if (map.RowPitch * blockHeight != map.DepthPitch)
+            {
                 throw new InvalidDataException(
                     $"Invalid/unknown texture size for {desc.Format}: RowPitch = {map.RowPitch}; Height = {desc.Height}; Block Height = {blockHeight}; DepthPitch = {map.DepthPitch}");
+            }
         }
         else
         {
             if (map.RowPitch * desc.Height != map.DepthPitch)
+            {
                 throw new InvalidDataException(
                     $"Invalid/unknown texture size for {desc.Format}: RowPitch = {map.RowPitch}; Height = {desc.Height}; DepthPitch = {map.DepthPitch}");
+            }
         }
 
         var buf = new byte[map.DepthPitch];

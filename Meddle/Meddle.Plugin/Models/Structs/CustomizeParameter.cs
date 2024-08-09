@@ -1,7 +1,7 @@
 ﻿using System.Runtime.InteropServices;
 using FFXIVClientStructs.FFXIV.Common.Math;
 
-namespace Meddle.Plugin.Models;
+namespace Meddle.Plugin.Models.Structs;
 
 [StructLayout(LayoutKind.Explicit, Size = 0x90)]
 public struct CustomizeParameter

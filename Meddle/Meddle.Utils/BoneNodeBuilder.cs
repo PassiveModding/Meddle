@@ -5,10 +5,9 @@ namespace Meddle.Utils;
 public class BoneNodeBuilder(string name) : NodeBuilder(name)
 {
     public string BoneName { get; } = name;
-    public int? Suffix { get; private set; }
-    public int? PartialSkeletonIndex { get; set; }
-    public int? BoneIndex { get; set; }
-    public bool IsGenerated { get; set; } = false;
+    public string PartialSkeletonHandle { get; set; }
+    public int BoneIndex { get; set; }
+    public int PartialSkeletonIndex { get; set; }
 
     /// <summary>
     /// Sets the suffix of this bone and all its children.
@@ -17,15 +16,18 @@ public class BoneNodeBuilder(string name) : NodeBuilder(name)
     /// </summary>
     public void SetSuffixRecursively(int? suffix)
     {
-        Suffix = suffix;
-        if (suffix is { } val)
+        Name = suffix != null ? $"{BoneName}_{suffix}" : BoneName;
+
+        foreach (var child in VisualChildren)
         {
-            Name = $"{BoneName}_{val}";
+            if (child is BoneNodeBuilder boneChild)
+                boneChild.SetSuffixRecursively(suffix);
         }
-        else
-        {
-            Name = BoneName;
-        }
+    }
+    
+    public void SetSuffixRecursively(string? suffix)
+    {
+        Name = suffix != null ? $"{BoneName}_{suffix}" : BoneName;
 
         foreach (var child in VisualChildren)
         {

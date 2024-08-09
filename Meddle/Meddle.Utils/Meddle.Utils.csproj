@@ -20,14 +20,21 @@
         </Reference>
     </ItemGroup>
 
+    <PropertyGroup>
+        <DalamudLibPath>$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Linux)))'">
+        <DalamudLibPath>$(DALAMUD_HOME)/</DalamudLibPath>
+    </PropertyGroup>
+    
     <ItemGroup>
         <PackageReference Include="SharpGLTF.Core" Version="1.0.0-alpha0031"/>
         <PackageReference Include="SharpGLTF.Toolkit" Version="1.0.0-alpha0031"/>
         <PackageReference Include="SkiaSharp" Version="2.88.8"/>
         <PackageReference Include="System.IO.Hashing" Version="8.0.0"/>
-    </ItemGroup>
-
-    <ItemGroup>
-        <ProjectReference Include="..\..\FFXIVClientStructs\FFXIVClientStructs\FFXIVClientStructs.csproj"/>
+        <Reference Include="FFXIVClientStructs">
+            <HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath>
+        </Reference>
     </ItemGroup>
 </Project>

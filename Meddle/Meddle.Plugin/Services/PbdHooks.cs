@@ -1,35 +1,44 @@
-﻿using System.Runtime.InteropServices;
-using Dalamud.Game;
+﻿using Dalamud.Game;
 using Dalamud.Hooking;
 using Dalamud.Plugin.Services;
-using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
+using Meddle.Plugin.Models.Structs;
 using Microsoft.Extensions.Logging;
 
-namespace Meddle.Plugin.Utils;
+namespace Meddle.Plugin.Services;
 
 public class PbdHooks : IDisposable
 {
-    private readonly ISigScanner sigScanner;
+    public const string HumanCreateDeformerSig = "40 53 48 83 EC 20 4C 8B C1 83 FA 0D";
+    private readonly Dictionary<nint, Dictionary<uint, DeformerCachedStruct>> deformerCache = new();
+    public IReadOnlyDictionary<nint, Dictionary<uint, DeformerCachedStruct>> DeformerCache => deformerCache;
     private readonly IGameInteropProvider gameInterop;
     private readonly ILogger<PbdHooks> logger;
-    public const string Human_CreateDeformerSig = "40 53 48 83 EC 20 4C 8B C1 83 FA 0D";
-    private delegate nint Human_CreateDeformerDelegate(nint humanPtr, uint slot);
-    private Hook<Human_CreateDeformerDelegate>? humanCreateDeformerHook;
-    private readonly Dictionary<nint, Dictionary<uint, DeformerCachedStruct>> deformerCache = new();
-    
+    private readonly ISigScanner sigScanner;
+    private Hook<HumanCreateDeformerDelegate>? humanCreateDeformerHook;
+
     public PbdHooks(ISigScanner sigScanner, IGameInteropProvider gameInterop, ILogger<PbdHooks> logger)
     {
         this.sigScanner = sigScanner;
         this.gameInterop = gameInterop;
         this.logger = logger;
+        Setup();
+    }
+
+    public void Dispose()
+    {
+        logger.LogDebug("Disposing PbdHooks");
+        humanCreateDeformerHook?.Dispose();
+        deformerCache.Clear();
     }
 
     public void Setup()
     {
-        if (sigScanner.TryScanText(Human_CreateDeformerSig, out var humanCreateDeformerPtr))
+        if (sigScanner.TryScanText(HumanCreateDeformerSig, out var humanCreateDeformerPtr))
         {
             logger.LogDebug("Found Human::CreateDeformer at {ptr:X}", humanCreateDeformerPtr);
-            humanCreateDeformerHook = gameInterop.HookFromAddress<Human_CreateDeformerDelegate>(humanCreateDeformerPtr, Human_CreateDeformerDetour);
+            humanCreateDeformerHook =
+                gameInterop.HookFromAddress<HumanCreateDeformerDelegate>(
+                    humanCreateDeformerPtr, Human_CreateDeformerDetour);
             humanCreateDeformerHook.Enable();
         }
         else
@@ -46,7 +55,7 @@ public class PbdHooks : IDisposable
             return null;
         return deformer;
     }
-    
+
     private unsafe nint Human_CreateDeformerDetour(nint humanPtr, uint slot)
     {
         var result = humanCreateDeformerHook!.Original(humanPtr, slot);
@@ -80,30 +89,5 @@ public class PbdHooks : IDisposable
         return result;
     }
 
-    public struct DeformerCachedStruct
-    {
-        public ushort RaceSexId;
-        public ushort DeformerId;
-        public string PbdPath;
-    }
-    
-    [StructLayout(LayoutKind.Explicit, Size = 0x20)]
-    public struct DeformerStruct
-    {
-        [FieldOffset(0x10)]
-        public unsafe ResourceHandle* PbdPointer;
-
-        [FieldOffset(0x18)]
-        public ushort RaceSexId;
-
-        [FieldOffset(0x1A)]
-        public ushort DeformerId;
-    }
-    
-    public void Dispose()
-    {
-        logger.LogDebug("Disposing PbdHooks");
-        humanCreateDeformerHook?.Dispose();
-        deformerCache.Clear();
-    }
+    private delegate nint HumanCreateDeformerDelegate(nint humanPtr, uint slot);
 }

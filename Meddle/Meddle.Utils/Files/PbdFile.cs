@@ -1,8 +1,6 @@
 ﻿using System.Numerics;
 using System.Runtime.InteropServices;
 using FFXIVClientStructs.Havok.Common.Base.Math.QsTransform;
-using FFXIVClientStructs.Havok.Common.Base.Math.Quaternion;
-using FFXIVClientStructs.Havok.Common.Base.Math.Vector;
 
 namespace Meddle.Utils.Files;
 

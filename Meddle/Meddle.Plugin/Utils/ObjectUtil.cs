@@ -4,6 +4,7 @@ using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
+using ObjectKind = Dalamud.Game.ClientState.Objects.Enums.ObjectKind;
 
 namespace Meddle.Plugin.Utils;
 
@@ -50,7 +51,8 @@ public static class ObjectUtil
         return new Vector3(obj.YalmDistanceX, 0, obj.YalmDistanceZ);
     }
 
-    public static unsafe string GetCharacterDisplayText(this IClientState clientState, IGameObject obj, string overrideName = "")
+    public static unsafe string GetCharacterDisplayText(
+        this IClientState clientState, IGameObject obj, string overrideName = "")
     {
         var drawObject = ((GameObject*)obj.Address)->DrawObject;
         if (drawObject == null)
@@ -60,9 +62,13 @@ public static class ObjectUtil
             return "Invalid Character";
 
         var modelType = ((CharacterBase*)drawObject)->GetModelType();
-        
-        var name = string.IsNullOrWhiteSpace(overrideName) ? obj.Name.TextValue : overrideName;
+
+        var name = obj.Name.TextValue;
+        if (obj.ObjectKind == ObjectKind.Player && !string.IsNullOrWhiteSpace(overrideName))
+            name = overrideName;
         return
-            $"[{obj.Address:X8}:{obj.GameObjectId:X}][{obj.ObjectKind}][{modelType}] - {(string.IsNullOrWhiteSpace(name) ? "Unnamed" : name)} - {clientState.GetDistanceToLocalPlayer(obj).Length():0.00}y##{obj.GameObjectId}";
+            $"[{obj.Address:X8}:{obj.GameObjectId:X}][{obj.ObjectKind}][{modelType}] - " +
+            $"{(string.IsNullOrWhiteSpace(name) ? "Unnamed" : name)} - " +
+            $"{clientState.GetDistanceToLocalPlayer(obj).Length():0.00}y##{obj.GameObjectId}";
     }
 }

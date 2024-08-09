@@ -2,6 +2,7 @@ using Dalamud.Game;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using Meddle.Plugin.Utils;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Meddle.Plugin;
@@ -37,7 +38,7 @@ public class Service
 
     [PluginService]
     private IDataManager DataManager { get; set; } = null!;
-    
+
     [PluginService]
     private INotificationManager NotificationManager { get; set; } = null!;
 
@@ -54,5 +55,6 @@ public class Service
         services.AddSingleton(DataManager);
         services.AddSingleton(TextureProvider);
         services.AddSingleton(NotificationManager);
+        PoseUtil.SigScanner = SigScanner;
     }
 }

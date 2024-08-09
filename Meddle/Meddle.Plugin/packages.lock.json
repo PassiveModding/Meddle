@@ -127,11 +127,6 @@
                     "Grpc.Core.Api": "2.52.0"
                 }
             },
-            "JetBrains.Annotations": {
-                "type": "Transitive",
-                "resolved": "2021.2.0",
-                "contentHash": "kKSyoVfndMriKHLfYGmr0uzQuI4jcc3TKGyww7buJFCYeHb/X0kodYBPL7n9454q7v6ASiRmDgpPGaDGerg/Hg=="
-            },
             "Microsoft.Extensions.Configuration": {
                 "type": "Transitive",
                 "resolved": "8.0.0",
@@ -514,20 +509,9 @@
                 "resolved": "1.7.8",
                 "contentHash": "hpVlfej54yC6Qaq9AYXWgTgF8SDz2dtKbDNZGO8msjn3NjdkUBnFcIzYfOWyvwvpr3aqZPKh4WSSnJ78GxyIWg=="
             },
-            "ffxivclientstructs": {
-                "type": "Project",
-                "dependencies": {
-                    "InteropGenerator.Runtime": "[1.0.0, )",
-                    "JetBrains.Annotations": "[2021.2.0, )"
-                }
-            },
-            "interopgenerator.runtime": {
-                "type": "Project"
-            },
             "meddle.utils": {
                 "type": "Project",
                 "dependencies": {
-                    "FFXIVClientStructs": "[1.0.0, )",
                     "SharpGLTF.Core": "[1.0.0-alpha0031, )",
                     "SharpGLTF.Toolkit": "[1.0.0-alpha0031, )",
                     "SkiaSharp": "[2.88.8, )",

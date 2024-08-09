@@ -7,7 +7,7 @@
     "AssemblyVersion": "0.1.9",
     "TestingAssemblyVersion": "0.1.9",
     "RepoUrl": "https://github.com/PassiveModding/Meddle",
-    "IconUrl": "https://github.com/PassiveModding/Meddle/raw/main/icon.png",
+    "IconUrl": "https://github.com/PassiveModding/Meddle/raw/main/icon.png", 
     "ApplicableVersion": "any",
     "DalamudApiLevel": 10,
     "Tags": [

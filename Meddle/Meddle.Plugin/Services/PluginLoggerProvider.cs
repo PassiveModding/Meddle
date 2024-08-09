@@ -9,16 +9,17 @@ public class PluginLoggerProvider : ILoggerProvider
 {
     private readonly Configuration config;
 
-    [PluginService]
-    private IPluginLog PluginLog { get; set; } = null!;
-    
-    [PluginService]
-    private INotificationManager NotificationManager { get; set; } = null!;
-
     public PluginLoggerProvider(Configuration config)
     {
         this.config = config;
     }
+
+    [PluginService]
+    private IPluginLog PluginLog { get; set; } = null!;
+
+    [PluginService]
+    private INotificationManager NotificationManager { get; set; } = null!;
+
     public ILogger CreateLogger(string categoryName)
     {
         return new PluginLogger(PluginLog, NotificationManager, config, categoryName);
@@ -33,11 +34,14 @@ public class PluginLoggerProvider : ILoggerProvider
 public class PluginLogger : ILogger
 {
     private readonly string categoryName;
+    private readonly Configuration config;
     private readonly IPluginLog log;
     private readonly INotificationManager notificationManager;
-    private readonly Configuration config;
 
-    public PluginLogger(IPluginLog log, INotificationManager notificationManager, Configuration config, string categoryName)
+    private readonly List<IActiveNotification> notifications = new();
+
+    public PluginLogger(
+        IPluginLog log, INotificationManager notificationManager, Configuration config, string categoryName)
     {
         this.log = log;
         this.notificationManager = notificationManager;
@@ -55,33 +59,6 @@ public class PluginLogger : ILogger
         return null;
     }
 
-    private void LogNotification(string message, LogLevel level)
-    {
-        if (level < config.MinimumNotificationLogLevel) return;
-        
-        var type = level switch
-        {
-            LogLevel.Trace => NotificationType.Info,
-            LogLevel.Debug => NotificationType.Info,
-            LogLevel.Information => NotificationType.Info,
-            LogLevel.Warning => NotificationType.Warning,
-            LogLevel.Error => NotificationType.Error,
-            LogLevel.Critical => NotificationType.Error,
-            LogLevel.None => NotificationType.None,
-            _ => NotificationType.None
-        };
-
-        var notification = new Notification
-        {
-            Title = categoryName,
-            Content = message,
-            Type = type,
-            InitialDuration = TimeSpan.FromSeconds(2)
-        };
-        
-        notificationManager.AddNotification(notification);
-    }
-    
     public void Log<TState>(
         LogLevel logLevel, EventId eventId, TState state, Exception? exception,
         Func<TState, Exception?, string> formatter)
@@ -116,6 +93,41 @@ public class PluginLogger : ILogger
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(logLevel), logLevel, null);
+        }
+    }
+
+    private void LogNotification(string message, LogLevel level)
+    {
+        if (level < config.MinimumNotificationLogLevel) return;
+
+        var type = level switch
+        {
+            LogLevel.Trace => NotificationType.Info,
+            LogLevel.Debug => NotificationType.Info,
+            LogLevel.Information => NotificationType.Info,
+            LogLevel.Warning => NotificationType.Warning,
+            LogLevel.Error => NotificationType.Error,
+            LogLevel.Critical => NotificationType.Error,
+            LogLevel.None => NotificationType.None,
+            _ => NotificationType.None
+        };
+
+        var notification = new Notification
+        {
+            Title = categoryName,
+            Content = message,
+            Type = type,
+            InitialDuration = TimeSpan.FromSeconds(2)
+        };
+
+        var notif = notificationManager.AddNotification(notification);
+        notifications.Add(notif);
+
+        if (notifications.Count > 5)
+        {
+            var toRemove = notifications[0];
+            notifications.RemoveAt(0);
+            toRemove.DismissNow();
         }
     }
 }

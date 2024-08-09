@@ -1,6 +1,5 @@
-﻿using System.Runtime.InteropServices;
-using FFXIVClientStructs.FFXIV.Common.Math;
-
+﻿using System.Numerics;
+using System.Runtime.InteropServices;
 namespace Meddle.Utils.Files.Structs.Material;
 
 // https://github.com/Ottermandias/Penumbra.GameData/blob/main/Files/MaterialStructs/ColorTable.cs

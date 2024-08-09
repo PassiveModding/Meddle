@@ -1,5 +1,4 @@
 using Dalamud.Configuration;
-using Dalamud.Hooking;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Meddle.Plugin.Services;
@@ -47,14 +46,13 @@ public sealed class Plugin : IDalamudPlugin
                 service.AddServices(services);
                 services.AddSingleton(config)
                         .AddUi()
+                        .AddSingleton<TextureCache>()
                         .AddSingleton(pluginInterface)
-                        .AddSingleton<ExportUtil>()
-                        .AddSingleton<ParseUtil>()
+                        .AddSingleton<ExportService>()
+                        .AddSingleton<ParseService>()
                         .AddSingleton<DXHelper>()
                         .AddSingleton<PbdHooks>()
-                        .AddSingleton(new SqPack(Environment.CurrentDirectory))
-                        .AddSingleton<PluginState>()
-                        .AddHostedService<InteropService>();
+                        .AddSingleton(new SqPack(Environment.CurrentDirectory));
 
 #if DEBUG
                 services.AddOpenTelemetry()
@@ -99,8 +97,6 @@ public class Configuration : IPluginConfiguration
     [JsonIgnore]
     private IDalamudPluginInterface PluginInterface { get; set; } = null!;
 
-    public event Action? OnConfigurationSaved;
-    
     public bool ShowDebug { get; set; }
     public bool ShowTesting { get; set; }
     public LogLevel MinimumNotificationLogLevel { get; set; } = LogLevel.Warning;
@@ -112,6 +108,8 @@ public class Configuration : IPluginConfiguration
     public string PlayerNameOverride { get; set; } = string.Empty;
 
     public int Version { get; set; } = 1;
+
+    public event Action? OnConfigurationSaved;
 
     public void Save()
     {
