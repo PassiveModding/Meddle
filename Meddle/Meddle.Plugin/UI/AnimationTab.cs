@@ -1,5 +1,4 @@
 ﻿using Dalamud.Game.ClientState.Objects.Types;
-using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
@@ -8,6 +7,7 @@ using ImGuiNET;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Services;
+using Meddle.Plugin.Services.UI;
 using Meddle.Plugin.Utils;
 using Microsoft.Extensions.Logging;
 using SharpGLTF.Transforms;
@@ -16,30 +16,24 @@ namespace Meddle.Plugin.UI;
 
 public class AnimationTab : ITab
 {
-    private readonly IClientState clientState;
-    private readonly Configuration config;
     private readonly ExportService exportService;
+    private readonly CommonUi commonUi;
     private readonly List<(DateTime Time, AttachSet[])> frames = [];
     private readonly IFramework framework;
     private readonly ILogger<AnimationTab> logger;
-    private readonly IObjectTable objectTable;
     private bool captureAnimation;
     private bool includePositionalData;
     private ICharacter? selectedCharacter;
 
     public AnimationTab(
         IFramework framework, ILogger<AnimationTab> logger,
-        IClientState clientState,
-        IObjectTable objectTable,
         ExportService exportService,
-        Configuration config)
+        CommonUi commonUi)
     {
         this.framework = framework;
         this.logger = logger;
-        this.clientState = clientState;
-        this.objectTable = objectTable;
         this.exportService = exportService;
-        this.config = config;
+        this.commonUi = commonUi;
         this.framework.Update += OnFrameworkUpdate;
     }
 
@@ -53,43 +47,7 @@ public class AnimationTab : ITab
         ImGui.TextWrapped(
             "NOTE: Animation exports are experimental, held weapons, mounts and other attached objects may not work as expected.");
 
-        ICharacter[] objects;
-        if (clientState.LocalPlayer != null)
-        {
-            objects = objectTable.OfType<ICharacter>()
-                                 .Where(obj => obj.IsValid() && obj.IsValidCharacterBase())
-                                 .OrderBy(c => clientState.GetDistanceToLocalPlayer(c).LengthSquared())
-                                 .ToArray();
-        }
-        else
-        {
-            // login/char creator produces "invalid" characters but are still usable I guess
-            objects = objectTable.OfType<ICharacter>()
-                                 .Where(obj => obj.IsValidHuman())
-                                 .OrderBy(c => clientState.GetDistanceToLocalPlayer(c).LengthSquared())
-                                 .ToArray();
-        }
-
-        selectedCharacter ??= objects.FirstOrDefault() ?? clientState.LocalPlayer;
-
-        ImGui.Text("Select Character");
-        var preview = selectedCharacter != null
-                          ? clientState.GetCharacterDisplayText(selectedCharacter, config.PlayerNameOverride)
-                          : "None";
-        using (var combo = ImRaii.Combo("##Character", preview))
-        {
-            if (combo)
-            {
-                foreach (var character in objects)
-                {
-                    if (ImGui.Selectable(clientState.GetCharacterDisplayText(character, config.PlayerNameOverride)))
-                    {
-                        selectedCharacter = character;
-                    }
-                }
-            }
-        }
-
+        commonUi.DrawCharacterSelect(ref selectedCharacter);
         if (selectedCharacter == null) return;
 
         switch (captureAnimation)

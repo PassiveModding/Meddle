@@ -6,7 +6,7 @@ using FFXIVClientStructs.Havok.Common.Base.Math.Vector;
 using SharpGLTF.Transforms;
 using CSTransform = FFXIVClientStructs.FFXIV.Client.Graphics.Transform;
 
-namespace Meddle.Utils.Skeletons;
+namespace Meddle.Plugin.Models.Skeletons;
 
 public readonly record struct Transform
 {

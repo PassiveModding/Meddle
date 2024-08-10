@@ -8,7 +8,6 @@ using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
 using Meddle.Utils.Materials;
-using Meddle.Utils.Models;
 using Microsoft.Extensions.Logging;
 using SharpGLTF.Geometry;
 using SharpGLTF.Geometry.VertexTypes;
@@ -20,7 +19,7 @@ using Model = Meddle.Utils.Export.Model;
 
 namespace Meddle.Plugin.Services;
 
-public class ExportService : IDisposable
+public class ExportService : IDisposable, IService
 {
     private static readonly ActivitySource ActivitySource = new("Meddle.Plugin.Utils.ExportUtil");
     private readonly TexFile catchlightTex;

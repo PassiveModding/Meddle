@@ -9,15 +9,14 @@ using FFXIVClientStructs.FFXIV.Common.Math;
 using FFXIVClientStructs.Interop;
 using ImGuiNET;
 using Meddle.Plugin.Models;
-using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Services;
+using Meddle.Plugin.Services.UI;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
-using Meddle.Utils.Skeletons;
 using Microsoft.Extensions.Logging;
 using SkiaSharp;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
@@ -31,8 +30,7 @@ namespace Meddle.Plugin.UI;
 
 public unsafe class LiveCharacterTab : ITab
 {
-    private readonly IClientState clientState;
-    private readonly Configuration config;
+    private readonly CommonUi commonUi;
     private readonly DXHelper dxHelper;
     private readonly ExportService exportService;
 
@@ -42,7 +40,6 @@ public unsafe class LiveCharacterTab : ITab
     };
 
     private readonly ILogger<LiveCharacterTab> log;
-    private readonly IObjectTable objectTable;
     private readonly SqPack pack;
     private readonly ParseService parseService;
     private readonly PbdHooks pbd;
@@ -55,8 +52,6 @@ public unsafe class LiveCharacterTab : ITab
     private ICharacter? selectedCharacter;
 
     public LiveCharacterTab(
-        IObjectTable objectTable,
-        IClientState clientState,
         ILogger<LiveCharacterTab> log,
         ExportService exportService,
         ITextureProvider textureProvider,
@@ -65,7 +60,7 @@ public unsafe class LiveCharacterTab : ITab
         TextureCache textureCache,
         SqPack pack,
         PbdHooks pbd,
-        Configuration config)
+        CommonUi commonUi)
     {
         this.log = log;
         this.exportService = exportService;
@@ -75,9 +70,7 @@ public unsafe class LiveCharacterTab : ITab
         this.textureCache = textureCache;
         this.pack = pack;
         this.pbd = pbd;
-        this.config = config;
-        this.objectTable = objectTable;
-        this.clientState = clientState;
+        this.commonUi = commonUi;
         this.exportService.OnLogEvent += ExportServiceOnOnLogEvent;
     }
 
@@ -97,7 +90,11 @@ public unsafe class LiveCharacterTab : ITab
 
     public void Draw()
     {
-        DrawObjectPicker();
+        // Warning text:
+        ImGui.TextWrapped("NOTE: Exported models use a rudimentary approximation of the games pixel shaders, " +
+                          "they will likely not match 1:1 to the in-game appearance.");
+
+        commonUi.DrawCharacterSelect(ref selectedCharacter);
         
         if (LogEvent != null)
         {
@@ -127,52 +124,7 @@ public unsafe class LiveCharacterTab : ITab
             IsDisposed = true;
         }
     }
-
-    private void DrawObjectPicker()
-    {
-        // Warning text:
-        ImGui.TextWrapped("NOTE: Exported models use a rudimentary approximation of the games pixel shaders, " +
-                          "they will likely not match 1:1 to the in-game appearance.");
-
-        ICharacter[] objects;
-        if (clientState.LocalPlayer != null)
-        {
-            objects = objectTable.OfType<ICharacter>()
-                                 .Where(obj => obj.IsValid() && obj.IsValidCharacterBase())
-                                 .OrderBy(c => clientState.GetDistanceToLocalPlayer(c).LengthSquared())
-                                 .ToArray();
-        }
-        else
-        {
-            // login/char creator produces "invalid" characters but are still usable I guess
-            objects = objectTable.OfType<ICharacter>()
-                                 .Where(obj => obj.IsValidHuman())
-                                 .OrderBy(c => clientState.GetDistanceToLocalPlayer(c).LengthSquared())
-                                 .ToArray();
-        }
-
-        selectedCharacter ??= objects.FirstOrDefault() ?? clientState.LocalPlayer;
-
-        ImGui.Text("Select Character");
-        var preview = selectedCharacter != null
-                          ? clientState.GetCharacterDisplayText(selectedCharacter, config.PlayerNameOverride)
-                          : "None";
-        using (var combo = ImRaii.Combo("##Character", preview))
-        {
-            if (combo)
-            {
-                foreach (var character in objects)
-                {
-                    if (ImGui.Selectable(clientState.GetCharacterDisplayText(character, config.PlayerNameOverride)))
-                    {
-                        selectedCharacter = character;
-                        
-                    }
-                }
-            }
-        }
-    }
-
+    
     private void DrawSelectedCharacter()
     {
         if (selectedCharacter == null)

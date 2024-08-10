@@ -20,7 +20,7 @@ public class CachedTexture : IDisposable
     }
 }
 
-public sealed class TextureCache : IDisposable
+public sealed class TextureCache : IDisposable, IService
 {
     private readonly Dictionary<string, CachedTexture> cache = new();
     private readonly Timer cleanupTimer;

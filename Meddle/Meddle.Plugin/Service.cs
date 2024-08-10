@@ -1,7 +1,9 @@
+using System.Reflection;
 using Dalamud.Game;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using Meddle.Plugin.Services;
 using Meddle.Plugin.Utils;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -10,7 +12,7 @@ namespace Meddle.Plugin;
 public class Service
 {
     [PluginService]
-    private IDalamudPluginInterface PrivPluginInterface { get; set; } = null!;
+    private IDalamudPluginInterface PluginInterface { get; set; } = null!;
 
     [PluginService]
     private IFramework Framework { get; set; } = null!;
@@ -42,9 +44,9 @@ public class Service
     [PluginService]
     private INotificationManager NotificationManager { get; set; } = null!;
 
-    public void AddServices(IServiceCollection services)
+    public void RegisterServices(IServiceCollection services)
     {
-        services.AddSingleton(PrivPluginInterface);
+        services.AddSingleton(PluginInterface);
         services.AddSingleton(Framework);
         services.AddSingleton(CommandManager);
         services.AddSingleton(PrivLog);
@@ -55,6 +57,7 @@ public class Service
         services.AddSingleton(DataManager);
         services.AddSingleton(TextureProvider);
         services.AddSingleton(NotificationManager);
+        
         PoseUtil.SigScanner = SigScanner;
     }
 }

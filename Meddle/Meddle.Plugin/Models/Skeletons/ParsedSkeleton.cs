@@ -1,6 +1,5 @@
 ﻿using FFXIVClientStructs.FFXIV.Client.Graphics.Render;
 using FFXIVClientStructs.Interop;
-using Meddle.Utils.Skeletons;
 
 namespace Meddle.Plugin.Models.Skeletons;
 

@@ -5,9 +5,9 @@ using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using ImGuiNET;
 using Meddle.Plugin.Models;
+using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Services;
-using Meddle.Plugin.Utils;
-using Meddle.Utils.Skeletons;
+using Meddle.Plugin.Services.UI;
 
 namespace Meddle.Plugin.UI;
 
@@ -15,6 +15,7 @@ public class DebugTab : ITab
 {
     private readonly IClientState clientState;
     private readonly Configuration config;
+    private readonly CommonUi commonUi;
     private readonly IObjectTable objectTable;
     private readonly PbdHooks pbdHooks;
     private int selectedBoneIndex;
@@ -23,9 +24,10 @@ public class DebugTab : ITab
 
     private int selectedPartialSkeletonIndex;
 
-    public DebugTab(Configuration config, IClientState clientState, IObjectTable objectTable, PbdHooks pbdHooks)
+    public DebugTab(Configuration config, CommonUi commonUi, IClientState clientState, IObjectTable objectTable, PbdHooks pbdHooks)
     {
         this.config = config;
+        this.commonUi = commonUi;
         this.clientState = clientState;
         this.objectTable = objectTable;
         this.pbdHooks = pbdHooks;
@@ -40,46 +42,6 @@ public class DebugTab : ITab
     public int Order => int.MaxValue;
     public bool DisplayTab => config.ShowDebug;
 
-    private void DrawCharacterSelect()
-    {
-        ICharacter[] objects;
-        if (clientState.LocalPlayer != null)
-        {
-            objects = objectTable.OfType<ICharacter>()
-                                 .Where(obj => obj.IsValid() && obj.IsValidCharacterBase())
-                                 .OrderBy(c => clientState.GetDistanceToLocalPlayer(c).LengthSquared())
-                                 .ToArray();
-        }
-        else
-        {
-            // login/char creator produces "invalid" characters but are still usable I guess
-            objects = objectTable.OfType<ICharacter>()
-                                 .Where(obj => obj.IsValidHuman())
-                                 .OrderBy(c => clientState.GetDistanceToLocalPlayer(c).LengthSquared())
-                                 .ToArray();
-        }
-
-        selectedCharacter ??= objects.FirstOrDefault() ?? clientState.LocalPlayer;
-
-        ImGui.Text("Select Character");
-        var preview = selectedCharacter != null
-                          ? clientState.GetCharacterDisplayText(selectedCharacter, config.PlayerNameOverride)
-                          : "None";
-        using (var combo = ImRaii.Combo("##Character", preview))
-        {
-            if (combo)
-            {
-                foreach (var character in objects)
-                {
-                    if (ImGui.Selectable(clientState.GetCharacterDisplayText(character, config.PlayerNameOverride)))
-                    {
-                        selectedCharacter = character;
-                    }
-                }
-            }
-        }
-    }
-    
     public void Draw()
     {
         if (ImGui.CollapsingHeader("Selected Character"))
@@ -96,7 +58,7 @@ public class DebugTab : ITab
             ImGui.TableSetupColumn("RaceSexId", ImGuiTableColumnFlags.WidthFixed, 100);
             ImGui.TableSetupColumn("PbdPath");
             ImGui.TableHeadersRow();
-            foreach (var cachedDeformer in pbdHooks.DeformerCache)
+            foreach (var cachedDeformer in pbdHooks.GetDeformerCache())
             {
                 foreach (var deformer in cachedDeformer.Value)
                 {
@@ -118,7 +80,7 @@ public class DebugTab : ITab
 
     private unsafe void DrawSelectedCharacter()
     {
-        DrawCharacterSelect();
+        commonUi.DrawCharacterSelect(ref selectedCharacter);
         if (selectedCharacter == null)
         {
             ImGui.Text("No characters found");
@@ -210,7 +172,7 @@ public class DebugTab : ITab
         var localPoseValue = pose->LocalPose[selectedBoneIndex];
         var transform = new Transform(localPoseValue);
         ImGui.Text($"Transform: {transform}");
-        var poseBone = PoseUtil.AccessBoneLocalSpace(pose, selectedBoneIndex);
+        /*var poseBone = PoseUtil.AccessBoneLocalSpace(pose, selectedBoneIndex);
         if (poseBone == null)
         {
             ImGui.Text("Pose Bone is null");
@@ -218,6 +180,6 @@ public class DebugTab : ITab
         }
 
         var boneTransform = new Transform(*poseBone);
-        ImGui.Text($"Bone Transform: {boneTransform}");
+        ImGui.Text($"Bone Transform: {boneTransform}");*/
     }
 }

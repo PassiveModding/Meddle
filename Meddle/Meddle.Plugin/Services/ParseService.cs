@@ -2,9 +2,7 @@
 using System.Runtime.InteropServices;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
-using FFXIVClientStructs.Interop;
 using Meddle.Plugin.Models;
-using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Export;
@@ -18,7 +16,7 @@ using Texture = FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Texture;
 
 namespace Meddle.Plugin.Services;
 
-public class ParseService : IDisposable
+public class ParseService : IDisposable, IService
 {
     private static readonly ActivitySource ActivitySource = new("Meddle.Plugin.Utils.ParseUtil");
     private readonly DXHelper dxHelper;

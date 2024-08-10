@@ -1,4 +1,5 @@
 ﻿using System.Runtime.InteropServices;
+using Meddle.Plugin.Services;
 using Meddle.Utils.Export;
 using Microsoft.Extensions.Logging;
 using OtterTex;
@@ -10,7 +11,7 @@ using Texture = FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Texture;
 
 namespace Meddle.Plugin.Utils;
 
-public unsafe class DXHelper
+public unsafe class DXHelper : IService
 {
     private readonly ILogger<DXHelper> log;
 

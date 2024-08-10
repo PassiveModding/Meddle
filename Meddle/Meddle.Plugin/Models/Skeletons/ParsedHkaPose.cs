@@ -2,7 +2,6 @@
 using FFXIVClientStructs.Havok.Animation.Rig;
 using FFXIVClientStructs.Interop;
 using Meddle.Plugin.Utils;
-using Meddle.Utils.Skeletons;
 
 namespace Meddle.Plugin.Models.Skeletons;
 
@@ -17,6 +16,7 @@ public class ParsedHkaPose
         var boneCount = pose->LocalPose.Length;
         for (var i = 0; i < boneCount; ++i)
         {
+            //var localSpace = pose->AccessBoneLocalSpace(i);
             var localSpace = PoseUtil.AccessBoneLocalSpace(pose, i);
             if (localSpace == null)
             {

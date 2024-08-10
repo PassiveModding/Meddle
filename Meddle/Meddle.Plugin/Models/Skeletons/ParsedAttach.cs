@@ -1,5 +1,4 @@
 ﻿using Meddle.Plugin.Models.Structs;
-using Meddle.Utils.Skeletons;
 
 namespace Meddle.Plugin.Models.Skeletons;
 

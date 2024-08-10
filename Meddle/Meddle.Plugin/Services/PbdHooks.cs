@@ -6,33 +6,16 @@ using Microsoft.Extensions.Logging;
 
 namespace Meddle.Plugin.Services;
 
-public class PbdHooks : IDisposable
+public class PbdHooks : IDisposable, IService
 {
     public const string HumanCreateDeformerSig = "40 53 48 83 EC 20 4C 8B C1 83 FA 0D";
     private readonly Dictionary<nint, Dictionary<uint, DeformerCachedStruct>> deformerCache = new();
-    public IReadOnlyDictionary<nint, Dictionary<uint, DeformerCachedStruct>> DeformerCache => deformerCache;
-    private readonly IGameInteropProvider gameInterop;
     private readonly ILogger<PbdHooks> logger;
-    private readonly ISigScanner sigScanner;
-    private Hook<HumanCreateDeformerDelegate>? humanCreateDeformerHook;
+    private readonly Hook<HumanCreateDeformerDelegate>? humanCreateDeformerHook;
 
     public PbdHooks(ISigScanner sigScanner, IGameInteropProvider gameInterop, ILogger<PbdHooks> logger)
     {
-        this.sigScanner = sigScanner;
-        this.gameInterop = gameInterop;
         this.logger = logger;
-        Setup();
-    }
-
-    public void Dispose()
-    {
-        logger.LogDebug("Disposing PbdHooks");
-        humanCreateDeformerHook?.Dispose();
-        deformerCache.Clear();
-    }
-
-    public void Setup()
-    {
         if (sigScanner.TryScanText(HumanCreateDeformerSig, out var humanCreateDeformerPtr))
         {
             logger.LogDebug("Found Human::CreateDeformer at {ptr:X}", humanCreateDeformerPtr);
@@ -43,8 +26,17 @@ public class PbdHooks : IDisposable
         }
         else
         {
-            throw new Exception("Failed to hook into Human::CreateDeformer");
+            logger.LogError("Failed to find Human::CreateDeformer, will not be able to cache deformer data");
         }
+    }
+    
+    public IReadOnlyDictionary<nint, Dictionary<uint, DeformerCachedStruct>> GetDeformerCache() => deformerCache;
+
+    public void Dispose()
+    {
+        logger.LogDebug("Disposing PbdHooks");
+        humanCreateDeformerHook?.Dispose();
+        deformerCache.Clear();
     }
 
     public DeformerCachedStruct? TryGetDeformer(nint humanPtr, uint slot)

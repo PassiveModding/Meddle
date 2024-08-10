@@ -6,7 +6,7 @@ using Meddle.Plugin.UI;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace Meddle.Plugin.Services;
+namespace Meddle.Plugin.Services.UI;
 
 public class WindowManager : IHostedService, IDisposable
 {

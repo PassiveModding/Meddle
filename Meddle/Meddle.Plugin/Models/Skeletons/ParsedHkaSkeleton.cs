@@ -1,7 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 using FFXIVClientStructs.Havok.Animation.Rig;
 using FFXIVClientStructs.Interop;
-using Meddle.Utils.Skeletons;
 
 namespace Meddle.Plugin.Models.Skeletons;
 

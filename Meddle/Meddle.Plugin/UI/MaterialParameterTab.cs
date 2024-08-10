@@ -2,10 +2,10 @@
 using System.Runtime.InteropServices;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface.Utility.Raii;
-using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.Interop;
 using ImGuiNET;
+using Meddle.Plugin.Services.UI;
 using Meddle.Plugin.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
@@ -17,31 +17,29 @@ namespace Meddle.Plugin.UI;
 
 public class MaterialParameterTab : ITab
 {
-    private readonly IClientState clientState;
-    private readonly Configuration config;
     private readonly Dictionary<string, Pointer<Material>> materialCache = new();
     private readonly Dictionary<string, MtrlFile> mtrlCache = new();
     private readonly Dictionary<string, float[]> mtrlConstantCache = new();
-    private readonly IObjectTable objectTable;
+    private readonly CommonUi commonUi;
+    private readonly Configuration config;
     private readonly SqPack pack;
 
     private readonly Dictionary<string, ShpkFile> shpkCache = new();
-    private Vector4[]? CustomizeParameters;
+    private Vector4[]? customizeParameters;
     private Pointer<Human> lastHuman;
 
     // only show values that are different from the shader default
     private bool onlyShowChanged;
 
-    public MaterialParameterTab(IObjectTable objectTable, IClientState clientState, SqPack pack, Configuration config)
+    public MaterialParameterTab(CommonUi commonUi, Configuration config, SqPack pack)
     {
-        this.objectTable = objectTable;
-        this.clientState = clientState;
-        this.pack = pack;
+        this.commonUi = commonUi;
         this.config = config;
+        this.pack = pack;
     }
 
 
-    private ICharacter? SelectedCharacter { get; set; }
+    private ICharacter? selectedCharacter;
     public string Name => "Material Parameters";
     public int Order => 3;
     public bool DisplayTab => config.ShowDebug;
@@ -58,49 +56,11 @@ public class MaterialParameterTab : ITab
         ImGui.TextColored(new Vector4(1, 0, 0, 1),
                           "Warning: This tab is for advanced users only. Modifying material parameters may cause crashes or other issues.");
 
-        ICharacter[] objects;
-        if (clientState.LocalPlayer != null)
-        {
-            objects = objectTable.OfType<ICharacter>()
-                                 .Where(obj => obj.IsValid() && obj.IsValidCharacterBase())
-                                 .OrderBy(c => clientState.GetDistanceToLocalPlayer(c).LengthSquared())
-                                 .ToArray();
-        }
-        else
-        {
-            // login/char creator produces "invalid" characters but are still usable I guess
-            objects = objectTable.OfType<ICharacter>()
-                                 .Where(obj => obj.IsValidHuman())
-                                 .OrderBy(c => clientState.GetDistanceToLocalPlayer(c).LengthSquared())
-                                 .ToArray();
-        }
+       commonUi.DrawCharacterSelect(ref selectedCharacter);
 
-        SelectedCharacter ??= objects.FirstOrDefault() ?? clientState.LocalPlayer;
-
-        ImGui.Text("Select Character");
-        if (SelectedCharacter?.IsValid() == false && clientState.LocalPlayer != null)
+        if (selectedCharacter != null)
         {
-            SelectedCharacter = null;
-        }
-
-        var preview = SelectedCharacter != null ? clientState.GetCharacterDisplayText(SelectedCharacter) : "None";
-        using (var combo = ImRaii.Combo("##Character", preview))
-        {
-            if (combo)
-            {
-                foreach (var character in objects)
-                {
-                    if (ImGui.Selectable(clientState.GetCharacterDisplayText(character)))
-                    {
-                        SelectedCharacter = character;
-                    }
-                }
-            }
-        }
-
-        if (SelectedCharacter != null)
-        {
-            DrawCharacter(SelectedCharacter);
+            DrawCharacter(selectedCharacter);
         }
     }
 
@@ -117,15 +77,15 @@ public class MaterialParameterTab : ITab
                 {
                     // restore defaults
                     var lastParams = lastHuman.Value->CustomizeParameterCBuffer->TryGetBuffer<Vector4>();
-                    CustomizeParameters.CopyTo(lastParams);
+                    customizeParameters.CopyTo(lastParams);
                 }
 
-                CustomizeParameters = null;
+                customizeParameters = null;
                 lastHuman = human;
             }
 
             var parameter = human->CustomizeParameterCBuffer->TryGetBuffer<Vector4>();
-            if (CustomizeParameters == null)
+            if (customizeParameters == null)
             {
                 var initParams = new Vector4[parameter.Length];
                 for (var i = 0; i < parameter.Length; i++)
@@ -134,12 +94,12 @@ public class MaterialParameterTab : ITab
                     initParams[i] = new Vector4(p.X, p.Y, p.Z, p.W);
                 }
 
-                CustomizeParameters = initParams;
+                customizeParameters = initParams;
             }
 
             if (ImGui.Button("Restore all defaults"))
             {
-                CustomizeParameters.CopyTo(parameter);
+                customizeParameters.CopyTo(parameter);
             }
 
             ImGui.ColorEdit4("Skin Color", ref parameter[0]);
@@ -147,63 +107,63 @@ public class MaterialParameterTab : ITab
             // restore
             if (ImGui.Button("Restore##SkinColor"))
             {
-                parameter[0] = CustomizeParameters[0];
+                parameter[0] = customizeParameters[0];
             }
 
             ImGui.ColorEdit4("Skin Fresnel", ref parameter[1]);
             ImGui.SameLine();
             if (ImGui.Button("Restore##SkinFresnel"))
             {
-                parameter[1] = CustomizeParameters[1];
+                parameter[1] = customizeParameters[1];
             }
 
             ImGui.ColorEdit4("Lip Color", ref parameter[2]);
             ImGui.SameLine();
             if (ImGui.Button("Restore##LipColor"))
             {
-                parameter[2] = CustomizeParameters[2];
+                parameter[2] = customizeParameters[2];
             }
 
             ImGui.ColorEdit4("Main Color", ref parameter[3]);
             ImGui.SameLine();
             if (ImGui.Button("Restore##MainColor"))
             {
-                parameter[3] = CustomizeParameters[3];
+                parameter[3] = customizeParameters[3];
             }
 
             ImGui.ColorEdit4("Hair Fresnel", ref parameter[4]);
             ImGui.SameLine();
             if (ImGui.Button("Restore##HairFresnel"))
             {
-                parameter[4] = CustomizeParameters[4];
+                parameter[4] = customizeParameters[4];
             }
 
             ImGui.ColorEdit4("Mesh Color", ref parameter[5]);
             ImGui.SameLine();
             if (ImGui.Button("Restore##MeshColor"))
             {
-                parameter[5] = CustomizeParameters[5];
+                parameter[5] = customizeParameters[5];
             }
 
             ImGui.ColorEdit4("Left Color", ref parameter[6]);
             ImGui.SameLine();
             if (ImGui.Button("Restore##LeftColor"))
             {
-                parameter[6] = CustomizeParameters[6];
+                parameter[6] = customizeParameters[6];
             }
 
             ImGui.ColorEdit4("Right Color", ref parameter[7]);
             ImGui.SameLine();
             if (ImGui.Button("Restore##RightColor"))
             {
-                parameter[7] = CustomizeParameters[7];
+                parameter[7] = customizeParameters[7];
             }
 
             ImGui.ColorEdit4("Option Color", ref parameter[8]);
             ImGui.SameLine();
             if (ImGui.Button("Restore##OptionColor"))
             {
-                parameter[8] = CustomizeParameters[8];
+                parameter[8] = customizeParameters[8];
             }
         }
     }

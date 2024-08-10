@@ -2,7 +2,6 @@ using Dalamud.Configuration;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Meddle.Plugin.Services;
-using Meddle.Plugin.Utils;
 using Meddle.Utils.Files.SqPack;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -25,34 +24,27 @@ public sealed class Plugin : IDalamudPlugin
     {
         try
         {
-            var service = new Service();
-            pluginInterface.Inject(service);
             var config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
             pluginInterface.Inject(config);
-            var loggerProvider = new PluginLoggerProvider(config);
-            pluginInterface.Inject(loggerProvider);
 
             var host = Host.CreateDefaultBuilder();
             host.ConfigureLogging(logging =>
             {
                 logging.ClearProviders();
                 logging.SetMinimumLevel(LogLevel.Trace);
+                var loggerProvider = new PluginLoggerProvider(config);
+                pluginInterface.Inject(loggerProvider);
                 logging.AddProvider(loggerProvider);
             });
 
             host.ConfigureServices(services =>
             {
                 services.Configure<ConsoleLifetimeOptions>(options => options.SuppressStatusMessages = true);
-                service.AddServices(services);
-                services.AddSingleton(config)
-                        .AddUi()
-                        .AddSingleton<TextureCache>()
-                        .AddSingleton(pluginInterface)
-                        .AddSingleton<ExportService>()
-                        .AddSingleton<ParseService>()
-                        .AddSingleton<DXHelper>()
-                        .AddSingleton<PbdHooks>()
-                        .AddSingleton(new SqPack(Environment.CurrentDirectory));
+                services
+                    .AddServices(pluginInterface)    
+                    .AddSingleton(config)
+                    .AddUi()
+                    .AddSingleton(new SqPack(Environment.CurrentDirectory));
 
 #if DEBUG
                 services.AddOpenTelemetry()

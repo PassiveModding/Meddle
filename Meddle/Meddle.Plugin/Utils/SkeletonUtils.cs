@@ -1,8 +1,10 @@
 ﻿using System.Numerics;
+using Meddle.Plugin.Models;
+using Meddle.Plugin.Models.Skeletons;
 using Meddle.Utils;
 using SharpGLTF.Scenes;
 
-namespace Meddle.Plugin.Models.Skeletons;
+namespace Meddle.Plugin.Utils;
 
 public static class SkeletonUtils
 {
