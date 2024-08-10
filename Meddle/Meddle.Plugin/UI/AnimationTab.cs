@@ -192,7 +192,7 @@ public class AnimationTab : ITab
                                           ownerId));
         }
 
-        if (companion != null && companion->DrawObject != null &&
+        if (false && companion != null && companion->DrawObject != null &&
             companion->DrawObject->GetObjectType() == ObjectType.CharacterBase)
         {
             var companionBase = (CharacterBase*)companion->DrawObject;
