@@ -322,8 +322,9 @@ public class ExportService : IDisposable, IService
         }
     }
 
-    private MaterialBuilder HandleMaterial(CharacterGroup characterGroup, Material material, MtrlFileGroup mtrlGroup)
+    private MaterialBuilder HandleMaterial(CharacterGroup characterGroup, MtrlFileGroup mtrlGroup)
     {
+        var material = new Material(mtrlGroup.MdlPath, mtrlGroup.MtrlFile, mtrlGroup.TexFiles.ToDictionary(x => x.MtrlPath, x => x.Resource), mtrlGroup.ShpkFile);
         using var activityMtrl = ActivitySource.StartActivity();
         activityMtrl?.SetTag("mtrlPath", material.HandlePath);
 
@@ -366,14 +367,7 @@ public class ExportService : IDisposable, IService
         activity?.SetTag("characterPath", mdlGroup.CharacterPath);
         activity?.SetTag("path", mdlGroup.Path);
         logger.LogInformation("Exporting {CharacterPath} => {Path}", mdlGroup.CharacterPath, mdlGroup.Path);
-        var model = new Model(mdlGroup.CharacterPath, mdlGroup.MdlFile,
-                              mdlGroup.MtrlFiles.Select(x => (
-                                                                 x.MdlPath,
-                                                                 x.MtrlFile,
-                                                                 x.TexFiles.ToDictionary(
-                                                                     tf => tf.MtrlPath, tf => tf.Resource),
-                                                                 x.ShpkFile)).ToArray(),
-                              mdlGroup.ShapeAttributeGroup);
+        var model = new Model(mdlGroup.CharacterPath, mdlGroup.MdlFile, mdlGroup.ShapeAttributeGroup);
 
         foreach (var mesh in model.Meshes)
         {
@@ -395,17 +389,26 @@ public class ExportService : IDisposable, IService
             }
         }
 
-
         var materials = new List<MaterialBuilder>();
         var meshOutput = new List<(Model, ModelBuilder.MeshExport)>();
-        for (var i = 0; i < model.Materials.Count; i++)
+        foreach (var mtrlFile in mdlGroup.MtrlFiles)
         {
-            if (token.IsCancellationRequested) return meshOutput;
-            var material = model.Materials[i];
-            var materialGroup = mdlGroup.MtrlFiles[i];
-            if (material == null) throw new InvalidOperationException("Material is null");
-            var builder = HandleMaterial(characterGroup, material, materialGroup);
-            materials.Add(builder);
+            if (mtrlFile is MtrlFileGroup mtrlGroup)
+            {
+                if (token.IsCancellationRequested) return meshOutput;
+                var builder = HandleMaterial(characterGroup, mtrlGroup);
+                materials.Add(builder);
+            }
+            else if (mtrlFile is MtrlFileStubGroup stub)
+            {
+                var stubName = Path.GetFileNameWithoutExtension(stub.Path);
+                var builder = new MaterialBuilder($"{stubName}_stub");
+                materials.Add(builder);
+            }
+            else
+            {
+                throw new InvalidOperationException("Unknown mtrl file type");
+            }
         }
 
         if (token.IsCancellationRequested) return meshOutput;

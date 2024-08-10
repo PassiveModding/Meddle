@@ -329,18 +329,11 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
             {
                 return;
             }
-            var model = new Model(mdlGroup.Path, mdlGroup.MdlFile, 
-                                  mdlGroup.MtrlFiles
-                         .Select(x => (x.Path, 
-                                          x.MtrlFile, 
-                                          x.TexFiles.ToDictionary(y => y.Path, y => y.TexFile), 
-                                          x.ShpkFile))
-                         .ToArray(),
-                         mdlGroup.ShapeAttributeGroup);
+            var model = new Model(mdlGroup.Path, mdlGroup.MdlFile, mdlGroup.ShapeAttributeGroup);
 
-            var materials = new MaterialBuilder[model.Materials.Count];
+            var materials = new MaterialBuilder[mdlGroup.MtrlFiles.Length];
             //foreach (var mtrlGroup in mdlGroup.Mtrls)
-            Parallel.ForEach(model.Materials, (material, state, i) =>
+            Parallel.ForEach(mdlGroup.MtrlFiles, (mtrlGroup, state, i) =>
             {
                 if (token.IsCancellationRequested)
                 {
@@ -349,11 +342,7 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
 
                 try
                 {
-                    if (material == null)
-                    {
-                        return;
-                    }
-
+                    var material = new Material(mtrlGroup.Path, mtrlGroup.MtrlFile, mtrlGroup.TexFiles.ToDictionary(x => x.Path, x => x.TexFile), mtrlGroup.ShpkFile);
                     var name =
                         $"{Path.GetFileNameWithoutExtension(material.HandlePath)}_{Path.GetFileNameWithoutExtension(material.ShaderPackageName)}";
 
@@ -376,7 +365,7 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error parsing material {material?.HandlePath}: {ex}");
+                    Console.WriteLine($"Error parsing material {mtrlGroup.Path}: {ex}");
                     throw;
                 }
             });

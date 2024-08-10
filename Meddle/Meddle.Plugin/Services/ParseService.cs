@@ -204,20 +204,26 @@ public class ParseService : IDisposable, IService
         var shapeAttributeGroup = StructExtensions.ParseModelShapeAttributes(model);
         var mdlFile = new MdlFile(mdlFileResource);
         var mtrlFileNames = mdlFile.GetMaterialNames().Select(x => x.Value).ToArray();
-        var mtrlGroups = new List<MtrlFileGroup>();
+        var mtrlGroups = new List<IMtrlFileGroup>();
         for (var j = 0; j < model->MaterialsSpan.Length; j++)
         {
             var materialPtr = model->MaterialsSpan[j];
             var material = materialPtr.Value;
+            var mdlMtrlFileName = mtrlFileNames[j];
             if (material == null)
             {
                 logger.LogWarning("Material Ptr {MaterialIndex} is null for {MdlFileName}", j, mdlFileName);
+                mtrlGroups.Add(new MtrlFileStubGroup(mdlMtrlFileName));
                 continue;
             }
 
-            var mdlMtrlFileName = mtrlFileNames[j];
             var mtrlGroup = ParseMtrl(mdlMtrlFileName, material, slotIdx, j, colorTables);
-            if (mtrlGroup != null)
+            if (mtrlGroup == null)
+            {
+                logger.LogWarning("Failed to parse material {MdlMtrlFileName}", mdlMtrlFileName);
+                mtrlGroups.Add(new MtrlFileStubGroup(mdlMtrlFileName));
+            }
+            else
             {
                 mtrlGroups.Add(mtrlGroup);
             }

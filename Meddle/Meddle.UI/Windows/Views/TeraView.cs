@@ -138,16 +138,12 @@ public class TeraView : IView
             {
                 Console.WriteLine($"Exporting {mdlGroup.Item1.Path}");
                 var mdl = mdlGroup.Item1;
-                var model = new Model(mdl.Path, mdl.MdlFile,
-                                      mdl.MtrlFiles
-                                         .Select(x => (x.Path, x.MtrlFile,
-                                                          x.TexFiles.ToDictionary(y => y.Path, y => y.TexFile),
-                                                          x.ShpkFile)).ToArray(),
-                                      mdl.ShapeAttributeGroup);
-                var materials = new MaterialBuilder[model.Materials.Count];
-                for (var i = 0; i < model.Materials.Count; i++)
+                var model = new Model(mdl.Path, mdl.MdlFile, mdl.ShapeAttributeGroup);
+                var materials = new MaterialBuilder[mdlGroup.Item1.MtrlFiles.Length];
+                for (var i = 0; i < mdlGroup.Item1.MtrlFiles.Length; i++)
                 {
-                    var material = model.Materials[i];
+                    var mtrlGroup = mdlGroup.Item1.MtrlFiles[i];
+                    var material = new Material(mtrlGroup.Path, mtrlGroup.MtrlFile, mtrlGroup.TexFiles.ToDictionary(x => x.Path, x => x.TexFile), mtrlGroup.ShpkFile);
                     Console.WriteLine($"Compiling {material!.ShaderPackageName} - {material.HandlePath}");
                     if (!materialBuilderCache.ContainsKey(material!.HandlePath))
                     {

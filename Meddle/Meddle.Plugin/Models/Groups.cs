@@ -20,8 +20,12 @@ public record MdlFileGroup(
     string Path,
     DeformerGroup? DeformerGroup,
     MdlFile MdlFile,
-    MtrlFileGroup[] MtrlFiles,
+    IMtrlFileGroup[] MtrlFiles,
     Model.ShapeAttributeGroup? ShapeAttributeGroup);
+
+public record MtrlFileStubGroup(string Path) : IMtrlFileGroup;
+
+public interface IMtrlFileGroup;
 
 public record MtrlFileGroup(
     string MdlPath,
@@ -29,7 +33,7 @@ public record MtrlFileGroup(
     MtrlFile MtrlFile,
     string ShpkPath,
     ShpkFile ShpkFile,
-    TexResourceGroup[] TexFiles);
+    TexResourceGroup[] TexFiles) : IMtrlFileGroup;
 
 public record TexResourceGroup(string MtrlPath, string Path, TextureResource Resource);
 
