@@ -122,32 +122,22 @@ public class AnimationTab : ITab
         }
 
         var attachCollection = new List<AttachSet>();
-        var rootSkeleton = StructExtensions.GetParsedSkeleton(root);
-        string rootName;
+        string rootName = $"{(nint)root:X8}";
         var attach = StructExtensions.GetAttach(root);
         if (attach.ExecuteType == 3)
         {
             var owner = attach.OwnerCharacter;
             var rootAttach = StructExtensions.GetParsedAttach(root);
-            var ownerSkeleton = StructExtensions.GetParsedSkeleton(owner);
-            var attachBoneName = ownerSkeleton.PartialSkeletons[rootAttach.PartialSkeletonIdx].HkSkeleton
-                                              ?.BoneNames[(int)rootAttach.BoneIdx] ?? "Bone";
-            rootName = $"{(nint)root:X8}_{attachBoneName}";
-            var rootAttachSet =
-                new AttachSet(rootName, rootAttach, rootSkeleton, GetTransform(root), $"{(nint)owner:X8}");
-            attachCollection.Add(rootAttachSet);
-            attachCollection.Add(new AttachSet($"{(nint)owner:X8}", StructExtensions.GetParsedAttach(owner),
-                                               ownerSkeleton, GetTransform(owner), null));
+            attachCollection.Add(new AttachSet(rootName, rootAttach, StructExtensions.GetParsedSkeleton(root), GetTransform(root), $"{(nint)owner:X8}"));
+            attachCollection.Add(new AttachSet($"{(nint)owner:X8}", StructExtensions.GetParsedAttach(owner), StructExtensions.GetParsedSkeleton(owner), GetTransform(owner), null));
         }
         else
         {
             rootName = $"{(nint)root:X8}";
-            var rootAttach = new AttachSet(rootName, StructExtensions.GetParsedAttach(root), rootSkeleton,
-                                           GetTransform(root), null);
-            attachCollection.Add(rootAttach);
+            attachCollection.Add(new AttachSet(rootName, StructExtensions.GetParsedAttach(root), StructExtensions.GetParsedSkeleton(root), GetTransform(root), null));
         }
 
-        foreach (var characterAttach in GetAttachData(charPtr, rootSkeleton, rootName))
+        foreach (var characterAttach in GetAttachData(charPtr, rootName))
         {
             // skip ie. mount may be the owner of the character already so we don't want to duplicate
             if (attachCollection.Any(a => a.Id == characterAttach.Id))
@@ -172,7 +162,7 @@ public class AnimationTab : ITab
         return new AffineTransform(scale, rotation, position);
     }
 
-    private static unsafe AttachSet[] GetAttachData(Character* charPtr, ParsedSkeleton ownerSkeleton, string ownerId)
+    private static unsafe AttachSet[] GetAttachData(Character* charPtr, string ownerId)
     {
         var attachments = new List<AttachSet>();
         var ornament = charPtr->OrnamentData.OrnamentObject;
@@ -185,11 +175,7 @@ public class AnimationTab : ITab
         {
             var ornamentBase = (CharacterBase*)ornament->DrawObject;
             var ornamentAttach = StructExtensions.GetParsedAttach(ornamentBase);
-            var attachBoneName = ownerSkeleton.PartialSkeletons[ornamentAttach.PartialSkeletonIdx].HkSkeleton
-                                              ?.BoneNames[(int)ornamentAttach.BoneIdx] ?? "Bone";
-            attachments.Add(new AttachSet($"{(nint)ornamentBase:X8}_{attachBoneName}", ornamentAttach,
-                                          StructExtensions.GetParsedSkeleton(ornamentBase), GetTransform(ornamentBase),
-                                          ownerId));
+            attachments.Add(new AttachSet($"{(nint)ornamentBase:X8}", ornamentAttach, StructExtensions.GetParsedSkeleton(ornamentBase),GetTransform(ornamentBase), ownerId));
         }
 
         if (false && companion != null && companion->DrawObject != null &&
@@ -197,11 +183,7 @@ public class AnimationTab : ITab
         {
             var companionBase = (CharacterBase*)companion->DrawObject;
             var companionAttach = StructExtensions.GetParsedAttach(companionBase);
-            var attachBoneName = ownerSkeleton.PartialSkeletons[companionAttach.PartialSkeletonIdx].HkSkeleton
-                                              ?.BoneNames[(int)companionAttach.BoneIdx] ?? "Bone";
-            attachments.Add(new AttachSet($"{(nint)companionBase:X8}_{attachBoneName}", companionAttach,
-                                          StructExtensions.GetParsedSkeleton(companionBase),
-                                          GetTransform(companionBase), ownerId));
+            attachments.Add(new AttachSet($"{(nint)companionBase:X8}", companionAttach, StructExtensions.GetParsedSkeleton(companionBase), GetTransform(companionBase), ownerId));
         }
 
         if (mount != null && mount->DrawObject != null &&
@@ -209,11 +191,7 @@ public class AnimationTab : ITab
         {
             var mountBase = (CharacterBase*)mount->DrawObject;
             var mountAttach = StructExtensions.GetParsedAttach(mountBase);
-            var attachBoneName = ownerSkeleton.PartialSkeletons[mountAttach.PartialSkeletonIdx].HkSkeleton
-                                              ?.BoneNames[(int)mountAttach.BoneIdx] ?? "Bone";
-            attachments.Add(new AttachSet($"{(nint)mountBase:X8}_{attachBoneName}", mountAttach,
-                                          StructExtensions.GetParsedSkeleton(mountBase), GetTransform(mountBase),
-                                          ownerId));
+            attachments.Add(new AttachSet($"{(nint)mountBase:X8}", mountAttach, StructExtensions.GetParsedSkeleton(mountBase), GetTransform(mountBase), ownerId));
         }
 
         if (weaponData != null)
@@ -224,12 +202,8 @@ public class AnimationTab : ITab
                 if (weapon.DrawObject != null && weapon.DrawObject->GetObjectType() == ObjectType.CharacterBase)
                 {
                     var weaponBase = (CharacterBase*)weapon.DrawObject;
-                    var weaponAttach = StructExtensions.GetParsedAttach(weaponBase);
-                    var attachBoneName = ownerSkeleton.PartialSkeletons[weaponAttach.PartialSkeletonIdx].HkSkeleton
-                                                      ?.BoneNames[(int)weaponAttach.BoneIdx] ?? "Bone";
-                    attachments.Add(new AttachSet($"{(nint)weaponBase:X8}_{attachBoneName}", weaponAttach,
-                                                  StructExtensions.GetParsedSkeleton(weaponBase),
-                                                  GetTransform(weaponBase), ownerId));
+                    var weaponAttach = StructExtensions.GetParsedAttach(weaponBase);                    
+                    attachments.Add(new AttachSet($"{(nint)weaponBase:X8}", weaponAttach, StructExtensions.GetParsedSkeleton(weaponBase), GetTransform(weaponBase), ownerId));
                 }
             }
         }

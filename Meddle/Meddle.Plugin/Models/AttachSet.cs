@@ -6,18 +6,25 @@ namespace Meddle.Plugin.Models;
 public class AttachSet
 {
     public AttachSet(
-        string id, ParsedAttach attach, ParsedSkeleton ownerSkeleton, AffineTransform transform, string? ownerId)
+        string id, ParsedAttach attach, ParsedSkeleton skeleton, AffineTransform transform, string? ownerId)
     {
         Id = id;
         Attach = attach;
-        OwnerSkeleton = ownerSkeleton;
+        Skeleton = skeleton;
         Transform = transform;
         OwnerId = ownerId;
+        if (attach.OwnerSkeleton != null)
+        {
+            AttachBoneName = attach.OwnerSkeleton?
+               .PartialSkeletons[attach.PartialSkeletonIdx]
+               .HkSkeleton?.BoneNames[(int)attach.BoneIdx];
+        }
     }
 
     public string Id { get; set; }
     public string? OwnerId { get; set; }
     public ParsedAttach Attach { get; set; }
-    public ParsedSkeleton OwnerSkeleton { get; set; }
+    public ParsedSkeleton Skeleton { get; set; }
     public AffineTransform Transform { get; set; }
+    public string? AttachBoneName { get; set; }
 }

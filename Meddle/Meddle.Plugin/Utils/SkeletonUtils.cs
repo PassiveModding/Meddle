@@ -90,13 +90,10 @@ public static class SkeletonUtils
         return GetBoneMap(skeleton.PartialSkeletons, includePose, out root);
     }
 
-    public static
-        Dictionary<string, (List<BoneNodeBuilder> Bones, BoneNodeBuilder? Root, List<(DateTime Time, AttachSet Attach)>
-            Timeline)> GetAnimatedBoneMap((DateTime Time, AttachSet[] Attaches)[] frames)
+    public record AttachGrouping(List<BoneNodeBuilder> Bones, BoneNodeBuilder? Root, List<(DateTime Time, AttachSet Attach)> Timeline);
+    public static Dictionary<string, AttachGrouping> GetAnimatedBoneMap((DateTime Time, AttachSet[] Attaches)[] frames)
     {
-        var attachDict =
-            new Dictionary<string, (List<BoneNodeBuilder> Bones, BoneNodeBuilder? Root,
-                List<(DateTime Time, AttachSet Attach)> Timeline)>();
+        var attachDict = new Dictionary<string, AttachGrouping>();
         var attachTimelines = new Dictionary<string, List<(DateTime Time, AttachSet Attach)>>();
         foreach (var frame in frames)
         {
@@ -120,7 +117,7 @@ public static class SkeletonUtils
             var firstAttach = timeline.First().Attach;
             if (!attachDict.TryGetValue(attachId, out var attachBoneMap))
             {
-                attachBoneMap = ([], null, timeline);
+                attachBoneMap = new AttachGrouping([], null, timeline);
                 attachDict.Add(attachId, attachBoneMap);
             }
 
@@ -128,45 +125,48 @@ public static class SkeletonUtils
             {
                 var frame = timeline.FirstOrDefault(x => x.Time == time);
                 var frameTime = TotalSeconds(time, startTime);
-                if (frame != default)
+                if (frame == default) continue;
+
+                var boneMap = GetBoneMap(frame.Attach.Skeleton, false, out var attachRoot);
+                if (attachRoot == null)
+                    continue;
+
+                if (attachBoneMap.Root == null)
                 {
-                    var newMap = GetBoneMap(frame.Attach.OwnerSkeleton, false, out var attachRoot);
-                    if (attachRoot == null)
-                        continue;
+                    attachBoneMap = attachBoneMap with { Root = attachRoot };
+                }
 
-                    attachBoneMap.Root ??= attachRoot;
+                var trackName = frame.Attach.AttachBoneName ?? "pose";
 
-                    foreach (var attachBone in newMap)
+                foreach (var attachBone in boneMap)
+                {
+                    var bone = attachBoneMap.Bones.FirstOrDefault(
+                        x => x.BoneName.Equals(attachBone.BoneName, StringComparison.OrdinalIgnoreCase));
+                    if (bone == null)
                     {
-                        var bone = attachBoneMap.Bones.FirstOrDefault(
-                            x => x.BoneName.Equals(attachBone.BoneName, StringComparison.OrdinalIgnoreCase));
-                        if (bone == null)
-                        {
-                            attachBoneMap.Bones.Add(attachBone);
-                            bone = attachBone;
-                        }
-
-                        var partial = frame.Attach.OwnerSkeleton.PartialSkeletons[attachBone.PartialSkeletonIndex];
-                        if (partial.Poses.Count == 0)
-                            continue;
-
-                        var transform = partial.Poses[0].Pose[bone.BoneIndex];
-                        bone.UseScale().UseTrackBuilder("pose").WithPoint(frameTime, transform.Scale);
-                        bone.UseRotation().UseTrackBuilder("pose").WithPoint(frameTime, transform.Rotation);
-                        bone.UseTranslation().UseTrackBuilder("pose").WithPoint(frameTime, transform.Translation);
+                        attachBoneMap.Bones.Add(attachBone);
+                        bone = attachBone;
                     }
 
-                    var firstTranslation = firstAttach.Transform.Translation;
-                    attachRoot.UseScale().UseTrackBuilder("pose").WithPoint(frameTime, frame.Attach.Transform.Scale);
-                    attachRoot.UseRotation().UseTrackBuilder("pose")
-                              .WithPoint(frameTime, frame.Attach.Transform.Rotation);
-                    attachRoot.UseTranslation().UseTrackBuilder("pose")
-                              .WithPoint(frameTime, frame.Attach.Transform.Translation - firstTranslation);
+                    var partial = frame.Attach.Skeleton.PartialSkeletons[attachBone.PartialSkeletonIndex];
+                    if (partial.Poses.Count == 0)
+                        continue;
 
-                    attachDict[attachId] = attachBoneMap;
+                    var transform = partial.Poses[0].Pose[bone.BoneIndex];
+                    bone.UseScale().UseTrackBuilder(trackName).WithPoint(frameTime, transform.Scale);
+                    bone.UseRotation().UseTrackBuilder(trackName).WithPoint(frameTime, transform.Rotation);
+                    bone.UseTranslation().UseTrackBuilder(trackName).WithPoint(frameTime, transform.Translation);
                 }
+
+                var firstTranslation = firstAttach.Transform.Translation;
+                attachRoot.UseScale().UseTrackBuilder("root").WithPoint(frameTime, frame.Attach.Transform.Scale);
+                attachRoot.UseRotation().UseTrackBuilder("root").WithPoint(frameTime, frame.Attach.Transform.Rotation);
+                attachRoot.UseTranslation().UseTrackBuilder("root").WithPoint(frameTime, frame.Attach.Transform.Translation - firstTranslation);
+
+                attachDict[attachId] = attachBoneMap;
             }
 
+            /*
             foreach (var time in allTimes)
             {
                 var frame = timeline.FirstOrDefault(x => x.Time == time);
@@ -177,6 +177,7 @@ public static class SkeletonUtils
                     bone.UseScale().UseTrackBuilder("pose").WithPoint(TotalSeconds(time, startTime), Vector3.Zero);
                 }
             }
+            */
         }
 
         return attachDict;
