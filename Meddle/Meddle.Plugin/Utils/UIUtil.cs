@@ -193,7 +193,7 @@ public static class UiUtil
         var cBase = (CharacterBase*)characterPointer.Value->GameObject.DrawObject;
         DrawCharacterBase(cBase, "Main");
         DrawOrnamentContainer(characterPointer.Value->OrnamentData);
-        DrawCompanionContainer(characterPointer.Value->CompanionData);
+        //DrawCompanionContainer(characterPointer.Value->CompanionData);
         DrawMountContainer(characterPointer.Value->Mount);
         DrawDrawDataContainer(characterPointer.Value->DrawData);
     }
