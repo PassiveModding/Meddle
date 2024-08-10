@@ -50,25 +50,4 @@ public static class ObjectUtil
             return Vector3.Abs(obj.Position - charPos);
         return new Vector3(obj.YalmDistanceX, 0, obj.YalmDistanceZ);
     }
-
-    public static unsafe string GetCharacterDisplayText(
-        this IClientState clientState, IGameObject obj, string overrideName = "")
-    {
-        var drawObject = ((GameObject*)obj.Address)->DrawObject;
-        if (drawObject == null)
-            return "Invalid Character";
-
-        if (drawObject->Object.GetObjectType() != ObjectType.CharacterBase)
-            return "Invalid Character";
-
-        var modelType = ((CharacterBase*)drawObject)->GetModelType();
-
-        var name = obj.Name.TextValue;
-        if (obj.ObjectKind == ObjectKind.Player && !string.IsNullOrWhiteSpace(overrideName))
-            name = overrideName;
-        return
-            $"[{obj.Address:X8}:{obj.GameObjectId:X}][{obj.ObjectKind}][{modelType}] - " +
-            $"{(string.IsNullOrWhiteSpace(name) ? "Unnamed" : name)} - " +
-            $"{clientState.GetDistanceToLocalPlayer(obj).Length():0.00}y##{obj.GameObjectId}";
-    }
 }

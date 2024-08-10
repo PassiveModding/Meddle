@@ -3,8 +3,11 @@ using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
+using FFXIVClientStructs.FFXIV.Client.Game.Object;
+using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using ImGuiNET;
 using Meddle.Plugin.Utils;
+using ObjectKind = Dalamud.Game.ClientState.Objects.Enums.ObjectKind;
 
 namespace Meddle.Plugin.Services.UI;
 
@@ -48,13 +51,13 @@ public class CommonUi : IDisposable, IService
             selectedCharacter = null;
         }
 
-        var preview = selectedCharacter != null ? clientState.GetCharacterDisplayText(selectedCharacter, config.PlayerNameOverride) : "None";
+        var preview = selectedCharacter != null ? GetCharacterDisplayText(selectedCharacter) : "None";
         using var combo = ImRaii.Combo("##Character", preview);
         if (combo)
         {
             foreach (var character in objects)
             {
-                if (ImGui.Selectable(clientState.GetCharacterDisplayText(character, config.PlayerNameOverride)))
+                if (ImGui.Selectable(GetCharacterDisplayText(character)))
                 {
                     selectedCharacter = character;
                 }
@@ -87,6 +90,26 @@ public class CommonUi : IDisposable, IService
                 }
             }
         }
+    }
+    
+    public unsafe string GetCharacterDisplayText(IGameObject obj)
+    {
+        var drawObject = ((GameObject*)obj.Address)->DrawObject;
+        if (drawObject == null)
+            return "Invalid Character";
+
+        if (drawObject->Object.GetObjectType() != ObjectType.CharacterBase)
+            return "Invalid Character";
+
+        var modelType = ((CharacterBase*)drawObject)->GetModelType();
+
+        var name = obj.Name.TextValue;
+        if (obj.ObjectKind == ObjectKind.Player && !string.IsNullOrWhiteSpace(config.PlayerNameOverride))
+            name = config.PlayerNameOverride;
+        return
+            $"[{obj.Address:X8}:{obj.GameObjectId:X}][{obj.ObjectKind}][{modelType}] - " +
+            $"{(string.IsNullOrWhiteSpace(name) ? "Unnamed" : name)} - " +
+            $"{clientState.GetDistanceToLocalPlayer(obj).Length():0.00}y##{obj.GameObjectId}";
     }
 
     public void Dispose()
