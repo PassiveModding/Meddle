@@ -43,6 +43,9 @@ public class Service
 
     [PluginService]
     private INotificationManager NotificationManager { get; set; } = null!;
+    
+    [PluginService]
+    private IGameGui GameGui { get; set; } = null!;
 
     public void RegisterServices(IServiceCollection services)
     {
@@ -57,6 +60,7 @@ public class Service
         services.AddSingleton(DataManager);
         services.AddSingleton(TextureProvider);
         services.AddSingleton(NotificationManager);
+        services.AddSingleton(GameGui);
         
         PoseUtil.SigScanner = SigScanner;
     }

@@ -1,7 +1,9 @@
-﻿using Dalamud.Game.ClientState.Objects.Types;
+﻿using System.Numerics;
+using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
+using FFXIVClientStructs.FFXIV.Client.Graphics.Render;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using ImGuiNET;
 using Meddle.Plugin.Models;
@@ -16,18 +18,17 @@ public class DebugTab : ITab
     private readonly IClientState clientState;
     private readonly Configuration config;
     private readonly CommonUi commonUi;
+    private readonly IGameGui gui;
     private readonly IObjectTable objectTable;
     private readonly PbdHooks pbdHooks;
-    private int selectedBoneIndex;
 
     private ICharacter? selectedCharacter;
 
-    private int selectedPartialSkeletonIndex;
-
-    public DebugTab(Configuration config, CommonUi commonUi, IClientState clientState, IObjectTable objectTable, PbdHooks pbdHooks)
+    public DebugTab(Configuration config, CommonUi commonUi, IGameGui gui, IClientState clientState, IObjectTable objectTable, PbdHooks pbdHooks)
     {
         this.config = config;
         this.commonUi = commonUi;
+        this.gui = gui;
         this.clientState = clientState;
         this.objectTable = objectTable;
         this.pbdHooks = pbdHooks;
@@ -44,7 +45,7 @@ public class DebugTab : ITab
 
     public void Draw()
     {
-        if (ImGui.CollapsingHeader("Selected Character"))
+        if (ImGui.CollapsingHeader("View Skeleton"))
         {
             DrawSelectedCharacter();
         }
@@ -93,7 +94,6 @@ public class DebugTab : ITab
         {
             ImGui.SetTooltip("Click to copy");
         }
-
         if (ImGui.IsItemClicked())
         {
             ImGui.SetClipboardText($"{selectedCharacter.Address:X8}");
@@ -106,8 +106,6 @@ public class DebugTab : ITab
             ImGui.Text("Character is null");
             return;
         }
-
-        ImGui.Text($"Character Name: {character->NameString}");
 
         var drawObject = character->DrawObject;
         if (drawObject == null)
@@ -126,60 +124,160 @@ public class DebugTab : ITab
         }
 
         var cBase = (CharacterBase*)drawObject;
-        var skeleton = cBase->Skeleton;
-        if (skeleton == null)
+        DrawCharacterBase(cBase, "Character");
+
+        var ornament = character->OrnamentData.OrnamentObject;
+        if (ornament != null)
         {
-            ImGui.Text("Skeleton is null");
+            var drawOrnament = ornament->DrawObject;
+            if (drawOrnament != null)
+            {
+                ImGui.Text($"Ornament DrawObject Address: {(nint)drawOrnament:X8}");
+                var ornamentType = drawOrnament->GetObjectType();
+                ImGui.Text($"Ornament Object Type: {ornamentType}");
+                if (ornamentType == ObjectType.CharacterBase)
+                {
+                    var ornamentBase = (CharacterBase*)drawOrnament;
+                    DrawCharacterBase(ornamentBase, "Ornament");
+                }
+            }
+        }
+        
+        var mount = character->Mount.MountObject;
+        if (mount != null)
+        {
+            var drawMount = mount->DrawObject;
+            if (drawMount != null)
+            {
+                ImGui.Text($"Mount DrawObject Address: {(nint)drawMount:X8}");
+                var mountType = drawMount->GetObjectType();
+                ImGui.Text($"Mount Object Type: {mountType}");
+                if (mountType == ObjectType.CharacterBase)
+                {
+                    var mountBase = (CharacterBase*)drawMount;
+                    DrawCharacterBase(mountBase, "Mount");
+                }
+            }
+        }
+        
+        var companion = character->CompanionData.CompanionObject;
+        if (companion != null)
+        {
+            var drawCompanion = companion->DrawObject;
+            if (drawCompanion != null)
+            {
+                ImGui.Text($"Companion DrawObject Address: {(nint)drawCompanion:X8}");
+                var companionType = drawCompanion->GetObjectType();
+                ImGui.Text($"Companion Object Type: {companionType}");
+                if (companionType == ObjectType.CharacterBase)
+                {
+                    var companionBase = (CharacterBase*)drawCompanion;
+                    DrawCharacterBase(companionBase, "Companion");
+                }
+            }
+        }
+
+        var weapons = character->DrawData.WeaponData;
+        for (int i = 0; i < weapons.Length; i++)
+        {
+            var weapon = weapons[i];
+            if (weapon.DrawObject != null)
+            {
+                ImGui.Text($"Weapon {i} DrawObject Address: {(nint)weapon.DrawObject:X8}");
+                var weaponType = weapon.DrawObject->GetObjectType();
+                ImGui.Text($"Weapon {i} Object Type: {weaponType}");
+                if (weaponType == ObjectType.CharacterBase)
+                {
+                    var weaponBase = (CharacterBase*)weapon.DrawObject;
+                    DrawCharacterBase(weaponBase, $"Weapon {i}");
+                }
+            }
+        }
+    }
+
+    private unsafe void DrawCharacterBase(CharacterBase* cBase, string name)
+    {
+        if (cBase == null)
+        {
+            ImGui.Text($"{name} CharacterBase is null");
             return;
         }
-
-        // imgui select partial skeleton by index
-        ImGui.Text($"Partial Skeleton Count: {skeleton->PartialSkeletonCount}");
-        if (ImGui.InputInt("##PartialSkeletonIndex", ref selectedPartialSkeletonIndex))
+        using var id = ImRaii.PushId($"{(nint)cBase:X8}");
+        if (ImGui.CollapsingHeader(name))
         {
-            if (selectedPartialSkeletonIndex < 0)
+            ImGui.Text($"ModelType: {cBase->GetModelType()}");
+            var skeleton = cBase->Skeleton;
+            if (skeleton == null)
             {
-                selectedPartialSkeletonIndex = 0;
+                ImGui.Text($"{name} Skeleton is null");
+                return;
             }
-            else if (selectedPartialSkeletonIndex >= skeleton->PartialSkeletonCount)
+
+            ImGui.Text($"Skeleton: {(nint)cBase->Skeleton:X8}");
+            ImGui.Text($"Partial Skeleton Count: {cBase->Skeleton->PartialSkeletonCount}");
+            if (ImGui.CollapsingHeader("Draw Bones"))
             {
-                selectedPartialSkeletonIndex = skeleton->PartialSkeletonCount - 1;
+                // imgui select partial skeleton by index
+                for (int i = 0; i < skeleton->PartialSkeletonCount; i++)
+                {
+                    var partialSkeleton = skeleton->PartialSkeletons[i];
+                    var handle = partialSkeleton.SkeletonResourceHandle;
+                    if (handle == null) continue;
+                    var path = handle->FileName.ToString();
+                    if (ImGui.CollapsingHeader($"Partial Skeleton {i}: {path}"))
+                    {
+                        var boneCount = StructExtensions.GetBoneCount(&partialSkeleton);
+                        ImGui.Text($"Partial Skeleton Bone Count: {boneCount}");
+                        using var boneTable = ImRaii.Table($"##BoneTable{i}", 5, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable);
+                        ImGui.TableSetupColumn("Bone", ImGuiTableColumnFlags.WidthStretch);
+                        ImGui.TableSetupColumn("Parent", ImGuiTableColumnFlags.WidthStretch);
+                        ImGui.TableSetupColumn("Translation", ImGuiTableColumnFlags.WidthStretch);
+                        ImGui.TableSetupColumn("Rotation", ImGuiTableColumnFlags.WidthStretch);
+                        ImGui.TableSetupColumn("Scale", ImGuiTableColumnFlags.WidthStretch);
+                        ImGui.TableHeadersRow();
+                        DrawBoneTransformsOnScreen(partialSkeleton);
+                    }
+                }
             }
         }
-
-        var partialSkeleton = skeleton->PartialSkeletons[selectedPartialSkeletonIndex];
-        var boneCount = StructExtensions.GetBoneCount(&partialSkeleton);
-        ImGui.Text($"Partial Skeleton Bone Count: {boneCount}");
-        if (ImGui.InputInt("##BoneIndex", ref selectedBoneIndex))
-        {
-            if (selectedBoneIndex < 0)
-            {
-                selectedBoneIndex = 0;
-            }
-            else if (selectedBoneIndex >= boneCount)
-            {
-                selectedBoneIndex = (int)boneCount - 1;
-            }
-        }
-
+    }
+    
+    private unsafe void DrawBoneTransformsOnScreen(PartialSkeleton partialSkeleton)
+    {
+        var rootPos = partialSkeleton.Skeleton->Transform;
+        var rootTransform = new Transform(rootPos);
         var pose = partialSkeleton.GetHavokPose(0);
-        if (pose == null)
+        var boneCount = StructExtensions.GetBoneCount(&partialSkeleton);
+        for (var i = 0; i < boneCount; i++)
         {
-            ImGui.Text("Pose is null");
-            return;
+            var bone = pose->Skeleton->Bones[i];
+            var modelTransform = new Transform(pose->ModelPose[i]);
+            var worldMatrix = modelTransform.AffineTransform.Matrix * rootTransform.AffineTransform.Matrix;
+            ImGui.TableNextRow();
+            ImGui.TableSetColumnIndex(0);
+            ImGui.Text($"[{i}] {bone.Name.String}");
+            var dotColorRgb = new Vector4(1, 1, 1, 0.5f);
+            if (ImGui.IsItemHovered())
+            {
+                dotColorRgb = new Vector4(1, 0, 0, 0.5f);
+            }
+            
+            ImGui.TableSetColumnIndex(1);
+            var parentIndex = pose->Skeleton->ParentIndices[i];
+            ImGui.Text(parentIndex.ToString());
+            ImGui.TableSetColumnIndex(2);
+            ImGui.Text($"{modelTransform.Translation:F3}");
+            ImGui.TableSetColumnIndex(3);
+            ImGui.Text($"X:{modelTransform.Rotation.X:F2} Y:{modelTransform.Rotation.Y:F2} " +
+                       $"Z:{modelTransform.Rotation.Z:F2} W:{modelTransform.Rotation.W:F2}");
+            ImGui.TableSetColumnIndex(4);
+            ImGui.Text($"{modelTransform.Scale:F3}");
+            
+            if (gui.WorldToScreen(worldMatrix.Translation, out var screenPos))
+            {
+                var dotColor = ImGui.GetColorU32(dotColorRgb);
+                ImGui.GetBackgroundDrawList().AddCircleFilled(screenPos, 5, dotColor);
+            }
         }
-
-        var localPoseValue = pose->LocalPose[selectedBoneIndex];
-        var transform = new Transform(localPoseValue);
-        ImGui.Text($"Transform: {transform}");
-        /*var poseBone = PoseUtil.AccessBoneLocalSpace(pose, selectedBoneIndex);
-        if (poseBone == null)
-        {
-            ImGui.Text("Pose Bone is null");
-            return;
-        }
-
-        var boneTransform = new Transform(*poseBone);
-        ImGui.Text($"Bone Transform: {boneTransform}");*/
     }
 }
