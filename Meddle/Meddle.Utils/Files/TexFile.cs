@@ -225,8 +225,8 @@ public class TexFile
         private int CalculateArraySize()
         {
             int arrSize;
-            if (ArraySize == 0) arrSize = 1;
-            else if (Type.HasFlag(Attribute.TextureTypeCube)) arrSize = 6;
+            if (Type.HasFlag(Attribute.TextureTypeCube)) arrSize = 6;
+            else if (ArraySize == 0) arrSize = 1;
             else arrSize = ArraySize;
 
             return arrSize;
