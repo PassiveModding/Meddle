@@ -63,6 +63,7 @@ public class WorldTab : ITab
         worldService.ShouldDrawOverlay = true;
         fileDialog.Draw();
         ImGui.Text("This is a testing menu, functionality may not work as expected.");
+        ImGui.Text("Pixel shader approximation for most non-character shaders is not properly supported at this time.");
 
         // selector for cutoff distance
         if (ImGui.DragFloat("Cutoff Distance", ref worldService.CutoffDistance, 1, 0, 10000))
@@ -145,13 +146,17 @@ public class WorldTab : ITab
         ImGui.TableSetColumnIndex(0);
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
-            using (ImRaii.Disabled())
+            // disable button but still show tooltip
+            using (ImRaii.PushStyle(ImGuiStyleVar.Alpha, 0.5f))
             {
                 ImGui.Button(FontAwesomeIcon.FileExport.ToIconString());
-                if (ImGui.IsItemHovered())
+            }
+            if (ImGui.IsItemHovered())
+            {
+                using (ImRaii.PushFont(UiBuilder.DefaultFont))
                 {
                     ImGui.BeginTooltip();
-                    ImGui.Text("This object will not be exported.");
+                    ImGui.Text("Exporting this object type from the world tab is currently not supported.");
                     ImGui.EndTooltip();
                 }
             }

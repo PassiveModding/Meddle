@@ -12,6 +12,8 @@ public class WorldService : IService, IDisposable
     public float CutoffDistance;
     public Vector4 DotColor;
     public readonly HashSet<Pointer<Object>> SelectedObjects = [];
+    
+    // TODO: This isn't great, should find a better way to link drawing the World Overlay to the World Tab
     public bool ShouldDrawOverlay;
     
     public void SaveOptions()
