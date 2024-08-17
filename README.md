@@ -24,6 +24,9 @@ Much of this code is from or based on the following projects and wouldn't have b
   - terrain and level file structures
 - [Alpha](https://github.com/NotNite/Alpha) [[MIT](https://github.com/NotNite/Alpha/blob/main/LICENSE)]
   - initial reference for Meddle.UI project setup and draw logic 
+- [PathFinder](https://github.com/chirpxiv/ffxiv-pathfinder) [[MIT](https://github.com/chirpxiv/ffxiv-pathfinder/blob/main/LICENSE)]
+  - 🐇
+  - reference for world overlay logic
 
 Important contributors:
 - [WorkingRobot](https://github.com/WorkingRobot) 
