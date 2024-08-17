@@ -45,11 +45,12 @@
             <HintPath>$(DalamudLibPath)Newtonsoft.Json.dll</HintPath>
             <Private>False</Private>
         </Reference>
-        <Reference Include="OtterTex">
-            <HintPath>..\Meddle.Utils\Lib\OtterTex.dll</HintPath>
-        </Reference>
         <Reference Include="FFXIVClientStructs">
             <HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="OtterTex">
+            <HintPath>..\Meddle.Utils\Lib\OtterTex.dll</HintPath>
         </Reference>
     </ItemGroup>
 

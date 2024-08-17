@@ -1,3 +1,4 @@
+using System.Numerics;
 using Dalamud.Configuration;
 using Dalamud.IoC;
 using Dalamud.Plugin;
@@ -97,6 +98,8 @@ public class Configuration : IPluginConfiguration
     public bool DisableAutomaticUiHide { get; set; }
     public bool DisableCutsceneUiHide { get; set; }
     public bool DisableGposeUiHide { get; set; }
+    public float WorldCutoffDistance { get; set; } = 100;
+    public Vector4 WorldDotColor { get; set; } = new(1f, 1f, 1f, 0.5f);
     public string PlayerNameOverride { get; set; } = string.Empty;
 
     public int Version { get; set; } = 1;

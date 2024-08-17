@@ -175,6 +175,7 @@ public class ExportService : IDisposable, IService
         {
             using var activity = ActivitySource.StartActivity();
             var scene = new SceneBuilder();
+
             var bones = SkeletonUtils.GetBoneMap(characterGroup.Skeleton, true, out var root);
             //var bones = XmlUtils.GetBoneMap(characterGroup.Skeletons, out var root);
             if (root != null)
@@ -189,7 +190,8 @@ public class ExportService : IDisposable, IService
                 if (mdlGroup.Path.Contains("b0003_top")) continue;
                 try
                 {
-                    var meshes = HandleModel(characterGroup, mdlGroup, ref bones, root, token);
+                    var meshes = HandleModel(characterGroup.CustomizeData, characterGroup.CustomizeParams,
+                                             characterGroup.GenderRace, mdlGroup, ref bones, root, token);
                     foreach (var mesh in meshes)
                     {
                         meshOutput.Add((mesh.model, mesh.mesh));
@@ -255,7 +257,9 @@ public class ExportService : IDisposable, IService
 
                 foreach (var mdlGroup in attachedModelGroup.MdlGroups)
                 {
-                    var meshes = HandleModel(characterGroup, mdlGroup, ref attachBones, attachPointBone, token);
+                    var meshes = HandleModel(characterGroup.CustomizeData, 
+                                             characterGroup.CustomizeParams, characterGroup.GenderRace, 
+                                             mdlGroup, ref attachBones, attachPointBone, token);
                     foreach (var mesh in meshes)
                     {
                         meshOutputAttach.Add((transform, mesh.model, mesh.mesh, attachBones.ToArray()));
@@ -273,6 +277,61 @@ public class ExportService : IDisposable, IService
             {
                 if (token.IsCancellationRequested) return;
                 AddMesh(scene, position, model, mesh, attachBones);
+            }
+
+            var sceneGraph = scene.ToGltf2();
+            if (outputFolder != null)
+            {
+                Directory.CreateDirectory(outputFolder);
+            }
+
+            var folder = outputFolder ?? GetPathForOutput();
+            var outputPath = Path.Combine(folder, "character.gltf");
+            sceneGraph.SaveGLTF(outputPath);
+            Process.Start("explorer.exe", folder);
+            logger.LogInformation("Export complete");
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Failed to export character");
+            throw;
+        }
+    }
+    
+    public void Export((Transform, MdlFileGroup)[] models, string? outputFolder = null, CancellationToken token = default)
+    {
+        try
+        {
+            using var activity = ActivitySource.StartActivity();
+            var scene = new SceneBuilder();
+
+            var meshOutput = new List<(Transform transform, Model model, ModelBuilder.MeshExport mesh)>();
+            var bones = new List<BoneNodeBuilder>();
+            foreach (var (transform, mdlGroup) in models)
+            {
+                if (token.IsCancellationRequested) return;
+                try
+                {
+                    var meshes = HandleModel(new CustomizeData(), new CustomizeParameter(), GenderRace.Unknown,
+                                             mdlGroup, ref bones, null, token);
+                    foreach (var mesh in meshes)
+                    {
+                        meshOutput.Add((transform, mesh.model, mesh.mesh));
+                    }
+                }
+                catch (Exception e)
+                {
+                    logger.LogError(e, "Failed to export model {Path}", mdlGroup.Path);
+                    throw;
+                }
+            }
+
+            if (token.IsCancellationRequested) return;
+
+            foreach (var (transform, model, mesh) in meshOutput)
+            {
+                if (token.IsCancellationRequested) return;
+                AddMesh(scene, transform.AffineTransform.Matrix, model, mesh, []);
             }
 
             var sceneGraph = scene.ToGltf2();
@@ -322,7 +381,7 @@ public class ExportService : IDisposable, IService
         }
     }
 
-    private MaterialBuilder HandleMaterial(CharacterGroup characterGroup, MtrlFileGroup mtrlGroup)
+    private MaterialBuilder HandleMaterial(CustomizeData customizeData, CustomizeParameter customizeParams, MtrlFileGroup mtrlGroup)
     {
         var material = new Material(mtrlGroup.MdlPath, mtrlGroup.MtrlFile, mtrlGroup.TexFiles.ToDictionary(x => x.MtrlPath, x => x.Resource), mtrlGroup.ShpkFile);
         using var activityMtrl = ActivitySource.StartActivity();
@@ -340,13 +399,13 @@ public class ExportService : IDisposable, IService
             "characterocclusion.shpk" => MaterialUtility.BuildCharacterOcclusion(material, name),
             "characterlegacy.shpk" => MaterialUtility.BuildCharacterLegacy(material, name),
             "charactertattoo.shpk" => MaterialUtility.BuildCharacterTattoo(
-                material, name, characterGroup.CustomizeParams, characterGroup.CustomizeData),
-            "hair.shpk" => MaterialUtility.BuildHair(material, name, characterGroup.CustomizeParams,
-                                                     characterGroup.CustomizeData),
-            "skin.shpk" => MaterialUtility.BuildSkin(material, name, characterGroup.CustomizeParams,
-                                                     characterGroup.CustomizeData, (tileNormTex, tileOrbTex)),
-            "iris.shpk" => MaterialUtility.BuildIris(material, name, catchlightTex, characterGroup.CustomizeParams,
-                                                     characterGroup.CustomizeData),
+                material, name, customizeParams, customizeData),
+            "hair.shpk" => MaterialUtility.BuildHair(material, name, customizeParams,
+                                                     customizeData),
+            "skin.shpk" => MaterialUtility.BuildSkin(material, name, customizeParams,
+                                                     customizeData, (tileNormTex, tileOrbTex)),
+            "iris.shpk" => MaterialUtility.BuildIris(material, name, catchlightTex, customizeParams,
+                                                     customizeData),
             _ => BuildAndLogFallbackMaterial(material, name)
         };
 
@@ -360,7 +419,9 @@ public class ExportService : IDisposable, IService
     }
 
     private List<(Model model, ModelBuilder.MeshExport mesh)> HandleModel(
-        CharacterGroup characterGroup, MdlFileGroup mdlGroup, ref List<BoneNodeBuilder> bones, BoneNodeBuilder? root,
+        CustomizeData customizeData, CustomizeParameter customizeParams, 
+        GenderRace genderRace,
+        MdlFileGroup mdlGroup, ref List<BoneNodeBuilder> bones, BoneNodeBuilder? root,
         CancellationToken token)
     {
         using var activity = ActivitySource.StartActivity();
@@ -396,7 +457,7 @@ public class ExportService : IDisposable, IService
             if (mtrlFile is MtrlFileGroup mtrlGroup)
             {
                 if (token.IsCancellationRequested) return meshOutput;
-                var builder = HandleMaterial(characterGroup, mtrlGroup);
+                var builder = HandleMaterial(customizeData, customizeParams, mtrlGroup);
                 materials.Add(builder);
             }
             else if (mtrlFile is MtrlFileStubGroup stub)
@@ -426,7 +487,7 @@ public class ExportService : IDisposable, IService
         }
         else
         {
-            raceDeformerValue = (characterGroup.GenderRace, new RaceDeformer(pbdFile, bones));
+            raceDeformerValue = (genderRace, new RaceDeformer(pbdFile, bones));
         }
 
         var meshes = ModelBuilder.BuildMeshes(model, materials, bones, raceDeformerValue);

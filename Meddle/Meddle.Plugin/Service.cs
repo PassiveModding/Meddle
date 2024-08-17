@@ -1,10 +1,7 @@
-using System.Reflection;
 using Dalamud.Game;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
-using Meddle.Plugin.Services;
-using Meddle.Plugin.Utils;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Meddle.Plugin;
@@ -61,7 +58,5 @@ public class Service
         services.AddSingleton(TextureProvider);
         services.AddSingleton(NotificationManager);
         services.AddSingleton(GameGui);
-        
-        PoseUtil.SigScanner = SigScanner;
     }
 }

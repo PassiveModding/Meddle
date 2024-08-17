@@ -98,7 +98,7 @@ public static partial class MaterialUtility
 
         if (colorMap0 != null)
         {
-            output.WithBaseColor(BuildImage(colorMap0, name, "colorMap0"));;
+            output.WithBaseColor(BuildImage(colorMap0, name, "colorMap0"));
         }
         else
         {

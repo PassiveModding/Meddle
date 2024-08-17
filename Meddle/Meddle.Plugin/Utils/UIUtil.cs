@@ -8,7 +8,6 @@ using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Skeletons;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.Structs.Material;
-using Meddle.Utils.Skeletons;
 using SharpGLTF.Transforms;
 using CustomizeData = Meddle.Utils.Export.CustomizeData;
 using CustomizeParameter = Meddle.Utils.Export.CustomizeParameter;

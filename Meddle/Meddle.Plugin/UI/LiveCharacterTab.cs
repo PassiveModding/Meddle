@@ -243,7 +243,7 @@ public unsafe class LiveCharacterTab : ITab
             if (modelPtr == null) return false;
             return selectedModels.ContainsKey((nint)modelPtr.Value) && selectedModels[(nint)modelPtr.Value];
         });
-        using (var disable = ImRaii.Disabled(selectedModelCount == 0))
+        using (ImRaii.Disabled(selectedModelCount == 0))
         {
             if (ImGui.Button($"Export Selected Models ({selectedModelCount})") && selectedModelCount > 0)
             {

@@ -1,7 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 using FFXIVClientStructs.Havok.Animation.Rig;
 using FFXIVClientStructs.Interop;
-using Meddle.Plugin.Utils;
 
 namespace Meddle.Plugin.Models.Skeletons;
 
@@ -16,8 +15,7 @@ public class ParsedHkaPose
         var boneCount = pose->LocalPose.Length;
         for (var i = 0; i < boneCount; ++i)
         {
-            //var localSpace = pose->AccessBoneLocalSpace(i);
-            var localSpace = PoseUtil.AccessBoneLocalSpace(pose, i);
+            var localSpace = pose->AccessBoneLocalSpace(i);
             if (localSpace == null)
             {
                 throw new Exception("Failed to access bone local space");

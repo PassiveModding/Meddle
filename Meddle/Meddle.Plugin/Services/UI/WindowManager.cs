@@ -14,29 +14,31 @@ public class WindowManager : IHostedService, IDisposable
     private readonly ICommandManager commandManager;
     private readonly Configuration config;
     private readonly ILogger<WindowManager> log;
+    private readonly OverlayWindow overlayWindow;
     private readonly IDalamudPluginInterface pluginInterface;
-
+    private readonly MainWindow mainWindow;
+    private readonly WindowSystem windowSystem;
+    
     private bool disposed;
 
     public WindowManager(
         MainWindow mainWindow,
+        OverlayWindow overlayWindow,
         WindowSystem windowSystem,
         IDalamudPluginInterface pluginInterface,
         ILogger<WindowManager> log,
         Configuration config,
         ICommandManager commandManager)
     {
+        this.overlayWindow = overlayWindow;
         this.pluginInterface = pluginInterface;
         this.log = log;
         this.config = config;
         this.commandManager = commandManager;
-        MainWindow = mainWindow;
-        WindowSystem = windowSystem;
-        config.OnConfigurationSaved += OnSave;
+        this.mainWindow = mainWindow;
+        this.windowSystem = windowSystem;
     }
 
-    public WindowSystem WindowSystem { get; set; }
-    public MainWindow MainWindow { get; set; }
 
 
     public void Dispose()
@@ -46,20 +48,23 @@ public class WindowManager : IHostedService, IDisposable
             log.LogDebug("Disposing window manager");
             commandManager.RemoveHandler(Command);
             config.OnConfigurationSaved -= OnSave;
-            pluginInterface.UiBuilder.Draw -= WindowSystem.Draw;
+            pluginInterface.UiBuilder.Draw -= windowSystem.Draw;
             pluginInterface.UiBuilder.OpenConfigUi -= OpenUi;
             pluginInterface.UiBuilder.OpenMainUi -= OpenUi;
-            MainWindow.Dispose();
-            WindowSystem.RemoveAllWindows();
+            mainWindow.Dispose();
+            windowSystem.RemoveAllWindows();
             disposed = true;
         }
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        WindowSystem.AddWindow(MainWindow);
+        windowSystem.AddWindow(mainWindow);
+        windowSystem.AddWindow(overlayWindow);
 
-        pluginInterface.UiBuilder.Draw += WindowSystem.Draw;
+        config.OnConfigurationSaved += OnSave;
+        pluginInterface.UiBuilder.Draw += windowSystem.Draw;
+        
         pluginInterface.UiBuilder.OpenMainUi += OpenUi;
         pluginInterface.UiBuilder.OpenConfigUi += OpenUi;
         pluginInterface.UiBuilder.DisableGposeUiHide = config.DisableGposeUiHide;
@@ -96,8 +101,8 @@ public class WindowManager : IHostedService, IDisposable
 
     public void OpenUi()
     {
-        MainWindow.IsOpen = true;
-        MainWindow.BringToFront();
+        mainWindow.IsOpen = true;
+        mainWindow.BringToFront();
     }
 
     private void OnCommand(string command, string args)

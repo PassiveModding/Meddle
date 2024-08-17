@@ -1,8 +1,8 @@
 ﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
-using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using Meddle.Plugin.Models;
+using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Export;
@@ -11,6 +11,7 @@ using Meddle.Utils.Files.SqPack;
 using Meddle.Utils.Files.Structs.Material;
 using Meddle.Utils.Models;
 using Microsoft.Extensions.Logging;
+using CustomizeParameter = Meddle.Utils.Export.CustomizeParameter;
 using Material = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Material;
 using Texture = FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Texture;
 
@@ -20,7 +21,6 @@ public class ParseService : IDisposable, IService
 {
     private static readonly ActivitySource ActivitySource = new("Meddle.Plugin.Utils.ParseUtil");
     private readonly DXHelper dxHelper;
-    private readonly IFramework framework;
     private readonly EventLogger<ParseService> logger;
     private readonly SqPack pack;
     private readonly PbdHooks pbdHooks;
@@ -28,10 +28,9 @@ public class ParseService : IDisposable, IService
     private readonly Dictionary<string, ShpkFile> shpkCache = new();
 
     public ParseService(
-        SqPack pack, IFramework framework, DXHelper dxHelper, PbdHooks pbdHooks, ILogger<ParseService> logger)
+        SqPack pack, DXHelper dxHelper, PbdHooks pbdHooks, ILogger<ParseService> logger)
     {
         this.pack = pack;
-        this.framework = framework;
         this.dxHelper = dxHelper;
         this.pbdHooks = pbdHooks;
         this.logger = new EventLogger<ParseService>(logger);
@@ -142,42 +141,58 @@ public class ParseService : IDisposable, IService
         var skeleton = StructExtensions.GetParsedSkeleton(characterBase);
         return new CharacterGroup(new CustomizeParameter(), new CustomizeData(), GenderRace.Unknown, models.ToArray(), skeleton, []);
     }
-
-    /*public unsafe CharacterGroup HandleCharacterGroup(
-        CharacterBase* characterBase,
-        Dictionary<int, ColorTable> colorTableTextures,
-        Dictionary<Pointer<CharacterBase>, Dictionary<int, ColorTable>> attachDict,
-        CustomizeParameter customizeParams,
-        CustomizeData customizeData,
-        GenderRace genderRace)
+    
+    public unsafe MdlFileGroup ParseBgObject(BgObject* bgObject)
     {
-        using var activity = ActivitySource.StartActivity();
-        var skeleton = new ParsedSkeleton(characterBase->Skeleton);
-        var mdlGroups = new List<MdlFileGroup>();
-        for (var i = 0; i < characterBase->SlotCount; i++)
+        if (bgObject == null) throw new ArgumentNullException(nameof(bgObject));
+        var mdlPath = bgObject->ResourceHandle->FileName.ToString();
+        var mdlFileResource = pack.GetFileOrReadFromDisk(mdlPath);
+        if (mdlFileResource == null)
         {
-            var mdlGroup = HandleModelPtr(characterBase, i, colorTableTextures);
-            if (mdlGroup != null)
+            throw new Exception($"Failed to load model file {mdlPath}");
+        }
+        
+        var mdlFile = new MdlFile(mdlFileResource);
+        var mtrlFileNames = mdlFile.GetMaterialNames().Select(x => x.Value).ToArray();
+        var mtrlGroups = new List<IMtrlFileGroup>();
+        
+        foreach (var mtrlFileName in mtrlFileNames)
+        {
+            var mtrlFileResource = pack.GetFileOrReadFromDisk(mtrlFileName);
+            if (mtrlFileResource == null)
             {
-                mdlGroups.Add(mdlGroup);
+                logger.LogWarning("Material file {MtrlFileName} not found", mtrlFileName);
+                mtrlGroups.Add(new MtrlFileStubGroup(mtrlFileName));
+                continue;
             }
-        }
 
-        var attachGroups = new List<AttachedModelGroup>();
-        foreach (var (attachBase, attachColorTableTextures) in attachDict)
-        {
-            var attachGroup = HandleAttachGroup(attachBase, attachColorTableTextures);
-            attachGroups.Add(attachGroup);
-        }
+            var mtrlFile = new MtrlFile(mtrlFileResource);
+            var shpkName = mtrlFile.GetShaderPackageName();
+            var shpkFile = HandleShpk(shpkName);
+            
+            var texturePaths = mtrlFile.GetTexturePaths().Select(x => x.Value).ToArray();
+            var texGroups = new List<TexResourceGroup>();
+            foreach (var texturePath in texturePaths)
+            {
+                var textureResource = pack.GetFileOrReadFromDisk(texturePath);
+                if (textureResource == null)
+                {
+                    logger.LogWarning("Texture file {TexturePath} not found", texturePath);
+                    continue;
+                }
 
-        return new CharacterGroup(
-            customizeParams,
-            customizeData,
-            genderRace,
-            mdlGroups.ToArray(),
-            skeleton,
-            attachGroups.ToArray());
-    }*/
+                var texFile = new TexFile(textureResource);
+
+                var texRes = Meddle.Utils.Export.Texture.GetResource(texFile);
+                var texGroup = new TexResourceGroup(texturePath, texturePath, texRes);
+                texGroups.Add(texGroup);
+            }
+            
+            mtrlGroups.Add(new MtrlFileGroup(mtrlFileName, mtrlFileName, mtrlFile, shpkName, shpkFile, texGroups.ToArray()));
+        }
+        
+        return new MdlFileGroup(mdlPath, mdlPath, null, mdlFile, mtrlGroups.ToArray(), null);
+    }
 
     public unsafe MdlFileGroup? HandleModelPtr(CharacterBase* characterBase, int slotIdx, Dictionary<int, ColorTable> colorTables)
     {
@@ -262,7 +277,7 @@ public class ParseService : IDisposable, IService
     }
 
     private unsafe MtrlFileGroup? ParseMtrl(
-        string mdlPath,
+        string mdlMtrlPath,
         Material* material, int modelIdx, int j,
         Dictionary<int, ColorTable> colorTables)
     {
@@ -315,10 +330,90 @@ public class ParseService : IDisposable, IService
             texGroups.Add(texResourceGroup);
         }
 
-        return new MtrlFileGroup(mdlPath, mtrlFileName, mtrlFile, shader, shpkFile, texGroups.ToArray());
+        return new MtrlFileGroup(mdlMtrlPath, mtrlFileName, mtrlFile, shader, shpkFile, texGroups.ToArray());
     }
 
-    /*public unsafe AttachedModelGroup HandleAttachGroup(
+    /*public CharacterGroup HandleModelPath(string path)
+    {
+        var data = pack.GetFileOrReadFromDisk(path);
+        if (data == null)
+        {
+            throw new Exception($"Failed to load model file {path}");
+        }
+
+        var mdlFile = new MdlFile(data);
+        var mtrlFileNames = mdlFile.GetMaterialNames().Select(x => x.Value).ToArray();
+        var mtrlGroups = new List<IMtrlFileGroup>();
+
+        for (var i = 0; i < mtrlFileNames.Length; i++)
+        {
+            var mtrlFileName = mtrlFileNames[i];
+            var mtrlFileResource = pack.GetFileOrReadFromDisk(mtrlFileName);
+            if (mtrlFileResource == null)
+            {
+                logger.LogWarning("Material file {MtrlFileName} not found", mtrlFileName);
+                mtrlGroups.Add(new MtrlFileStubGroup(mtrlFileName));
+                continue;
+            }
+
+            var mtrlFile = new MtrlFile(mtrlFileResource);
+            var texturePaths = mtrlFile.GetTexturePaths().Select(x => x.Value).ToArray();
+            var texGroups = new List<TexResourceGroup>();
+            foreach (var texturePath in texturePaths)
+            {
+                var textureResource = pack.GetFileOrReadFromDisk(texturePath);
+                if (textureResource == null)
+                {
+                    logger.LogWarning("Texture file {TexturePath} not found", texturePath);
+                    continue;
+                }
+
+                var texFile = new TexFile(textureResource);
+            }
+
+        }
+
+        return null;
+    }
+
+
+    public unsafe CharacterGroup HandleCharacterGroup(
+        CharacterBase* characterBase,
+        Dictionary<int, ColorTable> colorTableTextures,
+        Dictionary<Pointer<CharacterBase>, Dictionary<int, ColorTable>> attachDict,
+        CustomizeParameter customizeParams,
+        CustomizeData customizeData,
+        GenderRace genderRace)
+    {
+        using var activity = ActivitySource.StartActivity();
+        var skeleton = new ParsedSkeleton(characterBase->Skeleton);
+        var mdlGroups = new List<MdlFileGroup>();
+        for (var i = 0; i < characterBase->SlotCount; i++)
+        {
+            var mdlGroup = HandleModelPtr(characterBase, i, colorTableTextures);
+            if (mdlGroup != null)
+            {
+                mdlGroups.Add(mdlGroup);
+            }
+        }
+
+        var attachGroups = new List<AttachedModelGroup>();
+        foreach (var (attachBase, attachColorTableTextures) in attachDict)
+        {
+            var attachGroup = HandleAttachGroup(attachBase, attachColorTableTextures);
+            attachGroups.Add(attachGroup);
+        }
+
+        return new CharacterGroup(
+            customizeParams,
+            customizeData,
+            genderRace,
+            mdlGroups.ToArray(),
+            skeleton,
+            attachGroups.ToArray());
+    }
+
+    public unsafe AttachedModelGroup HandleAttachGroup(
         Pointer<CharacterBase> attachBase, Dictionary<int, ColorTable> colorTables)
     {
         using var activity = ActivitySource.StartActivity();

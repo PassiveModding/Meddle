@@ -1,5 +1,4 @@
-﻿using System.Numerics;
-using Meddle.Plugin.Models;
+﻿using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Skeletons;
 using Meddle.Utils;
 using SharpGLTF.Scenes;

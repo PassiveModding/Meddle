@@ -1,10 +1,8 @@
 ﻿using System.Numerics;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Plugin.Services;
-using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
-using ObjectKind = Dalamud.Game.ClientState.Objects.Enums.ObjectKind;
 
 namespace Meddle.Plugin.Utils;
 

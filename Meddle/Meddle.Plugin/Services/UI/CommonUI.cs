@@ -70,7 +70,7 @@ public class CommonUi : IDisposable, IService
             var drawObj = charPtr->DrawObject;
             if (drawObj != null && !drawObj->IsVisible)
             {
-                using (var col = ImRaii.PushColor(ImGuiCol.Text, new Vector4(1, 1, 0, 1)))
+                using (ImRaii.PushColor(ImGuiCol.Text, new Vector4(1, 1, 0, 1)))
                 {
                     ImGui.Text("Character is not visible");
                 }

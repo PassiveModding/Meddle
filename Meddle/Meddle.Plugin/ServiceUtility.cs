@@ -12,18 +12,27 @@ public static class ServiceUtility
 {
     public static IServiceCollection AddUi(this IServiceCollection services)
     {
-        // reflection get all tab types
         var tabTypes = Assembly.GetExecutingAssembly().DefinedTypes
                                .Where(t => t.ImplementedInterfaces.Contains(typeof(ITab)))
                                .ToList();
+        
+        var overlayTypes = Assembly.GetExecutingAssembly().DefinedTypes
+                                   .Where(t => t.ImplementedInterfaces.Contains(typeof(IOverlay)))
+                                   .ToList();
 
-        foreach (var tab in tabTypes)
+        foreach (var tabType in tabTypes)
         {
-            services.AddSingleton(typeof(ITab), tab);
+            services.AddSingleton(typeof(ITab), tabType);
         }
-
+        
+        foreach (var overlayType in overlayTypes)
+        {
+            services.AddSingleton(typeof(IOverlay), overlayType);
+        }
+        
         return services
                .AddSingleton<MainWindow>()
+               .AddSingleton<OverlayWindow>()
                .AddSingleton(new WindowSystem("Meddle"))
                .AddHostedService<WindowManager>();
     }

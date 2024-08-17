@@ -5,7 +5,6 @@ using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.Interop;
 using ImGuiNET;
 using Meddle.Plugin.Models;
-using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.Services.UI;
 using Meddle.Plugin.Utils;
@@ -166,7 +165,8 @@ public class AnimationTab : ITab
     {
         var attachments = new List<AttachSet>();
         var ornament = charPtr->OrnamentData.OrnamentObject;
-        var companion = charPtr->CompanionData.CompanionObject;
+        // companion disabled as its not actually attached
+        Companion* companion = null;//charPtr->CompanionData.CompanionObject;
         var mount = charPtr->Mount.MountObject;
         var weaponData = charPtr->DrawData.WeaponData;
 
@@ -178,7 +178,7 @@ public class AnimationTab : ITab
             attachments.Add(new AttachSet($"{(nint)ornamentBase:X8}", ornamentAttach, StructExtensions.GetParsedSkeleton(ornamentBase),GetTransform(ornamentBase), ownerId));
         }
 
-        if (false && companion != null && companion->DrawObject != null &&
+        if (companion != null && companion->DrawObject != null &&
             companion->DrawObject->GetObjectType() == ObjectType.CharacterBase)
         {
             var companionBase = (CharacterBase*)companion->DrawObject;
