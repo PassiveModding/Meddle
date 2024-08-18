@@ -1,6 +1,5 @@
 ﻿using System.Numerics;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
-using FFXIVClientStructs.Interop;
 using Meddle.Plugin.Models.Structs;
 using Object = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Object;
 
@@ -8,13 +7,24 @@ namespace Meddle.Plugin.Services;
 
 public class WorldService : IService, IDisposable
 {
+
+    public record ObjectSnapshot(ObjectType Type, Vector3 Position, Quaternion Rotation, Vector3 Scale)
+    {
+        public Matrix4x4 Transform => Matrix4x4.CreateScale(Scale) * Matrix4x4.CreateFromQuaternion(Rotation) * Matrix4x4.CreateTranslation(Position);
+    }
+    public record BgObjectSnapshot(string Path, Vector3 Position, Quaternion Rotation, Vector3 Scale) : 
+        ObjectSnapshot(ObjectType.BgObject, Position, Rotation, Scale);
+    public record TerrainObjectSnapshot(string Path, Vector3 Position, Quaternion Rotation, Vector3 Scale) : 
+        ObjectSnapshot(ObjectType.BgObject, Position, Rotation, Scale);
+
     private readonly Configuration config;
     public float CutoffDistance;
     public Vector4 DotColor;
-    public readonly HashSet<Pointer<Object>> SelectedObjects = [];
+    public readonly Dictionary<nint, ObjectSnapshot> SelectedObjects = [];
     
     // TODO: This isn't great, should find a better way to link drawing the World Overlay to the World Tab
     public bool ShouldDrawOverlay;
+    public bool ShouldAddAllInRange;
     
     public void SaveOptions()
     {

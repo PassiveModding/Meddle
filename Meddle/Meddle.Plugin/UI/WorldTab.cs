@@ -3,16 +3,13 @@ using Dalamud.Interface;
 using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
-using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using ImGuiNET;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Skeletons;
-using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.Utils;
 using Meddle.Utils.Files.SqPack;
 using Microsoft.Extensions.Logging;
-using Object = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Object;
 
 namespace Meddle.Plugin.UI;
 
@@ -24,6 +21,8 @@ public class WorldTab : ITab
     private readonly ILogger<WorldTab> log;
     private readonly ExportService exportService;
     private readonly ParseService parseService;
+    private ExportService.ModelExportProgress? exportProgress;
+    private Task? exportTask;
     private readonly SqPack pack;
     private readonly FileDialogManager fileDialog = new()
     {
@@ -52,19 +51,19 @@ public class WorldTab : ITab
 
     public void Dispose()
     {
-        // TODO release managed resources here
     }
 
     public string Name => "World";
     public int Order => 4;
     
-    public unsafe void Draw()
+    public void Draw()
     {
         worldService.ShouldDrawOverlay = true;
         fileDialog.Draw();
         ImGui.Text("This is a testing menu, functionality may not work as expected.");
         ImGui.Text("Pixel shader approximation for most non-character shaders is not properly supported at this time.");
-
+        ImGui.Text("Items added from the overlay will keep a snapshot of their transform at the time of being added.");
+        
         // selector for cutoff distance
         if (ImGui.DragFloat("Cutoff Distance", ref worldService.CutoffDistance, 1, 0, 10000))
         {
@@ -82,36 +81,33 @@ public class WorldTab : ITab
             worldService.SelectedObjects.Clear();
         }
 
+        if (ImGui.Button("Add all in range"))
+        {
+            worldService.ShouldAddAllInRange = true;
+        }
+        
+        if (exportProgress is {DistinctPaths: > 0} && exportTask?.IsCompleted == false)
+        {
+            var width = ImGui.GetContentRegionAvail().X;
+            ImGui.Text($"Models parsed: {exportProgress.ModelsParsed} / {exportProgress.DistinctPaths}");
+            ImGui.ProgressBar(exportProgress.ModelsParsed / (float)exportProgress.DistinctPaths, new Vector2(width, 0));
+        }
+
         if (ImGui.Button("Export All"))
         {
+            exportProgress = new ExportService.ModelExportProgress();
             var folderName = "ExportedModels";
             fileDialog.SaveFolderDialog("Save Model", folderName,
                     (result, path) =>
                     {
                         if (!result) return;
-                        var objects = worldService.SelectedObjects.ToArray();
-                        var groups = new List<(Transform, MdlFileGroup)>();
-                        foreach (var selectedObject in objects)
+                        exportTask = Task.Run(async () =>
                         {
-                            if (selectedObject == null) continue;
-                            if (selectedObject.Value == null) continue;
-                            var obj = selectedObject.Value;
-                            var objType = obj->GetObjectType();
-                            if (!WorldService.IsSupportedObject(objType))
-                            {
-                                log.LogWarning("Skipping object type {Type}", objType);
-                                continue;
-                            }
-                            var bgObj = (BgObject*)obj;
-                            var transformMatrix = Matrix4x4.CreateScale(obj->Scale) *
-                                                 Matrix4x4.CreateFromQuaternion(obj->Rotation) *
-                                                 Matrix4x4.CreateTranslation(obj->Position);
-                            var transform = new Transform(transformMatrix);
-                            var data = parseService.ParseBgObject(bgObj);
-                            groups.Add((transform, data));
-                        }
-                        
-                        Task.Run(() => exportService.Export(groups.ToArray(), path));
+                            var bgObjects = worldService.SelectedObjects.Select(x => x.Value)
+                                                        .OfType<WorldService.BgObjectSnapshot>()
+                                                        .Select(x => (new Transform(x.Transform), x.Path)).ToArray();
+                            await exportService.Export(bgObjects, exportProgress, path);
+                        });
                     }, Plugin.TempDirectory);
         }
         
@@ -120,28 +116,23 @@ public class WorldTab : ITab
         ImGui.TableSetupColumn("Data", ImGuiTableColumnFlags.WidthStretch);
         ImGui.TableHeadersRow();
         
-        foreach (var selectedObject in worldService.SelectedObjects.ToArray())
+        foreach (var (ptr, obj) in worldService.SelectedObjects.ToArray())
         {
-            if (selectedObject == null) continue;
-            if (selectedObject.Value == null) continue;
-            var obj = selectedObject.Value;
-            using var objId = ImRaii.PushId((nint)obj);
-            var objType = obj->GetObjectType();
-            if (objType == ObjectType.BgObject)
-            {            
-                DrawBgObject((BgObject*)obj);
-            }
-            else
+            using var objId = ImRaii.PushId(ptr);
+            switch (obj)
             {
-                DrawUnknownObject(obj);
+                case WorldService.BgObjectSnapshot bgObj:
+                    DrawBgObject(ptr, bgObj);
+                    break;
+                default:
+                    DrawUnknownObject(ptr, obj);
+                    break;
             }
         }
     }
 
-    private unsafe void DrawUnknownObject(Object* obj)
+    private void DrawUnknownObject(nint ptr, WorldService.ObjectSnapshot obj)
     {
-        if (obj == null) return;
-        var type = obj->GetObjectType();
         ImGui.TableNextRow();
         ImGui.TableSetColumnIndex(0);
         using (ImRaii.PushFont(UiBuilder.IconFont))
@@ -164,23 +155,23 @@ public class WorldTab : ITab
             ImGui.SameLine();
             if (ImGui.Button(FontAwesomeIcon.Trash.ToIconString()))
             {
-                worldService.SelectedObjects.Remove(obj);
+                worldService.SelectedObjects.Remove(ptr);
             }
         }
         ImGui.TableSetColumnIndex(1);
-        if (ImGui.CollapsingHeader($"{type} {(nint)obj:X8}"))
+        if (ImGui.CollapsingHeader($"{obj.Type} ({ptr:X8})##{ptr}"))
         {
-            UiUtil.Text($"Address: {(nint)obj:X8}", $"{(nint)obj:X8}");
+            UiUtil.Text($"Address: {ptr:X8}", $"{ptr:X8}");
+            ImGui.Text($"Position: {obj.Position}");
+            ImGui.Text($"Rotation: {obj.Rotation}");
+            ImGui.Text($"Scale: {obj.Scale}");
         }
     }
 
-    private unsafe void DrawBgObject(BgObject* obj)
+    private void DrawBgObject(nint ptr, WorldService.BgObjectSnapshot obj)
     {
-        if (obj == null) return;
-        var draw = (DrawObject*)obj;
         ImGui.TableNextRow();
         ImGui.TableSetColumnIndex(0);
-        var objPath = WorldService.GetBgObjectPath(obj);
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
             if (ImGui.Button(FontAwesomeIcon.FileExport.ToIconString()))
@@ -192,7 +183,7 @@ public class WorldTab : ITab
             ImGui.SameLine();
             if (ImGui.Button(FontAwesomeIcon.Trash.ToIconString()))
             {
-                worldService.SelectedObjects.Remove((Object*)obj);
+                worldService.SelectedObjects.Remove(ptr);
             }
         }
 
@@ -200,8 +191,8 @@ public class WorldTab : ITab
         {
             if (ImGui.MenuItem("Export as mdl"))
             {
-                var defaultFileName = Path.GetFileName(objPath);
-                fileDialog.SaveFileDialog("Save Model", "Model File{.mdl}", defaultFileName, ".mdl",
+                var fileName = Path.GetFileName(obj.Path);
+                fileDialog.SaveFileDialog("Save Model", "Model File{.mdl}", fileName, ".mdl",
                     (result, path) =>
                     {
                         if (!result) return;
@@ -213,24 +204,21 @@ public class WorldTab : ITab
                         }
 
                         File.WriteAllBytes(path, data);
-                    });
+                    }, Plugin.TempDirectory);
             }
 
             if (ImGui.MenuItem("Export as glTF"))
             {
-                var folderName = Path.GetFileNameWithoutExtension(objPath);
+                exportProgress = new ExportService.ModelExportProgress();
+                var folderName = Path.GetFileNameWithoutExtension(obj.Path);
                 fileDialog.SaveFolderDialog("Save Model", folderName,
                     (result, path) =>
                     {
                         if (!result) return;
-                        var transformMatrix = Matrix4x4.CreateScale(draw->Scale) *
-                                             Matrix4x4.CreateFromQuaternion(draw->Rotation) *
-                                             Matrix4x4.CreateTranslation(draw->Position);
-                        var transform = new Transform(transformMatrix);
-                        var data = parseService.ParseBgObject(obj);
-                        Task.Run(() => exportService.Export([
-                            (transform, data)
-                        ], path));
+                        exportTask = Task.Run(async () =>
+                        {
+                            await exportService.Export([(new Transform(obj.Transform), obj.Path)], exportProgress, path);
+                        });
                     }, Plugin.TempDirectory);
             }
 
@@ -238,14 +226,12 @@ public class WorldTab : ITab
         }
         
         ImGui.TableSetColumnIndex(1);
-        if (ImGui.CollapsingHeader(objPath))
+        if (ImGui.CollapsingHeader($"{obj.Path} ({ptr:X8})##{ptr}"))
         {
-            UiUtil.Text($"Address: {(nint)obj:X8}", $"{(nint)obj:X8}");
-            ImGui.Text($"Pos: {draw->Position}");
-            ImGui.Text($"Rot: {draw->Rotation}");
-            ImGui.Text($"Scale: {draw->Scale}");
+            UiUtil.Text($"Address: {ptr:X8}", $"{ptr:X8}");
+            ImGui.Text($"Position: {obj.Position}");
+            ImGui.Text($"Rotation: {obj.Rotation}");
+            ImGui.Text($"Scale: {obj.Scale}");
         }
     }
 }
-
-

@@ -1,8 +1,8 @@
-﻿using System.Diagnostics;
+﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using Meddle.Plugin.Models;
-using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Export;
@@ -25,7 +25,17 @@ public class ParseService : IDisposable, IService
     private readonly SqPack pack;
     private readonly PbdHooks pbdHooks;
 
-    private readonly Dictionary<string, ShpkFile> shpkCache = new();
+    public readonly ConcurrentDictionary<string, ShpkFile> ShpkCache = new();
+    public readonly ConcurrentDictionary<string, MdlFile> MdlCache = new();
+    public readonly ConcurrentDictionary<string, MtrlFile> MtrlCache = new();
+    public readonly ConcurrentDictionary<string, TexFile> TexCache = new();
+    public void ClearCaches()
+    {
+        ShpkCache.Clear();
+        MdlCache.Clear();
+        MtrlCache.Clear();
+        TexCache.Clear();
+    }
 
     public ParseService(
         SqPack pack, DXHelper dxHelper, PbdHooks pbdHooks, ILogger<ParseService> logger)
@@ -142,10 +152,8 @@ public class ParseService : IDisposable, IService
         return new CharacterGroup(new CustomizeParameter(), new CustomizeData(), GenderRace.Unknown, models.ToArray(), skeleton, []);
     }
     
-    public unsafe MdlFileGroup ParseBgObject(BgObject* bgObject)
+    public Task<MdlFileGroup> ParseFromPath(string mdlPath)
     {
-        if (bgObject == null) throw new ArgumentNullException(nameof(bgObject));
-        var mdlPath = bgObject->ResourceHandle->FileName.ToString();
         var mdlFileResource = pack.GetFileOrReadFromDisk(mdlPath);
         if (mdlFileResource == null)
         {
@@ -155,43 +163,53 @@ public class ParseService : IDisposable, IService
         var mdlFile = new MdlFile(mdlFileResource);
         var mtrlFileNames = mdlFile.GetMaterialNames().Select(x => x.Value).ToArray();
         var mtrlGroups = new List<IMtrlFileGroup>();
-        
+
         foreach (var mtrlFileName in mtrlFileNames)
         {
-            var mtrlFileResource = pack.GetFileOrReadFromDisk(mtrlFileName);
-            if (mtrlFileResource == null)
+            if (!MtrlCache.TryGetValue(mtrlFileName, out var mtrlFile))
             {
-                logger.LogWarning("Material file {MtrlFileName} not found", mtrlFileName);
-                mtrlGroups.Add(new MtrlFileStubGroup(mtrlFileName));
-                continue;
+                var mtrlFileResource = pack.GetFileOrReadFromDisk(mtrlFileName);
+                if (mtrlFileResource == null)
+                {
+                    logger.LogWarning("Material file {MtrlFileName} not found", mtrlFileName);
+                    mtrlGroups.Add(new MtrlFileStubGroup(mtrlFileName));
+                    continue;
+                }
+                
+                mtrlFile = new MtrlFile(mtrlFileResource);
+                MtrlCache[mtrlFileName] = mtrlFile;
             }
 
-            var mtrlFile = new MtrlFile(mtrlFileResource);
             var shpkName = mtrlFile.GetShaderPackageName();
             var shpkFile = HandleShpk(shpkName);
-            
+
             var texturePaths = mtrlFile.GetTexturePaths().Select(x => x.Value).ToArray();
             var texGroups = new List<TexResourceGroup>();
             foreach (var texturePath in texturePaths)
             {
-                var textureResource = pack.GetFileOrReadFromDisk(texturePath);
-                if (textureResource == null)
+                if (!TexCache.TryGetValue(texturePath, out var texFile))
                 {
-                    logger.LogWarning("Texture file {TexturePath} not found", texturePath);
-                    continue;
-                }
+                    var textureResource = pack.GetFileOrReadFromDisk(texturePath);
+                    if (textureResource == null)
+                    {
+                        logger.LogWarning("Texture file {TexturePath} not found", texturePath);
+                        continue;
+                    }
 
-                var texFile = new TexFile(textureResource);
+                    texFile = new TexFile(textureResource);
+                    TexCache[texturePath] = texFile;
+                }
 
                 var texRes = Meddle.Utils.Export.Texture.GetResource(texFile);
                 var texGroup = new TexResourceGroup(texturePath, texturePath, texRes);
                 texGroups.Add(texGroup);
             }
-            
-            mtrlGroups.Add(new MtrlFileGroup(mtrlFileName, mtrlFileName, mtrlFile, shpkName, shpkFile, texGroups.ToArray()));
+
+            mtrlGroups.Add(new MtrlFileGroup(mtrlFileName, mtrlFileName, mtrlFile, shpkName, shpkFile,
+                                             texGroups.ToArray()));
         }
         
-        return new MdlFileGroup(mdlPath, mdlPath, null, mdlFile, mtrlGroups.ToArray(), null);
+        return Task.FromResult(new MdlFileGroup(mdlPath, mdlPath, null, mdlFile, mtrlGroups.ToArray(), null));
     }
 
     public unsafe MdlFileGroup? HandleModelPtr(CharacterBase* characterBase, int slotIdx, Dictionary<int, ColorTable> colorTables)
@@ -260,7 +278,7 @@ public class ParseService : IDisposable, IService
     {
         using var activity = ActivitySource.StartActivity();
         activity?.SetTag("shader", shader);
-        if (shpkCache.TryGetValue(shader, out var shpk))
+        if (ShpkCache.TryGetValue(shader, out var shpk))
         {
             return shpk;
         }
@@ -272,7 +290,7 @@ public class ParseService : IDisposable, IService
         }
 
         var shpkFile = new ShpkFile(shpkFileResource);
-        shpkCache[shader] = shpkFile;
+        ShpkCache[shader] = shpkFile;
         return shpkFile;
     }
 
@@ -293,7 +311,7 @@ public class ParseService : IDisposable, IService
             logger.LogWarning("Material file {MtrlFileName} not found", mtrlFileName);
             return null;
         }
-
+        
         var mtrlFile = new MtrlFile(mtrlFileResource);
         var colorTable = material->MaterialResourceHandle->ColorTableSpan;
         if (colorTable.Length == 32)

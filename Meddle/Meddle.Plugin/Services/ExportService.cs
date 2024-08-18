@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Numerics;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Skeletons;
@@ -25,13 +26,15 @@ public class ExportService : IDisposable, IService
     private readonly TexFile catchlightTex;
     private readonly EventLogger<ExportService> logger;
     private readonly SqPack pack;
+    private readonly ParseService parseService;
     private readonly PbdFile pbdFile;
     private readonly TexFile tileNormTex;
     private readonly TexFile tileOrbTex;
 
-    public ExportService(SqPack pack, ILogger<ExportService> logger)
+    public ExportService(SqPack pack, ILogger<ExportService> logger, ParseService parseService)
     {
         this.pack = pack;
+        this.parseService = parseService;
         this.logger = new EventLogger<ExportService>(logger);
         this.logger.OnLogEvent += OnLog;
 
@@ -191,7 +194,7 @@ public class ExportService : IDisposable, IService
                 try
                 {
                     var meshes = HandleModel(characterGroup.CustomizeData, characterGroup.CustomizeParams,
-                                             characterGroup.GenderRace, mdlGroup, ref bones, root, token);
+                                             characterGroup.GenderRace, mdlGroup, ref bones, root, false, token);
                     foreach (var mesh in meshes)
                     {
                         meshOutput.Add((mesh.model, mesh.mesh));
@@ -259,7 +262,7 @@ public class ExportService : IDisposable, IService
                 {
                     var meshes = HandleModel(characterGroup.CustomizeData, 
                                              characterGroup.CustomizeParams, characterGroup.GenderRace, 
-                                             mdlGroup, ref attachBones, attachPointBone, token);
+                                             mdlGroup, ref attachBones, attachPointBone, false, token);
                     foreach (var mesh in meshes)
                     {
                         meshOutputAttach.Add((transform, mesh.model, mesh.mesh, attachBones.ToArray()));
@@ -297,43 +300,64 @@ public class ExportService : IDisposable, IService
             throw;
         }
     }
+
+    public class ModelExportProgress
+    {
+        public int DistinctPaths { get; set; }
+        public int ModelsParsed { get; set; }
+    }
     
-    public void Export((Transform, MdlFileGroup)[] models, string? outputFolder = null, CancellationToken token = default)
+    public async Task Export((Transform transform, string mdlPath)[] models, ModelExportProgress progress, string? outputFolder = null, CancellationToken token = default)
     {
         try
         {
             using var activity = ActivitySource.StartActivity();
             var scene = new SceneBuilder();
-
-            var meshOutput = new List<(Transform transform, Model model, ModelBuilder.MeshExport mesh)>();
+            
+            var distinctPaths = models.Select(x => x.mdlPath).Distinct().ToArray();
+            progress.DistinctPaths = distinctPaths.Length;
+            var caches = new ConcurrentDictionary<string, (Model model, ModelBuilder.MeshExport mesh)[]>();
+            
             var bones = new List<BoneNodeBuilder>();
-            foreach (var (transform, mdlGroup) in models)
+            await Parallel.ForEachAsync(distinctPaths, new ParallelOptions {CancellationToken = token}, async (path, tkn) =>
             {
                 if (token.IsCancellationRequested) return;
+                if (tkn.IsCancellationRequested) return;
                 try
                 {
-                    var meshes = HandleModel(new CustomizeData(), new CustomizeParameter(), GenderRace.Unknown,
-                                             mdlGroup, ref bones, null, token);
-                    foreach (var mesh in meshes)
-                    {
-                        meshOutput.Add((transform, mesh.model, mesh.mesh));
-                    }
+                    var mdlGroup = await parseService.ParseFromPath(path);
+                    var cache = HandleModel(new CustomizeData(),
+                                        new CustomizeParameter(),
+                                        GenderRace.Unknown,
+                                        mdlGroup,
+                                        ref bones,
+                                        null,
+                                        true,
+                                        token).ToArray();
+                    caches[path] = cache;
+
+                    progress.ModelsParsed++;
                 }
                 catch (Exception e)
                 {
-                    logger.LogError(e, "Failed to export model {Path}", mdlGroup.Path);
-                    throw;
+                    logger.LogError(e, "Error hanlding model {Path}", path);
                 }
-            }
-
-            if (token.IsCancellationRequested) return;
-
-            foreach (var (transform, model, mesh) in meshOutput)
+            });
+            
+            foreach (var (transform, path) in models)
             {
                 if (token.IsCancellationRequested) return;
-                AddMesh(scene, transform.AffineTransform.Matrix, model, mesh, []);
+                if (!caches.TryGetValue(path, out var cache))
+                {
+                    logger.LogWarning("Cache not found for {Path}", path);
+                    continue;
+                }
+                foreach (var (model, mesh) in cache)
+                {
+                    AddMesh(scene, transform.AffineTransform.Matrix, model, mesh, []);
+                }
             }
-
+            
             var sceneGraph = scene.ToGltf2();
             if (outputFolder != null)
             {
@@ -341,14 +365,14 @@ public class ExportService : IDisposable, IService
             }
 
             var folder = outputFolder ?? GetPathForOutput();
-            var outputPath = Path.Combine(folder, "character.gltf");
+            var outputPath = Path.Combine(folder, "scene.gltf");
             sceneGraph.SaveGLTF(outputPath);
             Process.Start("explorer.exe", folder);
             logger.LogInformation("Export complete");
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Failed to export character");
+            logger.LogError(e, "Failed to export model set");
             throw;
         }
     }
@@ -422,6 +446,7 @@ public class ExportService : IDisposable, IService
         CustomizeData customizeData, CustomizeParameter customizeParams, 
         GenderRace genderRace,
         MdlFileGroup mdlGroup, ref List<BoneNodeBuilder> bones, BoneNodeBuilder? root,
+        bool disableSkinning,
         CancellationToken token)
     {
         using var activity = ActivitySource.StartActivity();
@@ -490,7 +515,7 @@ public class ExportService : IDisposable, IService
             raceDeformerValue = (genderRace, new RaceDeformer(pbdFile, bones));
         }
 
-        var meshes = ModelBuilder.BuildMeshes(model, materials, bones, raceDeformerValue);
+        var meshes = ModelBuilder.BuildMeshes(model, materials, bones, raceDeformerValue, disableSkinning);
         foreach (var mesh in meshes)
         {
             meshOutput.Add((model, mesh));
