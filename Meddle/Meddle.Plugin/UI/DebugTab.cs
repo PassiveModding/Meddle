@@ -17,20 +17,25 @@ public class DebugTab : ITab
 {
     private readonly IClientState clientState;
     private readonly Configuration config;
+    private readonly SigUtil sigUtil;
     private readonly CommonUi commonUi;
     private readonly IGameGui gui;
     private readonly IObjectTable objectTable;
+    private readonly ParseService parseService;
     private readonly PbdHooks pbdHooks;
 
     private ICharacter? selectedCharacter;
 
-    public DebugTab(Configuration config, CommonUi commonUi, IGameGui gui, IClientState clientState, IObjectTable objectTable, PbdHooks pbdHooks)
+    public DebugTab(Configuration config, SigUtil sigUtil, CommonUi commonUi, 
+                    IGameGui gui, IClientState clientState, IObjectTable objectTable, ParseService parseService, PbdHooks pbdHooks)
     {
         this.config = config;
+        this.sigUtil = sigUtil;
         this.commonUi = commonUi;
         this.gui = gui;
         this.clientState = clientState;
         this.objectTable = objectTable;
+        this.parseService = parseService;
         this.pbdHooks = pbdHooks;
     }
 
@@ -40,7 +45,7 @@ public class DebugTab : ITab
     }
 
     public string Name => "Debug";
-    public int Order => int.MaxValue;
+    public int Order => int.MaxValue - 10;
     public bool DisplayTab => config.ShowDebug;
 
     public void Draw()
@@ -48,6 +53,11 @@ public class DebugTab : ITab
         if (ImGui.CollapsingHeader("View Skeleton"))
         {
             DrawSelectedCharacter();
+        }
+
+        if (ImGui.CollapsingHeader("Cache Info"))
+        {
+            DrawCacheInfo();
         }
 
         if (ImGui.CollapsingHeader("PBD Info"))
@@ -76,6 +86,55 @@ public class DebugTab : ITab
                     ImGui.Text($"{deformer.Value.PbdPath}");
                 }
             }
+        }
+    }
+
+    private void DrawCacheInfo()
+    {
+        if (ImGui.Button("Clear Caches"))
+        {
+            parseService.ClearCaches();
+        }
+        
+        using var table = ImRaii.Table("##CacheInfo", 2, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingFixedFit);
+        ImGui.TableSetupColumn("Type");
+        ImGui.TableSetupColumn("Path");
+        ImGui.TableHeadersRow();
+        
+        foreach (var (path, _) in parseService.ShpkCache)
+        {
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
+            ImGui.Text("Shpk");
+            ImGui.TableNextColumn();
+            ImGui.Text(path);
+        }
+
+        foreach (var (path, _) in parseService.MtrlCache)
+        {
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
+            ImGui.Text("Mtrl");
+            ImGui.TableNextColumn();
+            ImGui.Text(path);
+        }
+        
+        foreach (var (path, _) in parseService.MdlCache)
+        {
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
+            ImGui.Text("Mdl");
+            ImGui.TableNextColumn();
+            ImGui.Text(path);
+        }
+
+        foreach (var (path, _) in parseService.TexCache)
+        {
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
+            ImGui.Text("Tex");
+            ImGui.TableNextColumn();
+            ImGui.Text(path);
         }
     }
 
