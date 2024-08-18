@@ -59,4 +59,4 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: Build Artifacts
-          path: Meddle.Plugin/bin/
+          path: Meddle/Meddle.Plugin/bin/
