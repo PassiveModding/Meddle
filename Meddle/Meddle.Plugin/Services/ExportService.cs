@@ -430,6 +430,7 @@ public class ExportService : IDisposable, IService
                                                      customizeData, (tileNormTex, tileOrbTex)),
             "iris.shpk" => MaterialUtility.BuildIris(material, name, catchlightTex, customizeParams,
                                                      customizeData),
+            "water.shpk" => MaterialUtility.BuildWater(material, name),
             _ => BuildAndLogFallbackMaterial(material, name)
         };
 
