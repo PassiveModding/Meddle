@@ -46,6 +46,10 @@
             <HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath>
             <Private>false</Private>
         </Reference>
+        <Reference Include="Lumina.Excel">
+          <HintPath>$(DalamudLibPath)Lumina.Excel.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
         <Reference Include="OtterTex">
             <HintPath>..\Meddle.Utils\Lib\OtterTex.dll</HintPath>
         </Reference>

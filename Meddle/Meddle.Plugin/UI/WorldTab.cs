@@ -1,6 +1,7 @@
 ﻿using System.Numerics;
 using Dalamud.Interface;
 using Dalamud.Interface.ImGuiFileDialog;
+using Dalamud.Interface.Textures;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
 using ImGuiNET;
@@ -8,7 +9,9 @@ using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.Utils;
+using Meddle.Utils;
 using Meddle.Utils.Files.SqPack;
+using Meddle.Utils.Models;
 using Microsoft.Extensions.Logging;
 
 namespace Meddle.Plugin.UI;
@@ -17,6 +20,8 @@ public class WorldTab : ITab
 {
     private readonly IClientState clientState;
     private readonly Configuration config;
+    private readonly TextureCache textureCache;
+    private readonly ITextureProvider textureProvider;
     private readonly WorldService worldService;
     private readonly ILogger<WorldTab> log;
     private readonly ExportService exportService;
@@ -36,6 +41,8 @@ public class WorldTab : ITab
         ParseService parseService,
         SqPack pack,
         Configuration config,
+        TextureCache textureCache,
+        ITextureProvider textureProvider,
         WorldService worldService)
     {
         this.clientState = clientState;
@@ -44,6 +51,8 @@ public class WorldTab : ITab
         this.parseService = parseService;
         this.pack = pack;
         this.config = config;
+        this.textureCache = textureCache;
+        this.textureProvider = textureProvider;
         this.worldService = worldService;
     }
 
@@ -59,20 +68,44 @@ public class WorldTab : ITab
     public void Draw()
     {
         worldService.ShouldDrawOverlay = true;
+        
         fileDialog.Draw();
         ImGui.Text("This is a testing menu, functionality may not work as expected.");
         ImGui.Text("Pixel shader approximation for most non-character shaders is not properly supported at this time.");
         ImGui.Text("Items added from the overlay will keep a snapshot of their transform at the time of being added.");
-        
-        // selector for cutoff distance
-        if (ImGui.DragFloat("Cutoff Distance", ref worldService.CutoffDistance, 1, 0, 10000))
-        {
-            worldService.SaveOptions();
-        }
 
-        if (ImGui.ColorEdit4("Dot Color", ref worldService.DotColor, ImGuiColorEditFlags.NoInputs))
+        if (ImGui.CollapsingHeader("Options"))
         {
-            worldService.SaveOptions();
+            if (ImGui.DragFloat("Cutoff Distance", ref worldService.CutoffDistance, 1, 0, 10000))
+            {
+                worldService.SaveOptions();
+            }
+
+            if (ImGui.ColorEdit4("Dot Color", ref worldService.DotColor, ImGuiColorEditFlags.NoInputs))
+            {
+                worldService.SaveOptions();
+            }
+            
+            if (ImGui.BeginCombo("Overlay Type##OverlayType", worldService.Overlay.ToString()))
+            {
+                foreach (var overlayType in Enum.GetValues<WorldService.OverlayType>())
+                {
+                    var isSelected = worldService.Overlay == overlayType;
+                    if (ImGui.Selectable(overlayType.ToString(), isSelected))
+                    {
+                        worldService.Overlay = overlayType;
+                    }
+                }
+                ImGui.EndCombo();
+            }
+            
+            ImGui.Checkbox("Resolve using GameGui", ref worldService.ResolveUsingGameGui);
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("If disabled, will resolve using your current camera, " +
+                                 "you should only need this if trying to resolve environments while not logged in.");
+            }
+            ImGui.Separator();
         }
         
         
@@ -232,6 +265,91 @@ public class WorldTab : ITab
             ImGui.Text($"Position: {obj.Position}");
             ImGui.Text($"Rotation: {obj.Rotation}");
             ImGui.Text($"Scale: {obj.Scale}");
+            if (obj.MdlFileGroup == null)
+            {
+                if (ImGui.Button("Parse Model"))
+                {
+                    Task.Run(async () =>
+                    {
+                        var mdlFileGroup = await parseService.ParseFromPath(obj.Path);
+                        if (worldService.SelectedObjects.TryGetValue(ptr, out var snapshot) && snapshot is WorldService.BgObjectSnapshot bgObj)
+                        {
+                            worldService.SelectedObjects[ptr] = bgObj with {MdlFileGroup = mdlFileGroup};
+                        }
+                    });
+                }
+            }
+            else
+            {
+                var mdl = obj.MdlFileGroup;
+                ImGui.Text($"Lods: {mdl.MdlFile.Lods.Length}");
+                ImGui.Text($"Attribute Count: {mdl.MdlFile.ModelHeader.AttributeCount}");
+                ImGui.Text($"Bone Count: {mdl.MdlFile.ModelHeader.BoneCount}");
+                ImGui.Text($"Bone Table Count: {mdl.MdlFile.ModelHeader.BoneTableCount}");
+                ImGui.Text($"Mesh Count: {mdl.MdlFile.ModelHeader.MeshCount}");
+                ImGui.Text($"Submesh Count: {mdl.MdlFile.ModelHeader.SubmeshCount}");
+                ImGui.Text($"Material Count: {mdl.MdlFile.ModelHeader.MaterialCount}");
+                ImGui.Text($"Radius: {mdl.MdlFile.ModelHeader.Radius}");
+                ImGui.Text($"Shapemesh Count: {mdl.MdlFile.ModelHeader.ShapeMeshCount}");
+                ImGui.Text($"Shape Count: {mdl.MdlFile.ModelHeader.ShapeCount}");
+                ImGui.Text($"Vertex declarations: {mdl.MdlFile.VertexDeclarations.Length}");
+                
+                for (int i = 0; i < mdl.MtrlFiles.Length; i++)
+                {
+                    using var mtrlId = ImRaii.PushId($"Mtrl{i}");
+                    var mtrl = mdl.MtrlFiles[i];
+                    if (mtrl is MtrlFileGroup mtrlGroup)
+                    {
+                        if (ImGui.CollapsingHeader($"Material {i}: {mtrlGroup.Path}"))
+                        {
+                            using var mtrlIndent = ImRaii.PushIndent();
+                            ImGui.Text($"Mdl Path: {mtrlGroup.MdlPath}");
+                            ImGui.Text($"Shader Path: {mtrlGroup.ShpkPath}");
+                            if (ImGui.CollapsingHeader("Color Table"))
+                            {
+                                UiUtil.DrawColorTable(mtrlGroup.MtrlFile.ColorTable, mtrlGroup.MtrlFile.ColorDyeTable);
+                            }
+
+                            for (int j = 0; j < mtrlGroup.TexFiles.Length; j++)
+                            {
+                                using var texId = ImRaii.PushId($"Tex{j}");
+                                var tex = mtrlGroup.TexFiles[j];
+                                if (ImGui.CollapsingHeader($"Texture {j}: {tex.Path}"))
+                                {
+                                    using var texIndent = ImRaii.PushIndent();
+                                    ImGui.Text($"Mtrl Path: {tex.MtrlPath}");
+                                    ImGui.Text($"Width: {tex.Resource.Width}");
+                                    ImGui.Text($"Height: {tex.Resource.Height}");
+                                    ImGui.Text($"Format: {tex.Resource.Format}");
+                                    ImGui.Text($"Mipmap Count: {tex.Resource.MipLevels}");
+                                    ImGui.Text($"Array Count: {tex.Resource.ArraySize}");
+                                    
+                                    var availableWidth = ImGui.GetContentRegionAvail().X;
+                                    float displayWidth = tex.Resource.Width;
+                                    float displayHeight = tex.Resource.Height;
+                                    if (displayWidth > availableWidth)
+                                    {
+                                        var ratio = availableWidth / displayWidth;
+                                        displayWidth *= ratio;
+                                        displayHeight *= ratio;
+                                    }
+                                    
+                                    var wrap = textureCache.GetOrAdd($"{mtrlGroup.Path}_{tex.Path}", () =>
+                                    {
+                                        var textureData = tex.Resource.ToBitmap().GetPixelSpan();
+                                        var wrap = textureProvider.CreateFromRaw(
+                                            RawImageSpecification.Rgba32(tex.Resource.Width, tex.Resource.Height), textureData,
+                                            $"Meddle_World_{mtrlGroup.Path}_{tex.Path}");
+                                        return wrap;
+                                    });
+                                    
+                                    ImGui.Image(wrap.ImGuiHandle, new Vector2(displayWidth, displayHeight));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

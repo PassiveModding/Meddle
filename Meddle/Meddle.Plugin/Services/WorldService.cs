@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
+using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Structs;
 using Object = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Object;
 
@@ -12,10 +13,14 @@ public class WorldService : IService, IDisposable
     {
         public Matrix4x4 Transform => Matrix4x4.CreateScale(Scale) * Matrix4x4.CreateFromQuaternion(Rotation) * Matrix4x4.CreateTranslation(Position);
     }
-    public record BgObjectSnapshot(string Path, Vector3 Position, Quaternion Rotation, Vector3 Scale) : 
+    public record BgObjectSnapshot(string Path, Vector3 Position, Quaternion Rotation, Vector3 Scale, MdlFileGroup? MdlFileGroup) : 
         ObjectSnapshot(ObjectType.BgObject, Position, Rotation, Scale);
+    
+    public record HousingObjectSnapshot(string Path, Vector3 Position, Quaternion Rotation, Vector3 Scale, MdlFileGroup? MdlFileGroup, Vector4 StainColor) : 
+        BgObjectSnapshot(Path, Position, Rotation, Scale, MdlFileGroup);
+    
     public record TerrainObjectSnapshot(string Path, Vector3 Position, Quaternion Rotation, Vector3 Scale) : 
-        ObjectSnapshot(ObjectType.BgObject, Position, Rotation, Scale);
+        ObjectSnapshot(ObjectType.Terrain, Position, Rotation, Scale);
 
     private readonly Configuration config;
     public float CutoffDistance;
@@ -25,6 +30,17 @@ public class WorldService : IService, IDisposable
     // TODO: This isn't great, should find a better way to link drawing the World Overlay to the World Tab
     public bool ShouldDrawOverlay;
     public bool ShouldAddAllInRange;
+
+    public enum OverlayType
+    {
+        Disabled, // hide overlay
+        Housing, // draw only housing items
+        World // draw all items in the world
+    }
+    
+    public OverlayType Overlay = OverlayType.World;
+    
+    public bool ResolveUsingGameGui = true;
     
     public void SaveOptions()
     {
@@ -65,8 +81,8 @@ public class WorldService : IService, IDisposable
     
     public static unsafe string GetBgObjectPath(BgObject* bgObject)
     {
-        if (bgObject->ResourceHandle == null) return "Unknown";
-        return bgObject->ResourceHandle->FileName.ToString();
+        if (bgObject->ModelResourceHandle == null) return "Unknown";
+        return bgObject->ModelResourceHandle->ResourceHandle.FileName.ToString();
     }
     
     public static unsafe string GetTerrainPath(Terrain* terrain)

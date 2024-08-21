@@ -1,7 +1,12 @@
 ﻿using Dalamud.Game;
 using Dalamud.Hooking;
 using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Client.Game;
+using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
+using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
+using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
 using Microsoft.Extensions.Logging;
+using Camera = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Camera;
 
 namespace Meddle.Plugin.Services;
 
@@ -17,6 +22,49 @@ public class SigUtil : IService, IDisposable
         this.sigScanner = sigScanner;
         this.logger = logger;
         this.gameInterop = gameInterop;
+    }
+    
+    public unsafe World* GetWorld()
+    {
+        var world = World.Instance();
+        if (world == null)
+            throw new Exception("World instance is null");
+        return world;
+    }
+    
+    public unsafe HousingManager* GetHousingManager()
+    {
+        var manager = HousingManager.Instance();
+        if (manager == null)
+            throw new Exception("Housing manager is null");
+        return manager;
+    }
+    
+    public unsafe LayoutWorld* GetLayoutWorld()
+    {
+        var layoutWorld = LayoutWorld.Instance();
+        if (layoutWorld == null)
+            throw new Exception("LayoutWorld instance is null");
+        return layoutWorld;
+    }
+    
+    public unsafe Camera* GetCamera()
+    {
+        var manager = CameraManager.Instance();
+        if (manager == null)
+            throw new Exception("Camera manager is null");
+        if (manager->CurrentCamera == null)
+            throw new Exception("Current camera is null");
+        return manager->CurrentCamera;
+    }
+    
+    
+    public unsafe Device* GetDevice()
+    {
+        var device = Device.Instance();
+        if (device == null)
+            throw new Exception("Device instance is null");
+        return device;
     }
 
     /*public const string CleanupRenderSig = "48 8B D1 45 33 C9 48 8B 49";

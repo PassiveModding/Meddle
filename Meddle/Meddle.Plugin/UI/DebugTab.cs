@@ -10,6 +10,7 @@ using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.Services.UI;
+using Meddle.Plugin.Utils;
 
 namespace Meddle.Plugin.UI;
 
@@ -55,6 +56,16 @@ public class DebugTab : ITab
             DrawSelectedCharacter();
         }
 
+        if (ImGui.CollapsingHeader("Object Table"))
+        {
+            DrawObjectTable();
+        }
+        
+        if (ImGui.CollapsingHeader("Addresses"))
+        {
+            DrawAddresses();
+        }
+
         if (ImGui.CollapsingHeader("Cache Info"))
         {
             DrawCacheInfo();
@@ -87,6 +98,42 @@ public class DebugTab : ITab
                 }
             }
         }
+    }
+
+    private void DrawObjectTable()
+    {
+        using var indent = ImRaii.PushIndent();
+        for (int i = 0; i < objectTable.Length; i++)
+        {
+            var obj = objectTable[i];
+            if (obj == null)
+            {
+                continue;
+            }
+            
+            if (ImGui.CollapsingHeader($"[{i}] {obj.ObjectKind} - {obj.Name.TextValue}"))
+            {
+                ImGui.Text($"Index: {i}");
+                ImGui.Text($"Address: {obj.Address:X8}");
+                ImGui.Text($"Name: {obj.Name.TextValue}");
+                ImGui.Text($"Type: {obj.ObjectKind}");
+                ImGui.Text($"Position: {obj.Position}");
+                ImGui.Text($"Rotation: {obj.Rotation}");
+            }
+        }
+    }
+
+    private unsafe void DrawAddresses()
+    {
+        var housingManager = sigUtil.GetHousingManager();
+        var currentTerritory = housingManager->CurrentTerritory;
+        var layoutWorld = sigUtil.GetLayoutWorld();
+        var activeLayout = layoutWorld->ActiveLayout;
+        
+        UiUtil.Text($"HousingManager: {(nint)housingManager:X8}", $"{(nint)housingManager:X8}");
+        UiUtil.Text($"CurrentTerritory: {(nint)currentTerritory:X8}", $"{(nint)currentTerritory:X8}");
+        UiUtil.Text($"LayoutWorld: {(nint)layoutWorld:X8}", $"{(nint)layoutWorld:X8}");
+        UiUtil.Text($"ActiveLayout: {(nint)activeLayout:X8}", $"{(nint)activeLayout:X8}");
     }
 
     private void DrawCacheInfo()
@@ -140,6 +187,7 @@ public class DebugTab : ITab
 
     private unsafe void DrawSelectedCharacter()
     {
+        using var indent = ImRaii.PushIndent();
         commonUi.DrawCharacterSelect(ref selectedCharacter);
         if (selectedCharacter == null)
         {

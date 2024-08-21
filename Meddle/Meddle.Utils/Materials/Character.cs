@@ -142,18 +142,6 @@ public static partial class MaterialUtility
     
     public static MaterialBuilder BuildCharacterOcclusion(Material material, string name)
     {
-        // this is purely guesswork
-        SKTexture normal = material.GetTexture(TextureUsage.g_SamplerNormal).ToTexture();
-        
-        // fully transparent
-        var baseTexture = new SKTexture(normal.Width, normal.Height);
-        for (var x = 0; x < baseTexture.Width; x++)
-        for (var y = 0; y < baseTexture.Height; y++)
-        {
-            // black, use transparency from normal
-            var normalPixel = normal[x, y].ToVector4();
-        }
-
         var output = new MaterialBuilder(name);
         output.WithDoubleSide(material.RenderBackfaces);
         output.WithBaseColor(new Vector4(1, 1, 1, 0f));
