@@ -186,7 +186,7 @@ public class MaterialParameterTab : ITab
                     continue;
 
                 var materialParams = material->MaterialParameterCBuffer->TryGetBuffer<float>();
-                var mtrlFileName = material->MaterialResourceHandle->ResourceHandle.FileName.ToString();
+                var mtrlFileName = material->MaterialResourceHandle->ResourceHandle.FileName.ParseString();
                 if (mtrlConstantCache.TryGetValue(mtrlFileName, out var mtrlConstants))
                 {
                     mtrlConstants.CopyTo(materialParams);
@@ -206,7 +206,7 @@ public class MaterialParameterTab : ITab
             if (model == null)
                 continue;
             var availWidth = ImGui.GetContentRegionAvail().X;
-            var mdlFileName = model->ModelResourceHandle->ResourceHandle.FileName.ToString();
+            var mdlFileName = model->ModelResourceHandle->ResourceHandle.FileName.ParseString();
             //ImGui.PushID(mdlFileName);
             using var modelId = ImRaii.PushId(mdlFileName);
 
@@ -222,7 +222,7 @@ public class MaterialParameterTab : ITab
                     if (material == null)
                         continue;
 
-                    var mtrlFileName = material->MaterialResourceHandle->ResourceHandle.FileName.ToString();
+                    var mtrlFileName = material->MaterialResourceHandle->ResourceHandle.FileName.ParseString();
 
                     if (!materialCache.TryGetValue(mtrlFileName, out var materialPtr))
                     {

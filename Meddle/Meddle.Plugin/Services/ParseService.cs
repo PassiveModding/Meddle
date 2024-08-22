@@ -224,7 +224,7 @@ public class ParseService : IDisposable, IService
 
         var model = modelPtr.Value;
 
-        var mdlFileName = model->ModelResourceHandle->ResourceHandle.FileName.ToString();
+        var mdlFileName = model->ModelResourceHandle->ResourceHandle.FileName.ParseString();
         var mdlFileActorName = characterBase->ResolveMdlPath((uint)slotIdx);
         activity?.SetTag("mdl", mdlFileName);
         var mdlFileResource = pack.GetFileOrReadFromDisk(mdlFileName);
@@ -300,7 +300,7 @@ public class ParseService : IDisposable, IService
         Dictionary<int, ColorTable> colorTables)
     {
         using var activity = ActivitySource.StartActivity();
-        var mtrlFileName = material->MaterialResourceHandle->ResourceHandle.FileName.ToString();
+        var mtrlFileName = material->MaterialResourceHandle->ResourceHandle.FileName.ParseString();
         var shader = material->MaterialResourceHandle->ShpkNameString;
         activity?.SetTag("mtrl", mtrlFileName);
         activity?.SetTag("shader", shader);
@@ -342,7 +342,7 @@ public class ParseService : IDisposable, IService
             }
 
             var texturePath = material->MaterialResourceHandle->TexturePathString(i);
-            var resourcePath = textureEntry.TextureResourceHandle->ResourceHandle.FileName.ToString();
+            var resourcePath = textureEntry.TextureResourceHandle->ResourceHandle.FileName.ParseString();
             var data = dxHelper.ExportTextureResource(textureEntry.TextureResourceHandle->Texture);
             var texResourceGroup = new TexResourceGroup(texturePath, resourcePath, data.Resource);
             texGroups.Add(texResourceGroup);

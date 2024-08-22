@@ -1,5 +1,6 @@
 ﻿using FFXIVClientStructs.FFXIV.Client.Graphics.Render;
 using FFXIVClientStructs.Interop;
+using Meddle.Plugin.Utils;
 
 namespace Meddle.Plugin.Models.Skeletons;
 
@@ -13,7 +14,7 @@ public class ParsedPartialSkeleton
         if (partialSkeleton->SkeletonResourceHandle != null)
         {
             HkSkeleton = new ParsedHkaSkeleton(partialSkeleton->SkeletonResourceHandle->HavokSkeleton);
-            HandlePath = partialSkeleton->SkeletonResourceHandle->FileName.ToString();
+            HandlePath = partialSkeleton->SkeletonResourceHandle->FileName.ParseString();
         }
 
         BoneCount = StructExtensions.GetBoneCount(partialSkeleton);

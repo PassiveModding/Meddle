@@ -1,4 +1,6 @@
-﻿using Meddle.Utils.Files.SqPack;
+﻿using System.Text;
+using FFXIVClientStructs.STD;
+using Meddle.Utils.Files.SqPack;
 
 namespace Meddle.Plugin.Utils;
 
@@ -21,5 +23,14 @@ public static class PathUtil
 
         var file = pack.GetFile(path);
         return file?.file.RawData.ToArray();
+    }
+    
+    public static string ParseString(this StdString stdString)
+    {
+        var data = stdString.ToArray();
+        if (data.Length == 0)
+            return string.Empty;
+
+        return Encoding.UTF8.GetString(data);
     }
 }

@@ -2,6 +2,7 @@
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Structs;
+using Meddle.Plugin.Utils;
 using Object = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Object;
 
 namespace Meddle.Plugin.Services;
@@ -82,13 +83,13 @@ public class WorldService : IService, IDisposable
     public static unsafe string GetBgObjectPath(BgObject* bgObject)
     {
         if (bgObject->ModelResourceHandle == null) return "Unknown";
-        return bgObject->ModelResourceHandle->ResourceHandle.FileName.ToString();
+        return bgObject->ModelResourceHandle->ResourceHandle.FileName.ParseString();
     }
     
     public static unsafe string GetTerrainPath(Terrain* terrain)
     {
         if (terrain->ResourceHandle == null) return "Unknown";
-        return terrain->ResourceHandle->FileName.ToString();
+        return terrain->ResourceHandle->FileName.ParseString();
     }
 
     public void Dispose()

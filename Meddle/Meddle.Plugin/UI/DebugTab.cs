@@ -330,7 +330,7 @@ public class DebugTab : ITab
                     var partialSkeleton = skeleton->PartialSkeletons[i];
                     var handle = partialSkeleton.SkeletonResourceHandle;
                     if (handle == null) continue;
-                    var path = handle->FileName.ToString();
+                    var path = handle->FileName.ParseString();
                     if (ImGui.CollapsingHeader($"Partial Skeleton {i}: {path}"))
                     {
                         var boneCount = StructExtensions.GetBoneCount(&partialSkeleton);

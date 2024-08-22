@@ -426,7 +426,7 @@ public unsafe class LiveCharacterTab : ITab
         var model = mPtr.Value;
         using var modelId = ImRaii.PushId($"{(nint)model}");
         ImGui.TableNextRow();
-        var fileName = model->ModelResourceHandle->FileName.ToString();
+        var fileName = model->ModelResourceHandle->FileName.ParseString();
         var modelName = cBase->ResolveMdlPath(model->SlotIndex);
 
         ImGui.TableSetColumnIndex(0);
@@ -699,7 +699,7 @@ public unsafe class LiveCharacterTab : ITab
         var material = mtPtr.Value;
 
         using var materialId = ImRaii.PushId($"{(nint)material}");
-        var materialFileName = material->MaterialResourceHandle->FileName.ToString();
+        var materialFileName = material->MaterialResourceHandle->FileName.ParseString();
         var materialName = ((ModelResourceHandle*)model->ModelResourceHandle)->GetMaterialFileName((uint)materialIdx);
 
         // in same row as model export button, draw button for export material
@@ -824,7 +824,7 @@ public unsafe class LiveCharacterTab : ITab
         string? textureName = null;
         if (texIdx < material->MaterialResourceHandle->TextureCount)
             textureName = material->MaterialResourceHandle->TexturePathString(texIdx);
-        var textureFileName = textureEntry.Texture->FileName.ToString();
+        var textureFileName = textureEntry.Texture->FileName.ParseString();
         ImGui.TableNextRow();
         ImGui.TableSetColumnIndex(0);
         using (ImRaii.PushFont(UiBuilder.IconFont))
