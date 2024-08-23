@@ -340,7 +340,7 @@ public class ExportService : IDisposable, IService
                 }
                 catch (Exception e)
                 {
-                    logger.LogError(e, "Error hanlding model {Path}", path);
+                    logger.LogError(e, "Error handling model {Path}", path);
                 }
             });
             
