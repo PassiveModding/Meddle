@@ -40,7 +40,6 @@ public class MaterialParameterTab : ITab
         this.pack = pack;
     }
 
-
     private ICharacter? selectedCharacter;
     public string Name => "Material Parameters";
     public int Order => 3;

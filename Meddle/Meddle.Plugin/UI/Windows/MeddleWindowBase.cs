@@ -12,7 +12,7 @@ public abstract class MeddleWindowBase : Window
     private readonly ILogger log;
     private string? lastError;
 
-    protected MeddleWindowBase(ILogger log, string name) : base(name)
+    protected MeddleWindowBase(ILogger log, string name, ImGuiWindowFlags flags = ImGuiWindowFlags.None) : base(name, flags)
     {
         this.log = log;
         SizeConstraints = new WindowSizeConstraints
@@ -24,11 +24,11 @@ public abstract class MeddleWindowBase : Window
     
     protected abstract ITab[] GetTabs();
     
-    protected virtual void PreDraw() { }
+    protected virtual void BeforeDraw() { }
 
     public override void Draw()
     {
-        PreDraw();
+        BeforeDraw();
         using var tabBar = ImRaii.TabBar($"##{WindowName}tabs");
         foreach (var tab in GetTabs())
         {

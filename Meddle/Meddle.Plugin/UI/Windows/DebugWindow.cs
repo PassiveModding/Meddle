@@ -10,7 +10,7 @@ public sealed class DebugWindow : MeddleWindowBase
     private readonly ILogger<DebugWindow> log;
     private readonly ITab[] tabs;
 
-    public DebugWindow(IEnumerable<ITab> tabs, ILogger<DebugWindow> log) : base(log,"MeddleDebug")
+    public DebugWindow(IEnumerable<ITab> tabs, ILogger<DebugWindow> log) : base(log,"Meddle Debug")
     {
         this.tabs = tabs.OrderBy(x => x.Order).Where(x => x.MenuType == MenuType.Debug).ToArray();
         this.log = log;
@@ -27,7 +27,7 @@ public sealed class DebugWindow : MeddleWindowBase
     }
     
     
-    protected override void PreDraw()
+    protected override void BeforeDraw()
     {
         ImGui.TextColored(new Vector4(1, 0, 0, 1), 
                           "This is a debug window. " +

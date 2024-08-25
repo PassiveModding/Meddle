@@ -17,7 +17,7 @@ public class LayoutOverlay : Window
     private readonly SigUtil sigUtil;
     private readonly LayoutService layoutService;
     private readonly Configuration config;
-    private readonly PluginState state;
+    public event Action<ParsedInstance>? OnInstanceClick;
 
     public LayoutOverlay(
         ILogger<LayoutOverlay> log,
@@ -25,8 +25,7 @@ public class LayoutOverlay : Window
         IGameGui gui,
         SigUtil sigUtil,
         LayoutService layoutService,
-        Configuration config,
-        PluginState state) : base("##MeddleLayoutOverlay",
+        Configuration config) : base("##MeddleLayoutOverlay",
             ImGuiWindowFlags.NoDecoration |
             ImGuiWindowFlags.NoBackground |
             ImGuiWindowFlags.NoInputs |
@@ -39,14 +38,10 @@ public class LayoutOverlay : Window
         this.sigUtil = sigUtil;
         this.layoutService = layoutService;
         this.config = config;
-        this.state = state;
-        state.OnLayoutTabInstanceHover += LayoutTabInstanceHover;
-        IsOpen = true;
     }
     
     private readonly Queue<ParsedInstance> layoutTabHoveredInstances = new();
-    
-    private void LayoutTabInstanceHover(ParsedInstance instance)
+    public void EnqueueLayoutTabHoveredInstance(ParsedInstance instance)
     {
         layoutTabHoveredInstances.Enqueue(instance);
     }
@@ -57,11 +52,8 @@ public class LayoutOverlay : Window
         Position = Vector2.Zero;
     }
     
-    public override unsafe void Draw()
+    public override void Draw()
     {
-        if (!state.DrawLayout)
-            return;
-        
         var currentLayout = layoutService.GetWorldState();
         if (currentLayout == null)
             return;
@@ -172,7 +164,7 @@ public class LayoutOverlay : Window
             if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
             {
                 log.LogInformation("Clicked on {InstanceType} {InstanceId}", instance.Type, instance.Id);
-                state.InvokeInstanceClick(instance);
+                OnInstanceClick?.Invoke(instance);
             }
 
             return true;

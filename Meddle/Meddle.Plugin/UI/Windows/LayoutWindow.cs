@@ -2,23 +2,44 @@
 using Dalamud.Interface;
 using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.Utility.Raii;
+using Dalamud.Interface.Windowing;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
 using ImGuiNET;
-using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Services;
+using Microsoft.Extensions.Logging;
 
-namespace Meddle.Plugin.UI;
+namespace Meddle.Plugin.UI.Windows;
 
-public class LayoutTab : ITab
+public class LayoutWindow : Window, IDisposable
 {
     private readonly LayoutService layoutService;
-    public MenuType MenuType => MenuType.Testing;
     private readonly Configuration config;
     private readonly SigUtil sigUtil;
     private readonly ExportService exportService;
-    private readonly PluginState state;
+    private readonly ILogger<LayoutWindow> log;
+    private readonly LayoutOverlay overlay;
     private readonly List<ParsedInstance> selectedInstances = new();
+    private bool orderByDistance = true;
+    private bool traceToHovered = true;
+    private bool traceToExpanded = true;
+    private OriginMode originMode = OriginMode.Player;
+    public enum OriginMode
+    {
+        Player,
+        Zero,
+        Average
+    }
+    private void AddToSelected(ParsedInstance instance)
+    {
+        var existing = selectedInstances.Find(x => x.Id == instance.Id);
+        if (existing != null)
+        {
+            selectedInstances.Remove(existing);
+        }
+        
+        selectedInstances.Add(instance);
+    }
 
     private readonly FileDialogManager fileDialog = new()
     {
@@ -27,44 +48,60 @@ public class LayoutTab : ITab
     
     public void Dispose()
     {
-        state.OnInstanceClick -= HandleInstanceClick;
-    }
-
-    private void HandleInstanceClick(ParsedInstance instance)
-    {
-        var existing = selectedInstances.Find(x => x.Id == instance.Id);
-        if (existing == null)
-        {
-            selectedInstances.Add(instance);
-        }
-        else
-        {
-            selectedInstances.Remove(existing);
-            selectedInstances.Add(instance);
-        }
+        overlay.OnInstanceClick -= AddToSelected;
     }
     
-    public LayoutTab(LayoutService layoutService, Configuration config, 
+    public LayoutWindow(LayoutService layoutService, Configuration config, 
                      SigUtil sigUtil, ExportService exportService,
-                     PluginState state)
+                     ILogger<LayoutWindow> log, LayoutOverlay overlay) : base("Layout")
     {
         this.layoutService = layoutService;
         this.config = config;
         this.sigUtil = sigUtil;
         this.exportService = exportService;
-        this.state = state;
+        this.log = log;
+        this.overlay = overlay;
         selectedTypes = Enum.GetValues<InstanceType>().ToList();
-        this.state.OnInstanceClick += HandleInstanceClick;
+        overlay.OnInstanceClick += AddToSelected;
     }
 
-    public string Name => "Layout";
-    public int Order => 5;
-
+    public override void OnOpen()
+    {
+        overlay.IsOpen = true;
+        base.OnOpen();
+    }
+    
+    public override void OnClose()
+    {
+        overlay.IsOpen = false;
+        base.OnClose();
+    }
+    
     private readonly List<InstanceType> selectedTypes;
     private ExportService.ModelExportProgress? exportProgress;
     private Task exportTask = Task.CompletedTask;
+    private string? lastError;
 
-    public void Draw()
+    public override void Draw()
+    {
+        try
+        {
+            InnerDraw();
+        }
+        catch (Exception e)
+        {
+            if (e.ToString() != lastError)
+            {
+                lastError = e.ToString();
+                log.LogError(e, "Failed to draw Layout tab");
+            }
+
+            ImGui.TextColored(new Vector4(1, 0, 0, 1), "Failed to draw Layout tab");
+            ImGui.TextWrapped(e.ToString());
+        }
+    }
+    
+    private void InnerDraw()
     {
         fileDialog.Draw();
         
@@ -83,11 +120,29 @@ public class LayoutTab : ITab
                 config.WorldDotColor = dotColor;
                 config.Save();
             }
-
-            var drawLayout = state.DrawLayout;
-            if (ImGui.Checkbox("Draw Layout", ref drawLayout))
+            
+            ImGui.Checkbox("Order by Distance", ref orderByDistance);
+            ImGui.Checkbox("Trace to Hovered", ref traceToHovered);
+            ImGui.Checkbox("Trace to Expanded", ref traceToExpanded);
+            
+            if (ImGui.BeginCombo("Origin Mode", originMode.ToString()))
             {
-                state.DrawLayout = drawLayout;
+                foreach (var mode in Enum.GetValues<OriginMode>())
+                {
+                    if (ImGui.Selectable(mode.ToString(), mode == originMode))
+                    {
+                        originMode = mode;
+                    }
+                }
+                ImGui.EndCombo();
+            }
+
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("The origin point for exports\n" +
+                                 "Player: Your current position\n" +
+                                 "Zero: 0,0,0\n" +
+                                 "Average: The average position of all selected instances");
             }
 
             // imgui selectable
@@ -117,15 +172,30 @@ public class LayoutTab : ITab
             ImGui.Text($"Models parsed: {exportProgress.ModelsParsed} / {exportProgress.DistinctPaths}");
             ImGui.ProgressBar(exportProgress.ModelsParsed / (float)exportProgress.DistinctPaths, new Vector2(width, 0));
         }
+                
+        if (ImGui.CollapsingHeader("Selected Instances"))
+        {
+            DrawSelectedInstances();
+        }
         
         if (ImGui.CollapsingHeader("Current Layout"))
         {
             DrawLayout();
         }
-        
-        if (ImGui.CollapsingHeader("Selected Instances"))
+    }
+    
+    private Vector3 CalculateOrigin(ParsedInstance[] instances)
+    {
+        switch (originMode)
         {
-            DrawSelectedInstances();
+            case OriginMode.Player:
+                return sigUtil.GetLocalPosition();
+            case OriginMode.Zero:
+                return Vector3.Zero;
+            case OriginMode.Average:
+                return instances.Aggregate(Vector3.Zero, (acc, x) => acc + x.Transform.Translation) / instances.Length;
+            default:
+                throw new ArgumentOutOfRangeException();
         }
     }
 
@@ -142,11 +212,25 @@ public class LayoutTab : ITab
                     if (!result) return;
                     exportTask = Task.Run(async () =>
                     {
-                        await exportService.Export(selectedInstances.ToArray(), exportProgress, path);
+                        var selected = selectedInstances.ToArray();
+                        var origin = CalculateOrigin(selected);
+                        await exportService.Export(selected, origin, exportProgress, path);
                     });
                 }, Plugin.TempDirectory);
         }
-        DrawInstanceTable(selectedInstances.ToArray(), ctx =>
+        ImGui.SameLine();
+        if (ImGui.Button("Clear Selected"))
+        {
+            selectedInstances.Clear();
+        }
+
+        IEnumerable<ParsedInstance> allInstances = selectedInstances;
+        if (orderByDistance)
+        {
+            allInstances = allInstances.OrderBy(x => Vector3.Distance(x.Transform.Translation, sigUtil.GetLocalPosition()));
+        }
+        
+        DrawInstanceTable(allInstances.ToArray(), ctx =>
         {
             ImGui.SameLine();
             using (ImRaii.PushFont(UiBuilder.IconFont))
@@ -182,11 +266,15 @@ public class LayoutTab : ITab
         var allInstances = currentLayout
                            .SelectMany(x => x.Instances)
                            .Where(x => Vector3.Distance(x.Transform.Translation, local) < config.WorldCutoffDistance)
-                           .Where(x => selectedTypes.Contains(x.Type))
-                           .OrderBy(x => Vector3.Distance(x.Transform.Translation, local))
-                           .ToArray();
+                           .Where(x => selectedTypes.Contains(x.Type));
         
-        if (ImGui.Button("Export All"))
+        if (orderByDistance)
+        {
+            allInstances = allInstances.OrderBy(x => Vector3.Distance(x.Transform.Translation, local));
+        }
+        
+        var all = allInstances.ToArray();
+        if (ImGui.Button($"Export All ({all.Length})"))
         {
             var defaultName = $"LayoutExport-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
             exportProgress = new ExportService.ModelExportProgress();
@@ -196,12 +284,23 @@ public class LayoutTab : ITab
                     if (!result) return;
                     exportTask = Task.Run(async () =>
                     {
-                        await exportService.Export(allInstances, exportProgress, path);
+                        var origin = CalculateOrigin(all);
+                        await exportService.Export(all, origin, exportProgress, path);
                     });
                 }, Plugin.TempDirectory);
         }
 
-        DrawInstanceTable(allInstances);
+        DrawInstanceTable(all, ctx =>
+        {
+            ImGui.SameLine();
+            using (ImRaii.PushFont(UiBuilder.IconFont))
+            {
+                if (ImGui.Button(FontAwesomeIcon.Plus.ToIconString()))
+                {
+                    AddToSelected(ctx);
+                }
+            }
+        });
     }
 
     private void DrawInstance(ParsedInstance instance, Action<ParsedInstance>? additionalOptions = null, int depth = 0)
@@ -233,9 +332,13 @@ public class LayoutTab : ITab
 
         var distance = Vector3.Distance(instance.Transform.Translation, sigUtil.GetLocalPosition());
         bool displayInner = ImGui.CollapsingHeader($"[{distance:F1}y] {infoHeader}###{instance.Id}");
-        if (ImGui.IsItemHovered())
+        if (ImGui.IsItemHovered() && traceToHovered)
         {
-            state.InvokeInstanceHover(instance);
+            overlay.EnqueueLayoutTabHoveredInstance(instance);
+        }
+        else if (displayInner && traceToExpanded)
+        {
+            overlay.EnqueueLayoutTabHoveredInstance(instance);
         }
         
         if (displayInner)
@@ -296,7 +399,8 @@ public class LayoutTab : ITab
                         if (!result) return;
                         exportTask = Task.Run(async () =>
                         {
-                            await exportService.Export(instances, exportProgress, path);
+                            var origin = CalculateOrigin(instances);
+                            await exportService.Export(instances, origin, exportProgress, path);
                         });
                     }, Plugin.TempDirectory);
             }

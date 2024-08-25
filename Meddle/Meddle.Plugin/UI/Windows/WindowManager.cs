@@ -16,8 +16,8 @@ public class WindowManager : IHostedService, IDisposable
     private readonly IDalamudPluginInterface pluginInterface;
     private readonly MainWindow mainWindow;
     private readonly DebugWindow debugWindow;
-    private readonly TestingWindow testingWindow;
     private readonly LayoutOverlay layoutOverlay;
+    private readonly LayoutWindow layoutWindow;
     private readonly WindowSystem windowSystem;
     
     private bool disposed;
@@ -25,8 +25,8 @@ public class WindowManager : IHostedService, IDisposable
     public WindowManager(
         MainWindow mainWindow,
         DebugWindow debugWindow,
-        TestingWindow testingWindow,
         LayoutOverlay layoutOverlay,
+        LayoutWindow layoutWindow,
         WindowSystem windowSystem,
         IDalamudPluginInterface pluginInterface,
         ILogger<WindowManager> log,
@@ -39,8 +39,8 @@ public class WindowManager : IHostedService, IDisposable
         this.commandManager = commandManager;
         this.mainWindow = mainWindow;
         this.debugWindow = debugWindow;
-        this.testingWindow = testingWindow;
         this.layoutOverlay = layoutOverlay;
+        this.layoutWindow = layoutWindow;
         this.windowSystem = windowSystem;
     }
 
@@ -66,7 +66,7 @@ public class WindowManager : IHostedService, IDisposable
     {
         windowSystem.AddWindow(mainWindow);
         windowSystem.AddWindow(debugWindow);
-        windowSystem.AddWindow(testingWindow);
+        windowSystem.AddWindow(layoutWindow);
         windowSystem.AddWindow(layoutOverlay);
 
         config.OnConfigurationSaved += OnSave;
@@ -82,6 +82,16 @@ public class WindowManager : IHostedService, IDisposable
         if (config.OpenOnLoad)
         {
             OpenMainUi();
+        }
+
+        if (config.OpenDebugMenuOnLoad)
+        {
+            OpenDebugUi();
+        }
+        
+        if (config.OpenLayoutMenuOnLoad)
+        {
+            OpenLayoutUi();
         }
 
         commandManager.AddHandler(Command, new CommandInfo(OnCommand)
@@ -118,10 +128,10 @@ public class WindowManager : IHostedService, IDisposable
         debugWindow.BringToFront();
     }
     
-    public void OpenTestingUi()
+    public void OpenLayoutUi()
     {
-        testingWindow.IsOpen = true;
-        testingWindow.BringToFront();
+        layoutWindow.IsOpen = true;
+        layoutWindow.BringToFront();
     }
     
     private void OnCommand(string command, string args)
@@ -135,9 +145,9 @@ public class WindowManager : IHostedService, IDisposable
                 return;
             }
             
-            if (args.Equals("testing", StringComparison.OrdinalIgnoreCase))
+            if (args.Equals("layout", StringComparison.OrdinalIgnoreCase))
             {
-                OpenTestingUi();
+                OpenLayoutUi();
                 return;
             }
         }

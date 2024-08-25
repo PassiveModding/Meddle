@@ -15,6 +15,7 @@ using SharpGLTF.Geometry;
 using SharpGLTF.Geometry.VertexTypes;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
+using SharpGLTF.Transforms;
 using SkiaSharp;
 using Material = Meddle.Utils.Export.Material;
 using Model = Meddle.Utils.Export.Model;
@@ -308,7 +309,7 @@ public class ExportService : IDisposable, IService
         public int ModelsParsed { get; set; }
     }
 
-    public async Task Export(ParsedInstance[] instances, ModelExportProgress progress, string? outputFolder = null, CancellationToken token = default)
+    public async Task Export(ParsedInstance[] instances, Vector3 origin, ModelExportProgress progress, string? outputFolder = null, CancellationToken token = default)
     {
         var flattened = instances.SelectMany(x => x.Flatten()).ToArray();
         var distinctPaths = flattened.OfType<ParsedBgPartsInstance>().Select(x => x.Path).Distinct().ToArray();
@@ -347,7 +348,7 @@ public class ExportService : IDisposable, IService
             foreach (var instance in instances)
             {
                 if (token.IsCancellationRequested) return;
-                var node = HandleInstance(scene, instance, caches, token);
+                var node = HandleInstance(scene, instance, origin, caches, token);
                 if (node != null)
                 {
                     scene.AddNode(node);
@@ -373,7 +374,7 @@ public class ExportService : IDisposable, IService
         }
     }
 
-    private NodeBuilder? HandleInstance(SceneBuilder scene, ParsedInstance instance, ConcurrentDictionary<string, (Model model, ModelBuilder.MeshExport mesh)[]> caches, CancellationToken token)
+    private NodeBuilder? HandleInstance(SceneBuilder scene, ParsedInstance instance, Vector3 origin, ConcurrentDictionary<string, (Model model, ModelBuilder.MeshExport mesh)[]> caches, CancellationToken token)
     {
         var root = new NodeBuilder();
         if (instance is ParsedHousingInstance ho)
@@ -404,14 +405,18 @@ public class ExportService : IDisposable, IService
 
         foreach (var child in instance.Children)
         {
-            var childNode = HandleInstance(scene, child, caches, token);
+            var childNode = HandleInstance(scene, child, origin, caches, token);
             if (childNode != null)
             {
                 root.AddNode(childNode);
             }
         }
 
-        root.SetLocalTransform(instance.Transform.ToAffine(), true);
+        var transform = new AffineTransform(instance.Transform.Scale,
+                                            instance.Transform.Rotation,
+                                            instance.Transform.Translation - origin);
+        
+        root.SetLocalTransform(transform, true);
 
         return root;
     }

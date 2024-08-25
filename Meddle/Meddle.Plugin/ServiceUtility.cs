@@ -25,7 +25,7 @@ public static class ServiceUtility
         return services
                .AddSingleton<MainWindow>()
                .AddSingleton<LayoutOverlay>()
-               .AddSingleton<TestingWindow>()
+               .AddSingleton<LayoutWindow>()
                .AddSingleton<DebugWindow>()
                .AddSingleton(new WindowSystem("Meddle"))
                .AddHostedService<WindowManager>();
