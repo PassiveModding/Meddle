@@ -4,6 +4,7 @@ using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Game.Control;
+using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
@@ -34,7 +35,15 @@ public class SigUtil : IService, IDisposable
             throw new Exception("World instance is null");
         return world;
     }
-
+    
+    public unsafe GameObjectManager* GetGameObjectManager()
+    {
+        var gameObjectManager = GameObjectManager.Instance();
+        if (gameObjectManager == null)
+            return null;
+        
+        return gameObjectManager;
+    }
     
     public unsafe BattleChara* GetLocalPlayer()
     {

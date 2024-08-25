@@ -23,13 +23,16 @@ public class DebugTab : ITab
     private readonly CommonUi commonUi;
     private readonly IGameGui gui;
     private readonly IObjectTable objectTable;
+    private readonly LayoutService layoutService;
     private readonly ParseService parseService;
     private readonly PbdHooks pbdHooks;
 
     private ICharacter? selectedCharacter;
 
     public DebugTab(Configuration config, SigUtil sigUtil, CommonUi commonUi, 
-                    IGameGui gui, IClientState clientState, IObjectTable objectTable, ParseService parseService, PbdHooks pbdHooks)
+                    IGameGui gui, IClientState clientState, IObjectTable objectTable, 
+                    LayoutService layoutService,
+                    ParseService parseService, PbdHooks pbdHooks)
     {
         this.config = config;
         this.sigUtil = sigUtil;
@@ -37,6 +40,7 @@ public class DebugTab : ITab
         this.gui = gui;
         this.clientState = clientState;
         this.objectTable = objectTable;
+        this.layoutService = layoutService;
         this.parseService = parseService;
         this.pbdHooks = pbdHooks;
     }
@@ -64,6 +68,14 @@ public class DebugTab : ITab
         if (ImGui.CollapsingHeader("Addresses"))
         {
             DrawAddresses();
+        }
+
+        if (ImGui.CollapsingHeader("Layout"))
+        {
+            if (ImGui.Button("ParseObjectTable"))
+            {
+                layoutService.ParseObjects();
+            }
         }
 
         if (ImGui.CollapsingHeader("Cache Info"))

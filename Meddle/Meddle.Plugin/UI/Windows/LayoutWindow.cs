@@ -42,12 +42,7 @@ public class LayoutWindow : Window, IDisposable
     private readonly List<ParsedInstance> selectedInstances = new();
     private Dictionary<string, MdlFileGroup> mdlGroups = new();
 
-    private readonly List<InstanceType> selectedTypes =
-    [
-        InstanceType.BgPart,
-        InstanceType.SharedGroup,
-        InstanceType.Light
-    ];
+    private ParsedInstanceType selectedTypes = ParsedInstanceType.AllSupported;
 
     private readonly SigUtil sigUtil;
     private ExportService.ModelExportProgress? exportProgress;
@@ -172,18 +167,18 @@ public class LayoutWindow : Window, IDisposable
             // imgui selectable
             if (ImGui.CollapsingHeader("Selected Types"))
             {
-                foreach (var type in Enum.GetValues<InstanceType>())
+                foreach (var type in Enum.GetValues<ParsedInstanceType>())
                 {
-                    var selected = selectedTypes.Contains(type);
+                    var selected = selectedTypes.HasFlag(type);
                     if (ImGui.Checkbox(type.ToString(), ref selected))
                     {
                         if (selected)
                         {
-                            selectedTypes.Add(type);
+                            selectedTypes |= type;
                         }
                         else
                         {
-                            selectedTypes.Remove(type);
+                            selectedTypes &= ~type;
                         }
                     }
                 }
@@ -191,18 +186,18 @@ public class LayoutWindow : Window, IDisposable
 
             if (ImGui.CollapsingHeader("Overlay Types"))
             {
-                foreach (var type in Enum.GetValues<InstanceType>())
+                foreach (var type in Enum.GetValues<ParsedInstanceType>())
                 {
-                    var selected = overlay.DrawTypes.Contains(type);
+                    var selected = overlay.DrawTypes.HasFlag(type);
                     if (ImGui.Checkbox(type.ToString(), ref selected))
                     {
                         if (selected)
                         {
-                            overlay.DrawTypes.Add(type);
+                            overlay.DrawTypes |= type;
                         }
                         else
                         {
-                            overlay.DrawTypes.Remove(type);
+                            overlay.DrawTypes &= ~type;
                         }
                     }
                 }
@@ -312,7 +307,7 @@ public class LayoutWindow : Window, IDisposable
         var allInstances = currentLayout
                            .SelectMany(x => x.Instances)
                            .Where(x => Vector3.Distance(x.Transform.Translation, local) < config.WorldCutoffDistance)
-                           .Where(x => selectedTypes.Contains(x.Type));
+                           .Where(x => selectedTypes.HasFlag(x.Type));
 
         if (orderByDistance)
         {
@@ -351,7 +346,7 @@ public class LayoutWindow : Window, IDisposable
 
     private void DrawInstance(ParsedInstance instance, Action<ParsedInstance>? additionalOptions = null, int depth = 0)
     {
-        if (!selectedTypes.Contains(instance.Type))
+        if (!selectedTypes.HasFlag(instance.Type))
             return;
         if (depth > 10)
         {
@@ -367,6 +362,8 @@ public class LayoutWindow : Window, IDisposable
         {
             ParsedHousingInstance housingObject => $"{housingObject.Type} - {housingObject.Name}",
             ParsedBgPartsInstance bgObject => $"{bgObject.Type} - {bgObject.Path}",
+            ParsedUnsupportedInstance unsupported => $"{unsupported.Type} - {unsupported.InstanceType}",
+            ParsedCharacterInstance character => $"{character.Type} - {character.Kind} - {character.Name}",
             _ => $"{instance.Type}"
         };
 
@@ -407,14 +404,19 @@ public class LayoutWindow : Window, IDisposable
                 }
             }
 
-            if (instance is ParsedBgPartsInstance bg)
+            UiUtil.Text($"Id: {instance.Id}", $"{instance.Id:X8}");
+            ImGui.Text($"Type: {instance.Type}");
+            ImGui.Text($"Position: {instance.Transform.Translation}");
+            ImGui.Text($"Rotation: {instance.Transform.Rotation}");
+            ImGui.Text($"Scale: {instance.Transform.Scale}");
+            if (!string.IsNullOrEmpty(instance.Path))
             {
-                ImGui.Text($"Path: {bg.Path}");
-                if (mdlGroups.TryGetValue(bg.Path, out var group))
-                {
-                    DrawModelGroup(group);
-                }
-                else
+                UiUtil.Text($"Path: {instance.Path}", instance.Path);
+            }
+            
+            if (instance is ParsedBgPartsInstance {Path: not null} bg)
+            {
+                if (!mdlGroups.TryGetValue(bg.Path, out var group))
                 {
                     if (ImGui.Button("Parse"))
                     {
@@ -425,11 +427,11 @@ public class LayoutWindow : Window, IDisposable
                         });
                     }
                 }
+                else
+                {
+                    DrawModelGroup(group);
+                }
             }
-
-            ImGui.Text($"Position: {instance.Transform.Translation}");
-            ImGui.Text($"Rotation: {instance.Transform.Rotation}");
-            ImGui.Text($"Scale: {instance.Transform.Scale}");
         }
 
         ImGui.TableSetColumnIndex(1);
@@ -451,6 +453,14 @@ public class LayoutWindow : Window, IDisposable
 
     private void DrawExportAsGltf(params ParsedInstance[] instances)
     {
+        var supportedExportTypes = new[]
+        {
+            ParsedInstanceType.BgPart,
+            ParsedInstanceType.SharedGroup,
+            ParsedInstanceType.Light
+        };
+        
+        using (ImRaii.Disabled(!instances.All(x => supportedExportTypes.Contains(x.Type))))
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
             if (ImGui.Button(FontAwesomeIcon.FileExport.ToIconString()))
