@@ -106,6 +106,7 @@ public unsafe struct Vertex
                 VertexType.Single3 => new Vector3(f[0], f[1], f[2]),
                 VertexType.Single4 => new Vector3(f[0], f[1], f[2]), // skip W
                 VertexType.Half4 => new Vector3((float)h[0], (float)h[1], (float)h[2]), // skip W
+                VertexType.Single1 => new Vector3(f[0], f[0], f[0]),
                 _ => throw new ArgumentException($"Unsupported vector3 type {type}")
             };
         }
