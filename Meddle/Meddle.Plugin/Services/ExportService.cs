@@ -381,6 +381,10 @@ public class ExportService : IDisposable, IService
         {
             root.Name = ho.Name;
         }
+        else
+        {
+            root.Name = $"{instance.Type}_{instance.Id}";
+        }
         
         if (instance is ParsedBgPartsInstance bg)
         {
