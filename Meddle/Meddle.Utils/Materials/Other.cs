@@ -16,4 +16,14 @@ public static partial class MaterialUtility
         
         return output;
     }
+
+    public static MaterialBuilder BuildLightShaft(Material material, string name)
+    {
+        var output = new MaterialBuilder(name)
+            .WithDoubleSide(material.RenderBackfaces)
+            .WithAlpha(AlphaMode.BLEND, 0.5f)
+            .WithBaseColor(new Vector4(1, 1, 1, 0f));;
+        
+        return output;
+    }
 }

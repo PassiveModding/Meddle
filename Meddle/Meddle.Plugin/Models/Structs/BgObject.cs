@@ -1,6 +1,5 @@
 ﻿using System.Runtime.InteropServices;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
-using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 
 namespace Meddle.Plugin.Models.Structs;
 

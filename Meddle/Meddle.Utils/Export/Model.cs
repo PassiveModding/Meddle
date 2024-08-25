@@ -8,7 +8,6 @@ public unsafe class Model
     public string HandlePath { get; private set; }
     public string? ResolvedPath { get; private set; }
     public string Path => ResolvedPath ?? HandlePath;
-    public GenderRace RaceCode { get; set; }
     public IReadOnlyList<Mesh> Meshes { get; private set; }
     public IReadOnlyList<string> MtrlFileNames { get; private set; }
     public IReadOnlyList<ModelShape> Shapes { get; private set; }
@@ -44,8 +43,6 @@ public unsafe class Model
     public Model(string path, MdlFile mdlFile, ShapeAttributeGroup? shapeAttributeGroup)
     {
         HandlePath = path;
-        RaceCode = RaceDeformer.ParseRaceCode(path);
-
         AttributeMasks = shapeAttributeGroup?.AttributeMasks ?? Array.Empty<(string, short)>();
         EnabledAttributeMask = shapeAttributeGroup?.EnabledAttributeMask ?? 0;
         ShapeMasks = shapeAttributeGroup?.ShapeMasks ?? Array.Empty<(string, short)>();

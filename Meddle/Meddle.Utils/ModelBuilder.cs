@@ -10,23 +10,15 @@ public static class ModelBuilder
         Model model,
         IReadOnlyList<MaterialBuilder> materials,
         IReadOnlyList<BoneNodeBuilder> boneMap,
-        (GenderRace targetDeform, RaceDeformer deformer)? raceDeformer,
-        bool disableSkinning = false)
+        (GenderRace fromDeform, GenderRace toDeform, RaceDeformer deformer)? raceDeformer)
     {
         var meshes = new List<MeshExport>();
-        (RaceDeformer deformer, ushort from, ushort to)? deform = null;
-        if (raceDeformer != null && model.RaceCode != GenderRace.Unknown)
-        {
-            var rd = raceDeformer.Value;
-            deform = (rd.deformer, (ushort)model.RaceCode, (ushort)rd.targetDeform);
-        }
 
         foreach (var mesh in model.Meshes)
         {
-            var useSkinning = mesh.BoneTable != null;
             MeshBuilder meshBuilder;
             var material = materials[mesh.MaterialIdx];
-            if (useSkinning && !disableSkinning)
+            if (mesh.BoneTable != null)
             {
                 var jointIdMapping = new List<int>();
                 var jointLut = boneMap
@@ -40,11 +32,11 @@ public static class ModelBuilder
                     jointIdMapping.Add(match.i);
                 }
 
-                meshBuilder = new MeshBuilder(mesh, jointIdMapping.ToArray(), material, deform);
+                meshBuilder = new MeshBuilder(mesh, jointIdMapping.ToArray(), material, raceDeformer);
             }
             else
             {
-                meshBuilder = new MeshBuilder(mesh, null, material, deform);
+                meshBuilder = new MeshBuilder(mesh, null, material, raceDeformer);
             }
 
             meshBuilder.BuildVertices();
@@ -54,7 +46,7 @@ public static class ModelBuilder
             {
                 var mb = meshBuilder.BuildMesh();
                 mb.Name = $"{modelPathName}_{mesh.MeshIdx}_{material.Name}";
-                meshes.Add(new MeshExport(mb, useSkinning, null, null));
+                meshes.Add(new MeshExport(mb, null, null));
                 continue;
             }
 
@@ -74,7 +66,7 @@ public static class ModelBuilder
 
                 var shapeNames = meshBuilder.BuildShapes(model.Shapes, subMesh, subMeshStart, subMeshEnd);
 
-                meshes.Add(new MeshExport(subMesh, useSkinning, modelSubMesh, shapeNames.ToArray()));
+                meshes.Add(new MeshExport(subMesh, modelSubMesh, shapeNames.ToArray()));
             }
         }
 
@@ -83,7 +75,6 @@ public static class ModelBuilder
 
     public record MeshExport(
         IMeshBuilder<MaterialBuilder> Mesh,
-        bool UseSkinning,
         SubMesh? Submesh,
         IReadOnlyList<string>? Shapes);
 }

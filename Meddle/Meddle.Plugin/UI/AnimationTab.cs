@@ -23,6 +23,7 @@ public class AnimationTab : ITab
     private bool captureAnimation;
     private bool includePositionalData;
     private ICharacter? selectedCharacter;
+    public MenuType MenuType => MenuType.Default;
 
     public AnimationTab(
         IFramework framework, ILogger<AnimationTab> logger,
@@ -38,7 +39,6 @@ public class AnimationTab : ITab
 
     public string Name => "Animation";
     public int Order => 2;
-    public bool DisplayTab => true;
 
     public void Draw()
     {

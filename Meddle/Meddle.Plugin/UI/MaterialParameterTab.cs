@@ -5,6 +5,7 @@ using Dalamud.Interface.Utility.Raii;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.Interop;
 using ImGuiNET;
+using Meddle.Plugin.Models;
 using Meddle.Plugin.Services.UI;
 using Meddle.Plugin.Utils;
 using Meddle.Utils.Export;
@@ -17,6 +18,7 @@ namespace Meddle.Plugin.UI;
 
 public class MaterialParameterTab : ITab
 {
+    public MenuType MenuType => MenuType.Debug;
     private readonly Dictionary<string, Pointer<Material>> materialCache = new();
     private readonly Dictionary<string, MtrlFile> mtrlCache = new();
     private readonly Dictionary<string, float[]> mtrlConstantCache = new();
@@ -42,7 +44,6 @@ public class MaterialParameterTab : ITab
     private ICharacter? selectedCharacter;
     public string Name => "Material Parameters";
     public int Order => 3;
-    public bool DisplayTab => config.ShowDebug;
 
     public void Dispose()
     {

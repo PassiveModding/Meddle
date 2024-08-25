@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿/*
+using System.Numerics;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
@@ -321,3 +322,4 @@ public class WorldOverlay : IOverlay
         return new WorldService.ObjectSnapshot(obj.Value->GetObjectType(), obj.Value->Position, obj.Value->Rotation, obj.Value->Scale);
     }
 }
+*/

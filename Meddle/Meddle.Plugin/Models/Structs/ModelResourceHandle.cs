@@ -75,19 +75,19 @@ public unsafe struct ModelResourceHandle
         public readonly byte[] StringTableData;
         public readonly ModelHeader ModelHeader;
         
-        public ModelResourceHandleData(byte* ptr)
+        public ModelResourceHandleData(Pointer<byte> ptr)
         {
-            var reader = new SpanMemoryUtils.SpanMemoryReader(ptr);
-            StringCount = reader.Read<uint>();
-            StringTableSize = reader.Read<uint>();
-            StringTableData = reader.ReadSpan<byte>((int)StringTableSize).ToArray();
-            ModelHeader = reader.Read<ModelHeader>();
+            var offset = 0;
+            StringCount = ptr.Read<uint>(ref offset);
+            StringTableSize = ptr.Read<uint>(ref offset);
+            StringTableData = ptr.ReadSpan<byte>((int)StringTableSize, ref offset).ToArray();
+            ModelHeader = ptr.Read<ModelHeader>(ref offset);
         }
     } 
 
     [FieldOffset(0x00)] public ResourceHandle ResourceHandle;
     
-    public readonly ModelHeader* Header => (ModelHeader*)(StringTable + (((uint*)StringTable)[1] + 8));
+    //public readonly ModelHeader* Header => (ModelHeader*)(StringTable + (((uint*)StringTable)[1] + 8));
     public readonly ModelResourceHandleData Data => new(StringTable);
     
     [FieldOffset(0xB0)] public uint FileVersion;
@@ -135,11 +135,11 @@ public unsafe struct ModelResourceHandle
     [FieldOffset(0x258)] public byte LodCount;
     [FieldOffset(0x259)] public byte LodCountMinus1;
     
-    public Span<Lod> LodSpan => new(Lods, Header->LodCount);
+    public Span<Lod> LodSpan => new(Lods, Data.ModelHeader.LodCount);
     
     public string GetMaterialFileName(uint idx)
     {
-        if (idx >= Header->MaterialCount)
+        if (idx >= Data.ModelHeader.MaterialCount)
             throw new ArgumentOutOfRangeException(nameof(idx));
  
         var offset = MaterialNameOffsets[idx];
@@ -155,5 +155,4 @@ public unsafe struct ModelResourceHandle
     //
     // public readonly string GetMaterialFileNameBySlotAsString(uint slot)
     //     => Encoding.UTF8.GetString(GetMaterialFileNameBySlotAsSpan(slot));
-
 }

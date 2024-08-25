@@ -2,8 +2,8 @@ using System.Reflection;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Meddle.Plugin.Services;
-using Meddle.Plugin.Services.UI;
 using Meddle.Plugin.UI;
+using Meddle.Plugin.UI.Windows;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Meddle.Plugin;
@@ -16,23 +16,17 @@ public static class ServiceUtility
                                .Where(t => t.ImplementedInterfaces.Contains(typeof(ITab)))
                                .ToList();
         
-        var overlayTypes = Assembly.GetExecutingAssembly().DefinedTypes
-                                   .Where(t => t.ImplementedInterfaces.Contains(typeof(IOverlay)))
-                                   .ToList();
-
         foreach (var tabType in tabTypes)
         {
             services.AddSingleton(typeof(ITab), tabType);
         }
-        
-        foreach (var overlayType in overlayTypes)
-        {
-            services.AddSingleton(typeof(IOverlay), overlayType);
-        }
+
         
         return services
                .AddSingleton<MainWindow>()
-               .AddSingleton<OverlayWindow>()
+               .AddSingleton<LayoutOverlay>()
+               .AddSingleton<TestingWindow>()
+               .AddSingleton<DebugWindow>()
                .AddSingleton(new WindowSystem("Meddle"))
                .AddHostedService<WindowManager>();
     }

@@ -18,6 +18,7 @@ public class DebugTab : ITab
 {
     private readonly IClientState clientState;
     private readonly Configuration config;
+    public MenuType MenuType => MenuType.Debug;
     private readonly SigUtil sigUtil;
     private readonly CommonUi commonUi;
     private readonly IGameGui gui;
@@ -47,7 +48,6 @@ public class DebugTab : ITab
 
     public string Name => "Debug";
     public int Order => int.MaxValue - 10;
-    public bool DisplayTab => config.ShowDebug;
 
     public void Draw()
     {

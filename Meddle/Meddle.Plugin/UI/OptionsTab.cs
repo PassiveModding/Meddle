@@ -1,19 +1,19 @@
 ﻿using System.Diagnostics;
 using ImGuiNET;
+using Meddle.Plugin.Models;
 using Microsoft.Extensions.Logging;
 
 namespace Meddle.Plugin.UI;
 
 public class OptionsTab : ITab
 {
+    public MenuType MenuType => MenuType.Default;
     private readonly Configuration config;
 
     public OptionsTab(Configuration config)
     {
         this.config = config;
     }
-
-    public bool DisplayTab => true;
 
     public void Dispose() { }
 
@@ -27,7 +27,7 @@ public class OptionsTab : ITab
             Process.Start("explorer.exe", Plugin.TempDirectory);
         }
 
-        var debug = config.ShowDebug;
+        /*var debug = config.ShowDebug;
         if (ImGui.Checkbox("Show Debug Menus", ref debug))
         {
             config.ShowDebug = debug;
@@ -39,7 +39,7 @@ public class OptionsTab : ITab
         {
             config.ShowTesting = test;
             config.Save();
-        }
+        }*/
 
         var minimumNotificationLogLevel = config.MinimumNotificationLogLevel;
         if (ImGui.BeginCombo("Minimum Notification Log Level", minimumNotificationLogLevel.ToString()))

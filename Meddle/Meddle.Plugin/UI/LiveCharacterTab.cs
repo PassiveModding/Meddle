@@ -33,6 +33,7 @@ public unsafe class LiveCharacterTab : ITab
     private readonly CommonUi commonUi;
     private readonly DXHelper dxHelper;
     private readonly ExportService exportService;
+    public MenuType MenuType => MenuType.Default;
 
     private readonly FileDialogManager fileDialog = new()
     {
@@ -86,7 +87,6 @@ public unsafe class LiveCharacterTab : ITab
 
     public string Name => "Character";
     public int Order => 1;
-    public bool DisplayTab => true;
 
     public void Draw()
     {
@@ -675,7 +675,7 @@ public unsafe class LiveCharacterTab : ITab
     }
     
     private void DrawMaterial(
-        Pointer<CharacterBase> cPtr, Pointer<CSModel> mPtr, Pointer<CSMaterial> mtPtr, int materialIdx)
+        Pointer<CSCharacterBase> cPtr, Pointer<CSModel> mPtr, Pointer<CSMaterial> mtPtr, int materialIdx)
     {
         if (cPtr == null || cPtr.Value == null)
         {
