@@ -14,6 +14,16 @@ public static class ObjectUtil
         return new AffineTransform(transform.Scale, transform.Rotation, transform.Translation);
     }
     
+    public static string ToFormatted(this Vector3 vector)
+    {
+        return $"<X: {vector.X:0.00} Y: {vector.Y:0.00} Z: {vector.Z:0.00}>";
+    }
+
+    public static string ToFormatted(this Quaternion vector)
+    {
+        return $"<X: {vector.X:0.00} Y: {vector.Y:0.00} Z: {vector.Z:0.00} W: {vector.W:0.00}>";
+    }
+
     public static unsafe bool IsValidHuman(this ICharacter obj)
     {
         var drawObject = ((CSCharacter*)obj.Address)->GameObject.DrawObject;

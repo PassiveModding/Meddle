@@ -2,22 +2,33 @@
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
 using ImGuiNET;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Services;
+using Meddle.Plugin.Utils;
 using Microsoft.Extensions.Logging;
 
 namespace Meddle.Plugin.UI.Windows;
 
 public class LayoutOverlay : Window
 {
-    private readonly ILogger<LayoutOverlay> log;
     private readonly IClientState clientState;
-    private readonly IGameGui gui;
-    private readonly SigUtil sigUtil;
-    private readonly LayoutService layoutService;
     private readonly Configuration config;
-    public event Action<ParsedInstance>? OnInstanceClick;
+
+    public readonly List<InstanceType> DrawTypes =
+    [
+        InstanceType.BgPart,
+        InstanceType.SharedGroup,
+        InstanceType.Light
+    ];
+
+    private readonly IGameGui gui;
+    private readonly LayoutService layoutService;
+
+    private readonly Queue<ParsedInstance> layoutTabHoveredInstances = new();
+    private readonly ILogger<LayoutOverlay> log;
+    private readonly SigUtil sigUtil;
 
     public LayoutOverlay(
         ILogger<LayoutOverlay> log,
@@ -26,11 +37,11 @@ public class LayoutOverlay : Window
         SigUtil sigUtil,
         LayoutService layoutService,
         Configuration config) : base("##MeddleLayoutOverlay",
-            ImGuiWindowFlags.NoDecoration |
-            ImGuiWindowFlags.NoBackground |
-            ImGuiWindowFlags.NoInputs |
-            ImGuiWindowFlags.NoSavedSettings |
-            ImGuiWindowFlags.NoBringToFrontOnFocus)
+                                     ImGuiWindowFlags.NoDecoration |
+                                     ImGuiWindowFlags.NoBackground |
+                                     ImGuiWindowFlags.NoInputs |
+                                     ImGuiWindowFlags.NoSavedSettings |
+                                     ImGuiWindowFlags.NoBringToFrontOnFocus)
     {
         this.log = log;
         this.clientState = clientState;
@@ -39,25 +50,26 @@ public class LayoutOverlay : Window
         this.layoutService = layoutService;
         this.config = config;
     }
-    
-    private readonly Queue<ParsedInstance> layoutTabHoveredInstances = new();
+
+    public event Action<ParsedInstance>? OnInstanceClick;
+
     public void EnqueueLayoutTabHoveredInstance(ParsedInstance instance)
     {
         layoutTabHoveredInstances.Enqueue(instance);
     }
-    
+
     public override void PreDraw()
     {
         Size = ImGui.GetIO().DisplaySize;
         Position = Vector2.Zero;
     }
-    
+
     public override void Draw()
     {
         var currentLayout = layoutService.GetWorldState();
         if (currentLayout == null)
             return;
-        
+
         var activeHovered = DrawLayers(currentLayout);
         if (activeHovered.Count > 0)
         {
@@ -66,9 +78,10 @@ public class LayoutOverlay : Window
             {
                 DrawTooltip(instance);
             }
+
             ImGui.EndTooltip();
         }
-        
+
         while (layoutTabHoveredInstances.Count > 0)
         {
             var instance = layoutTabHoveredInstances.Dequeue();
@@ -85,11 +98,13 @@ public class LayoutOverlay : Window
 
     private void DrawTooltip(ParsedInstance instance)
     {
+        if (!DrawTypes.Contains(instance.Type))
+            return;
         ImGui.Text($"Type: {instance.Type}");
-        ImGui.Text($"Position: {instance.Transform.Translation}");
-        ImGui.Text($"Rotation: {instance.Transform.Rotation}");
-        ImGui.Text($"Scale: {instance.Transform.Scale}");
-        
+        ImGui.Text($"Position: {instance.Transform.Translation.ToFormatted()}");
+        ImGui.Text($"Rotation: {instance.Transform.Rotation.ToFormatted()}");
+        ImGui.Text($"Scale: {instance.Transform.Scale.ToFormatted()}");
+
         if (instance is ParsedHousingInstance housingInstance)
         {
             ImGui.Text($"Housing: {housingInstance.Name}");
@@ -98,7 +113,10 @@ public class LayoutOverlay : Window
             {
                 ImGui.Text($"Item Name: {housingInstance.Item.Name}");
             }
-            Vector4? color = housingInstance.Stain == null ? null : ImGui.ColorConvertU32ToFloat4(housingInstance.Stain.Color);
+
+            Vector4? color = housingInstance.Stain == null
+                                 ? null
+                                 : ImGui.ColorConvertU32ToFloat4(housingInstance.Stain.Color);
             if (color != null)
             {
                 ImGui.ColorButton("Stain", color.Value);
@@ -108,12 +126,12 @@ public class LayoutOverlay : Window
                 ImGui.Text("No Stain");
             }
         }
-        
+
         if (instance is ParsedBgPartsInstance bgInstance)
         {
             ImGui.Text($"Path: {bgInstance.Path}");
         }
-        
+
         // children
         if (instance.Children.Count > 0)
         {
@@ -123,6 +141,7 @@ public class LayoutOverlay : Window
             {
                 DrawTooltip(child);
             }
+
             ImGui.Unindent();
         }
     }
@@ -140,21 +159,23 @@ public class LayoutOverlay : Window
                 }
             }
         }
-        
+
         return hovered;
     }
 
     private bool DrawInstanceOverlay(ParsedLayer layer, ParsedInstance instance)
     {
+        if (!DrawTypes.Contains(instance.Type))
+            return false;
         var localPos = sigUtil.GetLocalPosition();
         if (Vector3.Abs(instance.Transform.Translation - localPos).Length() > config.WorldCutoffDistance)
             return false;
         if (!WorldToScreen(instance.Transform.Translation, out var screenPos, out var inView))
             return false;
-        
+
         var screenPosVec = new Vector2(screenPos.X, screenPos.Y);
         var bg = ImGui.GetBackgroundDrawList();
-        
+
         bg.AddCircleFilled(screenPosVec, 5, ImGui.GetColorU32(config.WorldDotColor));
         if (ImGui.IsMouseHoveringRect(screenPosVec - new Vector2(5, 5),
                                       screenPosVec + new Vector2(5, 5)) &&
@@ -169,6 +190,7 @@ public class LayoutOverlay : Window
 
             return true;
         }
+
         return false;
     }
 
@@ -187,12 +209,12 @@ public class LayoutOverlay : Window
         inView = true;
         return true;
     }
-    
+
     public unsafe bool WorldToScreen(Vector3 worldPos, out Vector2 screenPos, out bool inView)
     {
         var device = sigUtil.GetDevice();
         var control = sigUtil.GetControl();
-        
+
         // Read current ViewProjectionMatrix plus game window size
         var windowPos = ImGuiHelpers.MainViewport.Pos;
 
@@ -210,10 +232,10 @@ public class LayoutOverlay : Window
                 inView = false;
                 return false;
             }
-            
+
             return true;
         }
-        
+
         float width = device->Width;
         float height = device->Height;
 
@@ -226,7 +248,7 @@ public class LayoutOverlay : Window
             inView = false;
             return false;
         }
-        
+
         pCoords *= MathF.Abs(1.0f / pCoords.W);
         screenPos = new Vector2(pCoords.X, pCoords.Y);
 

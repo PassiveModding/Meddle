@@ -146,7 +146,6 @@ public class LayoutService : IService
                 }
                 default:
                 {
-                    return null;
                     return new ParsedUnsupportedInstance(instanceLayout->Id.Type)
                     {
                         Id = (nint)instanceLayout,

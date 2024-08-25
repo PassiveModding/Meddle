@@ -13,47 +13,46 @@ namespace Meddle.Plugin.UI.Windows;
 
 public class LayoutWindow : Window, IDisposable
 {
-    private readonly LayoutService layoutService;
-    private readonly Configuration config;
-    private readonly SigUtil sigUtil;
-    private readonly ExportService exportService;
-    private readonly ILogger<LayoutWindow> log;
-    private readonly LayoutOverlay overlay;
-    private readonly List<ParsedInstance> selectedInstances = new();
-    private bool orderByDistance = true;
-    private bool traceToHovered = true;
-    private bool traceToExpanded = true;
-    private OriginMode originMode = OriginMode.Player;
     public enum OriginMode
     {
         Player,
         Zero,
         Average
     }
-    private void AddToSelected(ParsedInstance instance)
-    {
-        var existing = selectedInstances.Find(x => x.Id == instance.Id);
-        if (existing != null)
-        {
-            selectedInstances.Remove(existing);
-        }
-        
-        selectedInstances.Add(instance);
-    }
+
+    private readonly Configuration config;
+    private readonly ExportService exportService;
 
     private readonly FileDialogManager fileDialog = new()
     {
         AddedWindowFlags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoDocking
     };
-    
-    public void Dispose()
-    {
-        overlay.OnInstanceClick -= AddToSelected;
-    }
-    
-    public LayoutWindow(LayoutService layoutService, Configuration config, 
-                     SigUtil sigUtil, ExportService exportService,
-                     ILogger<LayoutWindow> log, LayoutOverlay overlay) : base("Layout")
+
+    private readonly LayoutService layoutService;
+    private readonly ILogger<LayoutWindow> log;
+    private readonly LayoutOverlay overlay;
+    private readonly List<ParsedInstance> selectedInstances = new();
+
+    private readonly List<InstanceType> selectedTypes =
+    [
+        InstanceType.BgPart,
+        InstanceType.SharedGroup,
+        InstanceType.Light
+    ];
+
+    private readonly SigUtil sigUtil;
+    private ExportService.ModelExportProgress? exportProgress;
+    private Task exportTask = Task.CompletedTask;
+    private string? lastError;
+    private bool orderByDistance = true;
+    private OriginMode originMode = OriginMode.Player;
+    private bool traceToExpanded = true;
+    private bool traceToHovered = true;
+
+    public LayoutWindow(
+        LayoutService layoutService, Configuration config,
+        SigUtil sigUtil, ExportService exportService,
+        ILogger<LayoutWindow> log, LayoutOverlay overlay) : base("Layout")
     {
         this.layoutService = layoutService;
         this.config = config;
@@ -61,8 +60,23 @@ public class LayoutWindow : Window, IDisposable
         this.exportService = exportService;
         this.log = log;
         this.overlay = overlay;
-        selectedTypes = Enum.GetValues<InstanceType>().ToList();
         overlay.OnInstanceClick += AddToSelected;
+    }
+
+    public void Dispose()
+    {
+        overlay.OnInstanceClick -= AddToSelected;
+    }
+
+    private void AddToSelected(ParsedInstance instance)
+    {
+        var existing = selectedInstances.Find(x => x.Id == instance.Id);
+        if (existing != null)
+        {
+            selectedInstances.Remove(existing);
+        }
+
+        selectedInstances.Add(instance);
     }
 
     public override void OnOpen()
@@ -70,17 +84,12 @@ public class LayoutWindow : Window, IDisposable
         overlay.IsOpen = true;
         base.OnOpen();
     }
-    
+
     public override void OnClose()
     {
         overlay.IsOpen = false;
         base.OnClose();
     }
-    
-    private readonly List<InstanceType> selectedTypes;
-    private ExportService.ModelExportProgress? exportProgress;
-    private Task exportTask = Task.CompletedTask;
-    private string? lastError;
 
     public override void Draw()
     {
@@ -100,11 +109,11 @@ public class LayoutWindow : Window, IDisposable
             ImGui.TextWrapped(e.ToString());
         }
     }
-    
+
     private void InnerDraw()
     {
         fileDialog.Draw();
-        
+
         if (ImGui.CollapsingHeader("Options"))
         {
             var cutoff = config.WorldCutoffDistance;
@@ -120,11 +129,11 @@ public class LayoutWindow : Window, IDisposable
                 config.WorldDotColor = dotColor;
                 config.Save();
             }
-            
+
             ImGui.Checkbox("Order by Distance", ref orderByDistance);
             ImGui.Checkbox("Trace to Hovered", ref traceToHovered);
             ImGui.Checkbox("Trace to Expanded", ref traceToExpanded);
-            
+
             if (ImGui.BeginCombo("Origin Mode", originMode.ToString()))
             {
                 foreach (var mode in Enum.GetValues<OriginMode>())
@@ -134,6 +143,7 @@ public class LayoutWindow : Window, IDisposable
                         originMode = mode;
                     }
                 }
+
                 ImGui.EndCombo();
             }
 
@@ -164,26 +174,45 @@ public class LayoutWindow : Window, IDisposable
                     }
                 }
             }
+
+            if (ImGui.CollapsingHeader("Overlay Types"))
+            {
+                foreach (var type in Enum.GetValues<InstanceType>())
+                {
+                    var selected = overlay.DrawTypes.Contains(type);
+                    if (ImGui.Checkbox(type.ToString(), ref selected))
+                    {
+                        if (selected)
+                        {
+                            overlay.DrawTypes.Add(type);
+                        }
+                        else
+                        {
+                            overlay.DrawTypes.Remove(type);
+                        }
+                    }
+                }
+            }
         }
-                
+
         if (exportProgress is {DistinctPaths: > 0} && exportTask?.IsCompleted == false)
         {
             var width = ImGui.GetContentRegionAvail().X;
             ImGui.Text($"Models parsed: {exportProgress.ModelsParsed} / {exportProgress.DistinctPaths}");
             ImGui.ProgressBar(exportProgress.ModelsParsed / (float)exportProgress.DistinctPaths, new Vector2(width, 0));
         }
-                
+
         if (ImGui.CollapsingHeader("Selected Instances"))
         {
             DrawSelectedInstances();
         }
-        
+
         if (ImGui.CollapsingHeader("Current Layout"))
         {
             DrawLayout();
         }
     }
-    
+
     private Vector3 CalculateOrigin(ParsedInstance[] instances)
     {
         switch (originMode)
@@ -207,17 +236,18 @@ public class LayoutWindow : Window, IDisposable
             var defaultName = $"LayoutExport-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
             exportProgress = new ExportService.ModelExportProgress();
             fileDialog.SaveFolderDialog("Save Model", defaultName,
-                (result, path) =>
-                {
-                    if (!result) return;
-                    exportTask = Task.Run(async () =>
-                    {
-                        var selected = selectedInstances.ToArray();
-                        var origin = CalculateOrigin(selected);
-                        await exportService.Export(selected, origin, exportProgress, path);
-                    });
-                }, Plugin.TempDirectory);
+                                        (result, path) =>
+                                        {
+                                            if (!result) return;
+                                            exportTask = Task.Run(async () =>
+                                            {
+                                                var selected = selectedInstances.ToArray();
+                                                var origin = CalculateOrigin(selected);
+                                                await exportService.Export(selected, origin, exportProgress, path);
+                                            });
+                                        }, Plugin.TempDirectory);
         }
+
         ImGui.SameLine();
         if (ImGui.Button("Clear Selected"))
         {
@@ -227,9 +257,10 @@ public class LayoutWindow : Window, IDisposable
         IEnumerable<ParsedInstance> allInstances = selectedInstances;
         if (orderByDistance)
         {
-            allInstances = allInstances.OrderBy(x => Vector3.Distance(x.Transform.Translation, sigUtil.GetLocalPosition()));
+            allInstances =
+                allInstances.OrderBy(x => Vector3.Distance(x.Transform.Translation, sigUtil.GetLocalPosition()));
         }
-        
+
         DrawInstanceTable(allInstances.ToArray(), ctx =>
         {
             ImGui.SameLine();
@@ -242,13 +273,14 @@ public class LayoutWindow : Window, IDisposable
             }
         });
     }
-    
+
     private void DrawInstanceTable(ParsedInstance[] instances, Action<ParsedInstance>? additionalOptions = null)
     {
-        using var table = ImRaii.Table("##layoutTable", 2, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.Reorderable);
+        using var table =
+            ImRaii.Table("##layoutTable", 2, ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.Reorderable);
         ImGui.TableSetupColumn("Data", ImGuiTableColumnFlags.WidthStretch);
         ImGui.TableSetupColumn("Options");
-        
+
         foreach (var instance in instances)
         {
             DrawInstance(instance, additionalOptions);
@@ -261,33 +293,33 @@ public class LayoutWindow : Window, IDisposable
         var currentLayout = layoutService.GetWorldState();
         if (currentLayout == null)
             return;
-        
+
         var local = sigUtil.GetLocalPosition();
         var allInstances = currentLayout
                            .SelectMany(x => x.Instances)
                            .Where(x => Vector3.Distance(x.Transform.Translation, local) < config.WorldCutoffDistance)
                            .Where(x => selectedTypes.Contains(x.Type));
-        
+
         if (orderByDistance)
         {
             allInstances = allInstances.OrderBy(x => Vector3.Distance(x.Transform.Translation, local));
         }
-        
+
         var all = allInstances.ToArray();
         if (ImGui.Button($"Export All ({all.Length})"))
         {
             var defaultName = $"LayoutExport-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
             exportProgress = new ExportService.ModelExportProgress();
             fileDialog.SaveFolderDialog("Save Model", defaultName,
-                (result, path) =>
-                {
-                    if (!result) return;
-                    exportTask = Task.Run(async () =>
-                    {
-                        var origin = CalculateOrigin(all);
-                        await exportService.Export(all, origin, exportProgress, path);
-                    });
-                }, Plugin.TempDirectory);
+                                        (result, path) =>
+                                        {
+                                            if (!result) return;
+                                            exportTask = Task.Run(async () =>
+                                            {
+                                                var origin = CalculateOrigin(all);
+                                                await exportService.Export(all, origin, exportProgress, path);
+                                            });
+                                        }, Plugin.TempDirectory);
         }
 
         DrawInstanceTable(all, ctx =>
@@ -305,23 +337,25 @@ public class LayoutWindow : Window, IDisposable
 
     private void DrawInstance(ParsedInstance instance, Action<ParsedInstance>? additionalOptions = null, int depth = 0)
     {
+        if (!selectedTypes.Contains(instance.Type))
+            return;
         if (depth > 10)
         {
             ImGui.Text("Max depth reached");
             return;
         }
-        
+
         ImGui.TableNextRow();
         ImGui.TableSetColumnIndex(0);
         using var id = ImRaii.PushId(instance.Id);
-        
+
         var infoHeader = instance switch
         {
             ParsedHousingInstance housingObject => $"{housingObject.Type} - {housingObject.Name}",
             ParsedBgPartsInstance bgObject => $"{bgObject.Type} - {bgObject.Path}",
             _ => $"{instance.Type}"
         };
-        
+
         if (instance.Children.Count > 0)
         {
             var childTypeGroups = instance.Children.GroupBy(x => x.Type);
@@ -331,7 +365,7 @@ public class LayoutWindow : Window, IDisposable
         }
 
         var distance = Vector3.Distance(instance.Transform.Translation, sigUtil.GetLocalPosition());
-        bool displayInner = ImGui.CollapsingHeader($"[{distance:F1}y] {infoHeader}###{instance.Id}");
+        var displayInner = ImGui.CollapsingHeader($"[{distance:F1}y] {infoHeader}###{instance.Id}");
         if (ImGui.IsItemHovered() && traceToHovered)
         {
             overlay.EnqueueLayoutTabHoveredInstance(instance);
@@ -340,7 +374,7 @@ public class LayoutWindow : Window, IDisposable
         {
             overlay.EnqueueLayoutTabHoveredInstance(instance);
         }
-        
+
         if (displayInner)
         {
             if (instance is ParsedHousingInstance ho)
@@ -371,9 +405,9 @@ public class LayoutWindow : Window, IDisposable
 
         ImGui.TableSetColumnIndex(1);
         DrawExportAsGltf(instance);
-        
+
         additionalOptions?.Invoke(instance);
-        
+
         if (displayInner && instance.Children.Count > 0)
         {
             ImGui.TreePush();
@@ -381,10 +415,11 @@ public class LayoutWindow : Window, IDisposable
             {
                 DrawInstance(obj, additionalOptions, depth + 1);
             }
+
             ImGui.TreePop();
         }
     }
-    
+
     private void DrawExportAsGltf(params ParsedInstance[] instances)
     {
         using (ImRaii.PushFont(UiBuilder.IconFont))
@@ -394,18 +429,18 @@ public class LayoutWindow : Window, IDisposable
                 var defaultName = $"LayoutExport-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
                 exportProgress = new ExportService.ModelExportProgress();
                 fileDialog.SaveFolderDialog("Save Model", defaultName,
-                    (result, path) =>
-                    {
-                        if (!result) return;
-                        exportTask = Task.Run(async () =>
-                        {
-                            var origin = CalculateOrigin(instances);
-                            await exportService.Export(instances, origin, exportProgress, path);
-                        });
-                    }, Plugin.TempDirectory);
+                                            (result, path) =>
+                                            {
+                                                if (!result) return;
+                                                exportTask = Task.Run(async () =>
+                                                {
+                                                    var origin = CalculateOrigin(instances);
+                                                    await exportService.Export(instances, origin, exportProgress, path);
+                                                });
+                                            }, Plugin.TempDirectory);
             }
         }
-        
+
         if (ImGui.IsItemHovered())
         {
             ImGui.SetTooltip("Export as glTF");
