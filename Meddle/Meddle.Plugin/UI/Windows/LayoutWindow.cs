@@ -1,12 +1,17 @@
 ﻿using System.Numerics;
 using Dalamud.Interface;
 using Dalamud.Interface.ImGuiFileDialog;
+using Dalamud.Interface.Textures;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
+using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
 using ImGuiNET;
+using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Services;
+using Meddle.Plugin.Utils;
+using Meddle.Utils;
 using Microsoft.Extensions.Logging;
 
 namespace Meddle.Plugin.UI.Windows;
@@ -31,7 +36,11 @@ public class LayoutWindow : Window, IDisposable
     private readonly LayoutService layoutService;
     private readonly ILogger<LayoutWindow> log;
     private readonly LayoutOverlay overlay;
+    private readonly TextureCache textureCache;
+    private readonly ITextureProvider textureProvider;
+    private readonly ParseService parseService;
     private readonly List<ParsedInstance> selectedInstances = new();
+    private Dictionary<string, MdlFileGroup> mdlGroups = new();
 
     private readonly List<InstanceType> selectedTypes =
     [
@@ -52,7 +61,9 @@ public class LayoutWindow : Window, IDisposable
     public LayoutWindow(
         LayoutService layoutService, Configuration config,
         SigUtil sigUtil, ExportService exportService,
-        ILogger<LayoutWindow> log, LayoutOverlay overlay) : base("Layout")
+        ILogger<LayoutWindow> log, LayoutOverlay overlay,
+        TextureCache textureCache, ITextureProvider textureProvider,
+        ParseService parseService) : base("Layout")
     {
         this.layoutService = layoutService;
         this.config = config;
@@ -60,6 +71,9 @@ public class LayoutWindow : Window, IDisposable
         this.exportService = exportService;
         this.log = log;
         this.overlay = overlay;
+        this.textureCache = textureCache;
+        this.textureProvider = textureProvider;
+        this.parseService = parseService;
         overlay.OnInstanceClick += AddToSelected;
     }
 
@@ -396,6 +410,21 @@ public class LayoutWindow : Window, IDisposable
             if (instance is ParsedBgPartsInstance bg)
             {
                 ImGui.Text($"Path: {bg.Path}");
+                if (mdlGroups.TryGetValue(bg.Path, out var group))
+                {
+                    DrawModelGroup(group);
+                }
+                else
+                {
+                    if (ImGui.Button("Parse"))
+                    {
+                        Task.Run(async () =>
+                        {
+                            var mdlGroup = await parseService.ParseFromPath(bg.Path);
+                            mdlGroups[bg.Path] = mdlGroup;
+                        });
+                    }
+                }
             }
 
             ImGui.Text($"Position: {instance.Transform.Translation}");
@@ -444,6 +473,81 @@ public class LayoutWindow : Window, IDisposable
         if (ImGui.IsItemHovered())
         {
             ImGui.SetTooltip("Export as glTF");
+        }
+    }
+
+    private void DrawModelGroup(MdlFileGroup mdl)
+    {
+        ImGui.Text($"Lods: {mdl.MdlFile.Lods.Length}");
+        ImGui.Text($"Attribute Count: {mdl.MdlFile.ModelHeader.AttributeCount}");
+        ImGui.Text($"Bone Count: {mdl.MdlFile.ModelHeader.BoneCount}");
+        ImGui.Text($"Bone Table Count: {mdl.MdlFile.ModelHeader.BoneTableCount}");
+        ImGui.Text($"Mesh Count: {mdl.MdlFile.ModelHeader.MeshCount}");
+        ImGui.Text($"Submesh Count: {mdl.MdlFile.ModelHeader.SubmeshCount}");
+        ImGui.Text($"Material Count: {mdl.MdlFile.ModelHeader.MaterialCount}");
+        ImGui.Text($"Radius: {mdl.MdlFile.ModelHeader.Radius}");
+        ImGui.Text($"Shapemesh Count: {mdl.MdlFile.ModelHeader.ShapeMeshCount}");
+        ImGui.Text($"Shape Count: {mdl.MdlFile.ModelHeader.ShapeCount}");
+        ImGui.Text($"Vertex declarations: {mdl.MdlFile.VertexDeclarations.Length}");
+        for (int i = 0; i < mdl.MtrlFiles.Length; i++)
+        {
+            using var mtrlId = ImRaii.PushId($"Mtrl{i}");
+            var mtrl = mdl.MtrlFiles[i];
+            if (mtrl is MtrlFileGroup mtrlGroup)
+            {
+                if (ImGui.CollapsingHeader($"Material {i}: {mtrlGroup.Path}"))
+                {
+                    DrawMaterialGroup(mtrlGroup);
+                }
+            }
+        }
+    }
+
+    private void DrawMaterialGroup(MtrlFileGroup mtrlGroup)
+    {
+        using var mtrlIndent = ImRaii.PushIndent();
+        ImGui.Text($"Mdl Path: {mtrlGroup.MdlPath}");
+        ImGui.Text($"Shader Path: {mtrlGroup.ShpkPath}");
+        if (ImGui.CollapsingHeader("Color Table"))
+        {
+            UiUtil.DrawColorTable(mtrlGroup.MtrlFile.ColorTable, mtrlGroup.MtrlFile.ColorDyeTable);
+        }
+
+        for (int j = 0; j < mtrlGroup.TexFiles.Length; j++)
+        {
+            using var texId = ImRaii.PushId($"Tex{j}");
+            var tex = mtrlGroup.TexFiles[j];
+            if (ImGui.CollapsingHeader($"Texture {j}: {tex.Path}"))
+            {
+                using var texIndent = ImRaii.PushIndent();
+                ImGui.Text($"Mtrl Path: {tex.MtrlPath}");
+                ImGui.Text($"Width: {tex.Resource.Width}");
+                ImGui.Text($"Height: {tex.Resource.Height}");
+                ImGui.Text($"Format: {tex.Resource.Format}");
+                ImGui.Text($"Mipmap Count: {tex.Resource.MipLevels}");
+                ImGui.Text($"Array Count: {tex.Resource.ArraySize}");
+
+                var availableWidth = ImGui.GetContentRegionAvail().X;
+                float displayWidth = tex.Resource.Width;
+                float displayHeight = tex.Resource.Height;
+                if (displayWidth > availableWidth)
+                {
+                    var ratio = availableWidth / displayWidth;
+                    displayWidth *= ratio;
+                    displayHeight *= ratio;
+                }
+
+                var wrap = textureCache.GetOrAdd($"{mtrlGroup.Path}_{tex.Path}", () =>
+                {
+                    var textureData = tex.Resource.ToBitmap().GetPixelSpan();
+                    var wrap = textureProvider.CreateFromRaw(
+                        RawImageSpecification.Rgba32(tex.Resource.Width, tex.Resource.Height), textureData,
+                        $"Meddle_World_{mtrlGroup.Path}_{tex.Path}");
+                    return wrap;
+                });
+
+                ImGui.Image(wrap.ImGuiHandle, new Vector2(displayWidth, displayHeight));
+            }
         }
     }
 }
