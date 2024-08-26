@@ -22,7 +22,6 @@ public class DebugTab : ITab
     private readonly SigUtil sigUtil;
     private readonly CommonUi commonUi;
     private readonly IGameGui gui;
-    private readonly IObjectTable objectTable;
     private readonly LayoutService layoutService;
     private readonly ParseService parseService;
     private readonly PbdHooks pbdHooks;
@@ -39,7 +38,6 @@ public class DebugTab : ITab
         this.commonUi = commonUi;
         this.gui = gui;
         this.clientState = clientState;
-        this.objectTable = objectTable;
         this.layoutService = layoutService;
         this.parseService = parseService;
         this.pbdHooks = pbdHooks;
@@ -53,6 +51,7 @@ public class DebugTab : ITab
     public string Name => "Debug";
     public int Order => int.MaxValue - 10;
 
+    
     public void Draw()
     {
         if (ImGui.CollapsingHeader("View Skeleton"))
@@ -68,14 +67,6 @@ public class DebugTab : ITab
         if (ImGui.CollapsingHeader("Addresses"))
         {
             DrawAddresses();
-        }
-
-        if (ImGui.CollapsingHeader("Layout"))
-        {
-            if (ImGui.Button("ParseObjectTable"))
-            {
-                layoutService.ParseObjects();
-            }
         }
 
         if (ImGui.CollapsingHeader("Cache Info"))
@@ -112,25 +103,41 @@ public class DebugTab : ITab
         }
     }
 
-    private void DrawObjectTable()
+    private unsafe void DrawObjectTable()
     {
         using var indent = ImRaii.PushIndent();
-        for (int i = 0; i < objectTable.Length; i++)
+        var objectTable = sigUtil.GetGameObjectManager();
+        for (int i = 0; i < objectTable->Objects.GameObjectIdSorted.Length; i++)
         {
-            var obj = objectTable[i];
-            if (obj == null)
+            var objPtr = objectTable->Objects.GameObjectIdSorted[i];
+            if (objPtr == null || objPtr.Value == null)
             {
                 continue;
             }
+            var obj = objPtr.Value;
             
-            if (ImGui.CollapsingHeader($"[{i}] {obj.ObjectKind} - {obj.Name.TextValue}"))
+            var kind = obj->GetObjectKind();
+            if (ImGui.CollapsingHeader($"[{i}|{(nint)obj:X8}] {kind} - {obj->NameString}"))
             {
-                ImGui.Text($"Index: {i}");
-                ImGui.Text($"Address: {obj.Address:X8}");
-                ImGui.Text($"Name: {obj.Name.TextValue}");
-                ImGui.Text($"Type: {obj.ObjectKind}");
-                ImGui.Text($"Position: {obj.Position}");
-                ImGui.Text($"Rotation: {obj.Rotation}");
+                UiUtil.Text($"Address: {(nint)obj:X8}", $"{(nint)obj:X8}");
+                ImGui.Text($"Name: {obj->NameString}");
+                ImGui.Text($"Type: {kind}");
+                var drawObject = obj->DrawObject;
+                if (drawObject != null)
+                {
+                    var drawObjectType = drawObject->GetObjectType();
+                    ImGui.Text($"DrawObject Address: {(nint)drawObject:X8}");
+                    ImGui.Text($"DrawObject Type: {drawObjectType}");
+                    ImGui.Text($"DrawObject Position: {drawObject->Position}");
+                    ImGui.Text($"DrawObject Rotation: {drawObject->Rotation}");
+                    ImGui.Text($"DrawObject Scale: {drawObject->Scale}");
+                    if (drawObjectType == ObjectType.CharacterBase)
+                    {
+                        using var cbaseIndent = ImRaii.PushIndent();
+                        var cBase = (CharacterBase*)drawObject;
+                        DrawCharacterBase(cBase, "CharacterBase");
+                    }
+                }
             }
         }
     }
@@ -324,6 +331,7 @@ public class DebugTab : ITab
         using var id = ImRaii.PushId($"{(nint)cBase:X8}");
         if (ImGui.CollapsingHeader(name))
         {
+            ImGui.Text($"Visible: {cBase->IsVisible}");
             ImGui.Text($"ModelType: {cBase->GetModelType()}");
             var skeleton = cBase->Skeleton;
             if (skeleton == null)

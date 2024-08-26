@@ -5,6 +5,7 @@ using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Models.Structs;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files.Structs.Material;
+using CustomizeParameter = Meddle.Utils.Export.CustomizeParameter;
 
 namespace Meddle.Plugin.Models.Layout;
 
@@ -83,10 +84,11 @@ public class ParsedLayer
     public List<ParsedInstance> Instances = [];
 }
 
-public class ParsedTextureInfo(string path, string pathFromMaterial) 
+public class ParsedTextureInfo(string path, string pathFromMaterial, TextureResource resource) 
 {
     public string Path { get; } = path;
     public string PathFromMaterial { get; } = pathFromMaterial;
+    public TextureResource Resource { get; } = resource;
 }
 
 public class ParsedMaterialInfo(string path, string pathFromModel, string shpk, ColorTable? colorTable, IList<ParsedTextureInfo> textures) 
@@ -112,7 +114,7 @@ public class ParsedCharacterInfo
     public IList<ParsedModelInfo> Models;
     public ParsedSkeleton Skeleton;
     public CustomizeData CustomizeData;
-    public Structs.CustomizeParameter CustomizeParameter;
+    public CustomizeParameter CustomizeParameter;
     public GenderRace GenderRace;
 }
 
@@ -121,5 +123,7 @@ public class ParsedCharacterInstance : ParsedInstance
     public ParsedCharacterInfo? CharacterInfo;
     public string Name;
     public ObjectKind Kind;
+    public bool Visible;
+
     public override ParsedInstanceType Type => ParsedInstanceType.Character;
 }

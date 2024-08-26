@@ -32,7 +32,8 @@ public class LayoutService : IService
     private readonly Dictionary<uint, Stain> stainDict;
 
     public LayoutService(
-        SigUtil sigUtil, ILogger<HousingService> logger, IDataManager dataManager, 
+        SigUtil sigUtil, ILogger<HousingService> logger, 
+        IDataManager dataManager, 
         ParseService parseService, PbdHooks pbdHooks)
     {
         this.sigUtil = sigUtil;
@@ -45,7 +46,37 @@ public class LayoutService : IService
                               .ToDictionary(row => row.AdditionalData, row => row);
     }
 
-    public unsafe ParsedLayer[]? GetWorldState()
+    public ParsedInstance[] ResolveInstances(ParsedInstance[] instances)
+    {
+        foreach (var instance in instances)
+        {
+            ResolveInstance(instance);
+        }
+        
+        return instances;
+    }
+
+    public unsafe ParsedInstance ResolveInstance(ParsedInstance instance)
+    {
+        if (instance is ParsedCharacterInstance characterInstance)
+        {
+            if (characterInstance.CharacterInfo == null)
+            {
+                var gameObject = (GameObject*)instance.Id;
+                var characterInfo = HandleDrawObject(gameObject->DrawObject);
+                characterInstance.CharacterInfo = characterInfo;
+            }
+        }
+        
+        foreach (var child in instance.Children)
+        {
+            ResolveInstance(child);
+        }
+        
+        return instance;
+    }
+
+    public unsafe ParsedInstance[]? GetWorldState()
     {
         var layoutWorld = sigUtil.GetLayoutWorld();
         if (layoutWorld == null)
@@ -53,17 +84,19 @@ public class LayoutService : IService
 
         var currentTerritory = GetCurrentTerritory();
         var housingItems = ParseTerritory(currentTerritory);
-        //var objects = ParseObjects();
+        var objects = ParseObjects();
         var parseCtx = new ParseCtx(housingItems);
         //var activeLayers = Parse(layoutWorld->ActiveLayout, parseCtx);
         var loadedLayers = layoutWorld->LoadedLayouts.Select(layout => Parse(layout.Value, parseCtx)).SelectMany(x => x)
                                                      .ToArray();
         var globalLayers = Parse(layoutWorld->GlobalLayout, parseCtx);
 
-        var layers = new List<ParsedLayer>();
+        var layers = new List<ParsedInstance>();
 
-        layers.AddRange(loadedLayers);
-        layers.AddRange(globalLayers);
+        layers.AddRange(loadedLayers.SelectMany(x => x.Instances));
+        layers.AddRange(globalLayers.SelectMany(x => x.Instances));
+        layers.AddRange(objects);
+        
         return layers.ToArray();
     }
     
@@ -294,7 +327,8 @@ public class LayoutService : IService
                 Kind = type,
                 Name = obj->NameString,
                 Transform = new Transform(drawObject->Position, drawObject->Rotation, drawObject->Scale),
-                CharacterInfo = characterInfo
+                CharacterInfo = characterInfo,
+                Visible = drawObject->IsVisible
             });
         }
 
@@ -354,15 +388,19 @@ public class LayoutService : IService
                 }
 
                 var textures = new List<ParsedTextureInfo>();
-                for (var texIdx = 0; texIdx < material->TexturesSpan.Length; texIdx++)
+                for (var texIdx = 0; texIdx < material->MaterialResourceHandle->TexturesSpan.Length; texIdx++)
                 {
-                    var texturePtr = material->TexturesSpan[texIdx];
-                    if (texturePtr.Texture == null) continue;
-                    
-                    var texturePath = texturePtr.Texture->ResourceHandle.FileName.ParseString();
-                    var texturePathFromMaterial = material->MaterialResourceHandle->TexturePathString(texIdx);
-                    var textureInfo = new ParsedTextureInfo(texturePath, texturePathFromMaterial);
-                    textures.Add(textureInfo);
+                    var texturePtr = material->MaterialResourceHandle->TexturesSpan[texIdx];
+                    if (texturePtr.TextureResourceHandle == null) continue;
+
+                    var texturePath = texturePtr.TextureResourceHandle->FileName.ParseString();
+                    if (texIdx < material->TextureCount)
+                    {
+                        var texturePathFromMaterial = material->MaterialResourceHandle->TexturePathString(texIdx);
+                        var resource = parseService.ParseTexturePtr(texturePtr.TextureResourceHandle->Texture);
+                        var textureInfo = new ParsedTextureInfo(texturePath, texturePathFromMaterial, resource);
+                        textures.Add(textureInfo);
+                    }
                 }
                 
                 var materialInfo = new ParsedMaterialInfo(materialPath, materialPathFromModel, shaderName, colorTable, textures);
@@ -377,13 +415,27 @@ public class LayoutService : IService
         var skeleton = StructExtensions.GetParsedSkeleton(characterBase);
         var modelType = characterBase->GetModelType();
         CustomizeData customizeData = new CustomizeData();
-        CustomizeParameter customizeParams = new CustomizeParameter();
+        Meddle.Utils.Export.CustomizeParameter customizeParams = new();
         GenderRace genderRace = GenderRace.Unknown;
         if (modelType == CharacterBase.ModelType.Human)
         {
             var human = (Human*)characterBase;
             var customizeCBuf = human->CustomizeParameterCBuffer->TryGetBuffer<CustomizeParameter>()[0];
-            customizeParams = customizeCBuf;
+            customizeParams = new Meddle.Utils.Export.CustomizeParameter
+            {
+                SkinColor = customizeCBuf.SkinColor,
+                MuscleTone = customizeCBuf.MuscleTone,
+                SkinFresnelValue0 = customizeCBuf.SkinFresnelValue0,
+                LipColor = customizeCBuf.LipColor,
+                MainColor = customizeCBuf.MainColor,
+                FacePaintUVMultiplier = customizeCBuf.FacePaintUVMultiplier,
+                HairFresnelValue0 = customizeCBuf.HairFresnelValue0,
+                MeshColor = customizeCBuf.MeshColor,
+                FacePaintUVOffset = customizeCBuf.FacePaintUVOffset,
+                LeftColor = customizeCBuf.LeftColor,
+                RightColor = customizeCBuf.RightColor,
+                OptionColor = customizeCBuf.OptionColor
+            };
             customizeData = new CustomizeData
             {
                 LipStick = human->Customize.Lipstick,

@@ -307,17 +307,21 @@ public class ExportService : IDisposable, IService
     {
         public int DistinctPaths { get; set; }
         public int ModelsParsed { get; set; }
+        public string StatusMessage = "";
     }
 
     public async Task Export(ParsedInstance[] instances, Vector3 origin, ModelExportProgress progress, string? outputFolder = null, CancellationToken token = default)
     {
         var flattened = instances.SelectMany(x => x.Flatten()).ToArray();
-        var distinctPaths = flattened.OfType<ParsedBgPartsInstance>().Select(x => x.Path).Distinct().ToArray();
-        progress.DistinctPaths = distinctPaths.Length;
+        var distinctBgPaths = flattened.OfType<ParsedBgPartsInstance>().Select(x => x.Path)
+                                       .Where(x => x != null).Cast<string>().Distinct().ToArray();
+        var characterParts = flattened.OfType<ParsedCharacterInstance>().ToArray();
+        progress.DistinctPaths = distinctBgPaths.Length + characterParts.Sum(x => x.CharacterInfo?.Models.Count ?? 0);
         var caches = new ConcurrentDictionary<string, (Model model, ModelBuilder.MeshExport mesh)[]>();
         var bones = new List<BoneNodeBuilder>();
 
-        await Parallel.ForEachAsync(distinctPaths, new ParallelOptions {CancellationToken = token},  async (path, tkn) =>
+        progress.StatusMessage = "Parsing bg parts";
+        await Parallel.ForEachAsync(distinctBgPaths, new ParallelOptions {CancellationToken = token},  async (path, tkn) =>
         {
             if (token.IsCancellationRequested) return;
             if (tkn.IsCancellationRequested) return;
@@ -348,13 +352,14 @@ public class ExportService : IDisposable, IService
             foreach (var instance in instances)
             {
                 if (token.IsCancellationRequested) return;
-                var node = HandleInstance(scene, instance, origin, caches, token);
+                var node = await HandleInstance(scene, instance, origin, progress, caches, token);
                 if (node != null)
                 {
                     scene.AddNode(node);
                 }
             }
 
+            progress.StatusMessage = "Exporting scene";
             var sceneGraph = scene.ToGltf2();
             if (outputFolder != null)
             {
@@ -374,7 +379,7 @@ public class ExportService : IDisposable, IService
         }
     }
 
-    private NodeBuilder? HandleInstance(SceneBuilder scene, ParsedInstance instance, Vector3 origin, ConcurrentDictionary<string, (Model model, ModelBuilder.MeshExport mesh)[]> caches, CancellationToken token)
+    private async Task<NodeBuilder?> HandleInstance(SceneBuilder scene, ParsedInstance instance, Vector3 origin, ModelExportProgress exportProgress, ConcurrentDictionary<string, (Model model, ModelBuilder.MeshExport mesh)[]> caches, CancellationToken token)
     {
         var root = new NodeBuilder();
         if (instance is ParsedHousingInstance ho)
@@ -386,8 +391,9 @@ public class ExportService : IDisposable, IService
             root.Name = $"{instance.Type}_{instance.Id}";
         }
         
-        if (instance is ParsedBgPartsInstance bg)
+        if (instance is ParsedBgPartsInstance {Path: not null} bg)
         {
+            exportProgress.StatusMessage = $"Parsing bg part {bg.Path}";
             if (!caches.TryGetValue(bg.Path, out var cache))
             {
                 logger.LogWarning("Cache not found for {Path}", bg.Path);
@@ -400,16 +406,85 @@ public class ExportService : IDisposable, IService
         }
         else if (instance is ParsedLightInstance li)
         {
+            exportProgress.StatusMessage = $"Parsing light {li.Id}";
             var lightBuilder = new LightBuilder.Point
             {
                 Name = $"light_{li.Id}"
             };
             scene.AddLight(lightBuilder, root);
         }
+        else if (instance is ParsedCharacterInstance characterInstance)
+        {
+            exportProgress.StatusMessage = $"Parsing {characterInstance.Name} models";
+            if (characterInstance.CharacterInfo == null)
+            {
+                logger.LogWarning("Character info not found for {Id}", characterInstance.Id);
+                return null;
+            }
+            
+            var bones = SkeletonUtils.GetBoneMap(characterInstance.CharacterInfo.Skeleton, true, out var rootBone);
+            if (rootBone != null)
+            {
+                root.AddNode(rootBone);
+            }
+            
+            var meshOutput = new List<(Model model, ModelBuilder.MeshExport mesh)>();
+            foreach (var mdlGroup in characterInstance.CharacterInfo.Models)
+            {
+                if (token.IsCancellationRequested) return null;
+                try
+                {
+                    var mdlFileGroup = await parseService.ParseFromModelInfo(mdlGroup);
+                    
+                    var meshes = HandleModel(characterInstance.CharacterInfo.CustomizeData, 
+                                             characterInstance.CharacterInfo.CustomizeParameter, 
+                                             characterInstance.CharacterInfo.GenderRace, 
+                                             mdlFileGroup, ref bones, rootBone, token);
+                    foreach (var mesh in meshes)
+                    {
+                        meshOutput.Add((mesh.model, mesh.mesh));
+                    }
+                }
+                catch (Exception e)
+                {
+                    logger.LogError(e, "Failed to export model {Path}", mdlGroup.Path);
+                }
+                
+                exportProgress.ModelsParsed++;
+            }
+            
+            foreach (var (model, mesh) in meshOutput)
+            {
+                if (token.IsCancellationRequested) return null;
+                InstanceBuilder meshInstance;
+                if (bones.Count > 0)
+                {
+                    meshInstance = scene.AddSkinnedMesh(mesh.Mesh, Matrix4x4.Identity, bones.Cast<NodeBuilder>().ToArray());
+                }
+                else
+                {
+                    meshInstance = scene.AddRigidMesh(mesh.Mesh, Matrix4x4.Identity);
+                }
+
+                ApplyMeshShapes(meshInstance, model, mesh.Shapes);
+
+                // Remove subMeshes that are not enabled
+                if (mesh.Submesh != null)
+                {
+                    var enabledAttributes = Model.GetEnabledValues(model.EnabledAttributeMask,
+                                                                   model.AttributeMasks);
+
+                    if (!mesh.Submesh.Attributes.All(enabledAttributes.Contains))
+                    {
+                        meshInstance.Remove();
+                    }
+                }
+            }
+        }
 
         foreach (var child in instance.Children)
         {
-            var childNode = HandleInstance(scene, child, origin, caches, token);
+            var childNode = await HandleInstance(scene, child, origin, exportProgress, caches, token);
             if (childNode != null)
             {
                 root.AddNode(childNode);
@@ -494,9 +569,12 @@ public class ExportService : IDisposable, IService
     }
 
     private List<(Model model, ModelBuilder.MeshExport mesh)> HandleModel(
-        CustomizeData customizeData, CustomizeParameter customizeParams, 
+        CustomizeData customizeData, 
+        CustomizeParameter customizeParams, 
         GenderRace genderRace,
-        MdlFileGroup mdlGroup, ref List<BoneNodeBuilder> bones, BoneNodeBuilder? root,
+        MdlFileGroup mdlGroup, 
+        ref List<BoneNodeBuilder> bones, 
+        BoneNodeBuilder? root,
         CancellationToken token)
     {
         using var activity = ActivitySource.StartActivity();

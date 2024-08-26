@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using Meddle.Plugin.Models;
+using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Export;
@@ -60,6 +61,12 @@ public class ParseService : IDisposable, IService
         OnLogEvent?.Invoke(logLevel, message);
     }
 
+    public unsafe TextureResource ParseTexturePtr(Texture* texture)
+    {
+        var (res, stride) = dxHelper.ExportTextureResource(texture);
+        return res;
+    }
+    
     public unsafe Dictionary<int, ColorTable> ParseColorTableTextures(CharacterBase* characterBase)
     {
         using var activity = ActivitySource.StartActivity();
@@ -150,6 +157,65 @@ public class ParseService : IDisposable, IService
         }
         var skeleton = StructExtensions.GetParsedSkeleton(characterBase);
         return new CharacterGroup(new CustomizeParameter(), new CustomizeData(), GenderRace.Unknown, models.ToArray(), skeleton, []);
+    }
+
+    public Task<MdlFileGroup> ParseFromModelInfo(ParsedModelInfo info)
+    {
+        var mdlFileResource = pack.GetFileOrReadFromDisk(info.Path);
+        if (mdlFileResource == null)
+        {
+            throw new Exception($"Failed to load model file {info.Path}");
+        }
+
+        var mdlFile = new MdlFile(mdlFileResource);
+        var mtrlGroups = new List<IMtrlFileGroup>();
+
+        foreach (var materialInfo in info.Materials)
+        {
+            var mtrlFileResource = pack.GetFileOrReadFromDisk(materialInfo.Path);
+            if (mtrlFileResource == null)
+            {
+                logger.LogWarning("Material file {MtrlFileName} not found", materialInfo.Path);
+                mtrlGroups.Add(new MtrlFileStubGroup(materialInfo.Path));
+                continue;
+            }
+            
+            var mtrlFile = new MtrlFile(mtrlFileResource);
+            if (materialInfo.ColorTable != null)
+            {
+                mtrlFile.ColorTable = materialInfo.ColorTable.Value;
+            }
+            
+            var shpkName = mtrlFile.GetShaderPackageName();
+            var shpkFile = HandleShpk(shpkName);
+
+            var texGroups = new List<TexResourceGroup>();
+            foreach (var textureInfo in materialInfo.Textures)
+            {
+                var textureResource = pack.GetFileOrReadFromDisk(textureInfo.Path);
+                if (textureResource == null)
+                {
+                    logger.LogWarning("Texture file {TexturePath} not found", textureInfo.Path);
+                    continue;
+                }
+
+                var texGroup = new TexResourceGroup(textureInfo.PathFromMaterial, textureInfo.Path, textureInfo.Resource);
+                texGroups.Add(texGroup);
+            }
+
+            mtrlGroups.Add(new MtrlFileGroup(materialInfo.PathFromModel, materialInfo.Path, mtrlFile, shpkName, shpkFile,
+                                             texGroups.ToArray()));
+        }
+        
+        DeformerGroup? deformerGroup = null;
+        if (info.Deformer != null)
+        {
+            deformerGroup = new DeformerGroup(info.Deformer.Value.PbdPath, 
+                                              info.Deformer.Value.RaceSexId,
+                                              info.Deformer.Value.DeformerId);
+        }
+
+        return Task.FromResult(new MdlFileGroup(info.PathFromCharacter, info.Path, deformerGroup, mdlFile, mtrlGroups.ToArray(), info.ShapeAttributeGroup));
     }
     
     public Task<MdlFileGroup> ParseFromPath(string mdlPath)

@@ -5,13 +5,14 @@ using Dalamud.Interface.Textures;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
-using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
 using ImGuiNET;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
+using Meddle.Utils.Export;
+using Meddle.Utils.Files.SqPack;
 using Microsoft.Extensions.Logging;
 
 namespace Meddle.Plugin.UI.Windows;
@@ -38,6 +39,7 @@ public class LayoutWindow : Window, IDisposable
     private readonly LayoutOverlay overlay;
     private readonly TextureCache textureCache;
     private readonly ITextureProvider textureProvider;
+    private readonly SqPack pack;
     private readonly ParseService parseService;
     private readonly List<ParsedInstance> selectedInstances = new();
     private Dictionary<string, MdlFileGroup> mdlGroups = new();
@@ -52,12 +54,14 @@ public class LayoutWindow : Window, IDisposable
     private OriginMode originMode = OriginMode.Player;
     private bool traceToExpanded = true;
     private bool traceToHovered = true;
+    private int maxItemCount = 100;
 
     public LayoutWindow(
         LayoutService layoutService, Configuration config,
         SigUtil sigUtil, ExportService exportService,
         ILogger<LayoutWindow> log, LayoutOverlay overlay,
         TextureCache textureCache, ITextureProvider textureProvider,
+        SqPack pack,
         ParseService parseService) : base("Layout")
     {
         this.layoutService = layoutService;
@@ -68,6 +72,7 @@ public class LayoutWindow : Window, IDisposable
         this.overlay = overlay;
         this.textureCache = textureCache;
         this.textureProvider = textureProvider;
+        this.pack = pack;
         this.parseService = parseService;
         overlay.OnInstanceClick += AddToSelected;
     }
@@ -93,7 +98,7 @@ public class LayoutWindow : Window, IDisposable
         overlay.IsOpen = true;
         base.OnOpen();
     }
-
+    
     public override void OnClose()
     {
         overlay.IsOpen = false;
@@ -139,9 +144,15 @@ public class LayoutWindow : Window, IDisposable
                 config.Save();
             }
 
+            ImGui.Checkbox("Draw Overlay", ref overlay.ShouldDraw);
             ImGui.Checkbox("Order by Distance", ref orderByDistance);
             ImGui.Checkbox("Trace to Hovered", ref traceToHovered);
             ImGui.Checkbox("Trace to Expanded", ref traceToExpanded);
+            ImGui.DragInt("Max Item Count", ref maxItemCount, 1, 1, 50000);
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("The maximum number of items to draw in the layout window, does not affect exports");
+            }
 
             if (ImGui.BeginCombo("Origin Mode", originMode.ToString()))
             {
@@ -208,6 +219,11 @@ public class LayoutWindow : Window, IDisposable
         {
             var width = ImGui.GetContentRegionAvail().X;
             ImGui.Text($"Models parsed: {exportProgress.ModelsParsed} / {exportProgress.DistinctPaths}");
+            if (!string.IsNullOrWhiteSpace(exportProgress.StatusMessage))
+            {
+                ImGui.SameLine();
+                ImGui.Text(exportProgress.StatusMessage);
+            }
             ImGui.ProgressBar(exportProgress.ModelsParsed / (float)exportProgress.DistinctPaths, new Vector2(width, 0));
         }
 
@@ -244,13 +260,14 @@ public class LayoutWindow : Window, IDisposable
         {
             var defaultName = $"LayoutExport-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
             exportProgress = new ExportService.ModelExportProgress();
+            var selected = selectedInstances.ToArray();
+            layoutService.ResolveInstances(selected);
             fileDialog.SaveFolderDialog("Save Model", defaultName,
                                         (result, path) =>
                                         {
                                             if (!result) return;
                                             exportTask = Task.Run(async () =>
                                             {
-                                                var selected = selectedInstances.ToArray();
                                                 var origin = CalculateOrigin(selected);
                                                 await exportService.Export(selected, origin, exportProgress, path);
                                             });
@@ -305,7 +322,6 @@ public class LayoutWindow : Window, IDisposable
 
         var local = sigUtil.GetLocalPosition();
         var allInstances = currentLayout
-                           .SelectMany(x => x.Instances)
                            .Where(x => Vector3.Distance(x.Transform.Translation, local) < config.WorldCutoffDistance)
                            .Where(x => selectedTypes.HasFlag(x.Type));
 
@@ -319,6 +335,7 @@ public class LayoutWindow : Window, IDisposable
         {
             var defaultName = $"LayoutExport-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
             exportProgress = new ExportService.ModelExportProgress();
+            layoutService.ResolveInstances(all);
             fileDialog.SaveFolderDialog("Save Model", defaultName,
                                         (result, path) =>
                                         {
@@ -331,7 +348,9 @@ public class LayoutWindow : Window, IDisposable
                                         }, Plugin.TempDirectory);
         }
 
-        DrawInstanceTable(all, ctx =>
+        var toDraw = all.Take(maxItemCount).ToArray();
+        
+        DrawInstanceTable(toDraw, ctx =>
         {
             ImGui.SameLine();
             using (ImRaii.PushFont(UiBuilder.IconFont))
@@ -432,6 +451,52 @@ public class LayoutWindow : Window, IDisposable
                     DrawModelGroup(group);
                 }
             }
+
+            if (instance is ParsedCharacterInstance character)
+            {
+                ImGui.Text($"Kind: {character.Kind}");
+                ImGui.Text($"Name: {character.Name}");
+                if (character.CharacterInfo != null)
+                {
+                    ImGui.Text("Models");
+                    foreach (var modelInfo in character.CharacterInfo.Models)
+                    {
+                        using var treeNode = ImRaii.TreeNode($"Model: {modelInfo.Path}");
+                        if (treeNode.Success)
+                        {
+                            ImGui.Text($"Model Path: {modelInfo.Path}");
+                            ImGui.Text($"Game Path: {modelInfo.PathFromCharacter}");
+                            if (modelInfo.Deformer != null)
+                            {
+                                ImGui.Text($"Deformer Path: {modelInfo.Deformer.Value.PbdPath}");
+                                ImGui.Text($"Deformer Id: {modelInfo.Deformer.Value.DeformerId}");
+                                ImGui.Text($"Race Sex Id: {modelInfo.Deformer.Value.RaceSexId}");
+                            }
+                            foreach (var materialInfo in modelInfo.Materials)
+                            {
+                                using var materialNode = ImRaii.TreeNode($"Material: {materialInfo.Path}");
+                                if (materialNode.Success)
+                                {
+                                    ImGui.Text($"Material Path: {materialInfo.Path}");
+                                    ImGui.Text($"Game Path: {materialInfo.PathFromModel}");
+                                    ImGui.Text($"Shader Path: {materialInfo.Shpk}");
+                                    ImGui.Text($"Texture Count: {materialInfo.Textures.Count}");
+                                    foreach (var textureInfo in materialInfo.Textures)
+                                    {
+                                        using var textureNode = ImRaii.TreeNode($"Texture: {textureInfo.Path}");
+                                        if (textureNode.Success)
+                                        {
+                                            ImGui.Text($"Texture Path: {textureInfo.Path}");
+                                            ImGui.Text($"Game Path: {textureInfo.PathFromMaterial}");
+                                            DrawTexture(textureInfo.Path, textureInfo.Resource);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         ImGui.TableSetColumnIndex(1);
@@ -451,13 +516,44 @@ public class LayoutWindow : Window, IDisposable
         }
     }
 
+    private void DrawTexture(string path, TextureResource resource)
+    {
+        ImGui.Text($"Width: {resource.Width}");
+        ImGui.Text($"Height: {resource.Height}");
+        ImGui.Text($"Format: {resource.Format}");
+        ImGui.Text($"Mipmap Count: {resource.MipLevels}");
+        ImGui.Text($"Array Count: {resource.ArraySize}");
+        
+        
+        var wrap = textureCache.GetOrAdd(path, () =>
+        {
+            var texture = resource.ToBitmap();
+            var wrap = textureProvider.CreateFromRaw(
+                RawImageSpecification.Rgba32(texture.Width, texture.Height), texture.GetPixelSpan());
+            return wrap;
+        });
+        
+        var availableWidth = ImGui.GetContentRegionAvail().X;
+        float displayWidth = wrap.Width;
+        float displayHeight = wrap.Height;
+        if (displayWidth > availableWidth)
+        {
+            var ratio = availableWidth / displayWidth;
+            displayWidth *= ratio;
+            displayHeight *= ratio;
+        }
+        
+        ImGui.Image(wrap.ImGuiHandle, new Vector2(displayWidth, displayHeight));
+    }
+    
     private void DrawExportAsGltf(params ParsedInstance[] instances)
     {
         var supportedExportTypes = new[]
         {
             ParsedInstanceType.BgPart,
             ParsedInstanceType.SharedGroup,
-            ParsedInstanceType.Light
+            ParsedInstanceType.Housing,
+            ParsedInstanceType.Character
         };
         
         using (ImRaii.Disabled(!instances.All(x => supportedExportTypes.Contains(x.Type))))
@@ -466,6 +562,7 @@ public class LayoutWindow : Window, IDisposable
             if (ImGui.Button(FontAwesomeIcon.FileExport.ToIconString()))
             {
                 var defaultName = $"LayoutExport-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
+                layoutService.ResolveInstances(instances);
                 exportProgress = new ExportService.ModelExportProgress();
                 fileDialog.SaveFolderDialog("Save Model", defaultName,
                                             (result, path) =>

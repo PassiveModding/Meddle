@@ -28,7 +28,7 @@ public static class ImageUtils
             fixed (byte* data = image.Span)
             {
                 using var bitmap = new SKBitmap();
-                var info = new SKImageInfo(image.Width, image.Height, SKColorType.Rgba8888, SKAlphaType.Premul);
+                var info = new SKImageInfo(image.Width, image.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
 
                 bitmap.InstallPixels(info, (IntPtr)data, image.Width * 4);
 
@@ -167,6 +167,28 @@ public static class ImageUtils
         return new SKTexture(bitmap);
     }
     
+    public static SKTexture ToTexture(this TextureResource resource, (int width, int height)? resize = null)
+    {
+        var bitmap = resource.ToBitmap();
+        
+        if (resize != null)
+        {
+            bitmap = bitmap.Resize(new SKImageInfo(resize.Value.width, resize.Value.height, SKColorType.Rgba8888, SKAlphaType.Unpremul), SKFilterQuality.High);
+        }
+        
+        return new SKTexture(bitmap);
+    }
+    
+    public static SKTexture ToTexture(this SKBitmap bitmap, (int width, int height)? resize = null)
+    {
+        if (resize != null)
+        {
+            bitmap = bitmap.Resize(new SKImageInfo(resize.Value.width, resize.Value.height, SKColorType.Rgba8888, SKAlphaType.Unpremul), SKFilterQuality.High);
+        }
+        
+        return new SKTexture(bitmap);
+    }
+    
     public static SKTexture ToTexture(this Texture tex, (int width, int height)? resize = null)
     {
         var bitmap = tex.ToBitmap();
@@ -258,8 +280,13 @@ public static class ImageUtils
             }
             
             // I have trust issues
-            var copy = new SKBitmap(bitmap.Info);
-            bitmap.CopyTo(copy, bitmap.Info.ColorType);
+            var copy = new SKBitmap(rgba.Meta.Width, rgba.Meta.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
+            var pixelBuf = copy.GetPixelSpan().ToArray();
+            bitmap.GetPixelSpan().CopyTo(pixelBuf);
+            fixed (byte* data = pixelBuf)
+            {
+                copy.InstallPixels(copy.Info, (nint)data, copy.Info.RowBytes);
+            }
             
             return copy;
         }
