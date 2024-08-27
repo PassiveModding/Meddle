@@ -397,7 +397,7 @@ public class LayoutService : IService
                     if (texIdx < material->TextureCount)
                     {
                         var texturePathFromMaterial = material->MaterialResourceHandle->TexturePathString(texIdx);
-                        var resource = parseService.ParseTexturePtr(texturePtr.TextureResourceHandle->Texture);
+                        var (resource, stride) = DXHelper.ExportTextureResource(texturePtr.TextureResourceHandle->Texture);
                         var textureInfo = new ParsedTextureInfo(texturePath, texturePathFromMaterial, resource);
                         textures.Add(textureInfo);
                     }

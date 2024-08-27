@@ -21,7 +21,6 @@ namespace Meddle.Plugin.Services;
 public class ParseService : IDisposable, IService
 {
     private static readonly ActivitySource ActivitySource = new("Meddle.Plugin.Utils.ParseUtil");
-    private readonly DXHelper dxHelper;
     private readonly EventLogger<ParseService> logger;
     private readonly SqPack pack;
     private readonly PbdHooks pbdHooks;
@@ -38,11 +37,9 @@ public class ParseService : IDisposable, IService
         TexCache.Clear();
     }
 
-    public ParseService(
-        SqPack pack, DXHelper dxHelper, PbdHooks pbdHooks, ILogger<ParseService> logger)
+    public ParseService(SqPack pack, PbdHooks pbdHooks, ILogger<ParseService> logger)
     {
         this.pack = pack;
-        this.dxHelper = dxHelper;
         this.pbdHooks = pbdHooks;
         this.logger = new EventLogger<ParseService>(logger);
         this.logger.OnLogEvent += OnLog;
@@ -59,12 +56,6 @@ public class ParseService : IDisposable, IService
     private void OnLog(LogLevel logLevel, string message)
     {
         OnLogEvent?.Invoke(logLevel, message);
-    }
-
-    public unsafe TextureResource ParseTexturePtr(Texture* texture)
-    {
-        var (res, stride) = dxHelper.ExportTextureResource(texture);
-        return res;
     }
     
     public unsafe Dictionary<int, ColorTable> ParseColorTableTextures(CharacterBase* characterBase)
@@ -106,7 +97,7 @@ public class ParseService : IDisposable, IService
     public unsafe ColorTableRow[] ParseColorTableTexture(Texture* colorTableTexture)
     {
         using var activity = ActivitySource.StartActivity();
-        var (colorTableRes, stride) = dxHelper.ExportTextureResource(colorTableTexture);
+        var (colorTableRes, stride) = DXHelper.ExportTextureResource(colorTableTexture);
         if ((TexFile.TextureFormat)colorTableTexture->TextureFormat != TexFile.TextureFormat.R16G16B16A16F)
         {
             throw new ArgumentException(
@@ -409,7 +400,7 @@ public class ParseService : IDisposable, IService
 
             var texturePath = material->MaterialResourceHandle->TexturePathString(i);
             var resourcePath = textureEntry.TextureResourceHandle->ResourceHandle.FileName.ParseString();
-            var data = dxHelper.ExportTextureResource(textureEntry.TextureResourceHandle->Texture);
+            var data = DXHelper.ExportTextureResource(textureEntry.TextureResourceHandle->Texture);
             var texResourceGroup = new TexResourceGroup(texturePath, resourcePath, data.Resource);
             texGroups.Add(texResourceGroup);
         }
