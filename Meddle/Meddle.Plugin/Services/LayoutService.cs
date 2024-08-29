@@ -1,4 +1,6 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Collections.Concurrent;
+using System.Numerics;
+using System.Runtime.InteropServices;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
@@ -14,10 +16,18 @@ using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Export;
+using Meddle.Utils.Files;
+using Meddle.Utils.Files.SqPack;
 using Meddle.Utils.Files.Structs.Material;
+using Meddle.Utils.Materials;
+using Meddle.Utils.Models;
 using Microsoft.Extensions.Logging;
+using SharpGLTF.Materials;
+using SharpGLTF.Scenes;
+using SkiaSharp;
 using CustomizeParameter = Meddle.Plugin.Models.Structs.CustomizeParameter;
 using HousingFurniture = FFXIVClientStructs.FFXIV.Client.Game.HousingFurniture;
+using Material = Meddle.Utils.Export.Material;
 using Transform = Meddle.Plugin.Models.Transform;
 
 namespace Meddle.Plugin.Services;
@@ -26,18 +36,23 @@ public class LayoutService : IService
 {
     private readonly Dictionary<uint, Item> itemDict;
     private readonly ILogger<HousingService> logger;
+    private readonly IDataManager dataManager;
+    private readonly SqPack pack;
     private readonly ParseService parseService;
     private readonly PbdHooks pbdHooks;
     private readonly SigUtil sigUtil;
     private readonly Dictionary<uint, Stain> stainDict;
 
     public LayoutService(
-        SigUtil sigUtil, ILogger<HousingService> logger, 
-        IDataManager dataManager, 
+        SigUtil sigUtil, ILogger<HousingService> logger,
+        IDataManager dataManager,
+        SqPack pack,
         ParseService parseService, PbdHooks pbdHooks)
     {
         this.sigUtil = sigUtil;
         this.logger = logger;
+        this.dataManager = dataManager;
+        this.pack = pack;
         this.parseService = parseService;
         this.pbdHooks = pbdHooks;
         stainDict = dataManager.GetExcelSheet<Stain>()!.ToDictionary(row => row.RowId, row => row);
@@ -52,7 +67,7 @@ public class LayoutService : IService
         {
             ResolveInstance(instance);
         }
-        
+
         return instances;
     }
 
@@ -67,12 +82,12 @@ public class LayoutService : IService
                 characterInstance.CharacterInfo = characterInfo;
             }
         }
-        
+
         foreach (var child in instance.Children)
         {
             ResolveInstance(child);
         }
-        
+
         return instance;
     }
 
@@ -96,10 +111,10 @@ public class LayoutService : IService
         layers.AddRange(loadedLayers.SelectMany(x => x.Instances));
         layers.AddRange(globalLayers.SelectMany(x => x.Instances));
         layers.AddRange(objects);
-        
+
         return layers.ToArray();
     }
-    
+
     private unsafe HousingTerritory* GetCurrentTerritory()
     {
         var housingManager = sigUtil.GetHousingManager();
@@ -110,6 +125,140 @@ public class LayoutService : IService
             return null;
 
         return housingManager->CurrentTerritory;
+    }
+
+    public unsafe void ParseTerrain(CancellationToken cancellationToken = default)
+    {
+        logger.LogInformation("Parsing terrain");
+        var layoutWorld = sigUtil.GetLayoutWorld();
+        if (layoutWorld == null) return;
+        var activeLayout = layoutWorld->ActiveLayout;
+        if (activeLayout == null) return;
+
+        var scene = new SceneBuilder();
+        var outDir = Path.Combine(Plugin.TempDirectory, "terrain");
+        Directory.CreateDirectory(outDir);
+        var textureDir = Path.Combine(outDir, "textures");
+        Directory.CreateDirectory(textureDir);
+
+        var teraFiles = new Dictionary<string, TeraFile>();
+        foreach (var (_, terrainPtr) in activeLayout->Terrains)
+        {
+            if (terrainPtr == null || terrainPtr.Value == null) continue;
+            var terrain = terrainPtr.Value;
+            var terrainDir = terrain->PathString;
+            var teraPath = $"{terrainDir}/bgplate/terrain.tera";
+            var teraData = dataManager.GetFile(teraPath);
+            if (teraData == null) throw new Exception($"Failed to load terrain file: {teraPath}");
+            var terrainFile = new TeraFile(teraData.Data);
+            teraFiles.Add(terrainDir, terrainFile);
+            logger.LogInformation("Loaded terrain {teraPath}", teraPath);
+        }
+
+        var shpkCache = new Dictionary<string, ShpkFile>();
+        var texPaths = new Dictionary<string, string>();
+        
+        foreach (var (dir, file) in teraFiles)
+        {
+            for (var i = 0; i < file.Header.PlateCount; i++)
+            {
+                if (cancellationToken.IsCancellationRequested) break;
+                logger.LogInformation("Parsing plate {i}", i);
+                var mdlPath = $"{dir}/bgplate/{i:D4}.mdl";
+                var mdlData = dataManager.GetFile(mdlPath);
+                if (mdlData == null) throw new Exception($"Failed to load model file: {mdlPath}");
+                var mdlFile = new MdlFile(mdlData.Data);
+
+                var platePos = file.GetPlatePosition(i);
+                var transform = new Transform(new Vector3(platePos.X, 0, platePos.Y), Quaternion.Identity,
+                                              Vector3.One);
+                var materials = mdlFile.GetMaterialNames().Select(x => x.Value).ToArray();
+                var materialBuilders = new List<MaterialBuilder>();
+                foreach (var mtrlPath in materials)
+                {
+                    var mtrlData = dataManager.GetFile(mtrlPath);
+                    if (mtrlData == null)
+                        throw new Exception($"Failed to load material file: {mtrlPath}");
+                    var mtrlFile = new MtrlFile(mtrlData.Data);
+                    logger.LogInformation("Loaded material {mtrlPath}", mtrlPath);
+
+                    var texturePaths = mtrlFile.GetTexturePaths();
+                    var shpkPath = $"shader/sm5/shpk/{mtrlFile.GetShaderPackageName()}";
+                    if (!shpkCache.TryGetValue(shpkPath, out var shpkFile))
+                    {
+                        var shpkData = dataManager.GetFile(shpkPath);
+                        if (shpkData == null)
+                            throw new Exception($"Failed to load shader package file: {shpkPath}");
+                        shpkFile = new ShpkFile(shpkData.Data);
+                        logger.LogInformation("Loaded shader package {shpkPath}", shpkPath);
+                        shpkCache.TryAdd(shpkPath, shpkFile);
+                    }
+
+                    foreach (var (offset, texPath) in texturePaths)
+                    {
+                        if (!texPaths.ContainsKey(texPath))
+                        {
+                            var texData = dataManager.GetFile(texPath);
+                            if (texData == null)
+                                throw new Exception($"Failed to load texture file: {texPath}");
+                            var texFile = new TexFile(texData.Data);
+                            logger.LogInformation("Loaded texture {texPath}", texPath);
+                            var diskPath = Path.Combine(textureDir, Path.GetFileNameWithoutExtension(texPath)) + ".png";
+                            var texture = Texture.GetResource(texFile).ToTexture();
+                            byte[] textureBytes;
+                            using (var memoryStream = new MemoryStream())
+                            {
+                                texture.Bitmap.Encode(memoryStream, SKEncodedImageFormat.Png, 100);
+                                textureBytes = memoryStream.ToArray();
+                            }
+                            
+                            File.WriteAllBytes(diskPath, textureBytes);
+                            texPaths.TryAdd(texPath, diskPath);
+                        }
+                    }
+
+                    var output = new MaterialBuilder(Path.GetFileNameWithoutExtension(mtrlPath))
+                                 .WithMetallicRoughnessShader()
+                                 .WithBaseColor(Vector4.One);
+                    
+                    var shaderPackage = new ShaderPackage(shpkFile, null!);
+                    for (var samplerIdx = 0; samplerIdx < mtrlFile.Samplers.Length; samplerIdx++)
+                    {
+                        var sampler = mtrlFile.Samplers[samplerIdx];
+                        if (sampler.TextureIndex != byte.MaxValue)
+                        {
+                            var texture = mtrlFile.TextureOffsets[sampler.TextureIndex];
+                            var path = texturePaths[texture.Offset];
+                            if (texPaths.TryGetValue(path, out var tex) && 
+                                shaderPackage.TextureLookup.TryGetValue(sampler.SamplerId, out var usage))
+                            {
+                                var imageBuilder = ImageBuilder.From(tex, Path.GetFileNameWithoutExtension(path));
+                                var channel = MaterialUtility.MapTextureUsageToChannel(usage);
+                                if (channel != null)
+                                {
+                                    output.WithChannelImage(channel.Value, imageBuilder);
+                                }
+                            }
+                        }
+                    }
+                    
+                    materialBuilders.Add(output);
+                }
+
+                var model = new Model(mdlPath, mdlFile, null);
+                var meshes = ModelBuilder.BuildMeshes(model, materialBuilders, [], null);
+                foreach (var mesh in meshes)
+                {
+                    scene.AddRigidMesh(mesh.Mesh, transform.AffineTransform);
+                }
+            }
+        }
+
+        var sceneGraph = scene.ToGltf2();
+        var outputDir = Path.Combine(Plugin.TempDirectory, "terrain");
+        Directory.CreateDirectory(outputDir);
+        var outputPath = Path.Combine(outputDir, "terrain.gltf");
+        sceneGraph.SaveGLTF(outputPath);
     }
 
     private unsafe ParsedLayer[] Parse(LayoutManager* activeLayout, ParseCtx ctx)
@@ -295,7 +444,7 @@ public class LayoutService : IService
             Path = path
         };
     }
-    
+
     public unsafe ParsedInstance[] ParseObjects(bool resolveCharacterInfo = false)
     {
         var gameObjectManager = sigUtil.GetGameObjectManager();
@@ -305,16 +454,16 @@ public class LayoutService : IService
         {
             if (objectPtr == null || objectPtr.Value == null)
                 continue;
-            
+
             var obj = objectPtr.Value;
             if (objects.Any(o => o.Id == (nint)obj))
                 continue;
-            
+
             var type = obj->GetObjectKind();
             var drawObject = obj->DrawObject;
             if (drawObject == null)
                 continue;
-            
+
             ParsedCharacterInfo? characterInfo = null;
             if (resolveCharacterInfo)
             {
@@ -341,13 +490,13 @@ public class LayoutService : IService
         {
             return null;
         }
-        
+
         var objectType = drawObject->Object.GetObjectType();
         if (objectType != ObjectType.CharacterBase)
         {
             return null;
         }
-        
+
         var characterBase = (CharacterBase*)drawObject;
         var colorTableTextures = parseService.ParseColorTableTextures(characterBase);
         var models = new List<ParsedModelInfo>();
@@ -369,7 +518,8 @@ public class LayoutService : IService
                 if (material == null) continue;
 
                 var materialPath = material->MaterialResourceHandle->ResourceHandle.FileName.ParseString();
-                var materialPathFromModel = model->ModelResourceHandle->GetMaterialFileNameBySlotAsString((uint)mtrlIdx);
+                var materialPathFromModel =
+                    model->ModelResourceHandle->GetMaterialFileNameBySlotAsString((uint)mtrlIdx);
                 var shaderName = material->MaterialResourceHandle->ShpkNameString;
                 ColorTable? colorTable = null;
                 if (colorTableTextures.TryGetValue((int)(model->SlotIndex * CharacterBase.MaterialsPerSlot) + mtrlIdx,
@@ -397,21 +547,24 @@ public class LayoutService : IService
                     if (texIdx < material->TextureCount)
                     {
                         var texturePathFromMaterial = material->MaterialResourceHandle->TexturePathString(texIdx);
-                        var (resource, stride) = DXHelper.ExportTextureResource(texturePtr.TextureResourceHandle->Texture);
+                        var (resource, stride) =
+                            DXHelper.ExportTextureResource(texturePtr.TextureResourceHandle->Texture);
                         var textureInfo = new ParsedTextureInfo(texturePath, texturePathFromMaterial, resource);
                         textures.Add(textureInfo);
                     }
                 }
-                
-                var materialInfo = new ParsedMaterialInfo(materialPath, materialPathFromModel, shaderName, colorTable, textures);
+
+                var materialInfo =
+                    new ParsedMaterialInfo(materialPath, materialPathFromModel, shaderName, colorTable, textures);
                 materials.Add(materialInfo);
             }
-        
+
             var deform = pbdHooks.TryGetDeformer((nint)characterBase, model->SlotIndex);
-            var modelInfo = new ParsedModelInfo(modelPath, modelPathFromCharacter, deform, shapeAttributeGroup, materials);
+            var modelInfo =
+                new ParsedModelInfo(modelPath, modelPathFromCharacter, deform, shapeAttributeGroup, materials);
             models.Add(modelInfo);
         }
-        
+
         var skeleton = StructExtensions.GetParsedSkeleton(characterBase);
         var modelType = characterBase->GetModelType();
         CustomizeData customizeData = new CustomizeData();
