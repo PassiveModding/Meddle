@@ -52,6 +52,19 @@ public sealed class TextureCache : IDisposable, IService
         cache[key] = new CachedTexture(wrap);
         return wrap;
     }
+    
+    public async Task<IDalamudTextureWrap> GetOrAddAsync(string key, Func<Task<IDalamudTextureWrap>> createWrap)
+    {
+        if (cache.TryGetValue(key, out var cachedTexture))
+        {
+            cachedTexture.LastAccessTime = DateTime.Now;
+            return cachedTexture.Wrap;
+        }
+
+        var wrap = await createWrap();
+        cache[key] = new CachedTexture(wrap);
+        return wrap;
+    }
 
     private void CleanupExpiredTextures(object? state)
     {

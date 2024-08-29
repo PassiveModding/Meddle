@@ -1,12 +1,16 @@
-﻿using Dalamud.Game;
-using Dalamud.Hooking;
+﻿using System.Numerics;
+using Dalamud.Game;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
+using FFXIVClientStructs.FFXIV.Client.Game.Character;
+using FFXIVClientStructs.FFXIV.Client.Game.Control;
+using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
 using Microsoft.Extensions.Logging;
 using Camera = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Camera;
+using CameraManager = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.CameraManager;
 
 namespace Meddle.Plugin.Services;
 
@@ -32,6 +36,28 @@ public class SigUtil : IService, IDisposable
         return world;
     }
     
+    public unsafe GameObjectManager* GetGameObjectManager()
+    {
+        var gameObjectManager = GameObjectManager.Instance();
+        if (gameObjectManager == null)
+            return null;
+        
+        return gameObjectManager;
+    }
+    
+    public unsafe BattleChara* GetLocalPlayer()
+    {
+        var localPlayer = Control.GetLocalPlayer();
+        return localPlayer;
+    }
+    
+    public unsafe Vector3 GetLocalPosition()
+    {
+        var localPlayer = GetLocalPlayer();
+        if (localPlayer == null) return Vector3.Zero;
+        return localPlayer->Position;
+    }
+    
     public unsafe HousingManager* GetHousingManager()
     {
         var manager = HousingManager.Instance();
@@ -48,6 +74,7 @@ public class SigUtil : IService, IDisposable
         return layoutWorld;
     }
     
+    
     public unsafe Camera* GetCamera()
     {
         var manager = CameraManager.Instance();
@@ -58,13 +85,20 @@ public class SigUtil : IService, IDisposable
         return manager->CurrentCamera;
     }
     
-    
     public unsafe Device* GetDevice()
     {
         var device = Device.Instance();
         if (device == null)
             throw new Exception("Device instance is null");
         return device;
+    }
+    
+    public unsafe Control* GetControl()
+    {
+        var control = Control.Instance();
+        if (control == null)
+            throw new Exception("Control instance is null");
+        return control;
     }
 
     /*public const string CleanupRenderSig = "48 8B D1 45 33 C9 48 8B 49";

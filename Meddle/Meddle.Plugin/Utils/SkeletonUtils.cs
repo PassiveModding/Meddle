@@ -66,7 +66,7 @@ public static class SkeletonUtils
                 else
                 {
                     if (root != null)
-                        throw new InvalidOperationException("Multiple root bones found");
+                        throw new InvalidOperationException($"Multiple root bones found {root.BoneName} and {name}");
                     root = bone;
                 }
 

@@ -370,12 +370,10 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                 }
             });
 
-            var disableSkinning = bones.Length == 0;
-            
-            var meshes = ModelBuilder.BuildMeshes(model, materials, bones, null, disableSkinning);
+            var meshes = ModelBuilder.BuildMeshes(model, materials, bones, null);
             foreach (var mesh in meshes)
             {
-                if (mesh.UseSkinning && boneNodes.Length > 0)
+                if (boneNodes.Length > 0)
                 {
                     scene.AddSkinnedMesh(mesh.Mesh, Matrix4x4.Identity, boneNodes);
                 }

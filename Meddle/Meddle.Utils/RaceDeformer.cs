@@ -51,7 +51,9 @@ public partial class RaceDeformer(PbdFile pbd, IReadOnlyList<BoneNodeBuilder> bo
         return null;
     }
     
-    [GeneratedRegex(@"c(?'racecode'\d{4})", RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
+    //[GeneratedRegex(@"c(?'racecode'\d{4})", RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
+    // match cXXXX where character before c is not a letter
+    [GeneratedRegex(@"(?<!\p{L})c(?'racecode'\d{4})", RegexOptions.ExplicitCapture)]
     public static partial Regex RaceCodeParser();
 
     public static GenderRace ParseRaceCode(string path)

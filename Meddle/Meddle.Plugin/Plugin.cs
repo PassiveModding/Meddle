@@ -90,8 +90,8 @@ public class Configuration : IPluginConfiguration
     [JsonIgnore]
     private IDalamudPluginInterface PluginInterface { get; set; } = null!;
 
-    public bool ShowDebug { get; set; }
-    public bool ShowTesting { get; set; }
+    public bool OpenDebugMenuOnLoad { get; set; }
+    public bool OpenLayoutMenuOnLoad { get; set; }
     public LogLevel MinimumNotificationLogLevel { get; set; } = LogLevel.Warning;
     public bool OpenOnLoad { get; set; }
     public bool DisableUserUiHide { get; set; }

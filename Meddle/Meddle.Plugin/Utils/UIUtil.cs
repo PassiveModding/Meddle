@@ -428,8 +428,81 @@ public static class UiUtil
                     var transform = poseData.Pose[j];
                     var boneName = partial.HkSkeleton?.BoneNames[j] ?? "Bone";
                     ImGui.Text($"[{j}]{boneName} {transform}");
+                    if (ImGui.IsItemHovered())
+                    {
+                        var parent = partial.HkSkeleton?.BoneParents[j] ?? -1;
+                        if (parent != -1)
+                        {
+                            var parentName = partial.HkSkeleton?.BoneNames[parent] ?? "Bone";
+                            ImGui.SetTooltip($"Parent: {parentName} ({parent})");
+                        }
+                        else
+                        {
+                            ImGui.SetTooltip("No Parent");
+                        }
+                    }
+                }
+            }
+
+            if (ImGui.CollapsingHeader($"[{i}]Partial tree: {partial.HandlePath}"))
+            {
+                ImGui.Text($"Connected Bone Index: {partial.ConnectedBoneIndex}");
+                for (var poseIdx = 0; poseIdx < partial.Poses.Count; poseIdx++)
+                {
+                    using var poseId = ImRaii.PushId(poseIdx);
+                    var pose = partial.Poses[poseIdx];
+                    if (ImGui.CollapsingHeader($"Pose: {poseIdx}"))
+                    {
+                        var roots = new List<int>();
+                        for (var j = 0; j < pose.Pose.Count; j++)
+                        {
+                            if (partial.HkSkeleton?.BoneParents[j] == -1)
+                            {
+                                roots.Add(j);
+                            }
+                        }
+                        
+                        foreach (var root in roots)
+                        {
+                            using var rootId = ImRaii.PushId(root);
+                            DrawBoneTree(partial, pose, root);
+                        }
+                    }
                 }
             }
         }
+    }
+
+    private static void DrawBoneTree(ParsedPartialSkeleton partial, ParsedHkaPose pose, int root)
+    {
+        var boneName = partial.HkSkeleton?.BoneNames[root] ?? "Bone";
+        var transform = pose.Pose[root];
+                
+        var children = new List<int>();
+        for (var i = 0; i < partial.HkSkeleton!.BoneParents.Count; i++)
+        {
+            if (partial.HkSkeleton.BoneParents[i] == root)
+            {
+                children.Add(i);
+            }
+        }
+        
+        var flags = ImGuiTreeNodeFlags.OpenOnArrow;
+        if (children.Count == 0)
+        {
+            flags |= ImGuiTreeNodeFlags.Leaf;
+        }
+        
+        if (!ImGui.TreeNodeEx($"[{root}] {boneName} {transform}###{root}", flags))
+        {
+            return;
+        }
+        
+        foreach (var child in children)
+        {
+            DrawBoneTree(partial, pose, child);
+        }
+        
+        ImGui.TreePop();
     }
 }

@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿/*
+using System.Numerics;
 using Dalamud.Interface;
 using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.Textures;
@@ -353,3 +354,77 @@ public class WorldTab : ITab
         }
     }
 }
+*/
+
+
+/*
+    public async Task Export((Transform transform, string mdlPath)[] models, ModelExportProgress progress, string? outputFolder = null, CancellationToken token = default)
+    {
+        try
+        {
+            using var activity = ActivitySource.StartActivity();
+            var scene = new SceneBuilder();
+            
+            var distinctPaths = models.Select(x => x.mdlPath).Distinct().ToArray();
+            progress.DistinctPaths = distinctPaths.Length;
+            var caches = new ConcurrentDictionary<string, (Model model, ModelBuilder.MeshExport mesh)[]>();
+            
+            var bones = new List<BoneNodeBuilder>();
+            await Parallel.ForEachAsync(distinctPaths, new ParallelOptions {CancellationToken = token}, async (path, tkn) =>
+            {
+                if (token.IsCancellationRequested) return;
+                if (tkn.IsCancellationRequested) return;
+                try
+                {
+                    var mdlGroup = await parseService.ParseFromPath(path);
+                    var cache = HandleModel(new CustomizeData(),
+                                        new CustomizeParameter(),
+                                        GenderRace.Unknown,
+                                        mdlGroup,
+                                        ref bones,
+                                        null,
+                                        true,
+                                        token).ToArray();
+                    caches[path] = cache;
+
+                    progress.ModelsParsed++;
+                }
+                catch (Exception e)
+                {
+                    logger.LogError(e, "Error handling model {Path}", path);
+                }
+            });
+            
+            foreach (var (transform, path) in models)
+            {
+                if (token.IsCancellationRequested) return;
+                if (!caches.TryGetValue(path, out var cache))
+                {
+                    logger.LogWarning("Cache not found for {Path}", path);
+                    continue;
+                }
+                foreach (var (model, mesh) in cache)
+                {
+                    AddMesh(scene, transform.AffineTransform.Matrix, model, mesh, []);
+                }
+            }
+            
+            var sceneGraph = scene.ToGltf2();
+            if (outputFolder != null)
+            {
+                Directory.CreateDirectory(outputFolder);
+            }
+
+            var folder = outputFolder ?? GetPathForOutput();
+            var outputPath = Path.Combine(folder, "scene.gltf");
+            sceneGraph.SaveGLTF(outputPath);
+            Process.Start("explorer.exe", folder);
+            logger.LogInformation("Export complete");
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Failed to export model set");
+            throw;
+        }
+    }
+    */

@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using Meddle.Plugin.Models;
+using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Export;
@@ -20,7 +21,6 @@ namespace Meddle.Plugin.Services;
 public class ParseService : IDisposable, IService
 {
     private static readonly ActivitySource ActivitySource = new("Meddle.Plugin.Utils.ParseUtil");
-    private readonly DXHelper dxHelper;
     private readonly EventLogger<ParseService> logger;
     private readonly SqPack pack;
     private readonly PbdHooks pbdHooks;
@@ -37,11 +37,9 @@ public class ParseService : IDisposable, IService
         TexCache.Clear();
     }
 
-    public ParseService(
-        SqPack pack, DXHelper dxHelper, PbdHooks pbdHooks, ILogger<ParseService> logger)
+    public ParseService(SqPack pack, PbdHooks pbdHooks, ILogger<ParseService> logger)
     {
         this.pack = pack;
-        this.dxHelper = dxHelper;
         this.pbdHooks = pbdHooks;
         this.logger = new EventLogger<ParseService>(logger);
         this.logger.OnLogEvent += OnLog;
@@ -59,7 +57,7 @@ public class ParseService : IDisposable, IService
     {
         OnLogEvent?.Invoke(logLevel, message);
     }
-
+    
     public unsafe Dictionary<int, ColorTable> ParseColorTableTextures(CharacterBase* characterBase)
     {
         using var activity = ActivitySource.StartActivity();
@@ -99,7 +97,7 @@ public class ParseService : IDisposable, IService
     public unsafe ColorTableRow[] ParseColorTableTexture(Texture* colorTableTexture)
     {
         using var activity = ActivitySource.StartActivity();
-        var (colorTableRes, stride) = dxHelper.ExportTextureResource(colorTableTexture);
+        var (colorTableRes, stride) = DXHelper.ExportTextureResource(colorTableTexture);
         if ((TexFile.TextureFormat)colorTableTexture->TextureFormat != TexFile.TextureFormat.R16G16B16A16F)
         {
             throw new ArgumentException(
@@ -150,6 +148,65 @@ public class ParseService : IDisposable, IService
         }
         var skeleton = StructExtensions.GetParsedSkeleton(characterBase);
         return new CharacterGroup(new CustomizeParameter(), new CustomizeData(), GenderRace.Unknown, models.ToArray(), skeleton, []);
+    }
+
+    public Task<MdlFileGroup> ParseFromModelInfo(ParsedModelInfo info)
+    {
+        var mdlFileResource = pack.GetFileOrReadFromDisk(info.Path);
+        if (mdlFileResource == null)
+        {
+            throw new Exception($"Failed to load model file {info.Path}");
+        }
+
+        var mdlFile = new MdlFile(mdlFileResource);
+        var mtrlGroups = new List<IMtrlFileGroup>();
+
+        foreach (var materialInfo in info.Materials)
+        {
+            var mtrlFileResource = pack.GetFileOrReadFromDisk(materialInfo.Path);
+            if (mtrlFileResource == null)
+            {
+                logger.LogWarning("Material file {MtrlFileName} not found", materialInfo.Path);
+                mtrlGroups.Add(new MtrlFileStubGroup(materialInfo.Path));
+                continue;
+            }
+            
+            var mtrlFile = new MtrlFile(mtrlFileResource);
+            if (materialInfo.ColorTable != null)
+            {
+                mtrlFile.ColorTable = materialInfo.ColorTable.Value;
+            }
+            
+            var shpkName = mtrlFile.GetShaderPackageName();
+            var shpkFile = HandleShpk(shpkName);
+
+            var texGroups = new List<TexResourceGroup>();
+            foreach (var textureInfo in materialInfo.Textures)
+            {
+                var textureResource = pack.GetFileOrReadFromDisk(textureInfo.Path);
+                if (textureResource == null)
+                {
+                    logger.LogWarning("Texture file {TexturePath} not found", textureInfo.Path);
+                    continue;
+                }
+
+                var texGroup = new TexResourceGroup(textureInfo.PathFromMaterial, textureInfo.Path, textureInfo.Resource);
+                texGroups.Add(texGroup);
+            }
+
+            mtrlGroups.Add(new MtrlFileGroup(materialInfo.PathFromModel, materialInfo.Path, mtrlFile, shpkName, shpkFile,
+                                             texGroups.ToArray()));
+        }
+        
+        DeformerGroup? deformerGroup = null;
+        if (info.Deformer != null)
+        {
+            deformerGroup = new DeformerGroup(info.Deformer.Value.PbdPath, 
+                                              info.Deformer.Value.RaceSexId,
+                                              info.Deformer.Value.DeformerId);
+        }
+
+        return Task.FromResult(new MdlFileGroup(info.PathFromCharacter, info.Path, deformerGroup, mdlFile, mtrlGroups.ToArray(), info.ShapeAttributeGroup));
     }
     
     public Task<MdlFileGroup> ParseFromPath(string mdlPath)
@@ -343,7 +400,7 @@ public class ParseService : IDisposable, IService
 
             var texturePath = material->MaterialResourceHandle->TexturePathString(i);
             var resourcePath = textureEntry.TextureResourceHandle->ResourceHandle.FileName.ParseString();
-            var data = dxHelper.ExportTextureResource(textureEntry.TextureResourceHandle->Texture);
+            var data = DXHelper.ExportTextureResource(textureEntry.TextureResourceHandle->Texture);
             var texResourceGroup = new TexResourceGroup(texturePath, resourcePath, data.Resource);
             texGroups.Add(texResourceGroup);
         }

@@ -1,21 +1,19 @@
-using System.Numerics;
+﻿using System.Numerics;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using ImGuiNET;
 using Microsoft.Extensions.Logging;
 
-namespace Meddle.Plugin.UI;
+namespace Meddle.Plugin.UI.Windows;
 
-public sealed class MainWindow : Window, IDisposable
+
+public abstract class MeddleWindowBase : Window
 {
-    private readonly ILogger<MainWindow> log;
-    private readonly ITab[] tabs;
-
+    private readonly ILogger log;
     private string? lastError;
 
-    public MainWindow(IEnumerable<ITab> tabs, ILogger<MainWindow> log) : base("Meddle")
+    protected MeddleWindowBase(ILogger log, string name, ImGuiWindowFlags flags = ImGuiWindowFlags.None) : base(name, flags)
     {
-        this.tabs = tabs.OrderBy(x => x.Order).ToArray();
         this.log = log;
         SizeConstraints = new WindowSizeConstraints
         {
@@ -23,22 +21,17 @@ public sealed class MainWindow : Window, IDisposable
             MaximumSize = new Vector2(1200, 1000)
         };
     }
-
-    public void Dispose()
-    {
-        foreach (var tab in tabs)
-        {
-            tab.Dispose();
-        }
-    }
+    
+    protected abstract ITab[] GetTabs();
+    
+    protected virtual void BeforeDraw() { }
 
     public override void Draw()
     {
-        using var tabBar = ImRaii.TabBar("##meddleTabs");
-        foreach (var tab in tabs)
+        BeforeDraw();
+        using var tabBar = ImRaii.TabBar($"##{WindowName}tabs");
+        foreach (var tab in GetTabs())
         {
-            if (!tab.DisplayTab)
-                continue;
             using var tabItem = ImRaii.TabItem(tab.Name);
             try
             {

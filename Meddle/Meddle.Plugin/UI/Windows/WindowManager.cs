@@ -2,11 +2,10 @@
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
-using Meddle.Plugin.UI;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace Meddle.Plugin.Services.UI;
+namespace Meddle.Plugin.UI.Windows;
 
 public class WindowManager : IHostedService, IDisposable
 {
@@ -14,28 +13,34 @@ public class WindowManager : IHostedService, IDisposable
     private readonly ICommandManager commandManager;
     private readonly Configuration config;
     private readonly ILogger<WindowManager> log;
-    private readonly OverlayWindow overlayWindow;
     private readonly IDalamudPluginInterface pluginInterface;
     private readonly MainWindow mainWindow;
+    private readonly DebugWindow debugWindow;
+    private readonly LayoutOverlay layoutOverlay;
+    private readonly LayoutWindow layoutWindow;
     private readonly WindowSystem windowSystem;
     
     private bool disposed;
 
     public WindowManager(
         MainWindow mainWindow,
-        OverlayWindow overlayWindow,
+        DebugWindow debugWindow,
+        LayoutOverlay layoutOverlay,
+        LayoutWindow layoutWindow,
         WindowSystem windowSystem,
         IDalamudPluginInterface pluginInterface,
         ILogger<WindowManager> log,
         Configuration config,
         ICommandManager commandManager)
     {
-        this.overlayWindow = overlayWindow;
         this.pluginInterface = pluginInterface;
         this.log = log;
         this.config = config;
         this.commandManager = commandManager;
         this.mainWindow = mainWindow;
+        this.debugWindow = debugWindow;
+        this.layoutOverlay = layoutOverlay;
+        this.layoutWindow = layoutWindow;
         this.windowSystem = windowSystem;
     }
 
@@ -49,8 +54,8 @@ public class WindowManager : IHostedService, IDisposable
             commandManager.RemoveHandler(Command);
             config.OnConfigurationSaved -= OnSave;
             pluginInterface.UiBuilder.Draw -= windowSystem.Draw;
-            pluginInterface.UiBuilder.OpenConfigUi -= OpenUi;
-            pluginInterface.UiBuilder.OpenMainUi -= OpenUi;
+            pluginInterface.UiBuilder.OpenConfigUi -= OpenMainUi;
+            pluginInterface.UiBuilder.OpenMainUi -= OpenMainUi;
             mainWindow.Dispose();
             windowSystem.RemoveAllWindows();
             disposed = true;
@@ -60,13 +65,15 @@ public class WindowManager : IHostedService, IDisposable
     public Task StartAsync(CancellationToken cancellationToken)
     {
         windowSystem.AddWindow(mainWindow);
-        windowSystem.AddWindow(overlayWindow);
+        windowSystem.AddWindow(debugWindow);
+        windowSystem.AddWindow(layoutWindow);
+        windowSystem.AddWindow(layoutOverlay);
 
         config.OnConfigurationSaved += OnSave;
         pluginInterface.UiBuilder.Draw += windowSystem.Draw;
         
-        pluginInterface.UiBuilder.OpenMainUi += OpenUi;
-        pluginInterface.UiBuilder.OpenConfigUi += OpenUi;
+        pluginInterface.UiBuilder.OpenMainUi += OpenMainUi;
+        pluginInterface.UiBuilder.OpenConfigUi += OpenMainUi;
         pluginInterface.UiBuilder.DisableGposeUiHide = config.DisableGposeUiHide;
         pluginInterface.UiBuilder.DisableCutsceneUiHide = config.DisableCutsceneUiHide;
         pluginInterface.UiBuilder.DisableAutomaticUiHide = config.DisableAutomaticUiHide;
@@ -74,7 +81,17 @@ public class WindowManager : IHostedService, IDisposable
 
         if (config.OpenOnLoad)
         {
-            OpenUi();
+            OpenMainUi();
+        }
+
+        if (config.OpenDebugMenuOnLoad)
+        {
+            OpenDebugUi();
+        }
+        
+        if (config.OpenLayoutMenuOnLoad)
+        {
+            OpenLayoutUi();
         }
 
         commandManager.AddHandler(Command, new CommandInfo(OnCommand)
@@ -99,14 +116,42 @@ public class WindowManager : IHostedService, IDisposable
         pluginInterface.UiBuilder.DisableUserUiHide = config.DisableUserUiHide;
     }
 
-    public void OpenUi()
+    public void OpenMainUi()
     {
         mainWindow.IsOpen = true;
         mainWindow.BringToFront();
     }
 
+    public void OpenDebugUi()
+    {
+        debugWindow.IsOpen = true;
+        debugWindow.BringToFront();
+    }
+    
+    public void OpenLayoutUi()
+    {
+        layoutWindow.IsOpen = true;
+        layoutWindow.BringToFront();
+    }
+    
     private void OnCommand(string command, string args)
     {
-        OpenUi();
+        if (!string.IsNullOrEmpty(args))
+        {
+            log.LogDebug("Received command with args: {Args}", args);
+            if (args.Equals("debug", StringComparison.OrdinalIgnoreCase))
+            {
+                OpenDebugUi();
+                return;
+            }
+            
+            if (args.Equals("layout", StringComparison.OrdinalIgnoreCase))
+            {
+                OpenLayoutUi();
+                return;
+            }
+        }
+        
+        OpenMainUi();
     }
 }

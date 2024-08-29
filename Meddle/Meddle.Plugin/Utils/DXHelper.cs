@@ -1,7 +1,5 @@
 ﻿using System.Runtime.InteropServices;
-using Meddle.Plugin.Services;
 using Meddle.Utils.Export;
-using Microsoft.Extensions.Logging;
 using OtterTex;
 using SharpGen.Runtime;
 using Vortice.Direct3D11;
@@ -11,19 +9,12 @@ using Texture = FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Texture;
 
 namespace Meddle.Plugin.Utils;
 
-public unsafe class DXHelper : IService
+public static unsafe class DXHelper
 {
-    private readonly ILogger<DXHelper> log;
-
-    public readonly Result WasStillDrawing = new(0x887A000A);
-
-    public DXHelper(ILogger<DXHelper> log)
-    {
-        this.log = log;
-    }
+    public static readonly Result WasStillDrawing = new(0x887A000A);
 
 
-    public (TextureResource Resource, int RowPitch) ExportTextureResource(Texture* kernelTexture)
+    public static (TextureResource Resource, int RowPitch) ExportTextureResource(Texture* kernelTexture)
     {
         if (kernelTexture->D3D11Texture2D == null)
             throw new ArgumentException("Texture's DX data is null");
@@ -68,7 +59,7 @@ public unsafe class DXHelper : IService
         return r.Device.CreateBuffer(desc);
     }*/
 
-    private (TextureResource Resource, int RowPitch) GetData(ID3D11Texture2D1 r, MappedSubresource map)
+    private static (TextureResource Resource, int RowPitch) GetData(ID3D11Texture2D1 r, MappedSubresource map)
     {
         var desc = r.Description1;
         if (desc.Format is Format.BC1_UNorm or Format.BC2_UNorm or Format.BC3_UNorm or Format.BC4_UNorm
@@ -113,7 +104,7 @@ public unsafe class DXHelper : IService
         return (resource, rowPitch);
     }
 
-    private ID3D11Texture2D1 CloneResource(ID3D11Texture2D1 r)
+    private static ID3D11Texture2D1 CloneResource(ID3D11Texture2D1 r)
     {
         var desc = r.Description1 with
         {
@@ -148,7 +139,7 @@ public unsafe class DXHelper : IService
     //}
 
     // https://github.com/microsoft/graphics-driver-samples/blob/de4a2161991eda254013da6c18226f5ea06e4a9c/render-only-sample/rostest/util.cpp#L244
-    private RetT GetResourceData<T, RetT>(
+    private static RetT GetResourceData<T, RetT>(
         T res, Func<T, T> cloneResource, Func<T, MappedSubresource, RetT> getData) where T : ID3D11Resource
     {
         using var stagingRes = cloneResource(res);
@@ -159,7 +150,7 @@ public unsafe class DXHelper : IService
                                                           out var mapInfo);
         if (code == WasStillDrawing)
         {
-            log.LogTrace($"Could not do a non-blocking map. Attempting a blocking map. {code.Description}");
+            //log.LogTrace($"Could not do a non-blocking map. Attempting a blocking map. {code.Description}");
             stagingRes.Device.ImmediateContext.Map(stagingRes, 0, MapMode.Read, MapFlags.None, out mapInfo)
                       .CheckError();
         }

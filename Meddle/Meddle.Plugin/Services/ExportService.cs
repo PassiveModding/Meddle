@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Numerics;
 using Meddle.Plugin.Models;
+using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
@@ -14,6 +15,7 @@ using SharpGLTF.Geometry;
 using SharpGLTF.Geometry.VertexTypes;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
+using SharpGLTF.Transforms;
 using SkiaSharp;
 using Material = Meddle.Utils.Export.Material;
 using Model = Meddle.Utils.Export.Model;
@@ -194,7 +196,7 @@ public class ExportService : IDisposable, IService
                 try
                 {
                     var meshes = HandleModel(characterGroup.CustomizeData, characterGroup.CustomizeParams,
-                                             characterGroup.GenderRace, mdlGroup, ref bones, root, false, token);
+                                             characterGroup.GenderRace, mdlGroup, ref bones, root, token);
                     foreach (var mesh in meshes)
                     {
                         meshOutput.Add((mesh.model, mesh.mesh));
@@ -262,7 +264,7 @@ public class ExportService : IDisposable, IService
                 {
                     var meshes = HandleModel(characterGroup.CustomizeData, 
                                              characterGroup.CustomizeParams, characterGroup.GenderRace, 
-                                             mdlGroup, ref attachBones, attachPointBone, false, token);
+                                             mdlGroup, ref attachBones, attachPointBone, token);
                     foreach (var mesh in meshes)
                     {
                         meshOutputAttach.Add((transform, mesh.model, mesh.mesh, attachBones.ToArray()));
@@ -305,59 +307,59 @@ public class ExportService : IDisposable, IService
     {
         public int DistinctPaths { get; set; }
         public int ModelsParsed { get; set; }
+        public string StatusMessage = "";
     }
-    
-    public async Task Export((Transform transform, string mdlPath)[] models, ModelExportProgress progress, string? outputFolder = null, CancellationToken token = default)
+
+    public async Task Export(ParsedInstance[] instances, Vector3 origin, ModelExportProgress progress, string? outputFolder = null, CancellationToken token = default)
     {
-        try
+        var flattened = instances.SelectMany(x => x.Flatten()).ToArray();
+        var distinctBgPaths = flattened.OfType<ParsedBgPartsInstance>().Select(x => x.Path)
+                                       .Where(x => x != null).Cast<string>().Distinct().ToArray();
+        var characterParts = flattened.OfType<ParsedCharacterInstance>().ToArray();
+        progress.DistinctPaths = distinctBgPaths.Length + characterParts.Sum(x => x.CharacterInfo?.Models.Count ?? 0);
+        var caches = new ConcurrentDictionary<string, (Model model, ModelBuilder.MeshExport mesh)[]>();
+        var bones = new List<BoneNodeBuilder>();
+
+        progress.StatusMessage = "Parsing bg parts";
+        await Parallel.ForEachAsync(distinctBgPaths, new ParallelOptions {CancellationToken = token},  async (path, tkn) =>
         {
-            using var activity = ActivitySource.StartActivity();
-            var scene = new SceneBuilder();
-            
-            var distinctPaths = models.Select(x => x.mdlPath).Distinct().ToArray();
-            progress.DistinctPaths = distinctPaths.Length;
-            var caches = new ConcurrentDictionary<string, (Model model, ModelBuilder.MeshExport mesh)[]>();
-            
-            var bones = new List<BoneNodeBuilder>();
-            await Parallel.ForEachAsync(distinctPaths, new ParallelOptions {CancellationToken = token}, async (path, tkn) =>
+            if (token.IsCancellationRequested) return;
+            if (tkn.IsCancellationRequested) return;
+            try
             {
-                if (token.IsCancellationRequested) return;
-                if (tkn.IsCancellationRequested) return;
-                try
-                {
-                    var mdlGroup = await parseService.ParseFromPath(path);
-                    var cache = HandleModel(new CustomizeData(),
+                var mdlGroup = await parseService.ParseFromPath(path);
+                var cache = HandleModel(new CustomizeData(),
                                         new CustomizeParameter(),
                                         GenderRace.Unknown,
                                         mdlGroup,
                                         ref bones,
                                         null,
-                                        true,
                                         token).ToArray();
-                    caches[path] = cache;
+                caches[path] = cache;
 
-                    progress.ModelsParsed++;
-                }
-                catch (Exception e)
-                {
-                    logger.LogError(e, "Error hanlding model {Path}", path);
-                }
-            });
-            
-            foreach (var (transform, path) in models)
+                progress.ModelsParsed++;
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "Error handling model {Path}", path);
+            }
+        });
+        
+        try
+        {
+            using var activity = ActivitySource.StartActivity();
+            var scene = new SceneBuilder();
+            foreach (var instance in instances)
             {
                 if (token.IsCancellationRequested) return;
-                if (!caches.TryGetValue(path, out var cache))
+                var node = await HandleInstance(scene, instance, origin, progress, caches, token);
+                if (node != null)
                 {
-                    logger.LogWarning("Cache not found for {Path}", path);
-                    continue;
-                }
-                foreach (var (model, mesh) in cache)
-                {
-                    AddMesh(scene, transform.AffineTransform.Matrix, model, mesh, []);
+                    scene.AddNode(node);
                 }
             }
-            
+
+            progress.StatusMessage = "Exporting scene";
             var sceneGraph = scene.ToGltf2();
             if (outputFolder != null)
             {
@@ -377,11 +379,133 @@ public class ExportService : IDisposable, IService
         }
     }
 
+    private async Task<NodeBuilder?> HandleInstance(SceneBuilder scene, ParsedInstance instance, Vector3 origin, ModelExportProgress exportProgress, ConcurrentDictionary<string, (Model model, ModelBuilder.MeshExport mesh)[]> caches, CancellationToken token)
+    {
+        var root = new NodeBuilder();
+        if (instance is ParsedHousingInstance ho)
+        {
+            root.Name = ho.Name;
+        }
+        else
+        {
+            root.Name = $"{instance.Type}_{instance.Id}";
+        }
+        
+        if (instance is ParsedBgPartsInstance {Path: not null} bg)
+        {
+            exportProgress.StatusMessage = $"Parsing bg part {bg.Path}";
+            if (!caches.TryGetValue(bg.Path, out var cache))
+            {
+                logger.LogWarning("Cache not found for {Path}", bg.Path);
+                return null;
+            }
+            foreach (var (_, mesh) in cache)
+            {
+                scene.AddRigidMesh(mesh.Mesh, root, Matrix4x4.Identity);
+            }
+        }
+        else if (instance is ParsedLightInstance li)
+        {
+            exportProgress.StatusMessage = $"Parsing light {li.Id}";
+            var lightBuilder = new LightBuilder.Point
+            {
+                Name = $"light_{li.Id}"
+            };
+            scene.AddLight(lightBuilder, root);
+        }
+        else if (instance is ParsedCharacterInstance characterInstance)
+        {
+            exportProgress.StatusMessage = $"Parsing {characterInstance.Name} models";
+            if (characterInstance.CharacterInfo == null)
+            {
+                logger.LogWarning("Character info not found for {Id}", characterInstance.Id);
+                return null;
+            }
+            
+            var bones = SkeletonUtils.GetBoneMap(characterInstance.CharacterInfo.Skeleton, true, out var rootBone);
+            if (rootBone != null)
+            {
+                root.AddNode(rootBone);
+            }
+            
+            var meshOutput = new List<(Model model, ModelBuilder.MeshExport mesh)>();
+            foreach (var mdlGroup in characterInstance.CharacterInfo.Models)
+            {
+                if (token.IsCancellationRequested) return null;
+                try
+                {
+                    var mdlFileGroup = await parseService.ParseFromModelInfo(mdlGroup);
+                    
+                    var meshes = HandleModel(characterInstance.CharacterInfo.CustomizeData, 
+                                             characterInstance.CharacterInfo.CustomizeParameter, 
+                                             characterInstance.CharacterInfo.GenderRace, 
+                                             mdlFileGroup, ref bones, rootBone, token);
+                    foreach (var mesh in meshes)
+                    {
+                        meshOutput.Add((mesh.model, mesh.mesh));
+                    }
+                }
+                catch (Exception e)
+                {
+                    logger.LogError(e, "Failed to export model {Path}", mdlGroup.Path);
+                }
+                
+                exportProgress.ModelsParsed++;
+            }
+            
+            foreach (var (model, mesh) in meshOutput)
+            {
+                if (token.IsCancellationRequested) return null;
+                InstanceBuilder meshInstance;
+                if (bones.Count > 0)
+                {
+                    meshInstance = scene.AddSkinnedMesh(mesh.Mesh, Matrix4x4.Identity, bones.Cast<NodeBuilder>().ToArray());
+                }
+                else
+                {
+                    meshInstance = scene.AddRigidMesh(mesh.Mesh, Matrix4x4.Identity);
+                }
+
+                ApplyMeshShapes(meshInstance, model, mesh.Shapes);
+
+                // Remove subMeshes that are not enabled
+                if (mesh.Submesh != null)
+                {
+                    var enabledAttributes = Model.GetEnabledValues(model.EnabledAttributeMask,
+                                                                   model.AttributeMasks);
+
+                    if (!mesh.Submesh.Attributes.All(enabledAttributes.Contains))
+                    {
+                        meshInstance.Remove();
+                    }
+                }
+            }
+        }
+
+        foreach (var child in instance.Children)
+        {
+            var childNode = await HandleInstance(scene, child, origin, exportProgress, caches, token);
+            if (childNode != null)
+            {
+                root.AddNode(childNode);
+            }
+        }
+
+        var transform = new AffineTransform(instance.Transform.Scale,
+                                            instance.Transform.Rotation,
+                                            instance.Transform.Translation - origin);
+        
+        root.SetLocalTransform(transform, true);
+
+        return root;
+    }
+
+
     public static void AddMesh(
         SceneBuilder scene, Matrix4x4 position, Model model, ModelBuilder.MeshExport mesh, BoneNodeBuilder[] bones)
     {
         InstanceBuilder instance;
-        if (mesh.UseSkinning && bones.Length > 0)
+        if (bones.Length > 0)
         {
             instance = scene.AddSkinnedMesh(mesh.Mesh, position, bones.Cast<NodeBuilder>().ToArray());
         }
@@ -431,6 +555,7 @@ public class ExportService : IDisposable, IService
             "iris.shpk" => MaterialUtility.BuildIris(material, name, catchlightTex, customizeParams,
                                                      customizeData),
             "water.shpk" => MaterialUtility.BuildWater(material, name),
+            "lightshaft.shpk" => MaterialUtility.BuildLightShaft(material, name),
             _ => BuildAndLogFallbackMaterial(material, name)
         };
 
@@ -444,10 +569,12 @@ public class ExportService : IDisposable, IService
     }
 
     private List<(Model model, ModelBuilder.MeshExport mesh)> HandleModel(
-        CustomizeData customizeData, CustomizeParameter customizeParams, 
+        CustomizeData customizeData, 
+        CustomizeParameter customizeParams, 
         GenderRace genderRace,
-        MdlFileGroup mdlGroup, ref List<BoneNodeBuilder> bones, BoneNodeBuilder? root,
-        bool disableSkinning,
+        MdlFileGroup mdlGroup, 
+        ref List<BoneNodeBuilder> bones, 
+        BoneNodeBuilder? root,
         CancellationToken token)
     {
         using var activity = ActivitySource.StartActivity();
@@ -500,23 +627,30 @@ public class ExportService : IDisposable, IService
 
         if (token.IsCancellationRequested) return meshOutput;
 
-        (GenderRace, RaceDeformer) raceDeformerValue;
+        (GenderRace from, GenderRace to, RaceDeformer deformer)? deform;
         if (mdlGroup.DeformerGroup != null)
         {
+            // custom pbd may exist
             var pbdFileData = pack.GetFileOrReadFromDisk(mdlGroup.DeformerGroup.Path);
             if (pbdFileData == null)
                 throw new InvalidOperationException($"Failed to get deformer pbd {mdlGroup.DeformerGroup.Path}");
-            raceDeformerValue = ((GenderRace)mdlGroup.DeformerGroup.RaceSexId,
-                                    new RaceDeformer(new PbdFile(pbdFileData), bones));
-            model.RaceCode = (GenderRace)mdlGroup.DeformerGroup.DeformerId;
+            deform = ((GenderRace)mdlGroup.DeformerGroup.DeformerId, (GenderRace)mdlGroup.DeformerGroup.RaceSexId, new RaceDeformer(new PbdFile(pbdFileData), bones));
             logger.LogDebug("Using deformer pbd {Path}", mdlGroup.DeformerGroup.Path);
         }
         else
         {
-            raceDeformerValue = (genderRace, new RaceDeformer(pbdFile, bones));
+            var parsed = RaceDeformer.ParseRaceCode(mdlGroup.CharacterPath);
+            if (Enum.IsDefined(parsed))
+            {
+                deform = (parsed, genderRace, new RaceDeformer(pbdFile, bones));
+            }
+            else
+            {
+                deform = null;
+            }
         }
 
-        var meshes = ModelBuilder.BuildMeshes(model, materials, bones, raceDeformerValue, disableSkinning);
+        var meshes = ModelBuilder.BuildMeshes(model, materials, bones, deform);
         foreach (var mesh in meshes)
         {
             meshOutput.Add((model, mesh));

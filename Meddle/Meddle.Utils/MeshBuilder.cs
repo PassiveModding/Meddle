@@ -29,7 +29,7 @@ public class MeshBuilder
         Mesh mesh,
         int[]? jointLut,
         MaterialBuilder materialBuilder,
-        (RaceDeformer deformer, ushort from, ushort to)? raceDeformer
+        (GenderRace fromDeform, GenderRace toDeform, RaceDeformer deformer)? raceDeformer
     )
     {
         Mesh = mesh;
@@ -43,11 +43,11 @@ public class MeshBuilder
         MeshBuilderT =
             typeof(MeshBuilder<,,,>).MakeGenericType(typeof(MaterialBuilder), GeometryT, MaterialT, SkinningT);
 
-        if (raceDeformer != null)
+        if (raceDeformer != null && jointLut != null)
         {
-            var (deformer, from, to) = raceDeformer.Value;
+            var (from, to, deformer) = raceDeformer.Value;
             RaceDeformer = deformer;
-            Deformers = deformer.PbdFile.GetDeformers(from, to).ToList();
+            Deformers = deformer.PbdFile.GetDeformers((ushort)from, (ushort)to).ToList();
         }
         else
         {

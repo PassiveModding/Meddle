@@ -1,19 +1,19 @@
 ﻿using System.Diagnostics;
 using ImGuiNET;
+using Meddle.Plugin.Models;
 using Microsoft.Extensions.Logging;
 
 namespace Meddle.Plugin.UI;
 
 public class OptionsTab : ITab
 {
+    public MenuType MenuType => MenuType.Default;
     private readonly Configuration config;
 
     public OptionsTab(Configuration config)
     {
         this.config = config;
     }
-
-    public bool DisplayTab => true;
 
     public void Dispose() { }
 
@@ -26,18 +26,25 @@ public class OptionsTab : ITab
         {
             Process.Start("explorer.exe", Plugin.TempDirectory);
         }
-
-        var debug = config.ShowDebug;
-        if (ImGui.Checkbox("Show Debug Menus", ref debug))
+        
+        var openOnLoad = config.OpenOnLoad;
+        if (ImGui.Checkbox("Open Main Window on load", ref openOnLoad))
         {
-            config.ShowDebug = debug;
+            config.OpenOnLoad = openOnLoad;
             config.Save();
         }
 
-        var test = config.ShowTesting;
-        if (ImGui.Checkbox("Show Testing Menus", ref test))
+        var debug = config.OpenDebugMenuOnLoad;
+        if (ImGui.Checkbox("Open Debug Window on Load", ref debug))
         {
-            config.ShowTesting = test;
+            config.OpenDebugMenuOnLoad = debug;
+            config.Save();
+        }
+
+        var test = config.OpenLayoutMenuOnLoad;
+        if (ImGui.Checkbox("Open Layout Window on Load", ref test))
+        {
+            config.OpenLayoutMenuOnLoad = test;
             config.Save();
         }
 
@@ -54,13 +61,6 @@ public class OptionsTab : ITab
             }
 
             ImGui.EndCombo();
-        }
-
-        var openOnLoad = config.OpenOnLoad;
-        if (ImGui.Checkbox("Open on load", ref openOnLoad))
-        {
-            config.OpenOnLoad = openOnLoad;
-            config.Save();
         }
 
         var disableUserUiHide = config.DisableUserUiHide;

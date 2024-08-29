@@ -31,8 +31,8 @@ namespace Meddle.Plugin.UI;
 public unsafe class LiveCharacterTab : ITab
 {
     private readonly CommonUi commonUi;
-    private readonly DXHelper dxHelper;
     private readonly ExportService exportService;
+    public MenuType MenuType => MenuType.Default;
 
     private readonly FileDialogManager fileDialog = new()
     {
@@ -56,7 +56,6 @@ public unsafe class LiveCharacterTab : ITab
         ExportService exportService,
         ITextureProvider textureProvider,
         ParseService parseService,
-        DXHelper dxHelper,
         TextureCache textureCache,
         SqPack pack,
         PbdHooks pbd,
@@ -66,7 +65,6 @@ public unsafe class LiveCharacterTab : ITab
         this.exportService = exportService;
         this.textureProvider = textureProvider;
         this.parseService = parseService;
-        this.dxHelper = dxHelper;
         this.textureCache = textureCache;
         this.pack = pack;
         this.pbd = pbd;
@@ -86,7 +84,6 @@ public unsafe class LiveCharacterTab : ITab
 
     public string Name => "Character";
     public int Order => 1;
-    public bool DisplayTab => true;
 
     public void Draw()
     {
@@ -675,7 +672,7 @@ public unsafe class LiveCharacterTab : ITab
     }
     
     private void DrawMaterial(
-        Pointer<CharacterBase> cPtr, Pointer<CSModel> mPtr, Pointer<CSMaterial> mtPtr, int materialIdx)
+        Pointer<CSCharacterBase> cPtr, Pointer<CSModel> mPtr, Pointer<CSMaterial> mtPtr, int materialIdx)
     {
         if (cPtr == null || cPtr.Value == null)
         {
@@ -750,7 +747,7 @@ public unsafe class LiveCharacterTab : ITab
                     if (i < material->MaterialResourceHandle->TextureCount)
                     {
                         var textureName = material->MaterialResourceHandle->TexturePathString(i);
-                        var gpuTex = dxHelper.ExportTextureResource(textureEntry.Texture->Texture);
+                        var gpuTex = DXHelper.ExportTextureResource(textureEntry.Texture->Texture);
                         var textureData = gpuTex.Resource.ToBitmap();
                         textureBuffer[textureName] = textureData;
                     }
@@ -842,7 +839,7 @@ public unsafe class LiveCharacterTab : ITab
             {
                 var defaultFileName = Path.GetFileName(textureFileName);
                 defaultFileName = Path.ChangeExtension(defaultFileName, ".png");
-                var gpuTex = dxHelper.ExportTextureResource(textureEntry.Texture->Texture);
+                var gpuTex = DXHelper.ExportTextureResource(textureEntry.Texture->Texture);
                 var textureData = gpuTex.Resource.ToBitmap();
 
                 fileDialog.SaveFileDialog("Save Texture", "PNG Image{.png}", defaultFileName, ".png",
@@ -898,7 +895,7 @@ public unsafe class LiveCharacterTab : ITab
 
             var wrap = textureCache.GetOrAdd($"{(nint)textureEntry.Texture->Texture}", () =>
             {
-                var gpuTex = dxHelper.ExportTextureResource(textureEntry.Texture->Texture);
+                var gpuTex = DXHelper.ExportTextureResource(textureEntry.Texture->Texture);
                 var textureData = gpuTex.Resource.ToBitmap().GetPixelSpan();
                 var wrap = textureProvider.CreateFromRaw(
                     RawImageSpecification.Rgba32(gpuTex.Resource.Width, gpuTex.Resource.Height), textureData,

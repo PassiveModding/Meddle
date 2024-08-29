@@ -6,15 +6,29 @@ using FFXIVClientStructs.Havok.Common.Base.Math.Vector;
 using SharpGLTF.Transforms;
 using CSTransform = FFXIVClientStructs.FFXIV.Client.Graphics.Transform;
 
-namespace Meddle.Plugin.Models.Skeletons;
+namespace Meddle.Plugin.Models;
 
 public readonly record struct Transform
 {
+    public Transform(FFXIVClientStructs.FFXIV.Client.LayoutEngine.Transform transform)
+    {
+        Translation = transform.Translation;
+        Rotation = transform.Rotation;
+        Scale = transform.Scale;
+    }
+    
     public Transform(hkQsTransformf hkTransform)
     {
         Translation = AsVector(hkTransform.Translation);
         Rotation = AsQuaternion(hkTransform.Rotation);
         Scale = AsVector(hkTransform.Scale);
+    }
+    
+    public Transform(Vector3 translation, Quaternion rotation, Vector3 scale)
+    {
+        Translation = translation;
+        Rotation = rotation;
+        Scale = scale;
     }
 
     public Transform(CSTransform transform)

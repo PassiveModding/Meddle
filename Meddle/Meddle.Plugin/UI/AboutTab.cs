@@ -2,6 +2,7 @@
 using System.Numerics;
 using Dalamud.Interface.Utility.Raii;
 using ImGuiNET;
+using Meddle.Plugin.Models;
 
 namespace Meddle.Plugin.UI;
 
@@ -10,8 +11,8 @@ public class AboutTab : ITab
     public void Dispose() { }
 
     public string Name => "About";
+    public MenuType MenuType => MenuType.Default;
     public int Order => int.MaxValue;
-    public bool DisplayTab => true;
 
     public void Draw()
     {
