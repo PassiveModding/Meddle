@@ -439,7 +439,8 @@ public class ExportService : IDisposable, IService
                     var meshes = HandleModel(characterInstance.CharacterInfo.CustomizeData, 
                                              characterInstance.CharacterInfo.CustomizeParameter, 
                                              characterInstance.CharacterInfo.GenderRace, 
-                                             mdlFileGroup, ref bones, rootBone, token);
+                                             mdlFileGroup, ref bones, rootBone, token,
+                        $"{characterInstance.Name}_{characterInstance.Id}");
                     foreach (var mesh in meshes)
                     {
                         meshOutput.Add((mesh.model, mesh.mesh));
@@ -529,7 +530,7 @@ public class ExportService : IDisposable, IService
         }
     }
 
-    private MaterialBuilder HandleMaterial(CustomizeData customizeData, CustomizeParameter customizeParams, MtrlFileGroup mtrlGroup)
+    private MaterialBuilder HandleMaterial(CustomizeData customizeData, CustomizeParameter customizeParams, MtrlFileGroup mtrlGroup, string? suffix = null)
     {
         var material = new Material(mtrlGroup.MdlPath, mtrlGroup.MtrlFile, mtrlGroup.TexFiles.ToDictionary(x => x.MtrlPath, x => x.Resource), mtrlGroup.ShpkFile);
         using var activityMtrl = ActivitySource.StartActivity();
@@ -539,6 +540,10 @@ public class ExportService : IDisposable, IService
         activityMtrl?.SetTag("shaderPackageName", material.ShaderPackageName);
         var name =
             $"{Path.GetFileNameWithoutExtension(material.HandlePath)}_{Path.GetFileNameWithoutExtension(material.ShaderPackageName)}";
+        if (suffix != null)
+        {
+            name += $"_{suffix}";
+        }
         var builder = material.ShaderPackageName switch
         {
             "bg.shpk" => MaterialUtility.BuildBg(material, name),
@@ -575,7 +580,8 @@ public class ExportService : IDisposable, IService
         MdlFileGroup mdlGroup, 
         ref List<BoneNodeBuilder> bones, 
         BoneNodeBuilder? root,
-        CancellationToken token)
+        CancellationToken token,
+        string? suffix = null)
     {
         using var activity = ActivitySource.StartActivity();
         activity?.SetTag("characterPath", mdlGroup.CharacterPath);
@@ -610,7 +616,7 @@ public class ExportService : IDisposable, IService
             if (mtrlFile is MtrlFileGroup mtrlGroup)
             {
                 if (token.IsCancellationRequested) return meshOutput;
-                var builder = HandleMaterial(customizeData, customizeParams, mtrlGroup);
+                var builder = HandleMaterial(customizeData, customizeParams, mtrlGroup, suffix);
                 materials.Add(builder);
             }
             else if (mtrlFile is MtrlFileStubGroup stub)
