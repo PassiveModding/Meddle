@@ -2,6 +2,7 @@
 using Meddle.Utils.Export;
 using Meddle.Utils.Models;
 using SharpGLTF.Materials;
+using SharpGLTF.Memory;
 using SkiaSharp;
 
 namespace Meddle.Utils.Materials;
@@ -49,7 +50,8 @@ public static partial class MaterialUtility
                 TextureUsage.g_SamplerGradationMap => "gradationMap",
                 TextureUsage.g_SamplerNormal2 => "normal2",
                 TextureUsage.g_SamplerWrinklesMask => "wrinklesMask",
-                _ => throw new ArgumentOutOfRangeException()
+                // _ => throw new ArgumentOutOfRangeException($"Unknown texture usage: {usage}")
+                _ => $"unknown_{usage}"
             };
 
             KnownChannel knownChannel = usage switch
@@ -95,6 +97,29 @@ public static partial class MaterialUtility
         return output;
     }
     
+    public static KnownChannel? MapTextureUsageToChannel(TextureUsage usage)
+    {
+        return usage switch
+        {
+            TextureUsage.g_SamplerDiffuse => KnownChannel.BaseColor,
+            TextureUsage.g_SamplerNormal => KnownChannel.Normal,
+            TextureUsage.g_SamplerMask => KnownChannel.SpecularFactor,
+            TextureUsage.g_SamplerSpecular => KnownChannel.SpecularColor,
+            TextureUsage.g_SamplerCatchlight => KnownChannel.Emissive,
+            TextureUsage.g_SamplerColorMap0 => KnownChannel.BaseColor,
+            TextureUsage.g_SamplerNormalMap0 => KnownChannel.Normal,
+            TextureUsage.g_SamplerSpecularMap0 => KnownChannel.SpecularColor,
+            TextureUsage.g_SamplerColorMap1 => KnownChannel.BaseColor,
+            TextureUsage.g_SamplerNormalMap1 => KnownChannel.Normal,
+            TextureUsage.g_SamplerSpecularMap1 => KnownChannel.SpecularColor,
+            TextureUsage.g_SamplerColorMap => KnownChannel.BaseColor,
+            TextureUsage.g_SamplerNormalMap => KnownChannel.Normal,
+            TextureUsage.g_SamplerSpecularMap => KnownChannel.SpecularColor,
+            TextureUsage.g_SamplerNormal2 => KnownChannel.Normal,
+            _ => null
+        };
+    }
+    
     public static MaterialBuilder BuildSharedBase(Material material, string name)
     {
         const uint backfaceMask  = 0x1;
@@ -125,7 +150,7 @@ public static partial class MaterialUtility
     public static SKColor ToSkColor(this Vector3 color) => 
         new((byte)(color.X * 255), (byte)(color.Y * 255), (byte)(color.Z * 255), byte.MaxValue);
     
-    public static ImageBuilder BuildImage(SKTexture texture, string materialName, string suffix)
+    /*public static ImageBuilder BuildImage(SKTexture texture, string materialName, string suffix)
     {
         var name = $"{Path.GetFileNameWithoutExtension(materialName)}_{suffix}";
         
@@ -137,6 +162,24 @@ public static partial class MaterialUtility
         }
 
         var imageBuilder = ImageBuilder.From(textureBytes, name);
+        imageBuilder.AlternateWriteFileName = $"{name}.*";
+        return imageBuilder;
+    }*/
+    public static ImageBuilder BuildImage(SKTexture texture, string materialName, string suffix)
+    {
+        var name = $"{Path.GetFileNameWithoutExtension(materialName)}_{suffix}";
+        
+        byte[] textureBytes;
+        using (var memoryStream = new MemoryStream())
+        {
+            texture.Bitmap.Encode(memoryStream, SKEncodedImageFormat.Png, 100);
+            textureBytes = memoryStream.ToArray();
+        }
+        
+        var tempPath = Path.GetTempFileName();
+        File.WriteAllBytes(tempPath, textureBytes);
+
+        var imageBuilder = ImageBuilder.From(new MemoryImage(() => File.ReadAllBytes(tempPath)), name);
         imageBuilder.AlternateWriteFileName = $"{name}.*";
         return imageBuilder;
     }

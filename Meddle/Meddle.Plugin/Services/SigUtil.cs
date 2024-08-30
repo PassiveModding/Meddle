@@ -74,7 +74,6 @@ public class SigUtil : IService, IDisposable
         return layoutWorld;
     }
     
-    
     public unsafe Camera* GetCamera()
     {
         var manager = CameraManager.Instance();

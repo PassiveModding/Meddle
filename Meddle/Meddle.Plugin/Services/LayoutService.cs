@@ -1,4 +1,6 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Collections.Concurrent;
+using System.Numerics;
+using System.Runtime.InteropServices;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
@@ -14,10 +16,18 @@ using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Export;
+using Meddle.Utils.Files;
+using Meddle.Utils.Files.SqPack;
 using Meddle.Utils.Files.Structs.Material;
+using Meddle.Utils.Materials;
+using Meddle.Utils.Models;
 using Microsoft.Extensions.Logging;
+using SharpGLTF.Materials;
+using SharpGLTF.Scenes;
+using SkiaSharp;
 using CustomizeParameter = Meddle.Plugin.Models.Structs.CustomizeParameter;
 using HousingFurniture = FFXIVClientStructs.FFXIV.Client.Game.HousingFurniture;
+using Material = Meddle.Utils.Export.Material;
 using Transform = Meddle.Plugin.Models.Transform;
 
 namespace Meddle.Plugin.Services;
@@ -26,18 +36,23 @@ public class LayoutService : IService
 {
     private readonly Dictionary<uint, Item> itemDict;
     private readonly ILogger<HousingService> logger;
+    private readonly IDataManager dataManager;
+    private readonly SqPack pack;
     private readonly ParseService parseService;
     private readonly PbdHooks pbdHooks;
     private readonly SigUtil sigUtil;
     private readonly Dictionary<uint, Stain> stainDict;
 
     public LayoutService(
-        SigUtil sigUtil, ILogger<HousingService> logger, 
-        IDataManager dataManager, 
+        SigUtil sigUtil, ILogger<HousingService> logger,
+        IDataManager dataManager,
+        SqPack pack,
         ParseService parseService, PbdHooks pbdHooks)
     {
         this.sigUtil = sigUtil;
         this.logger = logger;
+        this.dataManager = dataManager;
+        this.pack = pack;
         this.parseService = parseService;
         this.pbdHooks = pbdHooks;
         stainDict = dataManager.GetExcelSheet<Stain>()!.ToDictionary(row => row.RowId, row => row);
@@ -52,7 +67,7 @@ public class LayoutService : IService
         {
             ResolveInstance(instance);
         }
-        
+
         return instances;
     }
 
@@ -67,12 +82,12 @@ public class LayoutService : IService
                 characterInstance.CharacterInfo = characterInfo;
             }
         }
-        
+
         foreach (var child in instance.Children)
         {
             ResolveInstance(child);
         }
-        
+
         return instance;
     }
 
@@ -96,10 +111,10 @@ public class LayoutService : IService
         layers.AddRange(loadedLayers.SelectMany(x => x.Instances));
         layers.AddRange(globalLayers.SelectMany(x => x.Instances));
         layers.AddRange(objects);
-        
+
         return layers.ToArray();
     }
-    
+
     private unsafe HousingTerritory* GetCurrentTerritory()
     {
         var housingManager = sigUtil.GetHousingManager();
@@ -295,7 +310,7 @@ public class LayoutService : IService
             Path = path
         };
     }
-    
+
     public unsafe ParsedInstance[] ParseObjects(bool resolveCharacterInfo = false)
     {
         var gameObjectManager = sigUtil.GetGameObjectManager();
@@ -305,16 +320,16 @@ public class LayoutService : IService
         {
             if (objectPtr == null || objectPtr.Value == null)
                 continue;
-            
+
             var obj = objectPtr.Value;
             if (objects.Any(o => o.Id == (nint)obj))
                 continue;
-            
+
             var type = obj->GetObjectKind();
             var drawObject = obj->DrawObject;
             if (drawObject == null)
                 continue;
-            
+
             ParsedCharacterInfo? characterInfo = null;
             if (resolveCharacterInfo)
             {
@@ -341,13 +356,13 @@ public class LayoutService : IService
         {
             return null;
         }
-        
+
         var objectType = drawObject->Object.GetObjectType();
         if (objectType != ObjectType.CharacterBase)
         {
             return null;
         }
-        
+
         var characterBase = (CharacterBase*)drawObject;
         var colorTableTextures = parseService.ParseColorTableTextures(characterBase);
         var models = new List<ParsedModelInfo>();
@@ -369,7 +384,8 @@ public class LayoutService : IService
                 if (material == null) continue;
 
                 var materialPath = material->MaterialResourceHandle->ResourceHandle.FileName.ParseString();
-                var materialPathFromModel = model->ModelResourceHandle->GetMaterialFileNameBySlotAsString((uint)mtrlIdx);
+                var materialPathFromModel =
+                    model->ModelResourceHandle->GetMaterialFileNameBySlotAsString((uint)mtrlIdx);
                 var shaderName = material->MaterialResourceHandle->ShpkNameString;
                 ColorTable? colorTable = null;
                 if (colorTableTextures.TryGetValue((int)(model->SlotIndex * CharacterBase.MaterialsPerSlot) + mtrlIdx,
@@ -397,21 +413,24 @@ public class LayoutService : IService
                     if (texIdx < material->TextureCount)
                     {
                         var texturePathFromMaterial = material->MaterialResourceHandle->TexturePathString(texIdx);
-                        var (resource, stride) = DXHelper.ExportTextureResource(texturePtr.TextureResourceHandle->Texture);
+                        var (resource, stride) =
+                            DXHelper.ExportTextureResource(texturePtr.TextureResourceHandle->Texture);
                         var textureInfo = new ParsedTextureInfo(texturePath, texturePathFromMaterial, resource);
                         textures.Add(textureInfo);
                     }
                 }
-                
-                var materialInfo = new ParsedMaterialInfo(materialPath, materialPathFromModel, shaderName, colorTable, textures);
+
+                var materialInfo =
+                    new ParsedMaterialInfo(materialPath, materialPathFromModel, shaderName, colorTable, textures);
                 materials.Add(materialInfo);
             }
-        
+
             var deform = pbdHooks.TryGetDeformer((nint)characterBase, model->SlotIndex);
-            var modelInfo = new ParsedModelInfo(modelPath, modelPathFromCharacter, deform, shapeAttributeGroup, materials);
+            var modelInfo =
+                new ParsedModelInfo(modelPath, modelPathFromCharacter, deform, shapeAttributeGroup, materials);
             models.Add(modelInfo);
         }
-        
+
         var skeleton = StructExtensions.GetParsedSkeleton(characterBase);
         var modelType = characterBase->GetModelType();
         CustomizeData customizeData = new CustomizeData();
