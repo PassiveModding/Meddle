@@ -2,6 +2,7 @@
 using Meddle.Utils.Export;
 using Meddle.Utils.Models;
 using SharpGLTF.Materials;
+using SharpGLTF.Memory;
 using SkiaSharp;
 
 namespace Meddle.Utils.Materials;
@@ -149,7 +150,7 @@ public static partial class MaterialUtility
     public static SKColor ToSkColor(this Vector3 color) => 
         new((byte)(color.X * 255), (byte)(color.Y * 255), (byte)(color.Z * 255), byte.MaxValue);
     
-    public static ImageBuilder BuildImage(SKTexture texture, string materialName, string suffix)
+    /*public static ImageBuilder BuildImage(SKTexture texture, string materialName, string suffix)
     {
         var name = $"{Path.GetFileNameWithoutExtension(materialName)}_{suffix}";
         
@@ -161,6 +162,24 @@ public static partial class MaterialUtility
         }
 
         var imageBuilder = ImageBuilder.From(textureBytes, name);
+        imageBuilder.AlternateWriteFileName = $"{name}.*";
+        return imageBuilder;
+    }*/
+    public static ImageBuilder BuildImage(SKTexture texture, string materialName, string suffix)
+    {
+        var name = $"{Path.GetFileNameWithoutExtension(materialName)}_{suffix}";
+        
+        byte[] textureBytes;
+        using (var memoryStream = new MemoryStream())
+        {
+            texture.Bitmap.Encode(memoryStream, SKEncodedImageFormat.Png, 100);
+            textureBytes = memoryStream.ToArray();
+        }
+        
+        var tempPath = Path.GetTempFileName();
+        File.WriteAllBytes(tempPath, textureBytes);
+
+        var imageBuilder = ImageBuilder.From(new MemoryImage(() => File.ReadAllBytes(tempPath)), name);
         imageBuilder.AlternateWriteFileName = $"{name}.*";
         return imageBuilder;
     }
