@@ -193,8 +193,7 @@ public unsafe struct Vertex
                 vertex.Tangent1 = ReadVector4(buf, (VertexType)element.Type);
                 break;
             default:
-                Console.WriteLine($"Skipped usage {element.Usage} [{element.Type}]");
-                break;
+                throw new Exception($"Unsupported usage {element.Usage} [{element.Type}]");
         }
     }
     
