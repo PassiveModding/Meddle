@@ -21,7 +21,6 @@ public partial class LayoutWindow
     private bool drawOverlay = true;
     private bool orderByDistance = true;
     private bool traceToHovered = true;
-    private bool traceToExpanded = true;
     private bool hideOffscreenCharacters = true;
     private int maxItemCount = 100;
     
@@ -45,7 +44,6 @@ public partial class LayoutWindow
         ImGui.Checkbox("Draw Overlay", ref drawOverlay);
         ImGui.Checkbox("Order by Distance", ref orderByDistance);
         ImGui.Checkbox("Trace to Hovered", ref traceToHovered);
-        ImGui.Checkbox("Trace to Expanded", ref traceToExpanded);
         ImGui.Checkbox("Hide Offscreen Characters", ref hideOffscreenCharacters);
         ImGui.DragInt("Max Item Count", ref maxItemCount, 1, 1, 50000);
         if (ImGui.IsItemHovered())
