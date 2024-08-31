@@ -3,6 +3,7 @@ using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
 using ImGuiNET;
 using Meddle.Plugin.Models;
+using Meddle.Plugin.UI.Layout;
 using Microsoft.Extensions.Logging;
 
 namespace Meddle.Plugin.UI.Windows;

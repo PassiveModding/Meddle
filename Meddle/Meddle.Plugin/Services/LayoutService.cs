@@ -1,5 +1,4 @@
-﻿using System.Collections.Concurrent;
-using System.Numerics;
+﻿using System.Numerics;
 using System.Runtime.InteropServices;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
@@ -8,6 +7,7 @@ using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Group;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Layer;
+using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Terrain;
 using FFXIVClientStructs.Interop;
 using Lumina.Excel.GeneratedSheets;
 using Meddle.Plugin.Models;
@@ -16,18 +16,11 @@ using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Export;
-using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
 using Meddle.Utils.Files.Structs.Material;
-using Meddle.Utils.Materials;
-using Meddle.Utils.Models;
 using Microsoft.Extensions.Logging;
-using SharpGLTF.Materials;
-using SharpGLTF.Scenes;
-using SkiaSharp;
 using CustomizeParameter = Meddle.Plugin.Models.Structs.CustomizeParameter;
 using HousingFurniture = FFXIVClientStructs.FFXIV.Client.Game.HousingFurniture;
-using Material = Meddle.Utils.Export.Material;
 using Transform = Meddle.Plugin.Models.Transform;
 
 namespace Meddle.Plugin.Services;
@@ -61,21 +54,21 @@ public class LayoutService : IService
                               .ToDictionary(row => row.AdditionalData, row => row);
     }
 
-    public ParsedInstance[] ResolveInstances(ParsedInstance[] instances)
+    public void ResolveInstances(ParsedInstance[] instances)
     {
         foreach (var instance in instances)
         {
             ResolveInstance(instance);
         }
-
-        return instances;
     }
 
-    public unsafe ParsedInstance ResolveInstance(ParsedInstance instance)
+    public unsafe void ResolveInstance(ParsedInstance instance)
     {
-        if (instance is ParsedCharacterInstance characterInstance)
+        if (instance is ParsedCharacterInstance {CharacterInfo: null} characterInstance)
         {
-            if (characterInstance.CharacterInfo == null)
+            var objects = ParseObjects();
+            // check to ensure the character instance is still valid
+            if (objects.Any(o => o.Id == instance.Id))
             {
                 var gameObject = (GameObject*)instance.Id;
                 var characterInfo = HandleDrawObject(gameObject->DrawObject);
@@ -83,12 +76,13 @@ public class LayoutService : IService
             }
         }
 
-        foreach (var child in instance.Children)
+        if (instance is ParsedSharedInstance sharedInstance)
         {
-            ResolveInstance(child);
+            foreach (var child in sharedInstance.Children)
+            {
+                ResolveInstance(child);
+            }
         }
-
-        return instance;
     }
 
     public unsafe ParsedInstance[]? GetWorldState()
@@ -101,9 +95,10 @@ public class LayoutService : IService
         var housingItems = ParseTerritory(currentTerritory);
         var objects = ParseObjects();
         var parseCtx = new ParseCtx(housingItems);
-        //var activeLayers = Parse(layoutWorld->ActiveLayout, parseCtx);
-        var loadedLayers = layoutWorld->LoadedLayouts.Select(layout => Parse(layout.Value, parseCtx)).SelectMany(x => x)
-                                                     .ToArray();
+        var loadedLayouts = layoutWorld->LoadedLayouts.ToArray();
+        var loadedLayers = loadedLayouts
+                           .Select(layout => Parse(layout.Value, parseCtx))
+                           .SelectMany(x => x).ToArray();
         var globalLayers = Parse(layoutWorld->GlobalLayout, parseCtx);
 
         var layers = new List<ParsedInstance>();
@@ -127,11 +122,11 @@ public class LayoutService : IService
         return housingManager->CurrentTerritory;
     }
 
-    private unsafe ParsedLayer[] Parse(LayoutManager* activeLayout, ParseCtx ctx)
+    private unsafe ParsedInstanceSet[] Parse(LayoutManager* activeLayout, ParseCtx ctx)
     {
         if (activeLayout == null) return [];
 
-        var layers = new List<ParsedLayer>();
+        var layers = new List<ParsedInstanceSet>();
         foreach (var (_, layerPtr) in activeLayout->Layers)
         {
             var layer = ParseLayer(layerPtr, ctx);
@@ -141,10 +136,32 @@ public class LayoutService : IService
             }
         }
 
+        foreach (var (_, terrainPtr) in activeLayout->Terrains)
+        {
+            var terrain = ParseTerrain(terrainPtr, ctx);
+            if (terrain != null)
+            {
+                layers.Add(new ParsedInstanceSet
+                {
+                    Instances = [terrain]
+                });
+            }
+        }
+
         return layers.ToArray();
     }
 
-    private unsafe ParsedLayer? ParseLayer(Pointer<LayerManager> layerManagerPtr, ParseCtx ctx)
+    private unsafe ParsedTerrainInstance? ParseTerrain(Pointer<TerrainManager> terrainPtr, ParseCtx ctx)
+    {
+        if (terrainPtr == null || terrainPtr.Value == null)
+            return null;
+        
+        var terrainManager = terrainPtr.Value;
+        var path = terrainManager->PathString;
+        return new ParsedTerrainInstance((nint)terrainManager, new Transform(Vector3.Zero, Quaternion.Identity, Vector3.One), path);
+    }
+
+    private unsafe ParsedInstanceSet? ParseLayer(Pointer<LayerManager> layerManagerPtr, ParseCtx ctx)
     {
         if (layerManagerPtr == null || layerManagerPtr.Value == null)
             return null;
@@ -163,9 +180,8 @@ public class LayoutService : IService
             instances.Add(instance);
         }
 
-        return new ParsedLayer
+        return new ParsedInstanceSet
         {
-            Id = layerManager->LayerGroupId,
             Instances = instances
         };
     }
@@ -181,7 +197,7 @@ public class LayoutService : IService
             case InstanceType.BgPart:
             {
                 var bgPart = (BgPartsLayoutInstance*)instanceLayout;
-                var part = ParseBgPart(bgPart, ctx);
+                var part = ParseBgPart(bgPart);
                 return part;
             }
             case InstanceType.SharedGroup:
@@ -192,19 +208,7 @@ public class LayoutService : IService
             }
             case InstanceType.Light:
             {
-                var primaryPath = instanceLayout->GetPrimaryPath();
-                string? path = null;
-                if (primaryPath != null)
-                {
-                    path = SpanMemoryUtils.GetStringFromNullTerminated(primaryPath);
-                }
-
-                return new ParsedLightInstance
-                {
-                    Id = (nint)instanceLayout,
-                    Transform = new Transform(*instanceLayout->GetTransformImpl()),
-                    Path = path
-                };
+                return new ParsedLightInstance((nint)instanceLayout, new Transform(*instanceLayout->GetTransformImpl()));
             }
             default:
             {
@@ -215,12 +219,10 @@ public class LayoutService : IService
                     path = SpanMemoryUtils.GetStringFromNullTerminated(primaryPath);
                 }
 
-                return new ParsedUnsupportedInstance(ParsedInstanceType.Unsupported, instanceLayout->Id.Type)
-                {
-                    Id = (nint)instanceLayout,
-                    Transform = new Transform(*instanceLayout->GetTransformImpl()),
-                    Path = path
-                };
+                return new ParsedUnsupportedInstance((nint)instanceLayout, 
+                                                     instanceLayout->Id.Type,
+                                                     new Transform(*instanceLayout->GetTransformImpl()), 
+                                                     path);
             }
         }
     }
@@ -257,33 +259,25 @@ public class LayoutService : IService
         {
             path = SpanMemoryUtils.GetStringFromNullTerminated(primaryPath);
         }
+        else
+        {
+            throw new Exception("SharedGroup has no primary path");
+        }
 
         var furnitureMatch = ctx.HousingItems.FirstOrDefault(item => item.LayoutInstance == sharedGroupPtr);
         if (furnitureMatch is not null)
         {
-            return new ParsedHousingInstance
-            {
-                Id = (nint)sharedGroup,
-                Transform = new Transform(*sharedGroup->GetTransformImpl()),
-                Children = children,
-                Stain = stainDict.GetValueOrDefault(furnitureMatch.HousingFurniture.Stain),
-                Item = itemDict.GetValueOrDefault(furnitureMatch.HousingFurniture.Id),
-                Name = furnitureMatch.GameObject->NameString,
-                Kind = furnitureMatch.GameObject->ObjectKind,
-                Path = path
-            };
+            return new ParsedHousingInstance((nint)sharedGroup, new Transform(*sharedGroup->GetTransformImpl()), path,
+                                             furnitureMatch.GameObject->NameString,
+                                             furnitureMatch.GameObject->ObjectKind,
+                                             stainDict.GetValueOrDefault(furnitureMatch.HousingFurniture.Stain),
+                                             itemDict.GetValueOrDefault(furnitureMatch.HousingFurniture.Id), children);
         }
 
-        return new ParsedSharedInstance
-        {
-            Id = (nint)sharedGroup,
-            Transform = new Transform(*sharedGroup->GetTransformImpl()),
-            Children = children,
-            Path = path
-        };
+        return new ParsedSharedInstance((nint)sharedGroup, new Transform(*sharedGroup->GetTransformImpl()), path, children);
     }
 
-    private unsafe ParsedInstance? ParseBgPart(Pointer<BgPartsLayoutInstance> bgPartPtr, ParseCtx ctx)
+    private unsafe ParsedInstance? ParseBgPart(Pointer<BgPartsLayoutInstance> bgPartPtr)
     {
         if (bgPartPtr == null || bgPartPtr.Value == null)
             return null;
@@ -302,13 +296,12 @@ public class LayoutService : IService
         {
             path = SpanMemoryUtils.GetStringFromNullTerminated(primaryPath);
         }
-
-        return new ParsedBgPartsInstance
+        else
         {
-            Id = (nint)bgPartPtr.Value,
-            Transform = new Transform(*bgPart->GetTransformImpl()),
-            Path = path
-        };
+            throw new Exception("BgPart has no primary path");
+        }
+
+        return new ParsedBgPartsInstance((nint)bgPartPtr.Value, new Transform(*bgPart->GetTransformImpl()), path);
     }
 
     public unsafe ParsedInstance[] ParseObjects(bool resolveCharacterInfo = false)
@@ -336,15 +329,12 @@ public class LayoutService : IService
                 characterInfo = HandleDrawObject(drawObject);
             }
 
-            objects.Add(new ParsedCharacterInstance
-            {
-                Id = (nint)obj,
-                Kind = type,
-                Name = obj->NameString,
-                Transform = new Transform(drawObject->Position, drawObject->Rotation, drawObject->Scale),
-                CharacterInfo = characterInfo,
-                Visible = drawObject->IsVisible
-            });
+            var transform = new Transform(drawObject->Position, drawObject->Rotation, drawObject->Scale);
+            objects.Add(
+                new ParsedCharacterInstance((nint)obj, obj->NameString, type, transform, drawObject->IsVisible)
+                {
+                    CharacterInfo = characterInfo
+                });
         }
 
         return objects.ToArray();
@@ -463,14 +453,7 @@ public class LayoutService : IService
             genderRace = (GenderRace)human->RaceSexId;
         }
 
-        return new ParsedCharacterInfo
-        {
-            Models = models,
-            Skeleton = skeleton,
-            CustomizeData = customizeData,
-            CustomizeParameter = customizeParams,
-            GenderRace = genderRace
-        };
+        return new ParsedCharacterInfo(models, skeleton, customizeData, customizeParams, genderRace);
     }
 
     private unsafe Furniture[] ParseTerritory(HousingTerritory* territory)

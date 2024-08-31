@@ -3,6 +3,7 @@ using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.UI;
+using Meddle.Plugin.UI.Layout;
 using Meddle.Plugin.UI.Windows;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -24,9 +25,8 @@ public static class ServiceUtility
         
         return services
                .AddSingleton<MainWindow>()
-               .AddSingleton<LayoutOverlay>()
-               .AddSingleton<LayoutWindow>()
                .AddSingleton<DebugWindow>()
+               .AddSingleton<LayoutWindow>()
                .AddSingleton(new WindowSystem("Meddle"))
                .AddHostedService<WindowManager>();
     }

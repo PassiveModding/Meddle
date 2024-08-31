@@ -1,3 +1,3 @@
 ﻿namespace Meddle.Plugin.Models.Composer;
 
-public record ProgressEvent(int Progress, int Total);
+public record ProgressEvent(string Name, int Progress, int Total, ProgressEvent? SubProgress = null);

@@ -37,8 +37,4 @@ public record MtrlFileGroup(
 
 public record TexResourceGroup(string MtrlPath, string Path, TextureResource Resource);
 
-public record SklbFileGroup(string Path, SklbFile File);
-
-public record Resource(string MdlPath, Vector3 Position, Quaternion Rotation, Vector3 Scale);
-
 public record DeformerGroup(string Path, ushort RaceSexId, ushort DeformerId);

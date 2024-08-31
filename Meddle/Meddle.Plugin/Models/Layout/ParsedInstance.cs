@@ -3,6 +3,7 @@ using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
 using Lumina.Excel.GeneratedSheets;
 using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Models.Structs;
+using Meddle.Plugin.Services;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files.Structs.Material;
 using CustomizeParameter = Meddle.Utils.Export.CustomizeParameter;
@@ -18,69 +19,128 @@ public enum ParsedInstanceType
     BgPart = 8,
     Light = 16,
     Character = 32,
-    AllSupported = SharedGroup | Housing | BgPart | Character
+    Terrain = 64
+}
+
+public interface IResolvableInstance
+{
+    public bool IsResolved { get; }
+    public void Resolve(LayoutService layoutService);
+}
+
+public interface IPathInstance
+{
+    public string Path { get; }
 }
 
 public abstract class ParsedInstance
 {
-    public nint Id;
-    public abstract ParsedInstanceType Type { get; }
-    public Transform Transform;
-    public string? Path;
-    public List<ParsedInstance> Children = new();
+    public ParsedInstance(nint id, ParsedInstanceType type, Transform transform)
+    {
+        Id = id;
+        Type = type;
+        Transform = transform;
+    }
+    
+    public nint Id { get; }
+    public ParsedInstanceType Type { get; }
+    public Transform Transform { get; }
+}
+
+public class ParsedUnsupportedInstance : ParsedInstance
+{
+    public string? Path { get; }
+
+    public ParsedUnsupportedInstance(nint id, InstanceType instanceType, Transform transform, string? path) : base(id, ParsedInstanceType.Unsupported, transform)
+    {
+        Path = path;
+        InstanceType = instanceType;
+    }
+    
+    public InstanceType InstanceType { get; }
+}
+
+public class ParsedSharedInstance : ParsedInstance, IPathInstance
+{
+    public string Path { get; }
+    public IReadOnlyList<ParsedInstance> Children { get; }
+
+    public ParsedSharedInstance(nint id, Transform transform, string path, IReadOnlyList<ParsedInstance> children) : base(id, ParsedInstanceType.SharedGroup, transform)
+    {
+        Path = path;
+        Children = children;
+    }
+    public ParsedSharedInstance(nint id, ParsedInstanceType type, Transform transform, string path, IReadOnlyList<ParsedInstance> children) : base(id, type, transform)
+    {
+        Path = path;
+        Children = children;
+    }
     
     public ParsedInstance[] Flatten()
     {
         var list = new List<ParsedInstance> { this };
         foreach (var child in Children)
         {
-            list.AddRange(child.Flatten());
+            if (child is ParsedSharedInstance shared)
+            {
+                list.AddRange(shared.Flatten());
+            }
+            else
+            {
+                list.Add(child);
+            }
         }
 
         return list.ToArray();
     }
 }
 
-public class ParsedUnsupportedInstance : ParsedInstance
-{
-    public ParsedUnsupportedInstance(ParsedInstanceType type, InstanceType instanceType)
-    {
-        Type = type;
-        InstanceType = instanceType;
-    }
-    
-    public override ParsedInstanceType Type { get; }
-    public InstanceType InstanceType { get; }
-}
-
-public class ParsedSharedInstance : ParsedInstance
-{
-    public override ParsedInstanceType Type => ParsedInstanceType.SharedGroup;
-}
-
 public class ParsedHousingInstance : ParsedSharedInstance
 {
-    public override ParsedInstanceType Type => ParsedInstanceType.Housing;
-    
-    public Stain? Stain;
-    public Item? Item;
-    public string Name;
-    public ObjectKind Kind;
+    public ParsedHousingInstance(nint id, Transform transform, string path, string name, 
+                                 ObjectKind kind, Stain? stain, Item? item, IReadOnlyList<ParsedInstance> children) : base(id, ParsedInstanceType.Housing, transform, path, children)
+    {
+        Name = name;
+        Kind = kind;
+        Stain = stain;
+        Item = item;
+    }
+
+    public Stain? Stain { get; }
+    public Item? Item { get; }
+    public string Name { get; }
+    public ObjectKind Kind { get; }
 }
-        
-public class ParsedBgPartsInstance : ParsedInstance
+
+public class ParsedBgPartsInstance : ParsedInstance, IPathInstance
 {
-    public override ParsedInstanceType Type => ParsedInstanceType.BgPart;
+    public string Path { get; }
+
+    public ParsedBgPartsInstance(nint id, Transform transform, string path) : base(id, ParsedInstanceType.BgPart, transform)
+    {
+        Path = path;
+    }
 }
 
 public class ParsedLightInstance : ParsedInstance
 {
-    public override ParsedInstanceType Type => ParsedInstanceType.Light;
+    public ParsedLightInstance(nint id, Transform transform) : base(id, ParsedInstanceType.Light, transform)
+    {
+    }
 }
 
-public class ParsedLayer
+public class ParsedTerrainInstance : ParsedInstance, IPathInstance
 {
-    public nint Id;
+    public string Path { get; }
+
+    public ParsedTerrainInstance(nint id, Transform transform, string path) : base(id, ParsedInstanceType.Terrain, transform)
+    {
+        Path = path;
+    }
+}
+
+public class ParsedInstanceSet
+{
     public List<ParsedInstance> Instances = [];
 }
 
@@ -111,19 +171,42 @@ public class ParsedModelInfo(string path, string pathFromCharacter, DeformerCach
 
 public class ParsedCharacterInfo
 {
-    public IList<ParsedModelInfo> Models;
-    public ParsedSkeleton Skeleton;
-    public CustomizeData CustomizeData;
-    public CustomizeParameter CustomizeParameter;
-    public GenderRace GenderRace;
+    public readonly IList<ParsedModelInfo> Models;
+    public readonly ParsedSkeleton Skeleton;
+    public readonly CustomizeData CustomizeData;
+    public readonly CustomizeParameter CustomizeParameter;
+    public readonly GenderRace GenderRace;
+
+    public ParsedCharacterInfo(IList<ParsedModelInfo> models, ParsedSkeleton skeleton, CustomizeData customizeData, CustomizeParameter customizeParameter, GenderRace genderRace)
+    {
+        Models = models;
+        Skeleton = skeleton;
+        CustomizeData = customizeData;
+        CustomizeParameter = customizeParameter;
+        GenderRace = genderRace;
+    }
 }
 
-public class ParsedCharacterInstance : ParsedInstance
+public class ParsedCharacterInstance : ParsedInstance, IResolvableInstance
 {
     public ParsedCharacterInfo? CharacterInfo;
     public string Name;
     public ObjectKind Kind;
     public bool Visible;
 
-    public override ParsedInstanceType Type => ParsedInstanceType.Character;
+    public ParsedCharacterInstance(nint id, string name, ObjectKind kind, Transform transform, bool visible) : base(id, ParsedInstanceType.Character, transform)
+    {
+        Name = name;
+        Kind = kind;
+        Visible = visible;
+    }
+
+    public bool IsResolved { get; private set; }
+
+    public void Resolve(LayoutService layoutService)
+    {
+        if (IsResolved) return;
+        layoutService.ResolveInstance(this);
+        IsResolved = true;
+    }
 }

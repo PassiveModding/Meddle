@@ -2,6 +2,7 @@
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using Meddle.Plugin.UI.Layout;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -16,7 +17,6 @@ public class WindowManager : IHostedService, IDisposable
     private readonly IDalamudPluginInterface pluginInterface;
     private readonly MainWindow mainWindow;
     private readonly DebugWindow debugWindow;
-    private readonly LayoutOverlay layoutOverlay;
     private readonly LayoutWindow layoutWindow;
     private readonly WindowSystem windowSystem;
     
@@ -25,7 +25,6 @@ public class WindowManager : IHostedService, IDisposable
     public WindowManager(
         MainWindow mainWindow,
         DebugWindow debugWindow,
-        LayoutOverlay layoutOverlay,
         LayoutWindow layoutWindow,
         WindowSystem windowSystem,
         IDalamudPluginInterface pluginInterface,
@@ -39,7 +38,6 @@ public class WindowManager : IHostedService, IDisposable
         this.commandManager = commandManager;
         this.mainWindow = mainWindow;
         this.debugWindow = debugWindow;
-        this.layoutOverlay = layoutOverlay;
         this.layoutWindow = layoutWindow;
         this.windowSystem = windowSystem;
     }
@@ -67,7 +65,6 @@ public class WindowManager : IHostedService, IDisposable
         windowSystem.AddWindow(mainWindow);
         windowSystem.AddWindow(debugWindow);
         windowSystem.AddWindow(layoutWindow);
-        windowSystem.AddWindow(layoutOverlay);
 
         config.OnConfigurationSaved += OnSave;
         pluginInterface.UiBuilder.Draw += windowSystem.Draw;
