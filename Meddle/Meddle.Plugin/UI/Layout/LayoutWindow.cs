@@ -28,6 +28,7 @@ public partial class LayoutWindow : Window
 
     private ProgressEvent? progress;
     private Task exportTask = Task.CompletedTask;
+    private CancellationTokenSource cancelToken = new();
     private ParsedInstance[] currentLayout = [];
     private readonly Dictionary<nint, ParsedInstance> selectedInstances = new();
     private Vector3 currentPos;
@@ -80,6 +81,11 @@ public partial class LayoutWindow : Window
                     ImGui.Text($"Exporting {subProgress.Progress} of {subProgress.Total}");
                     ImGui.ProgressBar(subProgress.Progress / (float)subProgress.Total, new Vector2(-1, 0), subProgress.Name);
                     subProgress = subProgress.SubProgress;
+                }
+                
+                if (ImGui.Button("Cancel"))
+                {
+                    cancelToken.Cancel();
                 }
             }
 
@@ -263,6 +269,7 @@ public partial class LayoutWindow : Window
 
         var defaultName = $"InstanceExport-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
         var currentExportType = exportType;
+        cancelToken = new CancellationTokenSource();
         fileDialog.SaveFolderDialog("Save Instances", defaultName,
                                     (result, path) =>
                                     {
@@ -273,8 +280,8 @@ public partial class LayoutWindow : Window
                                             var cacheDir = Path.Combine(path, "cache");
                                             Directory.CreateDirectory(cacheDir);
                                             var instanceSet =
-                                                new InstanceComposer(log, dataManager, instances, cacheDir,
-                                                                x => progress = x);
+                                                new InstanceComposer(log, dataManager, config, instances, cacheDir,
+                                                                x => progress = x, cancelToken.Token);
                                             var scene = new SceneBuilder();
                                             instanceSet.Compose(scene);
                                             var gltf = scene.ToGltf2();
@@ -294,7 +301,7 @@ public partial class LayoutWindow : Window
                                             }
 
                                             Process.Start("explorer.exe", path);
-                                        });
+                                        }, cancelToken.Token);
                                     }, Plugin.TempDirectory);
     }
 }

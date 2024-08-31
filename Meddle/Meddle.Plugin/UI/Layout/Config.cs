@@ -9,9 +9,11 @@ public partial class LayoutWindow
     [Flags]
     public enum ExportType
     {
+        // ReSharper disable InconsistentNaming
         GLTF = 1,
         GLB = 2,
         OBJ = 4
+        // ReSharper restore InconsistentNaming
     }
 
     private const ParsedInstanceType DefaultDrawTypes = ParsedInstanceType.Character | ParsedInstanceType.Housing | ParsedInstanceType.Terrain | ParsedInstanceType.BgPart | ParsedInstanceType.SharedGroup;

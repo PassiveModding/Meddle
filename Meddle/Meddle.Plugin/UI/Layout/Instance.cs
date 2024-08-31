@@ -1,6 +1,7 @@
 ﻿using System.Numerics;
 using Dalamud.Interface.Textures;
 using Dalamud.Interface.Utility.Raii;
+using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using ImGuiNET;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Utils;
@@ -41,9 +42,21 @@ public partial class LayoutWindow
             ParsedHousingInstance housingObject => $"{housingObject.Type} - {housingObject.Name}",
             ParsedBgPartsInstance bgObject => $"{bgObject.Type} - {bgObject.Path}",
             ParsedUnsupportedInstance unsupported => $"{unsupported.Type} - {unsupported.InstanceType}",
-            ParsedCharacterInstance character => $"{character.Type} - {character.Kind} - {character.Name}",
+            ParsedCharacterInstance character => $"{character.Type} - {character.Kind}",
             _ => $"{instance.Type}"
         };
+        
+        if (instance is ParsedCharacterInstance ci)
+        {
+            if (!string.IsNullOrWhiteSpace(config.PlayerNameOverride) && ci.Kind == ObjectKind.Pc)
+            {
+                infoHeader += $" - {config.PlayerNameOverride}";
+            }
+            else
+            {
+                infoHeader += $" - {ci.Name}";
+            }
+        }
         
         if (instance is ParsedSharedInstance {Children.Count: > 0} shared)
         {

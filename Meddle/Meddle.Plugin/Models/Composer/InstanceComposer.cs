@@ -1,5 +1,7 @@
-﻿using System.Numerics;
+﻿using System.Collections.Concurrent;
+using System.Numerics;
 using System.Runtime.InteropServices;
+using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
@@ -18,7 +20,7 @@ namespace Meddle.Plugin.Models.Composer;
 
 public class InstanceComposer
 {
-    public InstanceComposer(ILogger log, SqPack manager, ParsedInstance[] instances, string? cacheDir = null, 
+    public InstanceComposer(ILogger log, SqPack manager, Configuration config, ParsedInstance[] instances, string? cacheDir = null, 
                        Action<ProgressEvent>? progress = null, CancellationToken cancellationToken = default)
     {
         CacheDir = cacheDir ?? Path.GetTempPath();
@@ -26,6 +28,7 @@ public class InstanceComposer
         this.instances = instances;
         this.log = log;
         this.dataManager = manager;
+        this.config = config;
         this.progress = progress;
         this.cancellationToken = cancellationToken;
         this.count = instances.Length;
@@ -33,20 +36,40 @@ public class InstanceComposer
 
     private readonly ILogger log;
     private readonly SqPack dataManager;
+    private readonly Configuration config;
     private readonly Action<ProgressEvent>? progress;
     private readonly CancellationToken cancellationToken;
     private readonly int count;
     private int countProgress;
     public string CacheDir { get; }
     private readonly ParsedInstance[] instances;
-    private readonly Dictionary<string, (string PathOnDisk, MemoryImage MemoryImage)> imageCache = new();
-    private readonly Dictionary<string, (ShpkFile File, ShaderPackage Package)> shpkCache = new();
-    private readonly Dictionary<string, MaterialBuilder> mtrlCache = new();
+    private readonly ConcurrentDictionary<string, (string PathOnDisk, MemoryImage MemoryImage)> imageCache = new();
+    private readonly ConcurrentDictionary<string, (ShpkFile File, ShaderPackage Package)> shpkCache = new();
+    private readonly ConcurrentDictionary<string, MaterialBuilder> mtrlCache = new();
 
     public void Compose(SceneBuilder scene)
     {
         progress?.Invoke(new ProgressEvent("Export", 0, count));
-        foreach (var instance in instances)
+        Parallel.ForEach(instances, instance =>
+        {
+            try
+            {
+                var node = ComposeInstance(scene, instance);
+                if (node != null)
+                {
+                    scene.AddNode(node);
+                }
+            }
+            catch (Exception ex)
+            {
+                log.LogError(ex, "Failed to compose instance {instanceId} {instanceType}", instance.Id, instance.Type);
+            }
+
+            //countProgress++;
+            Interlocked.Increment(ref countProgress);
+            progress?.Invoke(new ProgressEvent("Export", countProgress, count));
+        });
+        /*foreach (var instance in instances)
         {
             try
             {
@@ -63,7 +86,7 @@ public class InstanceComposer
 
             countProgress++;
             progress?.Invoke(new ProgressEvent("Export", countProgress, count));
-        }
+        }*/
     }
 
     public NodeBuilder? ComposeInstance(SceneBuilder scene, ParsedInstance parsedInstance)
@@ -93,7 +116,14 @@ public class InstanceComposer
 
         if (parsedInstance is ParsedCharacterInstance { CharacterInfo: not null } characterInstance)
         {
-            root.Name = $"{characterInstance.Type}_{characterInstance.Kind}_{characterInstance.Name}";
+            if (characterInstance.Kind == ObjectKind.Pc && !string.IsNullOrWhiteSpace(config.PlayerNameOverride))
+            {
+                root.Name = $"{characterInstance.Type}_{characterInstance.Kind}_{config.PlayerNameOverride}";
+            }
+            else
+            {                
+                root.Name = $"{characterInstance.Type}_{characterInstance.Kind}_{characterInstance.Name}";
+            }
             ComposeCharacterInstance(characterInstance, scene, root);
             wasAdded = true;
         }
