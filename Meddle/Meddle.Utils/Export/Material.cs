@@ -87,7 +87,15 @@ public enum MaterialConstant : uint
     g_GlassThicknessMax = 0xC4647F37,
     g_TextureMipBias = 0x39551220,
     g_OutlineColor = 0x623CC4FE,
-    g_OutlineWidth = 0x8870C938
+    g_OutlineWidth = 0x8870C938,
+    g_Ray = 0x827BDD09,
+    g_TexU = 0x5926A043,
+    g_TexV = 0xC02FF1F9,
+    g_TexAnim = 0x14D8E13D,
+    g_Color = 0xD27C58B9,
+    g_ShadowAlphaThreshold = 0xD925FF32,
+    g_NearClip = 0x17A52926,
+    g_AngleClip = 0x71DBDA81
 }
 
 public class Material

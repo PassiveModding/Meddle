@@ -1,4 +1,5 @@
-﻿using Meddle.Utils.Export;
+﻿using System.Numerics;
+using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Models;
 using OtterTex;
@@ -164,6 +165,13 @@ public static class ImageUtils
             bitmap = bitmap.Resize(new SKImageInfo(resize.Value.width, resize.Value.height, SKColorType.Rgba8888, SKAlphaType.Unpremul), SKFilterQuality.High);
         }
         
+        return new SKTexture(bitmap);
+    }
+    
+    public static SKTexture ToTexture(this TextureResource resource, Vector2 size)
+    {
+        var bitmap = resource.ToBitmap();
+        bitmap = bitmap.Resize(new SKImageInfo((int)size.X, (int)size.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul), SKFilterQuality.High);
         return new SKTexture(bitmap);
     }
     

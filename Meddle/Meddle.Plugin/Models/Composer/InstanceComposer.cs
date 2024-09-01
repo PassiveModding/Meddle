@@ -1,6 +1,8 @@
 ﻿using System.Collections.Concurrent;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Utils;
@@ -50,7 +52,11 @@ public class InstanceComposer
     public void Compose(SceneBuilder scene)
     {
         progress?.Invoke(new ProgressEvent("Export", 0, count));
-        Parallel.ForEach(instances, instance =>
+        Parallel.ForEach(instances, new ParallelOptions
+        {
+            CancellationToken = cancellationToken,
+            MaxDegreeOfParallelism = Math.Max(Environment.ProcessorCount / 2, 1)
+        }, instance =>
         {
             try
             {
@@ -286,7 +292,7 @@ public class InstanceComposer
                         MaterialUtility.BuildIris(material, name, cubeMapTex, customizeParams, customizeData),
                     "water.shpk" => MaterialUtility.BuildWater(material, name),
                     "lightshaft.shpk" => MaterialUtility.BuildLightShaft(material, name),
-                    _ => ComposeGenericMaterial(materialInfo.Path)
+                    _ => ComposeMaterial(materialInfo.Path)
                 };
 
                 materialBuilders.Add(builder);
@@ -382,7 +388,7 @@ public class InstanceComposer
             var materialBuilders = new List<MaterialBuilder>();
             foreach (var mtrlPath in materials)
             {
-                var materialBuilder = ComposeGenericMaterial(mtrlPath);
+                var materialBuilder = ComposeMaterial(mtrlPath);
                 materialBuilders.Add(materialBuilder);
             }
 
@@ -415,7 +421,7 @@ public class InstanceComposer
         var materialBuilders = new List<MaterialBuilder>();
         foreach (var mtrlPath in materials)
         {
-            var output = ComposeGenericMaterial(mtrlPath);
+            var output = ComposeMaterial(mtrlPath);
             materialBuilders.Add(output);
         }
 
@@ -423,8 +429,8 @@ public class InstanceComposer
         var meshes = ModelBuilder.BuildMeshes(model, materialBuilders, [], null);
         return meshes;
     }
-    
-    private MaterialBuilder ComposeGenericMaterial(string path)
+
+    private MaterialBuilder ComposeMaterial(string path)
     {
         if (mtrlCache.TryGetValue(path, out var cached))
         {
@@ -434,10 +440,10 @@ public class InstanceComposer
         var mtrlData = dataManager.GetFileOrReadFromDisk(path);
         if (mtrlData == null) throw new Exception($"Failed to load material file: {path}");
         log.LogInformation("Loaded material {path}", path);
-
+        
         var mtrlFile = new MtrlFile(mtrlData);
-        var texturePaths = mtrlFile.GetTexturePaths();
-        var shpkPath = $"shader/sm5/shpk/{mtrlFile.GetShaderPackageName()}";
+        var shpkName = mtrlFile.GetShaderPackageName();
+        var shpkPath = $"shader/sm5/shpk/{shpkName}";
         if (!shpkCache.TryGetValue(shpkPath, out var shader))
         {
             var shpkData = dataManager.GetFileOrReadFromDisk(shpkPath);
@@ -448,16 +454,107 @@ public class InstanceComposer
             shpkCache.TryAdd(shpkPath, shader);
             log.LogInformation("Loaded shader package {shpkPath}", shpkPath);
         }
-        var material = new MaterialSet(mtrlFile, shader.File);
-        var output = new MaterialBuilder(Path.GetFileNameWithoutExtension(path))
+        var material = new MaterialSet(mtrlFile, shader.File, shpkName);
+        
+        if (shpkName == "lightshaft.shpk")
+        {
+            return ComposeLightshaft(path, material);
+        }
+        
+        return ComposeGenericMaterial(path, material);
+    }
+
+    private MaterialBuilder ComposeLightshaft(string path, MaterialSet materialSet)
+    {
+        var output = new XivMaterialBuilder(path, "lightshaft.shpk");
+        
+        var sampler0 = materialSet.TextureUsageDict[TextureUsage.g_Sampler0];
+        var sampler1 = materialSet.TextureUsageDict[TextureUsage.g_Sampler1];
+        var texture0 = dataManager.GetFileOrReadFromDisk(sampler0);
+        var texture1 = dataManager.GetFileOrReadFromDisk(sampler1);
+        if (texture0 == null || texture1 == null)
+        {
+            log.LogWarning("Failed to load lightshaft textures {sampler0} {sampler1}", sampler0, sampler1);
+            return output;
+        }
+
+        var tex0 = new TexFile(texture0);
+        var tex1 = new TexFile(texture1);
+        
+        Vector2 size = Vector2.Max(new Vector2(tex0.Header.Width, tex0.Header.Height), new Vector2(tex1.Header.Width, tex1.Header.Height));
+
+        var res0 = Texture.GetResource(tex0).ToTexture(size);
+        var res1 = Texture.GetResource(tex1).ToTexture(size);
+        
+        
+        var outTexture = new SKTexture((int)size.X, (int)size.Y);
+        materialSet.TryGetConstant(MaterialConstant.g_Color, out Vector3 colorv3);
+        for (var x = 0; x < outTexture.Width; x++)
+        for (var y = 0; y < outTexture.Height; y++)
+        {
+            var tex0Color = res0[x, y].ToVector4();
+            var tex1Color = res1[x, y].ToVector4();
+            var outColor = new Vector4(colorv3, 1);
+            
+            outTexture[x, y] = (outColor * tex0Color * tex1Color).ToSkColor();
+        }
+        
+        // cache texture
+        var fileName = $"{Path.GetFileNameWithoutExtension(path)}_computed_lightshaft";
+        var tempPath = Path.Combine(CacheDir, $"{fileName}.png");
+        var diffuseImage = CacheTexture(outTexture, tempPath);
+        output.WithBaseColor(diffuseImage);
+        
+        
+        if (materialSet.TryGetConstant(MaterialConstant.g_AlphaThreshold, out float alphaThreshold))
+        {
+            output.WithAlpha(AlphaMode.MASK, alphaThreshold);
+        }
+
+        materialSet.TryGetConstant(MaterialConstant.g_Ray, out float[] ray);
+        materialSet.TryGetConstant(MaterialConstant.g_TexU, out float[] texU);
+        materialSet.TryGetConstant(MaterialConstant.g_TexV, out float[] texV);
+        materialSet.TryGetConstant(MaterialConstant.g_TexAnim, out float[] texAnim);
+        materialSet.TryGetConstant(MaterialConstant.g_ShadowAlphaThreshold, out float[] shadowAlphaThreshold);
+        materialSet.TryGetConstant(MaterialConstant.g_NearClip, out float[] nearClip);
+        materialSet.TryGetConstant(MaterialConstant.g_AngleClip, out float[] angleClip);
+        
+        
+        var extrasDict = new Dictionary<string, object>
+        {
+            {"Sampler0", sampler0},
+            {"Sampler1", sampler1},
+            {"AlphaThreshold", alphaThreshold},
+            {"Ray", ray},
+            {"TexU", texU},
+            {"TexV", texV},
+            {"TexAnim", texAnim},
+            {"ShadowAlphaThreshold", shadowAlphaThreshold},
+            {"NearClip", nearClip},
+            {"AngleClip", angleClip},
+            {"Color", colorv3}
+        };
+        
+        output.Extras = JsonNode.Parse(JsonSerializer.Serialize(extrasDict, new JsonSerializerOptions
+        {
+            IncludeFields = true
+        }));
+        return output;
+    }
+    
+    private MaterialBuilder ComposeGenericMaterial(string path, MaterialSet materialSet)
+    {
+        var materialName = $"{Path.GetFileNameWithoutExtension(path)}_{materialSet.ShpkName}";
+        var output = new XivMaterialBuilder(materialName, materialSet.ShpkName)
                      .WithMetallicRoughnessShader()
                      .WithBaseColor(Vector4.One);
 
-        var alphaThreshold = material.GetConstantOrDefault(MaterialConstant.g_AlphaThreshold, 0.0f);
+        var alphaThreshold = materialSet.GetConstantOrDefault(MaterialConstant.g_AlphaThreshold, 0.0f);
         if (alphaThreshold > 0)
             output.WithAlpha(AlphaMode.MASK, alphaThreshold);
         
         // Initialize texture in cache
+        var texturePaths = materialSet.File.GetTexturePaths();
         foreach (var (offset, texPath) in texturePaths)
         {
             if (imageCache.ContainsKey(texPath)) continue;
@@ -465,15 +562,15 @@ public class InstanceComposer
         }
 
         var setTypes = new HashSet<TextureUsage>();
-        foreach (var sampler in mtrlFile.Samplers)
+        foreach (var sampler in materialSet.File.Samplers)
         {
             if (sampler.TextureIndex == byte.MaxValue) continue;
-            var textureInfo = mtrlFile.TextureOffsets[sampler.TextureIndex];
+            var textureInfo = materialSet.File.TextureOffsets[sampler.TextureIndex];
             var texturePath = texturePaths[textureInfo.Offset];
             if (!imageCache.TryGetValue(texturePath, out var tex)) continue;
             // bg textures can have additional textures, which may be dummy textures, ignore them
             if (texturePath.Contains("dummy_")) continue;
-            if (!shader.Package.TextureLookup.TryGetValue(sampler.SamplerId, out var usage))
+            if (!materialSet.Package.TextureLookup.TryGetValue(sampler.SamplerId, out var usage))
             {
                 log.LogWarning("Unknown texture usage for texture {texturePath} ({textureUsage})", texturePath, (TextureUsage)sampler.SamplerId);
                 continue;
@@ -482,7 +579,7 @@ public class InstanceComposer
             var channel = MaterialUtility.MapTextureUsageToChannel(usage);
             if (channel != null && setTypes.Add(usage))
             {
-                var fileName = $"{Path.GetFileNameWithoutExtension(texturePath)}_{usage}_{shader.Package.Name}";
+                var fileName = $"{Path.GetFileNameWithoutExtension(texturePath)}_{usage}_{materialSet.ShpkName}";
                 var imageBuilder = ImageBuilder.From(tex.MemoryImage, fileName);
                 imageBuilder.AlternateWriteFileName = $"{fileName}.*";
                 output.WithChannelImage(channel.Value, imageBuilder);
@@ -503,49 +600,144 @@ public class InstanceComposer
 
     public class MaterialSet
     {
-        private readonly MtrlFile file;
-        private readonly ShpkFile shpk;
-        private readonly ShaderKey[] shaderKeys;
-        private readonly Dictionary<MaterialConstant, float[]> materialConstantDict;
+        public readonly MtrlFile File;
+        public readonly ShpkFile Shpk;
+        public readonly string ShpkName;
+        public readonly ShaderPackage Package;
+        public readonly ShaderKey[] ShaderKeys;
+        public readonly Dictionary<MaterialConstant, float[]> MaterialConstantDict;
+        public readonly Dictionary<TextureUsage, string> TextureUsageDict;
 
+        public bool TryGetConstant(MaterialConstant id, out float[] value)
+        {
+            if (MaterialConstantDict.TryGetValue(id, out var values))
+            {
+                value = values;
+                return true;
+            }
+
+            if (Package.MaterialConstants.TryGetValue(id, out var constant))
+            {
+                value = constant;
+                return true;
+            }
+
+            value = [];
+            return false;
+        }
+        
+        public bool TryGetConstant(MaterialConstant id, out float value)
+        {
+            if (MaterialConstantDict.TryGetValue(id, out var values))
+            {
+                value = values[0];
+                return true;
+            }
+
+            if (Package.MaterialConstants.TryGetValue(id, out var constant))
+            {
+                value = constant[0];
+                return true;
+            }
+
+            value = 0;
+            return false;
+        }
+        
+        public bool TryGetConstant(MaterialConstant id, out Vector2 value)
+        {
+            if (MaterialConstantDict.TryGetValue(id, out var values))
+            {
+                value = new Vector2(values[0], values[1]);
+                return true;
+            }
+
+            if (Package.MaterialConstants.TryGetValue(id, out var constant))
+            {
+                value = new Vector2(constant[0], constant[1]);
+                return true;
+            }
+
+            value = Vector2.Zero;
+            return false;
+        }
+        
+        public bool TryGetConstant(MaterialConstant id, out Vector3 value)
+        {
+            if (MaterialConstantDict.TryGetValue(id, out var values))
+            {
+                value = new Vector3(values[0], values[1], values[2]);
+                return true;
+            }
+
+            if (Package.MaterialConstants.TryGetValue(id, out var constant))
+            {
+                value = new Vector3(constant[0], constant[1], constant[2]);
+                return true;
+            }
+
+            value = Vector3.Zero;
+            return false;
+        }
+        
+        public bool TryGetConstant(MaterialConstant id, out Vector4 value)
+        {
+            if (MaterialConstantDict.TryGetValue(id, out var values))
+            {
+                value = new Vector4(values[0], values[1], values[2], values[3]);
+                return true;
+            }
+
+            if (Package.MaterialConstants.TryGetValue(id, out var constant))
+            {
+                value = new Vector4(constant[0], constant[1], constant[2], constant[3]);
+                return true;
+            }
+
+            value = Vector4.Zero;
+            return false;
+        }
+        
         public float GetConstantOrDefault(MaterialConstant id, float @default)
         {
-            return materialConstantDict.TryGetValue(id, out var values) ? values[0] : @default;
+            return MaterialConstantDict.TryGetValue(id, out var values) ? values[0] : @default;
         }
     
         public Vector2 GetConstantOrDefault(MaterialConstant id, Vector2 @default)
         {
-            return materialConstantDict.TryGetValue(id, out var values) ? new Vector2(values[0], values[1]) : @default;
+            return MaterialConstantDict.TryGetValue(id, out var values) ? new Vector2(values[0], values[1]) : @default;
         }
     
         public Vector3 GetConstantOrDefault(MaterialConstant id, Vector3 @default)
         {
-            return materialConstantDict.TryGetValue(id, out var values) ? new Vector3(values[0], values[1], values[2]) : @default;
+            return MaterialConstantDict.TryGetValue(id, out var values) ? new Vector3(values[0], values[1], values[2]) : @default;
         }
 
         public Vector4 GetConstantOrDefault(MaterialConstant id, Vector4 @default)
         {
-            return materialConstantDict.TryGetValue(id, out var values)
+            return MaterialConstantDict.TryGetValue(id, out var values)
                        ? new Vector4(values[0], values[1], values[2], values[3])
                        : @default;
         }
         
-        public MaterialSet(MtrlFile file, ShpkFile shpk)
+        public MaterialSet(MtrlFile file, ShpkFile shpk, string shpkName)
         {
-            this.file = file;
-            this.shpk = shpk;
+            this.File = file;
+            this.Shpk = shpk;
+            this.ShpkName = shpkName;
+            this.Package = new ShaderPackage(shpk, shpkName);
             
-            shaderKeys = new ShaderKey[file.ShaderKeys.Length];
+            ShaderKeys = new ShaderKey[file.ShaderKeys.Length];
             for (var i = 0; i < file.ShaderKeys.Length; i++)
             {
-                shaderKeys[i] = new ShaderKey
+                ShaderKeys[i] = new ShaderKey
                 {
                     Category = file.ShaderKeys[i].Category,
                     Value = file.ShaderKeys[i].Value
                 };
             }
 
-            materialConstantDict = new Dictionary<MaterialConstant, float[]>();
+            MaterialConstantDict = new Dictionary<MaterialConstant, float[]>();
             foreach (var constant in file.Constants)
             {
                 var index = constant.ValueOffset / 4;
@@ -567,9 +759,45 @@ public class InstanceComposer
 
                 // even if duplicate, last probably takes precedence
                 var id = (MaterialConstant)constant.ConstantId;
-                materialConstantDict[id] = values;
+                MaterialConstantDict[id] = values;
+            }
+            
+            TextureUsageDict = new Dictionary<TextureUsage, string>();
+            var texturePaths = file.GetTexturePaths();
+            foreach (var sampler in file.Samplers)
+            {
+                if (sampler.TextureIndex == byte.MaxValue) continue;
+                var textureInfo = file.TextureOffsets[sampler.TextureIndex];
+                var texturePath = texturePaths[textureInfo.Offset];
+                if (!Package.TextureLookup.TryGetValue(sampler.SamplerId, out var usage))
+                {
+                    continue;
+                }
+                TextureUsageDict[usage] = texturePath;
             }
         }
+    }
+    
+    private MemoryImage CacheTexture(SKTexture texture, string texPath)
+    {
+        byte[] textureBytes;
+        using (var memoryStream = new MemoryStream())
+        {
+            texture.Bitmap.Encode(memoryStream, SKEncodedImageFormat.Png, 100);
+            textureBytes = memoryStream.ToArray();
+        }
+
+        var dirPath = Path.GetDirectoryName(texPath);
+        if (!string.IsNullOrEmpty(dirPath) && !Directory.Exists(dirPath))
+        {
+            Directory.CreateDirectory(dirPath);
+        }
+
+        File.WriteAllBytes(texPath, textureBytes);
+        
+        var outImage = new MemoryImage(() => File.ReadAllBytes(texPath));
+        imageCache.TryAdd(texPath, (texPath, outImage));
+        return outImage;
     }
     
     private void CacheTexture(string texPath)

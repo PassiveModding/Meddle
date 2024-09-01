@@ -6,8 +6,9 @@ namespace Meddle.Utils.Export;
 public unsafe class ShaderPackage
 {
     public string Name { get; }
-    public IReadOnlyDictionary<uint, TextureUsage> TextureLookup { get; }
-    public IReadOnlyDictionary<uint, string>? ResourceKeys { get; }
+    public Dictionary<uint, TextureUsage> TextureLookup { get; }
+    public Dictionary<MaterialConstant, float[]> MaterialConstants { get; }
+    public Dictionary<uint, string>? ResourceKeys { get; }
 
     public ShaderPackage(ShpkFile file, string name)
     {
@@ -58,6 +59,20 @@ public unsafe class ShaderPackage
             resourceKeys[uav.Id] = resName;
         }
         
+        var materialConstantDict = new Dictionary<MaterialConstant, float[]>();
+        var orderedMaterialParams = file.MaterialParams.Select((x, idx) => (x, idx)).OrderBy(x => x.x.ByteOffset).ToArray();
+        foreach (var (materialParam, i) in orderedMaterialParams)
+        {
+            // get defaults from byteoffset -> byteoffset + bytesize
+            var defaults = file.MaterialParamDefaults
+                               .Skip(materialParam.ByteOffset / 4)
+                               .Take(materialParam.ByteSize / 4).ToArray();
+            var defaultCopy = new float[defaults.Length];
+            Array.Copy(defaults, defaultCopy, defaults.Length);
+            materialConstantDict[(MaterialConstant)materialParam.Id] = defaultCopy;
+        }
+        
+        MaterialConstants = materialConstantDict;
         TextureLookup = textureUsages;
         ResourceKeys = resourceKeys;
     }

@@ -208,7 +208,8 @@ public class LayoutService : IService
             }
             case InstanceType.Light:
             {
-                return new ParsedLightInstance((nint)instanceLayout, new Transform(*instanceLayout->GetTransformImpl()));
+                var light = ParsedLightInstance(instanceLayout);
+                return light;
             }
             default:
             {
@@ -225,6 +226,18 @@ public class LayoutService : IService
                                                      path);
             }
         }
+    }
+    
+    private unsafe ParsedLightInstance? ParsedLightInstance(Pointer<ILayoutInstance> lightPtr)
+    {
+        if (lightPtr == null || lightPtr.Value == null)
+            return null;
+
+        var light = lightPtr.Value;
+        if (light->Id.Type != InstanceType.Light)
+            return null;
+
+        return new ParsedLightInstance((nint)light, new Transform(*light->GetTransformImpl()));
     }
 
     private unsafe ParsedInstance? ParseSharedGroup(Pointer<SharedGroupLayoutInstance> sharedGroupPtr, ParseCtx ctx)
