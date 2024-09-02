@@ -95,7 +95,74 @@ public enum MaterialConstant : uint
     g_Color = 0xD27C58B9,
     g_ShadowAlphaThreshold = 0xD925FF32,
     g_NearClip = 0x17A52926,
-    g_AngleClip = 0x71DBDA81
+    g_AngleClip = 0x71DBDA81,
+    g_CausticsReflectionPowerBright = 0x0CC09E67, // 213950055
+    g_CausticsReflectionPowerDark = 0xC295EA6C, // 3264604780
+    g_HeightMapScale = 0xA320B199, // 2736828825
+    g_HeightMapUVScale = 0x5B99505D, // 1536774237
+    g_MultiWaveScale = 0x37363FDD, // 926302173
+    g_WaveSpeed = 0xE4C68FF3, // 3838218227
+    g_WaveTime = 0x8EB9D2A6, // 2394542758
+    g_AlphaMultiParam = 0x07EDA444, // 133014596
+    g_AmbientOcclusionMask = 0x575ABFB2, // 1465565106
+    g_ColorUVScale = 0xA5D02C52, // 2781883474
+    g_DetailColorUvScale = 0xC63D9716, // 3325925142
+    g_DetailID = 0x8981D4D9, // 2306987225
+    g_DetailNormalScale = 0x9F42EDA2, // 2671963554
+    g_EnvMapPower = 0xEEF5665F, // 4009059935
+    g_FresnelValue0 = 0x62E44A4F, // 1659128399
+    g_HeightScale = 0x8F8B0070, // 2408251504
+    g_InclusionAperture = 0xBCA22FD4, // 3164745684
+    g_IrisRingForceColor = 0x58DE06E2, // 1490945762
+    g_LayerDepth = 0xA9295FEF, // 2838061039
+    g_LayerIrregularity = 0x0A00B0A1, // 167817377
+    g_LayerScale = 0xBFCC6602, // 3217843714
+    g_LayerVelocity = 0x72181E22, // 1914183202
+    g_LipFresnelValue0 = 0x174BB64E, // 390837838
+    g_LipShininess = 0x878B272C, // 2274043692
+    g_MultiDetailColor = 0x11FD4221, // 301810209
+    g_MultiDiffuseColor = 0x3F8AC211, // 1066058257
+    g_MultiEmissiveColor = 0xAA676D0F, // 2858904847
+    g_MultiHeightScale = 0x43E59A68, // 1139120744
+    g_MultiNormalScale = 0x793AC5A3, // 2033894819
+    g_MultiSpecularColor = 0x86D60CB8, // 2262174904
+    g_MultiSSAOMask = 0x926E860D, // 2456716813
+    g_MultiWhitecapDistortion = 0x93504F3B, // 2471513915
+    g_MultiWhitecapScale = 0x312B69C1, // 824928705
+    g_NormalScale1 = 0x0DD83E61, // 232275553
+    g_NormalUVScale = 0xBB99CF76, // 3147419510
+    g_PrefersFailure = 0x5394405B, // 1402224731
+    g_ReflectionPower = 0x223A3329, // 574239529
+    g_ScatteringLevel = 0xB500BB24, // 3036724004
+    g_ShadowOffset = 0x96D2B53D, // 2530391357
+    g_ShadowPosOffset = 0x5351646E, // 1397843054
+    g_SpecularMask = 0x36080AD0, // 906496720
+    g_SpecularPower = 0xD9CB6B9C, // 3653987228
+    g_SpecularUVScale = 0x8D03A782, // 2365826946
+    g_ToonIndex = 0xDF15112D, // 3742699821
+    g_ToonLightScale = 0x3CCE9E4C, // 1020173900
+    g_ToonReflectionScale = 0xD96FAF7A, // 3647975290
+    g_ToonSpecIndex = 0x00A680BC, // 10911932
+    g_TransparencyDistance = 0x1624F841, // 371521601
+    g_WaveletDistortion = 0x3439B378, // 876196728
+    g_WaveletNoiseParam = 0x1279815C, // 309952860
+    g_WaveletOffset = 0x9BE8354A, // 2615686474
+    g_WaveletScale = 0xD62C681E, // 3593234462
+    g_WaveTime1 = 0x6EE5BF35, // 1860550453
+    g_WhitecapDistance = 0x5D26B262, // 1562817122
+    g_WhitecapDistortion = 0x61053025, // 1627729957
+    g_WhitecapNoiseScale = 0x0FF95B0C, // 268000012
+    g_WhitecapScale = 0xA3EA47AC, // 2750039980
+    g_WhitecapSpeed = 0x408A9CDE, // 1082825950
+    g_Fresnel = 0xE3AA427A, // 3819586170
+    g_Gradation = 0x94B40EEE, // 2494828270
+    g_Intensity = 0xBCBA70E1, // 3166335201
+    g_Shininess = 0x992869AB, // 2569562539
+    g_DetailColor = 0xDD93D839, // 3717453881
+    g_LayerColor = 0x35DC0B6F, // 903613295
+    g_RefractionColor = 0xBA163700, // 3122018048
+    g_WhitecapColor = 0x29FA2AC1, // 704260801
+    g_DetailNormalUvScale = 0x025A9BEE, // 39492590
 }
 
 public class Material
@@ -111,7 +178,7 @@ public class Material
     {
         HandlePath = path;
         InitFromFile(file);
-        InitTextures(file, texFiles.ToDictionary(x => x.Key, x => Texture.GetResource(x.Value)), shpkFile);
+        InitTextures(file, texFiles.ToDictionary(x => x.Key, x => x.Value.ToResource()), shpkFile);
     }
     
     private void InitTextures(MtrlFile file, Dictionary<string, TextureResource> texFiles, ShpkFile shpkFile)

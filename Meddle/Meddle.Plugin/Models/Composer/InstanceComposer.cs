@@ -454,92 +454,22 @@ public class InstanceComposer
             shpkCache.TryAdd(shpkPath, shader);
             log.LogInformation("Loaded shader package {shpkPath}", shpkPath);
         }
-        var material = new MaterialSet(mtrlFile, shader.File, shpkName);
+        var material = new MaterialSet(mtrlFile, path, shader.File, shpkName);
         
+        var materialName = $"{Path.GetFileNameWithoutExtension(path)}_{Path.GetFileNameWithoutExtension(shpkName)}";
         if (shpkName == "lightshaft.shpk")
         {
-            return ComposeLightshaft(path, material);
+            return new LightshaftMaterialBuilder(materialName, material, dataManager.GetFileOrReadFromDisk, CacheComputedTexture)
+                .WithLightShaft();
+        }
+
+        if (shpkName == "bg.shpk")
+        {
+            return new BgMaterialBuilder(materialName, material, dataManager.GetFileOrReadFromDisk, CacheComputedTexture)
+                    .WithBg();
         }
         
         return ComposeGenericMaterial(path, material);
-    }
-
-    private MaterialBuilder ComposeLightshaft(string path, MaterialSet materialSet)
-    {
-        var output = new XivMaterialBuilder(path, "lightshaft.shpk");
-        
-        var sampler0 = materialSet.TextureUsageDict[TextureUsage.g_Sampler0];
-        var sampler1 = materialSet.TextureUsageDict[TextureUsage.g_Sampler1];
-        var texture0 = dataManager.GetFileOrReadFromDisk(sampler0);
-        var texture1 = dataManager.GetFileOrReadFromDisk(sampler1);
-        if (texture0 == null || texture1 == null)
-        {
-            log.LogWarning("Failed to load lightshaft textures {sampler0} {sampler1}", sampler0, sampler1);
-            return output;
-        }
-
-        var tex0 = new TexFile(texture0);
-        var tex1 = new TexFile(texture1);
-        
-        Vector2 size = Vector2.Max(new Vector2(tex0.Header.Width, tex0.Header.Height), new Vector2(tex1.Header.Width, tex1.Header.Height));
-
-        var res0 = Texture.GetResource(tex0).ToTexture(size);
-        var res1 = Texture.GetResource(tex1).ToTexture(size);
-        
-        
-        var outTexture = new SKTexture((int)size.X, (int)size.Y);
-        materialSet.TryGetConstant(MaterialConstant.g_Color, out Vector3 colorv3);
-        for (var x = 0; x < outTexture.Width; x++)
-        for (var y = 0; y < outTexture.Height; y++)
-        {
-            var tex0Color = res0[x, y].ToVector4();
-            var tex1Color = res1[x, y].ToVector4();
-            var outColor = new Vector4(colorv3, 1);
-            
-            outTexture[x, y] = (outColor * tex0Color * tex1Color).ToSkColor();
-        }
-        
-        // cache texture
-        var fileName = $"{Path.GetFileNameWithoutExtension(path)}_computed_lightshaft";
-        var tempPath = Path.Combine(CacheDir, $"{fileName}.png");
-        var diffuseImage = CacheTexture(outTexture, tempPath);
-        output.WithBaseColor(diffuseImage);
-        
-        
-        if (materialSet.TryGetConstant(MaterialConstant.g_AlphaThreshold, out float alphaThreshold))
-        {
-            output.WithAlpha(AlphaMode.MASK, alphaThreshold);
-        }
-
-        materialSet.TryGetConstant(MaterialConstant.g_Ray, out float[] ray);
-        materialSet.TryGetConstant(MaterialConstant.g_TexU, out float[] texU);
-        materialSet.TryGetConstant(MaterialConstant.g_TexV, out float[] texV);
-        materialSet.TryGetConstant(MaterialConstant.g_TexAnim, out float[] texAnim);
-        materialSet.TryGetConstant(MaterialConstant.g_ShadowAlphaThreshold, out float[] shadowAlphaThreshold);
-        materialSet.TryGetConstant(MaterialConstant.g_NearClip, out float[] nearClip);
-        materialSet.TryGetConstant(MaterialConstant.g_AngleClip, out float[] angleClip);
-        
-        
-        var extrasDict = new Dictionary<string, object>
-        {
-            {"Sampler0", sampler0},
-            {"Sampler1", sampler1},
-            {"AlphaThreshold", alphaThreshold},
-            {"Ray", ray},
-            {"TexU", texU},
-            {"TexV", texV},
-            {"TexAnim", texAnim},
-            {"ShadowAlphaThreshold", shadowAlphaThreshold},
-            {"NearClip", nearClip},
-            {"AngleClip", angleClip},
-            {"Color", colorv3}
-        };
-        
-        output.Extras = JsonNode.Parse(JsonSerializer.Serialize(extrasDict, new JsonSerializerOptions
-        {
-            IncludeFields = true
-        }));
-        return output;
     }
     
     private MaterialBuilder ComposeGenericMaterial(string path, MaterialSet materialSet)
@@ -597,188 +527,8 @@ public class InstanceComposer
         mtrlCache.TryAdd(path, output);
         return output;
     }
-
-    public class MaterialSet
-    {
-        public readonly MtrlFile File;
-        public readonly ShpkFile Shpk;
-        public readonly string ShpkName;
-        public readonly ShaderPackage Package;
-        public readonly ShaderKey[] ShaderKeys;
-        public readonly Dictionary<MaterialConstant, float[]> MaterialConstantDict;
-        public readonly Dictionary<TextureUsage, string> TextureUsageDict;
-
-        public bool TryGetConstant(MaterialConstant id, out float[] value)
-        {
-            if (MaterialConstantDict.TryGetValue(id, out var values))
-            {
-                value = values;
-                return true;
-            }
-
-            if (Package.MaterialConstants.TryGetValue(id, out var constant))
-            {
-                value = constant;
-                return true;
-            }
-
-            value = [];
-            return false;
-        }
-        
-        public bool TryGetConstant(MaterialConstant id, out float value)
-        {
-            if (MaterialConstantDict.TryGetValue(id, out var values))
-            {
-                value = values[0];
-                return true;
-            }
-
-            if (Package.MaterialConstants.TryGetValue(id, out var constant))
-            {
-                value = constant[0];
-                return true;
-            }
-
-            value = 0;
-            return false;
-        }
-        
-        public bool TryGetConstant(MaterialConstant id, out Vector2 value)
-        {
-            if (MaterialConstantDict.TryGetValue(id, out var values))
-            {
-                value = new Vector2(values[0], values[1]);
-                return true;
-            }
-
-            if (Package.MaterialConstants.TryGetValue(id, out var constant))
-            {
-                value = new Vector2(constant[0], constant[1]);
-                return true;
-            }
-
-            value = Vector2.Zero;
-            return false;
-        }
-        
-        public bool TryGetConstant(MaterialConstant id, out Vector3 value)
-        {
-            if (MaterialConstantDict.TryGetValue(id, out var values))
-            {
-                value = new Vector3(values[0], values[1], values[2]);
-                return true;
-            }
-
-            if (Package.MaterialConstants.TryGetValue(id, out var constant))
-            {
-                value = new Vector3(constant[0], constant[1], constant[2]);
-                return true;
-            }
-
-            value = Vector3.Zero;
-            return false;
-        }
-        
-        public bool TryGetConstant(MaterialConstant id, out Vector4 value)
-        {
-            if (MaterialConstantDict.TryGetValue(id, out var values))
-            {
-                value = new Vector4(values[0], values[1], values[2], values[3]);
-                return true;
-            }
-
-            if (Package.MaterialConstants.TryGetValue(id, out var constant))
-            {
-                value = new Vector4(constant[0], constant[1], constant[2], constant[3]);
-                return true;
-            }
-
-            value = Vector4.Zero;
-            return false;
-        }
-        
-        public float GetConstantOrDefault(MaterialConstant id, float @default)
-        {
-            return MaterialConstantDict.TryGetValue(id, out var values) ? values[0] : @default;
-        }
     
-        public Vector2 GetConstantOrDefault(MaterialConstant id, Vector2 @default)
-        {
-            return MaterialConstantDict.TryGetValue(id, out var values) ? new Vector2(values[0], values[1]) : @default;
-        }
-    
-        public Vector3 GetConstantOrDefault(MaterialConstant id, Vector3 @default)
-        {
-            return MaterialConstantDict.TryGetValue(id, out var values) ? new Vector3(values[0], values[1], values[2]) : @default;
-        }
-
-        public Vector4 GetConstantOrDefault(MaterialConstant id, Vector4 @default)
-        {
-            return MaterialConstantDict.TryGetValue(id, out var values)
-                       ? new Vector4(values[0], values[1], values[2], values[3])
-                       : @default;
-        }
-        
-        public MaterialSet(MtrlFile file, ShpkFile shpk, string shpkName)
-        {
-            this.File = file;
-            this.Shpk = shpk;
-            this.ShpkName = shpkName;
-            this.Package = new ShaderPackage(shpk, shpkName);
-            
-            ShaderKeys = new ShaderKey[file.ShaderKeys.Length];
-            for (var i = 0; i < file.ShaderKeys.Length; i++)
-            {
-                ShaderKeys[i] = new ShaderKey
-                {
-                    Category = file.ShaderKeys[i].Category,
-                    Value = file.ShaderKeys[i].Value
-                };
-            }
-
-            MaterialConstantDict = new Dictionary<MaterialConstant, float[]>();
-            foreach (var constant in file.Constants)
-            {
-                var index = constant.ValueOffset / 4;
-                var count = constant.ValueSize / 4;
-                var buf = new List<byte>(128);
-                for (var j = 0; j < count; j++)
-                {
-                    var value = file.ShaderValues[index + j];
-                    var bytes = BitConverter.GetBytes(value);
-                    buf.AddRange(bytes);
-                }
-
-                var floats = MemoryMarshal.Cast<byte, float>(buf.ToArray());
-                var values = new float[count];
-                for (var j = 0; j < count; j++)
-                {
-                    values[j] = floats[j];
-                }
-
-                // even if duplicate, last probably takes precedence
-                var id = (MaterialConstant)constant.ConstantId;
-                MaterialConstantDict[id] = values;
-            }
-            
-            TextureUsageDict = new Dictionary<TextureUsage, string>();
-            var texturePaths = file.GetTexturePaths();
-            foreach (var sampler in file.Samplers)
-            {
-                if (sampler.TextureIndex == byte.MaxValue) continue;
-                var textureInfo = file.TextureOffsets[sampler.TextureIndex];
-                var texturePath = texturePaths[textureInfo.Offset];
-                if (!Package.TextureLookup.TryGetValue(sampler.SamplerId, out var usage))
-                {
-                    continue;
-                }
-                TextureUsageDict[usage] = texturePath;
-            }
-        }
-    }
-    
-    private MemoryImage CacheTexture(SKTexture texture, string texPath)
+    private MemoryImage CacheComputedTexture(SKTexture texture, string texName)
     {
         byte[] textureBytes;
         using (var memoryStream = new MemoryStream())
@@ -787,16 +537,17 @@ public class InstanceComposer
             textureBytes = memoryStream.ToArray();
         }
 
-        var dirPath = Path.GetDirectoryName(texPath);
-        if (!string.IsNullOrEmpty(dirPath) && !Directory.Exists(dirPath))
+        var outPath = Path.Combine(CacheDir, "Computed", $"{texName}.png");
+        var outDir = Path.GetDirectoryName(outPath);
+        if (!string.IsNullOrEmpty(outDir) && !Directory.Exists(outDir))
         {
-            Directory.CreateDirectory(dirPath);
+            Directory.CreateDirectory(outDir);
         }
 
-        File.WriteAllBytes(texPath, textureBytes);
+        File.WriteAllBytes(outPath, textureBytes);
         
-        var outImage = new MemoryImage(() => File.ReadAllBytes(texPath));
-        imageCache.TryAdd(texPath, (texPath, outImage));
+        var outImage = new MemoryImage(() => File.ReadAllBytes(outPath));
+        imageCache.TryAdd(texName, (outPath, outImage));
         return outImage;
     }
     
@@ -808,7 +559,7 @@ public class InstanceComposer
         var texFile = new TexFile(texData);
         var diskPath = Path.Combine(CacheDir, Path.GetDirectoryName(texPath) ?? "",
                                     Path.GetFileNameWithoutExtension(texPath)) + ".png";
-        var texture = Texture.GetResource(texFile).ToTexture();
+        var texture = texFile.ToResource().ToTexture();
         byte[] textureBytes;
         using (var memoryStream = new MemoryStream())
         {

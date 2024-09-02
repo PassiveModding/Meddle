@@ -257,7 +257,7 @@ public class ParseService : IDisposable, IService
                     TexCache[texturePath] = texFile;
                 }
 
-                var texRes = Meddle.Utils.Export.Texture.GetResource(texFile);
+                var texRes = texFile.ToResource();
                 var texGroup = new TexResourceGroup(texturePath, texturePath, texRes);
                 texGroups.Add(texGroup);
             }

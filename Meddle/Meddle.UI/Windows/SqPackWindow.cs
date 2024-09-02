@@ -556,7 +556,7 @@ public class SqPackWindow
             {
                 SelectedFileType.Texture => view ?? new TexView(new TexFile(file.RawData), imageHandler, path),
                 SelectedFileType.Material => view ?? new MtrlView(new MtrlFile(file.RawData), sqPack, imageHandler),
-                SelectedFileType.Model => view ?? new MdlView(new MdlFile(file.RawData), path),
+                SelectedFileType.Model => view ?? new MdlView(new MdlFile(file.RawData), path, sqPack, imageHandler),
                 SelectedFileType.Sklb => view ?? new SklbView(new SklbFile(file.RawData), config),
                 SelectedFileType.Shpk => view ?? new ShpkView(new ShpkFile(file.RawData), path),
                 SelectedFileType.Pbd => view ?? new PbdView(new PbdFile(file.RawData)),

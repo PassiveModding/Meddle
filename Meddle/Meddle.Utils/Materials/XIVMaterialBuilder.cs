@@ -11,3 +11,8 @@ public class XivMaterialBuilder : MaterialBuilder
         this.Shpk = shpk;
     }
 }
+
+public interface IVertexPaintMaterialBuilder
+{
+    public bool VertexPaint { get; }
+}

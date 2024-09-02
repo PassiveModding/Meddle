@@ -232,13 +232,12 @@ public class MeshBuilder
         if (MaterialT != typeof(VertexTexture2))
         {
             Vector4 vertexColor = new Vector4(1, 1, 1, 1);
-            if (MaterialBuilder is XivMaterialBuilder xivMaterialBuilder)
+            if (MaterialBuilder is IVertexPaintMaterialBuilder paintBuilder)
             {
-                vertexColor = xivMaterialBuilder.Shpk switch
+                vertexColor = paintBuilder.VertexPaint switch
                 {
-                    "bg.shpk" => vertex.Color!.Value,
-                    "bgprop.shpk" => vertex.Color!.Value,
-                    _ => new Vector4(1, 1, 1, 1)
+                    true => vertex.Color!.Value,
+                    false => new Vector4(1, 1, 1, 1)
                 };
             }
             

@@ -22,6 +22,23 @@ public static class ImageUtils
         };
     }
     
+    public static TextureResource ToResource(this TexFile file)
+    {
+        var h = file.Header;
+        D3DResourceMiscFlags flags = 0;
+        if (h.Type.HasFlag(TexFile.Attribute.TextureTypeCube))
+            flags |= D3DResourceMiscFlags.TextureCube;
+        return new TextureResource(
+            TexFile.GetDxgiFormatFromTextureFormat(h.Format), 
+            h.Width, 
+            h.Height, 
+            h.CalculatedMips, 
+            h.CalculatedArraySize, 
+            TexFile.GetTexDimensionFromAttribute(h.Type), 
+            flags, 
+            file.TextureBuffer);
+    }
+    
     public static ReadOnlySpan<byte> ImageAsPng(Image image)
     {
         unsafe
