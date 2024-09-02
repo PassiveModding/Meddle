@@ -214,7 +214,7 @@ public class MaterialSet
     
     
     
-    private static JsonSerializerOptions JsonOptions => new()
+    public static JsonSerializerOptions JsonOptions => new()
     {
         IncludeFields = true
     };

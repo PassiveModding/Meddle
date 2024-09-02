@@ -10,6 +10,7 @@ public sealed class SKTexture
 
         public int Width { get; }
         public int Height { get; }
+        public Vector2 Size => new(Width, Height);
 
         public SKBitmap Bitmap
         {

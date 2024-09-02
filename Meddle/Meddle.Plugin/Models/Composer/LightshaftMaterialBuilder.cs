@@ -15,7 +15,7 @@ public class LightshaftMaterialBuilder : InstanceMaterialBuilder
 {
     private readonly MaterialSet set;
 
-    public LightshaftMaterialBuilder(string name, MaterialSet set, Func<string, byte[]?> lookupFunc, Func<SKTexture, string, MemoryImage> cacheFunc) : base(name, "lightshaft.shpk", lookupFunc, cacheFunc)
+    public LightshaftMaterialBuilder(string name, MaterialSet set, Func<string, byte[]?> lookupFunc, Func<SKTexture, string, ImageBuilder> cacheFunc) : base(name, "lightshaft.shpk", lookupFunc, cacheFunc)
     {
         this.set = set;
     }
@@ -51,15 +51,20 @@ public class LightshaftMaterialBuilder : InstanceMaterialBuilder
             outTexture[x, y] = (outColor * tex0Color * tex1Color).ToSkColor();
         }
         
-        var fileName = $"{Path.GetFileNameWithoutExtension(set.MtrlPath)}_computed_lightshaft_diffuse";
+        var fileName = $"Computed/{Path.GetFileNameWithoutExtension(set.MtrlPath)}_lightshaft_diffuse";
         var diffuseImage = CacheFunc(outTexture, fileName);
-        this.WithBaseColor(diffuseImage);
+        //this.WithBaseColor(diffuseImage);
+        this.WithBaseColor(new Vector4(1, 1, 1, 0));
+        this.WithEmissive(diffuseImage);
         
         
-        if (set.TryGetConstant(MaterialConstant.g_AlphaThreshold, out float alphaThreshold))
+        
+        if (!set.TryGetConstant(MaterialConstant.g_AlphaThreshold, out float alphaThreshold))
         {
-            this.WithAlpha(AlphaMode.MASK, alphaThreshold);
+            alphaThreshold = 0.5f;
         }
+        
+        this.WithAlpha(AlphaMode.MASK, alphaThreshold);
 
         Extras = set.ComposeExtrasNode();
         

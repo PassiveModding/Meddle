@@ -16,7 +16,7 @@ using SharpGLTF.Schema2;
 
 namespace Meddle.Plugin.UI.Layout;
 
-public partial class LayoutWindow : Window
+public partial class LayoutWindow : Window, IDisposable
 {
     private readonly LayoutService layoutService;
     private readonly Configuration config;
@@ -281,7 +281,7 @@ public partial class LayoutWindow : Window
                                             Directory.CreateDirectory(cacheDir);
                                             var instanceSet =
                                                 new InstanceComposer(log, dataManager, config, instances, cacheDir,
-                                                                x => progress = x, cancelToken.Token);
+                                                                x => progress = x, bakeTextures, cancelToken.Token);
                                             var scene = new SceneBuilder();
                                             instanceSet.Compose(scene);
                                             var gltf = scene.ToGltf2();
@@ -303,5 +303,10 @@ public partial class LayoutWindow : Window
                                             Process.Start("explorer.exe", path);
                                         }, cancelToken.Token);
                                     }, Plugin.TempDirectory);
+    }
+
+    public void Dispose()
+    {
+        cancelToken.Cancel();
     }
 }

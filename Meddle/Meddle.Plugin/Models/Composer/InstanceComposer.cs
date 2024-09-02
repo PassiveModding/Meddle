@@ -1,8 +1,5 @@
 ﻿using System.Collections.Concurrent;
 using System.Numerics;
-using System.Runtime.InteropServices;
-using System.Text.Json;
-using System.Text.Json.Nodes;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Utils;
@@ -20,10 +17,17 @@ using SkiaSharp;
 
 namespace Meddle.Plugin.Models.Composer;
 
-public class InstanceComposer
+public class InstanceComposer : IDisposable
 {
-    public InstanceComposer(ILogger log, SqPack manager, Configuration config, ParsedInstance[] instances, string? cacheDir = null, 
-                       Action<ProgressEvent>? progress = null, CancellationToken cancellationToken = default)
+    
+    
+    public InstanceComposer(ILogger log, SqPack manager, 
+                            Configuration config, 
+                            ParsedInstance[] instances, 
+                            string? cacheDir = null, 
+                            Action<ProgressEvent>? progress = null, 
+                            bool bakeMaterials = true,
+                            CancellationToken cancellationToken = default)
     {
         CacheDir = cacheDir ?? Path.GetTempPath();
         Directory.CreateDirectory(CacheDir);
@@ -32,6 +36,7 @@ public class InstanceComposer
         this.dataManager = manager;
         this.config = config;
         this.progress = progress;
+        this.bakeMaterials = bakeMaterials;
         this.cancellationToken = cancellationToken;
         this.count = instances.Length;
     }
@@ -40,6 +45,7 @@ public class InstanceComposer
     private readonly SqPack dataManager;
     private readonly Configuration config;
     private readonly Action<ProgressEvent>? progress;
+    private readonly bool bakeMaterials;
     private readonly CancellationToken cancellationToken;
     private readonly int count;
     private int countProgress;
@@ -48,15 +54,30 @@ public class InstanceComposer
     private readonly ConcurrentDictionary<string, (string PathOnDisk, MemoryImage MemoryImage)> imageCache = new();
     private readonly ConcurrentDictionary<string, (ShpkFile File, ShaderPackage Package)> shpkCache = new();
     private readonly ConcurrentDictionary<string, MaterialBuilder> mtrlCache = new();
-
+    
+    private void Iterate(Action<ParsedInstance> action, bool parallel)
+    {
+        if (parallel)
+        {
+            Parallel.ForEach(instances, new ParallelOptions
+            {
+                CancellationToken = cancellationToken,
+                MaxDegreeOfParallelism = Math.Max(Environment.ProcessorCount / 2, 1)
+            }, action);
+        }
+        else
+        {
+            foreach (var instance in instances)
+            {
+                action(instance);
+            }
+        }
+    }
+    
     public void Compose(SceneBuilder scene)
     {
         progress?.Invoke(new ProgressEvent("Export", 0, count));
-        Parallel.ForEach(instances, new ParallelOptions
-        {
-            CancellationToken = cancellationToken,
-            MaxDegreeOfParallelism = Math.Max(Environment.ProcessorCount / 2, 1)
-        }, instance =>
+        Iterate(instance =>
         {
             try
             {
@@ -74,25 +95,7 @@ public class InstanceComposer
             //countProgress++;
             Interlocked.Increment(ref countProgress);
             progress?.Invoke(new ProgressEvent("Export", countProgress, count));
-        });
-        /*foreach (var instance in instances)
-        {
-            try
-            {
-                var node = ComposeInstance(scene, instance);
-                if (node != null)
-                {
-                    scene.AddNode(node);
-                }
-            }
-            catch (Exception ex)
-            {
-                log.LogError(ex, "Failed to compose instance {instanceId} {instanceType}", instance.Id, instance.Type);
-            }
-
-            countProgress++;
-            progress?.Invoke(new ProgressEvent("Export", countProgress, count));
-        }*/
+        }, false);
     }
 
     public NodeBuilder? ComposeInstance(SceneBuilder scene, ParsedInstance parsedInstance)
@@ -292,7 +295,7 @@ public class InstanceComposer
                         MaterialUtility.BuildIris(material, name, cubeMapTex, customizeParams, customizeData),
                     "water.shpk" => MaterialUtility.BuildWater(material, name),
                     "lightshaft.shpk" => MaterialUtility.BuildLightShaft(material, name),
-                    _ => ComposeMaterial(materialInfo.Path)
+                    _ => ComposeMaterial(materialInfo.Path, characterInstance)
                 };
 
                 materialBuilders.Add(builder);
@@ -388,7 +391,7 @@ public class InstanceComposer
             var materialBuilders = new List<MaterialBuilder>();
             foreach (var mtrlPath in materials)
             {
-                var materialBuilder = ComposeMaterial(mtrlPath);
+                var materialBuilder = ComposeMaterial(mtrlPath, terrainInstance);
                 materialBuilders.Add(materialBuilder);
             }
 
@@ -421,7 +424,7 @@ public class InstanceComposer
         var materialBuilders = new List<MaterialBuilder>();
         foreach (var mtrlPath in materials)
         {
-            var output = ComposeMaterial(mtrlPath);
+            var output = ComposeMaterial(mtrlPath, bgPartsInstance);
             materialBuilders.Add(output);
         }
 
@@ -430,7 +433,7 @@ public class InstanceComposer
         return meshes;
     }
 
-    private MaterialBuilder ComposeMaterial(string path)
+    private MaterialBuilder ComposeMaterial(string path, ParsedInstance instance)
     {
         if (mtrlCache.TryGetValue(path, out var cached))
         {
@@ -457,78 +460,44 @@ public class InstanceComposer
         var material = new MaterialSet(mtrlFile, path, shader.File, shpkName);
         
         var materialName = $"{Path.GetFileNameWithoutExtension(path)}_{Path.GetFileNameWithoutExtension(shpkName)}";
-        if (shpkName == "lightshaft.shpk")
-        {
-            return new LightshaftMaterialBuilder(materialName, material, dataManager.GetFileOrReadFromDisk, CacheComputedTexture)
-                .WithLightShaft();
-        }
 
-        if (shpkName == "bg.shpk")
+        if (bakeMaterials)
         {
-            return new BgMaterialBuilder(materialName, material, dataManager.GetFileOrReadFromDisk, CacheComputedTexture)
+            if (shpkName == "lightshaft.shpk")
+            {
+                return new LightshaftMaterialBuilder(materialName,
+                                                     material, 
+                                                     dataManager.GetFileOrReadFromDisk,
+                                                     CacheTexture)
+                    .WithLightShaft();
+            }
+
+            if (shpkName is "bg.shpk" or "bgprop.shpk")
+            {
+                return new BgMaterialBuilder(materialName, shpkName, material, dataManager.GetFileOrReadFromDisk,
+                                             CacheTexture)
                     .WithBg();
-        }
-        
-        return ComposeGenericMaterial(path, material);
-    }
-    
-    private MaterialBuilder ComposeGenericMaterial(string path, MaterialSet materialSet)
-    {
-        var materialName = $"{Path.GetFileNameWithoutExtension(path)}_{materialSet.ShpkName}";
-        var output = new XivMaterialBuilder(materialName, materialSet.ShpkName)
-                     .WithMetallicRoughnessShader()
-                     .WithBaseColor(Vector4.One);
+            }
 
-        var alphaThreshold = materialSet.GetConstantOrDefault(MaterialConstant.g_AlphaThreshold, 0.0f);
-        if (alphaThreshold > 0)
-            output.WithAlpha(AlphaMode.MASK, alphaThreshold);
-        
-        // Initialize texture in cache
-        var texturePaths = materialSet.File.GetTexturePaths();
-        foreach (var (offset, texPath) in texturePaths)
-        {
-            if (imageCache.ContainsKey(texPath)) continue;
-            CacheTexture(texPath);
+            if (shpkName == "bgcolorchange.shpk")
+            {
+                Vector4? stainColor = instance switch
+                {
+                    IStainableInstance stainable => stainable.StainColor,
+                    _ => null
+                };
+
+                return new BgMaterialBuilder(materialName, shpkName, material, dataManager.GetFileOrReadFromDisk,
+                                             CacheTexture)
+                    .WithBgColorChange(stainColor);
+            }
         }
 
-        var setTypes = new HashSet<TextureUsage>();
-        foreach (var sampler in materialSet.File.Samplers)
-        {
-            if (sampler.TextureIndex == byte.MaxValue) continue;
-            var textureInfo = materialSet.File.TextureOffsets[sampler.TextureIndex];
-            var texturePath = texturePaths[textureInfo.Offset];
-            if (!imageCache.TryGetValue(texturePath, out var tex)) continue;
-            // bg textures can have additional textures, which may be dummy textures, ignore them
-            if (texturePath.Contains("dummy_")) continue;
-            if (!materialSet.Package.TextureLookup.TryGetValue(sampler.SamplerId, out var usage))
-            {
-                log.LogWarning("Unknown texture usage for texture {texturePath} ({textureUsage})", texturePath, (TextureUsage)sampler.SamplerId);
-                continue;
-            }
-            
-            var channel = MaterialUtility.MapTextureUsageToChannel(usage);
-            if (channel != null && setTypes.Add(usage))
-            {
-                var fileName = $"{Path.GetFileNameWithoutExtension(texturePath)}_{usage}_{materialSet.ShpkName}";
-                var imageBuilder = ImageBuilder.From(tex.MemoryImage, fileName);
-                imageBuilder.AlternateWriteFileName = $"{fileName}.*";
-                output.WithChannelImage(channel.Value, imageBuilder);
-            }
-            else if (channel != null)
-            {
-                log.LogDebug("Duplicate texture {texturePath} with usage {usage}", texturePath, usage);
-            }
-            else
-            {
-                log.LogDebug("Unknown texture usage {usage} for texture {texturePath}", usage, texturePath);
-            }
-        }
-        
-        mtrlCache.TryAdd(path, output);
-        return output;
+        return new GenericMaterialBuilder(materialName, material, dataManager.GetFileOrReadFromDisk, CacheTexture)
+            .WithGeneric();
     }
     
-    private MemoryImage CacheComputedTexture(SKTexture texture, string texName)
+    private ImageBuilder CacheTexture(SKTexture texture, string texName)
     {
         byte[] textureBytes;
         using (var memoryStream = new MemoryStream())
@@ -537,7 +506,7 @@ public class InstanceComposer
             textureBytes = memoryStream.ToArray();
         }
 
-        var outPath = Path.Combine(CacheDir, "Computed", $"{texName}.png");
+        var outPath = Path.Combine(CacheDir, $"{texName}.png");
         var outDir = Path.GetDirectoryName(outPath);
         if (!string.IsNullOrEmpty(outDir) && !Directory.Exists(outDir))
         {
@@ -548,32 +517,15 @@ public class InstanceComposer
         
         var outImage = new MemoryImage(() => File.ReadAllBytes(outPath));
         imageCache.TryAdd(texName, (outPath, outImage));
-        return outImage;
+        
+        var name = Path.GetFileNameWithoutExtension(texName.Replace('.', '_'));
+        var builder = ImageBuilder.From(outImage, name);
+        builder.AlternateWriteFileName = $"{name}.*";
+        return builder;
     }
-    
-    private void CacheTexture(string texPath)
+
+    public void Dispose()
     {
-        var texData = dataManager.GetFileOrReadFromDisk(texPath);
-        if (texData == null) throw new Exception($"Failed to load texture file: {texPath}");
-        log.LogInformation("Loaded texture {texPath}", texPath);
-        var texFile = new TexFile(texData);
-        var diskPath = Path.Combine(CacheDir, Path.GetDirectoryName(texPath) ?? "",
-                                    Path.GetFileNameWithoutExtension(texPath)) + ".png";
-        var texture = texFile.ToResource().ToTexture();
-        byte[] textureBytes;
-        using (var memoryStream = new MemoryStream())
-        {
-            texture.Bitmap.Encode(memoryStream, SKEncodedImageFormat.Png, 100);
-            textureBytes = memoryStream.ToArray();
-        }
-
-        var dirPath = Path.GetDirectoryName(diskPath);
-        if (!string.IsNullOrEmpty(dirPath) && !Directory.Exists(dirPath))
-        {
-            Directory.CreateDirectory(dirPath);
-        }
-
-        File.WriteAllBytes(diskPath, textureBytes);
-        imageCache.TryAdd(texPath, (diskPath, new MemoryImage(() => File.ReadAllBytes(diskPath))));
+        cancellationToken.ThrowIfCancellationRequested();
     }
 }

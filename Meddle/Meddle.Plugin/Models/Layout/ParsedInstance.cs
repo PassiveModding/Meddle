@@ -1,4 +1,5 @@
-﻿using FFXIVClientStructs.FFXIV.Client.Game.Object;
+﻿using System.Numerics;
+using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
 using Lumina.Excel.GeneratedSheets;
 using Meddle.Plugin.Models.Skeletons;
@@ -112,7 +113,7 @@ public class ParsedHousingInstance : ParsedSharedInstance
     public ObjectKind Kind { get; }
 }
 
-public class ParsedBgPartsInstance : ParsedInstance, IPathInstance
+public class ParsedBgPartsInstance : ParsedInstance, IPathInstance, IStainableInstance
 {
     public string Path { get; }
 
@@ -120,6 +121,13 @@ public class ParsedBgPartsInstance : ParsedInstance, IPathInstance
     {
         Path = path;
     }
+
+    public Vector4? StainColor { get; set; }
+}
+
+public interface IStainableInstance
+{
+    public Vector4? StainColor { get; set; }
 }
 
 public class ParsedLightInstance : ParsedInstance

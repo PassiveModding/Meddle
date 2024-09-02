@@ -1,4 +1,5 @@
 ﻿using Meddle.Utils.Export;
+using Meddle.Utils.Materials;
 using SharpGLTF.Geometry;
 using SharpGLTF.Materials;
 
@@ -39,7 +40,6 @@ public static class ModelBuilder
                 meshBuilder = new MeshBuilder(mesh, null, material, raceDeformer);
             }
 
-            meshBuilder.BuildVertices();
             var modelPathName = Path.GetFileNameWithoutExtension(model.Path);
 
             if (mesh.SubMeshes.Count == 0)

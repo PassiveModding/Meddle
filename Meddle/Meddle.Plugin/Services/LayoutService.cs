@@ -9,6 +9,7 @@ using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Group;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Layer;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Terrain;
 using FFXIVClientStructs.Interop;
+using ImGuiNET;
 using Lumina.Excel.GeneratedSheets;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Layout;
@@ -280,11 +281,24 @@ public class LayoutService : IService
         var furnitureMatch = ctx.HousingItems.FirstOrDefault(item => item.LayoutInstance == sharedGroupPtr);
         if (furnitureMatch is not null)
         {
-            return new ParsedHousingInstance((nint)sharedGroup, new Transform(*sharedGroup->GetTransformImpl()), path,
+            // TODO: Kinda messy
+            var stain = stainDict.GetValueOrDefault(furnitureMatch.HousingFurniture.Stain);
+            var item = itemDict.GetValueOrDefault(furnitureMatch.HousingFurniture.Id);
+            
+            var housing = new ParsedHousingInstance((nint)sharedGroup, new Transform(*sharedGroup->GetTransformImpl()), path,
                                              furnitureMatch.GameObject->NameString,
                                              furnitureMatch.GameObject->ObjectKind,
-                                             stainDict.GetValueOrDefault(furnitureMatch.HousingFurniture.Stain),
-                                             itemDict.GetValueOrDefault(furnitureMatch.HousingFurniture.Id), children);
+                                             stain,
+                                             item, children);
+            foreach (var child in housing.Flatten())
+            {
+                if (child is ParsedBgPartsInstance parsedBgPartsInstance)
+                {
+                    parsedBgPartsInstance.StainColor = stain?.Color != null ? ImGui.ColorConvertU32ToFloat4(stain.Color) : null;
+                }
+            }
+            
+            return housing;
         }
 
         return new ParsedSharedInstance((nint)sharedGroup, new Transform(*sharedGroup->GetTransformImpl()), path, children);
