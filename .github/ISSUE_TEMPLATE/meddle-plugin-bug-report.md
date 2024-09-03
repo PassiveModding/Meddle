@@ -2,7 +2,7 @@
 name: Meddle plugin bug report
 about: Report an issue with the plugin
 title: "[BUG]"
-labels: ''
+labels: bug
 assignees: ''
 
 ---
@@ -26,3 +26,4 @@ Include a screenshot of relevant logs from `/xllog`
 
 **Additional context**
 Add any other context about the problem here.
+Be sure to link to any mods you are using (in the case of paid mods, support cannot be guaranteed so please see if you can reproduce the issue using vanilla models or a free to use mod)
