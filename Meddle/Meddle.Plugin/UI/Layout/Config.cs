@@ -25,7 +25,6 @@ public partial class LayoutWindow
     private bool traceToHovered = true;
     private bool hideOffscreenCharacters = true;
     private int maxItemCount = 100;
-    private bool bakeTextures = true;
     
     private void DrawOptions()
     {
@@ -48,13 +47,6 @@ public partial class LayoutWindow
         ImGui.Checkbox("Order by Distance", ref orderByDistance);
         ImGui.Checkbox("Trace to Hovered", ref traceToHovered);
         ImGui.Checkbox("Hide Offscreen Characters", ref hideOffscreenCharacters);
-        ImGui.Checkbox("Bake Textures", ref bakeTextures);
-        ImGui.SameLine();
-        ImGui.TextDisabled("(?)");
-        if (ImGui.IsItemHovered())
-        {
-            ImGui.SetTooltip("Computes some properties of textures before exporting them, will increase export time significantly");
-        }
         
         ImGui.DragInt("Max Item Count", ref maxItemCount, 1, 1, 50000);
         ImGui.SameLine();

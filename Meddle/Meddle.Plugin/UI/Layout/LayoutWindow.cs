@@ -281,7 +281,7 @@ public partial class LayoutWindow : Window, IDisposable
                                             Directory.CreateDirectory(cacheDir);
                                             var instanceSet =
                                                 new InstanceComposer(log, dataManager, config, instances, cacheDir,
-                                                                x => progress = x, bakeTextures, cancelToken.Token);
+                                                                x => progress = x, cancelToken.Token);
                                             var scene = new SceneBuilder();
                                             instanceSet.Compose(scene);
                                             var gltf = scene.ToGltf2();

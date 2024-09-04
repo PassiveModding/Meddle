@@ -187,6 +187,11 @@ public static class ImageUtils
     
     public static SKTexture ToTexture(this TextureResource resource, Vector2 size)
     {
+        if (resource.Width == (int)size.X && resource.Height == (int)size.Y)
+        {
+            return resource.ToTexture();
+        }
+        
         var bitmap = resource.ToBitmap();
         bitmap = bitmap.Resize(new SKImageInfo((int)size.X, (int)size.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul), SKFilterQuality.High);
         return new SKTexture(bitmap);

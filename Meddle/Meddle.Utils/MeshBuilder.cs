@@ -229,6 +229,7 @@ public class MeshBuilder
         // ReSharper restore CompareOfFloatsByEqualityOperator
 
         // AKA: Has "Color1" component
+        // Some models have a color component, but it's packed data, so we don't use it as color
         if (MaterialT != typeof(VertexTexture2))
         {
             Vector4 vertexColor = new Vector4(1, 1, 1, 1);
@@ -244,8 +245,8 @@ public class MeshBuilder
             materialParamCache.Insert(0, vertexColor);
         }
 
-        //if( MaterialT != typeof( VertexTexture2 ) ) materialParamCache.Insert( 0, vertex.Color!.Value );
-        //if (MaterialT != typeof(VertexTexture2)) materialParamCache.Insert(0, new Vector4(1, 1, 1, 1));
+        //if(MaterialT != typeof(VertexTexture2)) materialParamCache.Insert(0, vertex.Color!.Value);
+        //if(MaterialT != typeof(VertexTexture2)) materialParamCache.Insert(0, new Vector4(1, 1, 1, 1));
 
         // AKA: Has "TextureN" component
         if (MaterialT != typeof(VertexColor1))

@@ -3,12 +3,12 @@ using SharpGLTF.Materials;
 
 namespace Meddle.Plugin.Models.Composer;
 
-public class LightshaftMaterialBuilder : GenericMaterialBuilder
+public class CharacterOcclusionMaterialBuilder : GenericMaterialBuilder
 {
     private readonly MaterialSet set;
     private readonly DataProvider dataProvider;
 
-    public LightshaftMaterialBuilder(string name, MaterialSet set, DataProvider dataProvider) : base(name, set, dataProvider)
+    public CharacterOcclusionMaterialBuilder(string name, MaterialSet set, DataProvider dataProvider) : base(name, set, dataProvider)
     {
         this.set = set;
         this.dataProvider = dataProvider;
@@ -17,10 +17,10 @@ public class LightshaftMaterialBuilder : GenericMaterialBuilder
     public override MeddleMaterialBuilder Apply()
     {
         base.Apply();
-        this.WithBaseColor(new Vector4(1, 1, 1, 0));
+        WithDoubleSide(set.RenderBackfaces);
+        WithBaseColor(new Vector4(1, 1, 1, 0f));
         WithAlpha(AlphaMode.BLEND, 0.5f);
         Extras = set.ComposeExtrasNode();
-        
         return this;
     }
 }

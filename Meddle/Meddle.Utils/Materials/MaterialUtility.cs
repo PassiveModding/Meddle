@@ -99,29 +99,6 @@ public static partial class MaterialUtility
         return output;
     }
     
-    public static KnownChannel? MapTextureUsageToChannel(TextureUsage usage)
-    {
-        return usage switch
-        {
-            TextureUsage.g_SamplerDiffuse => KnownChannel.BaseColor,
-            TextureUsage.g_SamplerNormal => KnownChannel.Normal,
-            TextureUsage.g_SamplerMask => KnownChannel.SpecularFactor,
-            TextureUsage.g_SamplerSpecular => KnownChannel.SpecularColor,
-            TextureUsage.g_SamplerCatchlight => KnownChannel.Emissive,
-            TextureUsage.g_SamplerColorMap0 => KnownChannel.BaseColor,
-            TextureUsage.g_SamplerNormalMap0 => KnownChannel.Normal,
-            TextureUsage.g_SamplerSpecularMap0 => KnownChannel.SpecularColor,
-            TextureUsage.g_SamplerColorMap1 => KnownChannel.BaseColor,
-            TextureUsage.g_SamplerNormalMap1 => KnownChannel.Normal,
-            TextureUsage.g_SamplerSpecularMap1 => KnownChannel.SpecularColor,
-            TextureUsage.g_SamplerColorMap => KnownChannel.BaseColor,
-            TextureUsage.g_SamplerNormalMap => KnownChannel.Normal,
-            TextureUsage.g_SamplerSpecularMap => KnownChannel.SpecularColor,
-            TextureUsage.g_SamplerNormal2 => KnownChannel.Normal,
-            _ => null
-        };
-    }
-    
     public static MaterialBuilder BuildSharedBase(Material material, string name)
     {
         const uint backfaceMask  = 0x1;
@@ -139,6 +116,11 @@ public static partial class MaterialUtility
         var c = color.Clamp(0, 1);
         return new SKColor((byte)(c.X * 255), (byte)(c.Y * 255), (byte)(c.Z * 255), (byte)(c.W * 255));
     }
+    
+    public static float[] AsFloatArray(this Vector4 v) => new[] { v.X, v.Y, v.Z, v.W };
+    public static float[] AsFloatArray(this Vector3 v) => new[] { v.X, v.Y, v.Z };
+    public static float[] AsFloatArray(this Vector2 v) => new[] { v.X, v.Y };
+    
     public static Vector4 Clamp(this Vector4 v, float min, float max)
     {
         return new Vector4(

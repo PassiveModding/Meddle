@@ -177,6 +177,17 @@ public class ParsedModelInfo(string path, string pathFromCharacter, DeformerCach
     public IList<ParsedMaterialInfo> Materials { get; } = materials;
 }
 
+public interface ICharacterInstance
+{
+    public CustomizeData CustomizeData { get; }
+    public CustomizeParameter CustomizeParameter { get; }
+}
+
+public interface ITextureMappableInstance
+{
+    public Dictionary<string, string> TextureMap { get; }
+}
+
 public class ParsedCharacterInfo
 {
     public readonly IList<ParsedModelInfo> Models;
@@ -195,13 +206,14 @@ public class ParsedCharacterInfo
     }
 }
 
-public class ParsedCharacterInstance : ParsedInstance, IResolvableInstance
+public class ParsedCharacterInstance : ParsedInstance, IResolvableInstance, ICharacterInstance, ITextureMappableInstance
 {
     public ParsedCharacterInfo? CharacterInfo;
     public string Name;
     public ObjectKind Kind;
     public bool Visible;
-
+    
+    
     public ParsedCharacterInstance(nint id, string name, ObjectKind kind, Transform transform, bool visible) : base(id, ParsedInstanceType.Character, transform)
     {
         Name = name;
@@ -216,5 +228,27 @@ public class ParsedCharacterInstance : ParsedInstance, IResolvableInstance
         if (IsResolved) return;
         layoutService.ResolveInstance(this);
         IsResolved = true;
+    }
+
+    public CustomizeData CustomizeData => CharacterInfo?.CustomizeData ?? new CustomizeData();
+    public CustomizeParameter CustomizeParameter => CharacterInfo?.CustomizeParameter ?? new CustomizeParameter();
+    public Dictionary<string, string> TextureMap => ResolveTextureMappings();
+
+    private Dictionary<string, string> ResolveTextureMappings()
+    {
+        var textureMap = new Dictionary<string, string>();
+        if (CharacterInfo == null) return textureMap;
+        foreach (var model in CharacterInfo.Models)
+        {
+            foreach (var material in model.Materials)
+            {
+                foreach (var texture in material.Textures)
+                {
+                    textureMap[texture.PathFromMaterial] = texture.Path;
+                }
+            }
+        }
+
+        return textureMap;
     }
 }
