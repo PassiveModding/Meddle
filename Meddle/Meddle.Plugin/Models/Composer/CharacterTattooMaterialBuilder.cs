@@ -37,12 +37,11 @@ public class CharacterTattooMaterialBuilder : MeddleMaterialBuilder
         
         var normalTexture = normalRes.ToTexture();
         var diffuseTexture = new SKTexture(normalTexture.Width, normalTexture.Height);
-        for (var x = 0; x < normalTexture.Width; x++)
-        for (var y = 0; y < normalTexture.Height; y++)
+        Partitioner.Iterate(normalTexture.Size, (x, y) =>
         {
             var normal = normalTexture[x, y].ToVector4();
             var influence = normal.Z;
-            
+
             if (influence > 0)
             {
                 diffuseTexture[x, y] = new Vector4(color, normal.W).ToSkColor();
@@ -51,9 +50,9 @@ public class CharacterTattooMaterialBuilder : MeddleMaterialBuilder
             {
                 diffuseTexture[x, y] = new Vector4(0, 0, 0, normal.W).ToSkColor();
             }
-            
-            normalTexture[x, y] = (normal with { Z = 1.0f, W = 1.0f }).ToSkColor();
-        }
+
+            normalTexture[x, y] = (normal with {Z = 1.0f, W = 1.0f}).ToSkColor();
+        });
 
         WithBaseColor(dataProvider.CacheTexture(diffuseTexture, $"Computed/{set.ComputedTextureName("diffuse")}"));
         WithNormal(dataProvider.CacheTexture(normalTexture, $"Computed/{set.ComputedTextureName("normal")}"));

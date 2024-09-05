@@ -104,30 +104,30 @@ class MEDDLE_OT_fix_terrain(Operator):
             principled_bsdf.inputs['IOR'].default_value = 1.0
             
             # look for g_SamplerColorMap1, g_SamplerNormalMap1, g_SamplerSpecularMap1
-            color_map = None
+            g_SamplerColorMap1 = None
             if "g_SamplerColorMap1" in mat:
-                color_map = mat["g_SamplerColorMap1"]
-                print(f"Found custom property 'g_SamplerColorMap1' in material '{mat.name}' with value {color_map}.")
+                g_SamplerColorMap1 = mat["g_SamplerColorMap1"]
+                print(f"Found custom property 'g_SamplerColorMap1' in material '{mat.name}' with value {g_SamplerColorMap1}.")
             else:
                 print(f"Material '{mat.name}' does not have the custom property 'g_SamplerColorMap1'.")
 
-            base_color = None
+            g_SamplerColorMap0Node = None
             for node in mat.node_tree.nodes:
                 if node.label == "BASE COLOR":
-                    base_color = node
+                    g_SamplerColorMap0Node = node
                     break
 
-            normal_map = None
+            g_SamplerNormalMap1 = None
             if "g_SamplerNormalMap1" in mat:
-                normal_map = mat["g_SamplerNormalMap1"]
-                print(f"Found custom property 'g_SamplerNormalMap1' in material '{mat.name}' with value {normal_map}.")
+                g_SamplerNormalMap1 = mat["g_SamplerNormalMap1"]
+                print(f"Found custom property 'g_SamplerNormalMap1' in material '{mat.name}' with value {g_SamplerNormalMap1}.")
             else:
                 print(f"Material '{mat.name}' does not have the custom property 'g_SamplerNormalMap1'.")
 
-            base_normal = None
+            g_SamplerNormalMap0Node = None
             for node in mat.node_tree.nodes:
                 if node.label == "NORMAL MAP":
-                    base_normal = node
+                    g_SamplerNormalMap0Node = node
                     break
 
             normal_tangent = None
@@ -152,9 +152,17 @@ class MEDDLE_OT_fix_terrain(Operator):
                 continue
 
             try:
-                if color_map is not None and base_color is not None:
-                    mix_color = mat.node_tree.nodes.new('ShaderNodeMixRGB')
-                    if "dummy_" in color_map:
+                if g_SamplerColorMap1 is not None and g_SamplerColorMap0Node is not None:
+                    mix_color = None
+                    for node in mat.node_tree.nodes:
+                        if node.label == "MIX COLOR":
+                            mix_color = node
+                            break
+                    if mix_color is None:
+                        mix_color = mat.node_tree.nodes.new('ShaderNodeMixRGB')
+                        mix_color.label = "MIX COLOR"
+
+                    if "dummy_" in g_SamplerColorMap1:
                         mix_color.blend_type = 'MULTIPLY'
                     else:
                         mix_color.blend_type = 'MIX'
@@ -163,20 +171,37 @@ class MEDDLE_OT_fix_terrain(Operator):
                     mat.node_tree.links.new(vertex_color_node.outputs['Alpha'], mix_color.inputs['Fac'])
 
                     # load color texture using the selected folder + color_map + ".png"
-                    color_texture = mat.node_tree.nodes.new('ShaderNodeTexImage')
-                    color_texture.image = bpy.data.images.load(self.directory + color_map + ".png")
-                    mat.node_tree.links.new(color_texture.outputs['Color'], mix_color.inputs['Color2'])
+                    g_SamplerColorMap1Node = None
+                    for node in mat.node_tree.nodes:
+                        if node.label == "BASE COLOR 1":
+                            g_SamplerColorMap1Node = node
+                            break
+                    
+                    if g_SamplerColorMap1Node is None:
+                        g_SamplerColorMap1Node = mat.node_tree.nodes.new('ShaderNodeTexImage')
+                        g_SamplerColorMap1Node.label = "BASE COLOR 1"
+
+                    g_SamplerColorMap1Node.image = bpy.data.images.load(self.directory + g_SamplerColorMap1 + ".png")
+                    mat.node_tree.links.new(g_SamplerColorMap1Node.outputs['Color'], mix_color.inputs['Color1'])
 
                     # use base_color
-                    mat.node_tree.links.new(base_color.outputs['Color'], mix_color.inputs['Color1'])
+                    mat.node_tree.links.new(g_SamplerColorMap0Node.outputs['Color'], mix_color.inputs['Color2'])
 
                     # organize nodes
-                    color_texture.location = (base_color.location.x, base_color.location.y - 150)
-                    mix_color.location = (base_color.location.x + 300, base_color.location.y)
+                    g_SamplerColorMap1Node.location = (g_SamplerColorMap0Node.location.x, g_SamplerColorMap0Node.location.y - 150)
+                    mix_color.location = (g_SamplerColorMap0Node.location.x + 300, g_SamplerColorMap0Node.location.y)
 
-                if normal_map is not None and base_normal is not None and normal_tangent is not None:
-                    mix_normal = mat.node_tree.nodes.new('ShaderNodeMixRGB')
-                    if "dummy_" in normal_map:
+                if g_SamplerNormalMap1 is not None and g_SamplerNormalMap0Node is not None and normal_tangent is not None:
+                    mix_normal = None
+                    for node in mat.node_tree.nodes:
+                        if node.label == "MIX NORMAL":
+                            mix_normal = node
+                            break
+                    if mix_normal is None:
+                        mix_normal = mat.node_tree.nodes.new('ShaderNodeMixRGB')
+                        mix_normal.label = "MIX NORMAL"
+
+                    if "dummy_" in g_SamplerNormalMap1:
                         mix_normal.blend_type = 'MULTIPLY'
                     else:
                         mix_normal.blend_type = 'MIX'
@@ -185,16 +210,25 @@ class MEDDLE_OT_fix_terrain(Operator):
                     mat.node_tree.links.new(vertex_color_node.outputs['Alpha'], mix_normal.inputs['Fac'])
 
                     # load normal texture using the selected folder + normal_map + ".png"
-                    normal_texture = mat.node_tree.nodes.new('ShaderNodeTexImage')
-                    normal_texture.image = bpy.data.images.load(self.directory + normal_map + ".png")
-                    mat.node_tree.links.new(normal_texture.outputs['Color'], mix_normal.inputs['Color2'])
+                    gSamplerNormalMap1Node = None
+                    for node in mat.node_tree.nodes:
+                        if node.label == "NORMAL MAP 1":
+                            gSamplerNormalMap1Node = node
+                            break
+
+                    if gSamplerNormalMap1Node is None:
+                        gSamplerNormalMap1Node = mat.node_tree.nodes.new('ShaderNodeTexImage')
+                        gSamplerNormalMap1Node.label = "NORMAL MAP 1"
+                    gSamplerNormalMap1Node.image = bpy.data.images.load(self.directory + g_SamplerNormalMap1 + ".png")
+                    mat.node_tree.links.new(gSamplerNormalMap1Node.outputs['Color'], mix_normal.inputs['Color1'])
 
                     # use base_normal
-                    mat.node_tree.links.new(base_normal.outputs['Color'], mix_normal.inputs['Color1'])
+                    mat.node_tree.links.new(g_SamplerNormalMap0Node.outputs['Color'], mix_normal.inputs['Color2'])
 
                     # organize nodes
-                    normal_texture.location = (base_normal.location.x, base_normal.location.y - 150)
-                    mix_normal.location = (base_normal.location.x + 300, base_normal.location.y)
+                    gSamplerNormalMap1Node.location = (g_SamplerNormalMap0Node.location.x, g_SamplerNormalMap0Node.location.y - 150)
+                    mix_normal.location = (g_SamplerNormalMap0Node.location.x + 300, g_SamplerNormalMap0Node.location.y)
+                    normal_tangent.location = (g_SamplerNormalMap0Node.location.x + 600, g_SamplerNormalMap0Node.location.y)
             except Exception as e:
                 print(f"Error: {e}")
                 continue           

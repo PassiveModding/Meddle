@@ -49,31 +49,30 @@ public class IrisMaterialBuilder : MeddleMaterialBuilder
         var leftIrisColor = parameters.LeftColor;
         var emissiveTexture = new SKTexture(normalTexture.Width, normalTexture.Height);
         var specularTexture = new SKTexture(normalTexture.Width, normalTexture.Height);
-        
-        for (var x = 0; x < normalTexture.Width; x++)
-        for (var y = 0; y < normalTexture.Height; y++)
+
+        Partitioner.Iterate(normalTexture.Size, (x, y) =>
         {
             var normal = normalTexture[x, y].ToVector4();
             var mask = maskTexture[x, y].ToVector4();
             var diffuse = diffuseTexture[x, y].ToVector4();
             var cubeMap = cubeMapTexture[x, y].ToVector4();
-            
+
             var irisMask = mask.Z;
             var whites = diffuse * new Vector4(whiteEyeColor, 1.0f);
-            var iris = diffuse * (leftIrisColor with {W = 1.0f });
+            var iris = diffuse * (leftIrisColor with {W = 1.0f});
             diffuse = Vector4.Lerp(whites, iris, irisMask);
-            
+
             // most textures this channel is just 0
             // use mask red as emissive mask
             emissiveTexture[x, y] = new Vector4(mask.X, mask.X, mask.X, 1.0f).ToSkColor();
-            
+
             // use mask green as reflection mask/cubemap intensity
             var specular = new Vector4(cubeMap.X * mask.Y);
             specularTexture[x, y] = (specular with {W = 1.0f}).ToSkColor();
-            
+
             diffuseTexture[x, y] = diffuse.ToSkColor();
             normalTexture[x, y] = (normal with {Z = 1.0f, W = 1.0f}).ToSkColor();
-        }
+        });
         
         WithDoubleSide(set.RenderBackfaces);
         WithBaseColor(dataProvider.CacheTexture(diffuseTexture, $"Computed/{set.ComputedTextureName("diffuse")}"));

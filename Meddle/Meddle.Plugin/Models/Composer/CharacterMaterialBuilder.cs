@@ -49,8 +49,7 @@ public class CharacterMaterialBuilder : MeddleMaterialBuilder
         var indexTexture = indexRes.ToTexture(normalRes.Size);
         var occlusionTexture = new SKTexture(normalRes.Width, normalRes.Height);
         var metallicRoughness = new SKTexture(normalRes.Width, normalRes.Height);
-        for (int x = 0; x < normalRes.Width; x++)
-        for (int y = 0; y < normalRes.Height; y++)
+        Partitioner.Iterate(normalTexture.Size, (x, y) =>
         {
             var normal = normalTexture[x, y].ToVector4();
             var mask = maskTexture[x, y].ToVector4();
@@ -61,7 +60,7 @@ public class CharacterMaterialBuilder : MeddleMaterialBuilder
             {
                 var diffuse = diffuseTexture![x, y].ToVector4();
                 diffuse *= new Vector4(blended.Diffuse, normal.Z);
-                diffuseTexture[x, y] = (diffuse with {W = normal.Z }).ToSkColor();
+                diffuseTexture[x, y] = (diffuse with {W = normal.Z}).ToSkColor();
             }
             else if (textureMode == TextureMode.Default)
             {
@@ -82,9 +81,9 @@ public class CharacterMaterialBuilder : MeddleMaterialBuilder
                 var roughMask = mask.Z;
                 metallicRoughness[x, y] = new Vector4(specMask, roughMask, 0, 1).ToSkColor();
             }*/
-            
-            normalTexture[x, y] = (normal with{ Z = 1.0f, W = 1.0f}).ToSkColor();
-        }
+
+            normalTexture[x, y] = (normal with {Z = 1.0f, W = 1.0f}).ToSkColor();
+        });
 
         WithBaseColor(dataProvider.CacheTexture(diffuseTexture, $"Computed/{set.ComputedTextureName("diffuse")}"));
         WithNormal(dataProvider.CacheTexture(normalTexture, $"Computed/{set.ComputedTextureName("normal")}"));

@@ -43,25 +43,24 @@ public class HairMaterialBuilder : MeddleMaterialBuilder
         // TODO: Eyelashes should be black, possibly to do with vertex colors
         var diffuseTexture = new SKTexture(normalTexture.Width, normalTexture.Height);
         var metallicRoughnessTexture = new SKTexture(normalTexture.Width, normalTexture.Height);
-        for (int x = 0; x < normalTexture.Width; x++)
-        for (int y = 0; y < normalTexture.Height; y++)
+        Partitioner.Iterate(normalTexture.Size, (x, y) =>
         {
             var normal = normalTexture[x, y].ToVector4();
             var mask = maskTexture[x, y].ToVector4();
-            
+
             var bonusIntensity = normal.Z;
             var specular = mask.X;
             var roughness = mask.Y;
             var sssThickness = mask.Z;
             var metallic = 0.0f;
             var diffuseMaskOrAmbientOcclusion = mask.W;
-            
+
             var diffusePixel = Vector3.Lerp(hairColor, bonusColor, bonusIntensity);
-            
+
             metallicRoughnessTexture[x, y] = new Vector4(1.0f, roughness, metallic, 1.0f).ToSkColor();
             diffuseTexture[x, y] = new Vector4(diffusePixel, normal.W).ToSkColor();
-            normalTexture[x, y] = (normal with { Z = 1.0f, W = 1.0f }).ToSkColor();
-        }
+            normalTexture[x, y] = (normal with {Z = 1.0f, W = 1.0f}).ToSkColor();
+        });
 
         WithDoubleSide(set.RenderBackfaces);
         WithBaseColor(dataProvider.CacheTexture(diffuseTexture, $"Computed/{set.ComputedTextureName("diffuse")}"));

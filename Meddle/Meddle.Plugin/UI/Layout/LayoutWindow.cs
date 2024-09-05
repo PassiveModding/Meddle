@@ -157,6 +157,19 @@ public partial class LayoutWindow : Window, IDisposable
 
                 var items = set.ToArray();
 
+                var count = 0;
+                foreach (var item in items)
+                {
+                    if (item is ParsedSharedInstance shared)
+                    {
+                        count += shared.Flatten().Length;
+                    }
+                    else
+                    {
+                        count++;
+                    }
+                }
+                
                 ExportButton($"Export {items.Length} instance(s)", items);
                 ImGui.SameLine();
                 if (ImGui.Button($"Add {items.Length} instance(s) to selection"))
@@ -166,6 +179,8 @@ public partial class LayoutWindow : Window, IDisposable
                         selectedInstances[item.Id] = item;
                     }
                 }
+                ImGui.SameLine();
+                ImGui.Text($"Total: {count}");
 
                 DrawInstanceTable(items, DrawLayoutButtons);
             }
