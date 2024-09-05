@@ -299,7 +299,7 @@ public partial class LayoutWindow : Window, IDisposable
                                             {
                                                 gltf.SaveAsWavefront(Path.Combine(path, $"{defaultName}.obj"));
                                             }
-
+                                            
                                             Process.Start("explorer.exe", path);
                                         }, cancelToken.Token);
                                     }, Plugin.TempDirectory);

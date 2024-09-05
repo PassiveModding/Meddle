@@ -221,11 +221,11 @@ public class MeshBuilder
         {
             geometryParamCache.Add(vertex.Tangent1!.Value with { W = vertex.Tangent1.Value.W == 1 ? 1 : -1 });
         }
-        if (GeometryT == typeof(VertexPositionNormalTangent2))
-        {
-            geometryParamCache.Add(vertex.Tangent1!.Value with { W = vertex.Tangent1.Value.W == 1 ? 1 : -1 });
-            geometryParamCache.Add(vertex.Tangent2!.Value with { W = vertex.Tangent2.Value.W == 1 ? 1 : -1 });
-        }
+        // if (GeometryT == typeof(VertexPositionNormalTangent2))
+        // {
+        //     geometryParamCache.Add(vertex.Tangent1!.Value with { W = vertex.Tangent1.Value.W == 1 ? 1 : -1 });
+        //     geometryParamCache.Add(vertex.Tangent2!.Value with { W = vertex.Tangent2.Value.W == 1 ? 1 : -1 });
+        // }
         // ReSharper restore CompareOfFloatsByEqualityOperator
 
         // AKA: Has "Color1" component
@@ -275,10 +275,10 @@ public class MeshBuilder
             return typeof(VertexPosition);
         }
         
-        if (vertex[0].Tangent2 != null && vertex[0].Tangent1 != null)
-        {
-            return typeof(VertexPositionNormalTangent2);
-        }
+        // if (vertex[0].Tangent2 != null && vertex[0].Tangent1 != null)
+        // {
+        //     return typeof(VertexPositionNormalTangent2);
+        // }
 
         if (vertex[0].Tangent1 != null)
         {
@@ -307,11 +307,11 @@ public class MeshBuilder
                 return new VertexPositionNormalTangent(vertex.Position!.Value, 
                        vertex.Normal!.Value, 
                        vertex.Tangent1!.Value with { W = vertex.Tangent1.Value.W == 1 ? 1 : -1 });
-            case not null when type == typeof(VertexPositionNormalTangent2):
-                return new VertexPositionNormalTangent2(vertex.Position!.Value, 
-                    vertex.Normal!.Value, 
-                    vertex.Tangent1!.Value with { W = vertex.Tangent1.Value.W == 1 ? 1 : -1 },
-                    vertex.Tangent2!.Value with { W = vertex.Tangent2.Value.W == 1 ? 1 : -1 });
+            // case not null when type == typeof(VertexPositionNormalTangent2):
+            //     return new VertexPositionNormalTangent2(vertex.Position!.Value, 
+            //         vertex.Normal!.Value, 
+            //         vertex.Tangent1!.Value with { W = vertex.Tangent1.Value.W == 1 ? 1 : -1 },
+            //         vertex.Tangent2!.Value with { W = vertex.Tangent2.Value.W == 1 ? 1 : -1 });
             default:
                 return new VertexPosition(vertex.Position!.Value);
         }
@@ -390,7 +390,7 @@ public class MeshBuilder
     private static (Vector2 XY, Vector2 ZW) ToVec2(Vector4 v) => (new(v.X, v.Y), new(v.Z, v.W));
 }
 
-public struct VertexPositionNormalTangent2 : IVertexGeometry, IEquatable<VertexPositionNormalTangent2>
+/*public struct VertexPositionNormalTangent2 : IVertexGeometry, IEquatable<VertexPositionNormalTangent2>
 {
     public VertexPositionNormalTangent2(in Vector3 p, in Vector3 n, in Vector4 t, in Vector4 t2)
     {
@@ -485,3 +485,4 @@ public struct VertexPositionNormalTangent2 : IVertexGeometry, IEquatable<VertexP
 
     #endregion
 }
+*/

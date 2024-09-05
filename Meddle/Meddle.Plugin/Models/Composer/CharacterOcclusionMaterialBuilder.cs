@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using Meddle.Utils.Export;
 using SharpGLTF.Materials;
 
 namespace Meddle.Plugin.Models.Composer;
@@ -20,6 +21,7 @@ public class CharacterOcclusionMaterialBuilder : GenericMaterialBuilder
         WithDoubleSide(set.RenderBackfaces);
         WithBaseColor(new Vector4(1, 1, 1, 0f));
         WithAlpha(AlphaMode.BLEND, 0.5f);
+        IndexOfRefraction = set.GetConstantOrThrow<float>(MaterialConstant.g_GlassIOR);
         Extras = set.ComposeExtrasNode();
         return this;
     }

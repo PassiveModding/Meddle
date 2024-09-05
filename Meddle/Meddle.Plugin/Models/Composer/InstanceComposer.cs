@@ -94,16 +94,6 @@ public class InstanceComposer : IDisposable
             Interlocked.Increment(ref countProgress);
             progress?.Invoke(new ProgressEvent("Export", countProgress, count));
         }, false);
-
-        try
-        {
-            var computeDir = Path.Combine(CacheDir, "Computed");
-            Directory.Delete(computeDir, true);
-        }
-        catch (Exception ex)
-        {
-            log.LogError(ex, "Failed to delete computed directory");
-        }
     }
 
     public NodeBuilder? ComposeInstance(SceneBuilder scene, ParsedInstance parsedInstance)
@@ -112,7 +102,7 @@ public class InstanceComposer : IDisposable
         var root = new NodeBuilder();
         if (parsedInstance is IPathInstance pathInstance)
         {
-            root.Name = $"{parsedInstance.Type}_{Path.GetFileNameWithoutExtension(pathInstance.Path)}";
+            root.Name = $"{parsedInstance.Type}_{Path.GetFileNameWithoutExtension(pathInstance.Path.GamePath)}";
         }
         else
         {
@@ -120,7 +110,7 @@ public class InstanceComposer : IDisposable
         }
 
         var wasAdded = false;
-        if (parsedInstance is ParsedBgPartsInstance {Path: not null} bgPartsInstance)
+        if (parsedInstance is ParsedBgPartsInstance {Path.FullPath: not null} bgPartsInstance)
         {
             var meshes = ComposeBgPartsInstance(bgPartsInstance);
             foreach (var mesh in meshes)
@@ -190,24 +180,19 @@ public class InstanceComposer : IDisposable
 
     private void ComposeTerrainInstance(ParsedTerrainInstance terrainInstance, SceneBuilder scene, NodeBuilder root)
     {
-        var teraPath = $"{terrainInstance.Path}/bgplate/terrain.tera";
+        var teraPath = $"{terrainInstance.Path.GamePath}/bgplate/terrain.tera";
         var teraData = dataProvider.LookupData(teraPath);
         if (teraData == null) throw new Exception($"Failed to load terrain file: {teraPath}");
         var teraFile = new TeraFile(teraData);
 
-        //for (var i = 0; i < teraFile.Header.PlateCount; i++)
         var processed = 0;
-        Parallel.For(0, teraFile.Header.PlateCount, new ParallelOptions
-        {
-            CancellationToken = cancellationToken,
-            MaxDegreeOfParallelism = Math.Max(Environment.ProcessorCount / 2, 1)
-        }, i =>
+        for (var i = 0; i < teraFile.Header.PlateCount; i++)
         {
             if (cancellationToken.IsCancellationRequested) return;
             log.LogInformation("Parsing plate {i}", i);
             var platePos = teraFile.GetPlatePosition((int)i);
             var plateTransform = new Transform(new Vector3(platePos.X, 0, platePos.Y), Quaternion.Identity, Vector3.One);
-            var mdlPath = $"{terrainInstance.Path}/bgplate/{i:D4}.mdl";
+            var mdlPath = $"{terrainInstance.Path.GamePath}/bgplate/{i:D4}.mdl";
             var mdlData = dataProvider.LookupData(mdlPath);
             if (mdlData == null) throw new Exception($"Failed to load model file: {mdlPath}");
             log.LogInformation("Loaded model {mdlPath}", mdlPath);
@@ -232,18 +217,16 @@ public class InstanceComposer : IDisposable
 
             root.AddNode(plateRoot);
             Interlocked.Increment(ref processed);
-            progress?.Invoke(new ProgressEvent("Terrain Instance", countProgress, count,
-                                               new ProgressEvent(root.Name, processed,
-                                                                 (int)teraFile.Header.PlateCount)));
-        });
+            progress?.Invoke(new ProgressEvent("Terrain Instance", countProgress, count, new ProgressEvent(root.Name, processed, (int)teraFile.Header.PlateCount)));
+        }
     }
 
     private IReadOnlyList<ModelBuilder.MeshExport> ComposeBgPartsInstance(ParsedBgPartsInstance bgPartsInstance)
     {
-        var mdlData = dataProvider.LookupData(bgPartsInstance.Path);
+        var mdlData = dataProvider.LookupData(bgPartsInstance.Path.FullPath);
         if (mdlData == null)
         {
-            log.LogWarning("Failed to load model file: {bgPartsInstance.Path}", bgPartsInstance.Path);
+            log.LogWarning("Failed to load model file: {Path}", bgPartsInstance.Path.FullPath);
             return [];
         }
 
@@ -257,13 +240,10 @@ public class InstanceComposer : IDisposable
             materialBuilders.Add(output);
         }
 
-        var model = new Model(bgPartsInstance.Path, mdlFile, null);
+        var model = new Model(bgPartsInstance.Path.GamePath, mdlFile, null);
         var meshes = ModelBuilder.BuildMeshes(model, materialBuilders, [], null);
         return meshes;
     }
-
-
-
 
     private MaterialBuilder ComposeMaterial(string path, ParsedInstance instance)
     {
@@ -272,14 +252,7 @@ public class InstanceComposer : IDisposable
         var shpkName = mtrlFile.GetShaderPackageName();
         var shpkPath = $"shader/sm5/shpk/{shpkName}";
         var shpkFile = dataProvider.GetShpkFile(shpkPath);
-
-        Dictionary<string, string> textureMap = new();
-        if (instance is ITextureMappableInstance mappableInstance)
-        {
-            textureMap = mappableInstance.TextureMap;
-        }
-        
-        var material = new MaterialSet(mtrlFile, path, shpkFile, shpkName);
+        var material = new MaterialSet(mtrlFile, path, shpkFile, shpkName, null, null);
         if (instance is IStainableInstance stainableInstance)
         {
             material.SetStainColor(stainableInstance.StainColor);

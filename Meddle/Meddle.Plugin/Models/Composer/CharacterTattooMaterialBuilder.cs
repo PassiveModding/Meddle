@@ -32,7 +32,10 @@ public class CharacterTattooMaterialBuilder : MeddleMaterialBuilder
             _ => Vector3.Zero
         };
         
-        var normalTexture = set.GetTexture(dataProvider, TextureUsage.g_SamplerNormal).ToResource().ToTexture();
+        if (!set.TryGetTextureStrict(dataProvider, TextureUsage.g_SamplerNormal, out var normalRes))
+            throw new InvalidOperationException("Missing normal texture");
+        
+        var normalTexture = normalRes.ToTexture();
         var diffuseTexture = new SKTexture(normalTexture.Width, normalTexture.Height);
         for (var x = 0; x < normalTexture.Width; x++)
         for (var y = 0; y < normalTexture.Height; y++)
@@ -53,15 +56,9 @@ public class CharacterTattooMaterialBuilder : MeddleMaterialBuilder
         
         WithDoubleSide(set.RenderBackfaces);
         
-        var alpha = set.GetConstantOrDefault(MaterialConstant.g_AlphaThreshold, 0.0f);
-        if (alpha > 0)
-        {
-            WithAlpha(AlphaMode.BLEND, alpha);
-        }
-        else
-        {
-            WithAlpha(AlphaMode.BLEND);
-        }
+        IndexOfRefraction = set.GetConstantOrThrow<float>(MaterialConstant.g_GlassIOR);
+        var alphaThreshold = set.GetConstantOrThrow<float>(MaterialConstant.g_AlphaThreshold);
+        WithAlpha(AlphaMode.MASK, alphaThreshold);
         
         Extras = set.ComposeExtrasNode();
         return this;

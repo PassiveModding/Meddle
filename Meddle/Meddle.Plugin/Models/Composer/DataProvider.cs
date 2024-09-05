@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Files;
@@ -17,13 +18,11 @@ public class DataProvider
     private readonly SqPack dataManager;
     private readonly ILogger logger;
     private readonly CancellationToken cancellationToken;
-
     private readonly ConcurrentDictionary<string, Lazy<string?>> lookupCache = new();
     private readonly ConcurrentDictionary<int, Lazy<MaterialBuilder>> mtrlCache = new();
     private readonly ConcurrentDictionary<string, Lazy<MtrlFile>> mtrlFileCache = new();
     private readonly ConcurrentDictionary<string, Lazy<ShpkFile>> shpkFileCache = new();
 
-    
     public DataProvider(string cacheDir, SqPack dataManager, ILogger logger, CancellationToken cancellationToken)
     {
         this.cacheDir = cacheDir;
@@ -65,32 +64,30 @@ public class DataProvider
         }).Value;
     }
     
-    public byte[]? LookupData(string fullPath)
+    public byte[]? LookupData(string fullPath, bool cacheIfTexture = true)
     {
         fullPath = fullPath.TrimHandlePath();
-        var shortPath = fullPath;
         if (Path.IsPathRooted(fullPath))
         {
-            shortPath = Path.GetFileName(fullPath);
-            shortPath = Path.Combine("Rooted", shortPath);
+            return File.ReadAllBytes(fullPath);
         }
         var diskPath = lookupCache.GetOrAdd(fullPath, key =>
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return new Lazy<string?>(() => LookupDataInner(key, shortPath), LazyThreadSafetyMode.ExecutionAndPublication);
+            return new Lazy<string?>(() => LookupDataInner(key, cacheIfTexture), LazyThreadSafetyMode.ExecutionAndPublication);
         });
 
         return diskPath.Value == null ? null : File.ReadAllBytes(diskPath.Value);
     }
     
-    private string? LookupDataInner(string fullPath, string shortPath)
+    private string? LookupDataInner(string gamePath, bool cacheIfTexture)
     {
-        var outPath = Path.Combine(cacheDir, shortPath);
+        var outPath = Path.Combine(cacheDir, gamePath);
         var outDir = Path.GetDirectoryName(outPath);
-        var data = dataManager.GetFileOrReadFromDisk(fullPath);
+        var data = dataManager.GetFileOrReadFromDisk(gamePath);
         if (data == null)
         {
-            logger.LogError("Failed to load file: {path}", fullPath);
+            logger.LogError("Failed to load file: {path}", gamePath);
             return null;
         }
 
@@ -102,16 +99,16 @@ public class DataProvider
             }
 
             File.WriteAllBytes(outPath, data);
-            if (fullPath.EndsWith(".tex"))
+            if (gamePath.EndsWith(".tex") && cacheIfTexture)
             {
                 try
                 {
                     var texFile = new TexFile(data).ToResource().ToTexture();
-                    CacheTexture(texFile, shortPath);
+                    CacheTexture(texFile, gamePath);
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, "Failed to cache tex file: {path}", fullPath);
+                    logger.LogError(ex, "Failed to cache tex file: {path}", gamePath);
                 }
             }
         }
@@ -124,7 +121,7 @@ public class DataProvider
         texName = texName.TrimHandlePath();
         if (Path.IsPathRooted(texName))
         {
-            throw new ArgumentException("Texture name cannot be rooted", nameof(texName));
+            texName = Path.GetFileName(texName);
         }
         
         var outPath = Path.Combine(cacheDir, $"{texName}.png");

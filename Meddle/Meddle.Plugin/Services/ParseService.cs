@@ -152,10 +152,10 @@ public class ParseService : IDisposable, IService
 
     public Task<MdlFileGroup> ParseFromModelInfo(ParsedModelInfo info)
     {
-        var mdlFileResource = pack.GetFileOrReadFromDisk(info.Path);
+        var mdlFileResource = pack.GetFileOrReadFromDisk(info.Path.FullPath);
         if (mdlFileResource == null)
         {
-            throw new Exception($"Failed to load model file {info.Path}");
+            throw new Exception($"Failed to load model file {info.Path.FullPath}");
         }
 
         var mdlFile = new MdlFile(mdlFileResource);
@@ -163,11 +163,11 @@ public class ParseService : IDisposable, IService
 
         foreach (var materialInfo in info.Materials)
         {
-            var mtrlFileResource = pack.GetFileOrReadFromDisk(materialInfo.Path);
+            var mtrlFileResource = pack.GetFileOrReadFromDisk(materialInfo.Path.FullPath);
             if (mtrlFileResource == null)
             {
-                logger.LogWarning("Material file {MtrlFileName} not found", materialInfo.Path);
-                mtrlGroups.Add(new MtrlFileStubGroup(materialInfo.Path));
+                logger.LogWarning("Material file {MtrlFileName} not found", materialInfo.Path.FullPath);
+                mtrlGroups.Add(new MtrlFileStubGroup(materialInfo.Path.GamePath));
                 continue;
             }
             
@@ -183,18 +183,18 @@ public class ParseService : IDisposable, IService
             var texGroups = new List<TexResourceGroup>();
             foreach (var textureInfo in materialInfo.Textures)
             {
-                var textureResource = pack.GetFileOrReadFromDisk(textureInfo.Path);
+                var textureResource = pack.GetFileOrReadFromDisk(textureInfo.Path.FullPath);
                 if (textureResource == null)
                 {
                     logger.LogWarning("Texture file {TexturePath} not found", textureInfo.Path);
                     continue;
                 }
 
-                var texGroup = new TexResourceGroup(textureInfo.PathFromMaterial, textureInfo.Path, textureInfo.Resource);
+                var texGroup = new TexResourceGroup(textureInfo.Path.GamePath, textureInfo.Path.FullPath, textureInfo.Resource);
                 texGroups.Add(texGroup);
             }
 
-            mtrlGroups.Add(new MtrlFileGroup(materialInfo.PathFromModel, materialInfo.Path, mtrlFile, shpkName, shpkFile,
+            mtrlGroups.Add(new MtrlFileGroup(materialInfo.Path.GamePath, materialInfo.Path.FullPath, mtrlFile, shpkName, shpkFile,
                                              texGroups.ToArray()));
         }
         
@@ -206,7 +206,7 @@ public class ParseService : IDisposable, IService
                                               info.Deformer.Value.DeformerId);
         }
 
-        return Task.FromResult(new MdlFileGroup(info.PathFromCharacter, info.Path, deformerGroup, mdlFile, mtrlGroups.ToArray(), info.ShapeAttributeGroup));
+        return Task.FromResult(new MdlFileGroup(info.Path.GamePath, info.Path.FullPath, deformerGroup, mdlFile, mtrlGroups.ToArray(), info.ShapeAttributeGroup));
     }
     
     public Task<MdlFileGroup> ParseFromPath(string mdlPath)

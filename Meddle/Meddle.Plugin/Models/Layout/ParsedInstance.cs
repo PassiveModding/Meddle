@@ -31,7 +31,7 @@ public interface IResolvableInstance
 
 public interface IPathInstance
 {
-    public string Path { get; }
+    public HandleString Path { get; }
 }
 
 public abstract class ParsedInstance
@@ -63,7 +63,7 @@ public class ParsedUnsupportedInstance : ParsedInstance
 
 public class ParsedSharedInstance : ParsedInstance, IPathInstance
 {
-    public string Path { get; }
+    public HandleString Path { get; }
     public IReadOnlyList<ParsedInstance> Children { get; }
 
     public ParsedSharedInstance(nint id, Transform transform, string path, IReadOnlyList<ParsedInstance> children) : base(id, ParsedInstanceType.SharedGroup, transform)
@@ -115,7 +115,7 @@ public class ParsedHousingInstance : ParsedSharedInstance
 
 public class ParsedBgPartsInstance : ParsedInstance, IPathInstance, IStainableInstance
 {
-    public string Path { get; }
+    public HandleString Path { get; }
 
     public ParsedBgPartsInstance(nint id, Transform transform, string path) : base(id, ParsedInstanceType.BgPart, transform)
     {
@@ -139,7 +139,7 @@ public class ParsedLightInstance : ParsedInstance
 
 public class ParsedTerrainInstance : ParsedInstance, IPathInstance
 {
-    public string Path { get; }
+    public HandleString Path { get; }
 
     public ParsedTerrainInstance(nint id, Transform transform, string path) : base(id, ParsedInstanceType.Terrain, transform)
     {
@@ -154,15 +154,13 @@ public class ParsedInstanceSet
 
 public class ParsedTextureInfo(string path, string pathFromMaterial, TextureResource resource) 
 {
-    public string Path { get; } = path;
-    public string PathFromMaterial { get; } = pathFromMaterial;
+    public HandleString Path { get; } = new() { FullPath = path, GamePath = pathFromMaterial };
     public TextureResource Resource { get; } = resource;
 }
 
 public class ParsedMaterialInfo(string path, string pathFromModel, string shpk, ColorTable? colorTable, IList<ParsedTextureInfo> textures) 
 {
-    public string Path { get; } = path;
-    public string PathFromModel { get; } = pathFromModel;
+    public HandleString Path { get; } = new() { FullPath = path, GamePath = pathFromModel };
     public string Shpk { get; } = shpk;
     public ColorTable? ColorTable { get; } = colorTable;
     public IList<ParsedTextureInfo> Textures { get; } = textures;
@@ -170,8 +168,7 @@ public class ParsedMaterialInfo(string path, string pathFromModel, string shpk, 
 
 public class ParsedModelInfo(string path, string pathFromCharacter, DeformerCachedStruct? deformer, Model.ShapeAttributeGroup shapeAttributeGroup, IList<ParsedMaterialInfo> materials) 
 {
-    public string Path { get; } = path;
-    public string PathFromCharacter { get; } = pathFromCharacter;
+    public HandleString Path { get; } = new() { FullPath = path, GamePath = pathFromCharacter };
     public DeformerCachedStruct? Deformer { get; } = deformer;
     public Model.ShapeAttributeGroup ShapeAttributeGroup { get; } = shapeAttributeGroup;
     public IList<ParsedMaterialInfo> Materials { get; } = materials;
@@ -183,9 +180,12 @@ public interface ICharacterInstance
     public CustomizeParameter CustomizeParameter { get; }
 }
 
-public interface ITextureMappableInstance
+public struct HandleString
 {
-    public Dictionary<string, string> TextureMap { get; }
+    public string FullPath;
+    public string GamePath;
+
+    public static implicit operator HandleString(string path) => new() { FullPath = path, GamePath = path };
 }
 
 public class ParsedCharacterInfo
@@ -206,7 +206,7 @@ public class ParsedCharacterInfo
     }
 }
 
-public class ParsedCharacterInstance : ParsedInstance, IResolvableInstance, ICharacterInstance, ITextureMappableInstance
+public class ParsedCharacterInstance : ParsedInstance, IResolvableInstance, ICharacterInstance
 {
     public ParsedCharacterInfo? CharacterInfo;
     public string Name;
@@ -232,23 +232,4 @@ public class ParsedCharacterInstance : ParsedInstance, IResolvableInstance, ICha
 
     public CustomizeData CustomizeData => CharacterInfo?.CustomizeData ?? new CustomizeData();
     public CustomizeParameter CustomizeParameter => CharacterInfo?.CustomizeParameter ?? new CustomizeParameter();
-    public Dictionary<string, string> TextureMap => ResolveTextureMappings();
-
-    private Dictionary<string, string> ResolveTextureMappings()
-    {
-        var textureMap = new Dictionary<string, string>();
-        if (CharacterInfo == null) return textureMap;
-        foreach (var model in CharacterInfo.Models)
-        {
-            foreach (var material in model.Materials)
-            {
-                foreach (var texture in material.Textures)
-                {
-                    textureMap[texture.PathFromMaterial] = texture.Path;
-                }
-            }
-        }
-
-        return textureMap;
-    }
 }

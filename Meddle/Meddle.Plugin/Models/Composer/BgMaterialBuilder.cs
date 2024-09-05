@@ -112,71 +112,41 @@ public class BgMaterialBuilder : MeddleMaterialBuilder, IVertexPaintMaterialBuil
         }
     }
     
-    private TextureResource? GetTextureResourceOrNull(TextureUsage usage, ref List<Vector2> sizes)
-    {
-        if (set.TextureUsageDict.TryGetValue(usage, out var texture))
-        {
-            if (texture.Contains("dummy_"))
-            {
-                return null;
-            }
-            var mappedPath = set.MapTexturePath(texture);
-            var textureResource = dataProvider.LookupData(mappedPath);
-            if (textureResource != null)
-            {
-                var resource = new TexFile(textureResource).ToResource();
-                sizes.Add(resource.Size);
-                return resource;
-            }
-        }
-        
-        return null;
-    }
-    
     private TextureSet GetTextureSet()
     {
-        var colorMap0Texture = set.GetTexture(dataProvider, TextureUsage.g_SamplerColorMap0) ?? throw new Exception("ColorMap0 texture not found");
-        var specularMap0Texture = set.GetTexture(dataProvider, TextureUsage.g_SamplerSpecularMap0) ?? throw new Exception("SpecularMap0 texture not found");
-        var normalMap0Texture = set.GetTexture(dataProvider, TextureUsage.g_SamplerNormalMap0) ?? throw new Exception("NormalMap0 texture not found");
-
-        var colorRes0 = colorMap0Texture.ToResource();
-        var specularRes0 = specularMap0Texture.ToResource();
-        var normalRes0 = normalMap0Texture.ToResource();
-        var sizes = new List<Vector2>
+        if (!set.TryGetTextureStrict(dataProvider, TextureUsage.g_SamplerColorMap0, out var colorMap0Texture))
         {
-            colorRes0.Size,
-            specularRes0.Size,
-            normalRes0.Size
-        };
+            throw new Exception("ColorMap0 texture not found");
+        }
         
-        var colorRes1 = GetTextureResourceOrNull(TextureUsage.g_SamplerColorMap1, ref sizes);
-        var specularRes1 = GetTextureResourceOrNull(TextureUsage.g_SamplerSpecularMap1, ref sizes);
-        var normalRes1 = GetTextureResourceOrNull(TextureUsage.g_SamplerNormalMap1, ref sizes);
+        if (!set.TryGetTextureStrict(dataProvider, TextureUsage.g_SamplerSpecularMap0, out var specularMap0Texture))
+        {
+            throw new Exception("SpecularMap0 texture not found");
+        }
+        
+        if (!set.TryGetTextureStrict(dataProvider, TextureUsage.g_SamplerNormalMap0, out var normalMap0Texture))
+        {
+            throw new Exception("NormalMap0 texture not found");
+        }
+        
+        var sizes = new List<Vector2> {colorMap0Texture.Size, specularMap0Texture.Size, normalMap0Texture.Size};
+        var colorMap1 = set.TryGetTexture(dataProvider, TextureUsage.g_SamplerColorMap1, out var colorMap1Texture);
+        var specularMap1 = set.TryGetTexture(dataProvider, TextureUsage.g_SamplerSpecularMap1, out var specularMap1Texture);
+        var normalMap1 = set.TryGetTexture(dataProvider, TextureUsage.g_SamplerNormalMap1, out var normalMap1Texture);
         
         var size = sizes.MaxBy(x => x.X * x.Y);
-        var colorTex0 = colorRes0.ToTexture(size);
-        var specularTex0 = specularRes0.ToTexture(size);
-        var normalTex0 = normalRes0.ToTexture(size);
-        var colorTex1 = colorRes1?.ToTexture(size);
-        var specularTex1 = specularRes1?.ToTexture(size);
-        var normalTex1 = normalRes1?.ToTexture(size);
+        var colorTex0 = colorMap0Texture.ToTexture(size);
+        var specularTex0 = specularMap0Texture.ToTexture(size);
+        var normalTex0 = normalMap0Texture.ToTexture(size);
+        var colorTex1 = colorMap1 ? colorMap1Texture.ToTexture(size) : null;
+        var specularTex1 = specularMap1 ? specularMap1Texture.ToTexture(size) : null;
+        var normalTex1 = normalMap1 ? normalMap1Texture.ToTexture(size) : null;
         
         return new TextureSet(colorTex0, specularTex0, normalTex0, colorTex1, specularTex1, normalTex1);
     }
 
     public bool VertexPaint { get; private set; }
-    
-    private bool UseAlpha(out float alphaThreshold)
-    {
-        var useAlpha = set.ShaderKeys.Any(x => x is {Category: DiffuseAlphaKey, Value: DiffuseAlphaValue});
-        alphaThreshold = 0;
-        if (useAlpha)
-        {
-            set.TryGetConstant(MaterialConstant.g_AlphaThreshold, out alphaThreshold);
-        }
 
-        return useAlpha;
-    }
     
     private bool GetDiffuseColor(out Vector4 diffuseColor)
     {
@@ -192,29 +162,32 @@ public class BgMaterialBuilder : MeddleMaterialBuilder, IVertexPaintMaterialBuil
     
     public override MeddleMaterialBuilder Apply()
     {
-        var extrasDict = set.ComposeExtras();
+        var extras = new List<(string, object)>();
         var textureSet = GetTextureSet();
-        if (UseAlpha(out var alphaThreshold))
+        var alphaType = set.GetShaderKeyOrDefault(DiffuseAlphaKey, 0);
+        if (alphaType == DiffuseAlphaValue)
         {
-            WithAlpha(AlphaMode.MASK, alphaThreshold);
+            var alphaThreshold = set.GetConstantOrThrow<float>(MaterialConstant.g_AlphaThreshold);
+            WithAlpha(AlphaMode.MASK, alphaThreshold); // TODO: which mode?
+            extras.Add(("AlphaThreshold", alphaThreshold));
         }
-
+        
         if (bgParams is BgColorChangeParams bgColorChangeParams && GetDiffuseColor(out var bgColorChangeDiffuseColor))
         {
             var diffuseColor = bgColorChangeParams.StainColor ?? bgColorChangeDiffuseColor;
-            extrasDict["stainColor"] = diffuseColor.AsFloatArray();
+            extras.Add(("DiffuseColor", diffuseColor.AsFloatArray()));
         }
 
         VertexPaint = set.ShaderKeys.Any(x => x is {Category: BgVertexPaintKey, Value: BgVertexPaintValue});
-        Extras = set.ComposeExtrasNode();
-
-        Extras = JsonNode.Parse(JsonSerializer.Serialize(extrasDict, MaterialSet.JsonOptions))!;
+        extras.Add(("VertexPaint", VertexPaint));
+        
         
         // Stub
         WithNormal(dataProvider.CacheTexture(textureSet.Normal0, $"Computed/{set.ComputedTextureName("normal")}"));
         WithBaseColor(dataProvider.CacheTexture(textureSet.Color0, $"Computed/{set.ComputedTextureName("diffuse")}"));
         //WithSpecularColor(dataProvider.CacheTexture(textureSet.Specular0, $"Computed/{set.ComputedTextureName("specular")}"));
         
+        Extras = set.ComposeExtrasNode(extras.ToArray());
         return this;
     }
 }

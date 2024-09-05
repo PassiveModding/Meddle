@@ -25,26 +25,32 @@ public class CharacterMaterialBuilder : MeddleMaterialBuilder
         var specularMode = set.GetShaderKeyOrDefault(ShaderCategory.CategorySpecularType, SpecularMode.Default); // TODO: is default actually default
         var flowType = set.GetShaderKeyOrDefault(ShaderCategory.CategoryFlowMapType, FlowType.Standard);
         
-        var normalTexture = set.GetTexture(dataProvider, TextureUsage.g_SamplerNormal).ToResource().ToTexture();
-        var maskTexture = set.GetTexture(dataProvider, TextureUsage.g_SamplerMask).ToResource().ToTexture(normalTexture.Size);
-        var indexTexture = set.GetTexture(dataProvider, TextureUsage.g_SamplerIndex).ToResource().ToTexture(normalTexture.Size);
-        
+        if (!set.TryGetTextureStrict(dataProvider, TextureUsage.g_SamplerNormal, out var normalRes))
+            throw new InvalidOperationException("Missing normal texture");
+        if (!set.TryGetTextureStrict(dataProvider, TextureUsage.g_SamplerMask, out var maskRes))
+            throw new InvalidOperationException("Missing mask texture");
+        if (!set.TryGetTextureStrict(dataProvider, TextureUsage.g_SamplerIndex, out var indexRes))
+            throw new InvalidOperationException("Missing index texture");
+
         var diffuseTexture = textureMode switch
         {
-            TextureMode.Compatibility => set.GetTexture(dataProvider, TextureUsage.g_SamplerDiffuse).ToResource().ToTexture(normalTexture.Size),
-            _ => new SKTexture(normalTexture.Width, normalTexture.Height)
+            TextureMode.Compatibility => set.TryGetTexture(dataProvider, TextureUsage.g_SamplerDiffuse, out var tex) ? tex.ToTexture(normalRes.Size) : throw new InvalidOperationException("Missing diffuse texture"),
+            _ => new SKTexture(normalRes.Width, normalRes.Height)
         };
         
         var flowTexture = flowType switch
         {
-            FlowType.Flow => set.GetTexture(dataProvider, TextureUsage.g_SamplerFlow).ToResource().ToTexture(normalTexture.Size),
+            FlowType.Flow => set.TryGetTexture(dataProvider, TextureUsage.g_SamplerFlow, out var tex) ? tex.ToTexture(normalRes.Size) : throw new InvalidOperationException("Missing flow texture"),
             _ => null
         };
-        
-        var occlusionTexture = new SKTexture(normalTexture.Width, normalTexture.Height);
-        var metallicRoughness = new SKTexture(normalTexture.Width, normalTexture.Height);
-        for (int x = 0; x < normalTexture.Width; x++)
-        for (int y = 0; y < normalTexture.Height; y++)
+
+        var normalTexture = normalRes.ToTexture();
+        var maskTexture = maskRes.ToTexture(normalRes.Size);
+        var indexTexture = indexRes.ToTexture(normalRes.Size);
+        var occlusionTexture = new SKTexture(normalRes.Width, normalRes.Height);
+        var metallicRoughness = new SKTexture(normalRes.Width, normalRes.Height);
+        for (int x = 0; x < normalRes.Width; x++)
+        for (int y = 0; y < normalRes.Height; y++)
         {
             var normal = normalTexture[x, y].ToVector4();
             var mask = maskTexture[x, y].ToVector4();
@@ -77,12 +83,12 @@ public class CharacterMaterialBuilder : MeddleMaterialBuilder
                 metallicRoughness[x, y] = new Vector4(specMask, roughMask, 0, 1).ToSkColor();
             }*/
             
-            normalTexture[x, y] = (normal with{ W = 1.0f}).ToSkColor();
+            normalTexture[x, y] = (normal with{ Z = 1.0f, W = 1.0f}).ToSkColor();
         }
 
         WithBaseColor(dataProvider.CacheTexture(diffuseTexture, $"Computed/{set.ComputedTextureName("diffuse")}"));
         WithNormal(dataProvider.CacheTexture(normalTexture, $"Computed/{set.ComputedTextureName("normal")}"));
-        
+        IndexOfRefraction = set.GetConstantOrThrow<float>(MaterialConstant.g_GlassIOR);
             
         var alphaThreshold = set.GetConstantOrDefault(MaterialConstant.g_AlphaThreshold, 0.0f);
         if (alphaThreshold > 0)

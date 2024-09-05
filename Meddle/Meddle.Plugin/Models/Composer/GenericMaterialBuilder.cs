@@ -26,12 +26,11 @@ public class GenericMaterialBuilder : MeddleMaterialBuilder
         // TODO:
         foreach (var textureUsage in set.TextureUsageDict)
         {
-            var path = set.MapTexturePath(textureUsage.Value);
-            var texData = dataProvider.LookupData(path);
+            var texData = dataProvider.LookupData(textureUsage.Value.FullPath);
             if (texData == null) continue;
             // caching the texture regardless of usage, but only applying it to the material if it's a known channel
             var texture = new TexFile(texData).ToResource().ToTexture();
-            var tex = dataProvider.CacheTexture(texture, textureUsage.Value);
+            var tex = dataProvider.CacheTexture(texture, textureUsage.Value.FullPath);
             
             var channel = MapTextureUsageToChannel(textureUsage.Key);
             if (channel != null && setTypes.Add(textureUsage.Key))
@@ -41,7 +40,6 @@ public class GenericMaterialBuilder : MeddleMaterialBuilder
         }
         
         Extras = set.ComposeExtrasNode();
-        
         return this;
     }
         

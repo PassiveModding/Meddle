@@ -40,7 +40,7 @@ public partial class LayoutWindow
         var infoHeader = instance switch
         {
             ParsedHousingInstance housingObject => $"{housingObject.Type} - {housingObject.Name}",
-            ParsedBgPartsInstance bgObject => $"{bgObject.Type} - {bgObject.Path}",
+            ParsedBgPartsInstance bgObject => $"{bgObject.Type} - {bgObject.Path.GamePath}",
             ParsedUnsupportedInstance unsupported => $"{unsupported.Type} - {unsupported.InstanceType}",
             ParsedCharacterInstance character => $"{character.Type} - {character.Kind}",
             _ => $"{instance.Type}"
@@ -77,7 +77,8 @@ public partial class LayoutWindow
             ImGui.Text($"Scale: {instance.Transform.Scale}");
             if (instance is IPathInstance pathedInstance)
             {
-                UiUtil.Text($"Path: {pathedInstance.Path}", pathedInstance.Path);
+                UiUtil.Text($"Full Path: {pathedInstance.Path.FullPath}", pathedInstance.Path.FullPath);
+                UiUtil.Text($"Game Path: {pathedInstance.Path.GamePath}", pathedInstance.Path.GamePath);
             }
             
             if (instance is ParsedHousingInstance ho)
@@ -122,11 +123,11 @@ public partial class LayoutWindow
         ImGui.Text("Models");
         foreach (var modelInfo in character.CharacterInfo.Models)
         {
-            using var treeNode = ImRaii.TreeNode($"Model: {modelInfo.Path}");
+            using var treeNode = ImRaii.TreeNode($"Model: {modelInfo.Path.GamePath}");
             if (treeNode.Success)
             {
-                UiUtil.Text($"Model Path: {modelInfo.Path}", modelInfo.Path);
-                UiUtil.Text($"Game Path: {modelInfo.PathFromCharacter}", modelInfo.PathFromCharacter);
+                UiUtil.Text($"Model Path: {modelInfo.Path.FullPath}", modelInfo.Path.FullPath);
+                UiUtil.Text($"Game Path: {modelInfo.Path.GamePath}", modelInfo.Path.GamePath);
                 if (modelInfo.Deformer != null)
                 {
                     UiUtil.Text($"Deformer Path: {modelInfo.Deformer.Value.PbdPath}", modelInfo.Deformer.Value.PbdPath);
@@ -136,21 +137,21 @@ public partial class LayoutWindow
 
                 foreach (var materialInfo in modelInfo.Materials)
                 {
-                    using var materialNode = ImRaii.TreeNode($"Material: {materialInfo.Path}");
+                    using var materialNode = ImRaii.TreeNode($"Material: {materialInfo.Path.GamePath}");
                     if (materialNode.Success)
                     {
-                        UiUtil.Text($"Material Path: {materialInfo.Path}", materialInfo.Path);
-                        UiUtil.Text($"Game Path: {materialInfo.PathFromModel}", materialInfo.PathFromModel);
+                        UiUtil.Text($"Material Path: {materialInfo.Path.FullPath}", materialInfo.Path.FullPath);
+                        UiUtil.Text($"Game Path: {materialInfo.Path.GamePath}", materialInfo.Path.GamePath);
                         UiUtil.Text($"Shader Path: {materialInfo.Shpk}", materialInfo.Shpk);
                         ImGui.Text($"Texture Count: {materialInfo.Textures.Count}");
                         foreach (var textureInfo in materialInfo.Textures)
                         {
-                            using var textureNode = ImRaii.TreeNode($"Texture: {textureInfo.Path}");
+                            using var textureNode = ImRaii.TreeNode($"Texture: {textureInfo.Path.GamePath}");
                             if (textureNode.Success)
                             {
-                                UiUtil.Text($"Texture Path: {textureInfo.Path}", textureInfo.Path);
-                                UiUtil.Text($"Game Path: {textureInfo.PathFromMaterial}", textureInfo.PathFromMaterial);
-                                DrawTexture(textureInfo.Path, textureInfo.Resource);
+                                UiUtil.Text($"Texture Path: {textureInfo.Path.FullPath}", textureInfo.Path.FullPath);
+                                UiUtil.Text($"Game Path: {textureInfo.Path.GamePath}", textureInfo.Path.GamePath);
+                                DrawTexture(textureInfo.Path.FullPath, textureInfo.Resource);
                             }
                         }
                     }

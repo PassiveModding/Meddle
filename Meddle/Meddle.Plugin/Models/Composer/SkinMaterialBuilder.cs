@@ -1,10 +1,9 @@
 ﻿using System.Numerics;
 using Meddle.Utils;
 using Meddle.Utils.Export;
-using Meddle.Utils.Files;
 using Meddle.Utils.Materials;
 using Meddle.Utils.Models;
-using SharpGLTF.Materials;
+using AlphaMode = SharpGLTF.Materials.AlphaMode;
 
 namespace Meddle.Plugin.Models.Composer;
 
@@ -27,9 +26,20 @@ public class SkinMaterialBuilder : MeddleMaterialBuilder
     {
         var skinType = set.GetShaderKeyOrDefault(ShaderCategory.CategorySkinType, SkinType.Face);
         
-        var normalTexture = set.GetTexture(dataProvider, TextureUsage.g_SamplerNormal).ToResource().ToTexture();
-        var maskTexture = set.GetTexture(dataProvider, TextureUsage.g_SamplerMask).ToResource().ToTexture(normalTexture.Size);
-        var diffuseTexture = set.GetTexture(dataProvider, TextureUsage.g_SamplerDiffuse).ToResource().ToTexture(normalTexture.Size);
+        // var normalTexture = set.GetTexture(dataProvider, TextureUsage.g_SamplerNormal).ToResource().ToTexture();
+        // var maskTexture = set.GetTexture(dataProvider, TextureUsage.g_SamplerMask).ToResource().ToTexture(normalTexture.Size);
+        // var diffuseTexture = set.GetTexture(dataProvider, TextureUsage.g_SamplerDiffuse).ToResource().ToTexture(normalTexture.Size);
+        if (!set.TryGetTextureStrict(dataProvider, TextureUsage.g_SamplerNormal, out var normalRes))
+            throw new InvalidOperationException("Missing normal texture");
+        if (!set.TryGetTextureStrict(dataProvider, TextureUsage.g_SamplerMask, out var maskRes))
+            throw new InvalidOperationException("Missing mask texture");
+        if (!set.TryGetTextureStrict(dataProvider, TextureUsage.g_SamplerDiffuse, out var diffuseRes))
+            throw new InvalidOperationException("Missing diffuse texture");
+        
+        var normalTexture = normalRes.ToTexture();
+        var maskTexture = maskRes.ToTexture(normalTexture.Size);
+        var diffuseTexture = diffuseRes.ToTexture(normalTexture.Size);
+        
         
         // PART_BODY = no additional color
         // PART_FACE/default = lip color
@@ -42,11 +52,12 @@ public class SkinMaterialBuilder : MeddleMaterialBuilder
         var diffuseColor = set.GetConstantOrDefault(MaterialConstant.g_DiffuseColor, Vector3.One);
         var alphaThreshold = set.GetConstantOrDefault(MaterialConstant.g_AlphaThreshold, 0.0f);
         var lipRoughnessScale = set.GetConstantOrDefault(MaterialConstant.g_LipRoughnessScale, 0.7f);
-        var alphaMultiplier = alphaThreshold != 0 ? (float)(1.0f / alphaThreshold) : 1.0f;
+        var alphaMultiplier = alphaThreshold != 0 ? 1.0f / alphaThreshold : 1.0f;
         
-        var metallicRoughness = new SKTexture(normalTexture.Width, normalTexture.Height);
+        var metallicRoughnessTexture = new SKTexture(normalTexture.Width, normalTexture.Height);
+        var sssTexture = new SKTexture(normalTexture.Width, normalTexture.Height);
         for (var x = 0; x < normalTexture.Width; x++)
-        for (var y = 0; y < diffuseTexture.Width; y++)
+        for (var y = 0; y < normalTexture.Height; y++)
         {
             var normal = normalTexture[x, y].ToVector4();
             var mask = maskTexture[x, y].ToVector4();
@@ -74,12 +85,13 @@ public class SkinMaterialBuilder : MeddleMaterialBuilder
                 diffuseAlpha = 1.0f;
             }
                 
+            diffuseAlpha = set.IsTransparent ? diffuseAlpha * alphaMultiplier : (diffuseAlpha * alphaMultiplier < 1.0f ? 0.0f : 1.0f);
+            
             var specular = mask.X;
             var roughness = mask.Y;
             var subsurface = mask.Z;
             var metallic = 0.0f;
             var roughnessPixel = new Vector4(subsurface, roughness, metallic, specular);
-            //diffuseAlpha = material.ComputeAlpha(diffuseAlpha * alphaMultiplier);
                 
             if (skinType == SkinType.Face)
             {
@@ -89,21 +101,21 @@ public class SkinMaterialBuilder : MeddleMaterialBuilder
                     roughnessPixel *= lipRoughnessScale;
                 }
             }
-                
+            
             diffuseTexture[x, y] = (diffuse with {W = diffuseAlpha}).ToSkColor();
-            normalTexture[x, y] = (normal with {W = 1.0f}).ToSkColor();
-            metallicRoughness[x, y] = roughnessPixel.ToSkColor();
+            normalTexture[x, y] = (normal with { Z = 1.0f, W = 1.0f}).ToSkColor();
+            metallicRoughnessTexture[x, y] = roughnessPixel.ToSkColor();
+            sssTexture[x, y] = new Vector4(subsurface, subsurface, subsurface, 1).ToSkColor();
         }
         
         WithBaseColor(dataProvider.CacheTexture(diffuseTexture, $"Computed/{set.ComputedTextureName("diffuse")}"));
         WithNormal(dataProvider.CacheTexture(normalTexture, $"Computed/{set.ComputedTextureName("normal")}"));
-        WithMetallicRoughness(dataProvider.CacheTexture(metallicRoughness, $"Computed/{set.ComputedTextureName("metallicRoughness")}"));
-        
-        if (alphaThreshold > 0)
-        {
-            WithAlpha(AlphaMode.MASK, alphaThreshold);
-        }
-        
+        WithMetallicRoughness(dataProvider.CacheTexture(metallicRoughnessTexture, $"Computed/{set.ComputedTextureName("metallicRoughness")}"));
+        WithVolumeThickness(dataProvider.CacheTexture(sssTexture, $"Computed/{set.ComputedTextureName("sss")}"), 1.0f);
+
+        IndexOfRefraction = set.GetConstantOrThrow<float>(MaterialConstant.g_GlassIOR);
+        WithMetallicRoughnessShader();
+        WithAlpha(AlphaMode.MASK, alphaThreshold);
         WithDoubleSide(set.RenderBackfaces);
         
         Extras = set.ComposeExtrasNode();

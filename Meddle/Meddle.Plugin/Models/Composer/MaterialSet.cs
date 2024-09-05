@@ -4,12 +4,15 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Meddle.Plugin.Models.Layout;
+using Meddle.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.Structs.Material;
 using Meddle.Utils.Materials;
 using Meddle.Utils.Models;
 using SharpGLTF.Materials;
+using ShaderPackage = Meddle.Utils.Export.ShaderPackage;
 
 namespace Meddle.Plugin.Models.Composer;
 
@@ -81,63 +84,73 @@ public class MaterialSet
     public readonly string ShpkName;
     public readonly ShaderKey[] ShaderKeys;
     public readonly Dictionary<MaterialConstant, float[]> Constants;
-    public readonly Dictionary<TextureUsage, string> TextureUsageDict;
-    private Dictionary<string, string>? texturePathMappings;
-    public string MapTexturePath(string path)
+    public readonly Dictionary<TextureUsage, HandleString> TextureUsageDict;
+    private readonly Func<HandleString, TextureResource?>? textureLoader;
+    
+    public bool TryGetTextureStrict(DataProvider provider, TextureUsage usage, out TextureResource texture)
     {
-        if (texturePathMappings != null)
+        if (!TextureUsageDict.TryGetValue(usage, out var path))
         {
-            if (texturePathMappings.TryGetValue(path, out var mappedPath))
+            throw new Exception($"Texture usage {usage} not found in material set");
+        }
+        
+        if (textureLoader != null)
+        {
+            if (textureLoader(path) is { } tex)
             {
-                return mappedPath;
+                texture = tex;
+                return true;
             }
+            
+            texture = default;
+            return false;
         }
         
-        return path;
-    }
-    
-    public TexFile GetTexture(DataProvider provider, TextureUsage usage)
-    {
-        var path = GetTexturePath(usage);
-        var data = provider.LookupData(MapTexturePath(path));
+        var data = provider.LookupData(path.FullPath);
         if (data == null)
         {
-            throw new Exception($"Failed to load texture for {usage}");
+            texture = default;
+            return false;
         }
         
-        return new TexFile(data);
+        texture = new TexFile(data).ToResource();
+        return true;
     }
     
-    public byte[] LookupData(DataProvider provider, string path)
+    public bool TryGetTexture(DataProvider provider, TextureUsage usage, out TextureResource texture)
     {
-        var data = provider.LookupData(MapTexturePath(path));
+        if (!TextureUsageDict.TryGetValue(usage, out var path))
+        {
+            texture = default;
+            return false;
+        }
+        
+        if (textureLoader != null)
+        {
+            if (textureLoader(path) is { } tex)
+            {
+                texture = tex;
+                return true;
+            }
+            
+            texture = default;
+            return false;
+        }
+        
+        var data = provider.LookupData(path.FullPath);
         if (data == null)
         {
-            throw new Exception($"Failed to load data for {path}");
-        }
-
-        return data;
-    }
-    
-    public string GetTexturePath(TextureUsage usage)
-    {
-        var path = TextureUsageDict[usage];
-        if (texturePathMappings != null && texturePathMappings.TryGetValue(usage.ToString(), out var mappedPath))
-        {
-            return mappedPath;
+            texture = default;
+            return false;
         }
         
-        return path;
-    }
-    
-    public void SetTexturePathMappings(Dictionary<string, string> mappings)
-    {
-        texturePathMappings = mappings;
+        texture = new TexFile(data).ToResource();
+        return true;
     }
 
-    private uint ShaderFlagData;
-    public bool RenderBackfaces => (ShaderFlagData & (uint)ShaderFlags.HideBackfaces) == 0;
-    public bool IsTransparent => (ShaderFlagData & (uint)ShaderFlags.EnableTranslucency) != 0;
+    private readonly uint shaderFlagData;
+    public bool RenderBackfaces => (shaderFlagData & (uint)ShaderFlags.HideBackfaces) == 0;
+    public bool IsTransparent => (shaderFlagData & (uint)ShaderFlags.EnableTranslucency) != 0;
     
     
     public readonly ColorTable? ColorTable;
@@ -226,6 +239,28 @@ public class MaterialSet
     {
         return Constants.TryGetValue(id, out var values) ? values[0] : @default;
     }
+    
+    public T GetConstantOrThrow<T>(MaterialConstant id) where T : struct
+    {
+        if (!TryGetConstant(id, out float[] value))
+        {
+            throw new InvalidOperationException($"Missing constant {id}");
+        }
+        
+        switch (typeof(T).Name)
+        {
+            case "Single":
+                return (T)(object)value[0];
+            case "Vector2":
+                return (T)(object)new Vector2(value[0], value[1]);
+            case "Vector3":
+                return (T)(object)new Vector3(value[0], value[1], value[2]);
+            case "Vector4":
+                return (T)(object)new Vector4(value[0], value[1], value[2], value[3]);
+            default:
+                throw new InvalidOperationException($"Unsupported type {typeof(T).Name}");
+        }
+    }
 
     public Vector2 GetConstantOrDefault(MaterialConstant id, Vector2 @default)
     {
@@ -273,11 +308,12 @@ public class MaterialSet
         return @default;
     }
 
-    public MaterialSet(MtrlFile file, string mtrlPath, ShpkFile shpk, string shpkName)
+    public MaterialSet(MtrlFile file, string mtrlPath, ShpkFile shpk, string shpkName, HandleString[]? texturePathOverride, Func<HandleString, TextureResource?>? textureLoader)
     {
         this.MtrlPath = mtrlPath;
         this.ShpkName = shpkName;
-        ShaderFlagData = file.ShaderHeader.Flags;
+        this.textureLoader = textureLoader;
+        shaderFlagData = file.ShaderHeader.Flags;
         var package = new ShaderPackage(shpk, shpkName);
         ColorTable = file.ColorTable;
         
@@ -323,19 +359,20 @@ public class MaterialSet
             Constants[id] = values;
         }
 
-        TextureUsageDict = new Dictionary<TextureUsage, string>();
+        TextureUsageDict = new Dictionary<TextureUsage, HandleString>();
         var texturePaths = file.GetTexturePaths();
         foreach (var sampler in file.Samplers)
         {
             if (sampler.TextureIndex == byte.MaxValue) continue;
             var textureInfo = file.TextureOffsets[sampler.TextureIndex];
-            var texturePath = texturePaths[textureInfo.Offset];
+            var gamePath = texturePaths[textureInfo.Offset];
             if (!package.TextureLookup.TryGetValue(sampler.SamplerId, out var usage))
             {
                 continue;
             }
 
-            TextureUsageDict[usage] = texturePath;
+            var path = texturePathOverride?[sampler.TextureIndex] ?? gamePath;
+            TextureUsageDict[usage] = path;
         }
     }
     
@@ -363,6 +400,10 @@ public class MaterialSet
                 return new CharacterOcclusionMaterialBuilder(mtrlName, this, dataProvider);
             case "skin.shpk":
                 return new SkinMaterialBuilder(mtrlName, this, dataProvider, customizeParameters ?? new CustomizeParameter(), customizeData ?? new CustomizeData());
+            case "hair.shpk":
+                return new HairMaterialBuilder(mtrlName, this, dataProvider, customizeParameters ?? new CustomizeParameter());
+            case "iris.shpk":
+                return new IrisMaterialBuilder(mtrlName, this, dataProvider, customizeParameters ?? new CustomizeParameter());
             default:
                 return new GenericMaterialBuilder(mtrlName, this, dataProvider);
         }
@@ -374,9 +415,17 @@ public class MaterialSet
         return builder.Apply();
     }
     
-    public JsonNode ComposeExtrasNode()
+    public JsonNode ComposeExtrasNode(params (string key, object value)[]? additionalExtras)
     {
         var extrasDict = ComposeExtras();
+        if (additionalExtras != null)
+        {
+            foreach (var (key, value) in additionalExtras)
+            {
+                extrasDict[key] = value;
+            }
+        }
+        
         return JsonNode.Parse(JsonSerializer.Serialize(extrasDict, JsonOptions))!;
     }
     
@@ -393,11 +442,6 @@ public class MaterialSet
         AddCustomizeParameters();
         AddCustomizeData();
         AddColorTable();
-        
-        if (stainColor.HasValue)
-        {
-            extrasDict["stainColor"] = stainColor.Value.AsFloatArray();
-        }
 
         return extrasDict;
 
@@ -419,13 +463,38 @@ public class MaterialSet
             extrasDict["CustomizeData"] = JsonNode.Parse(JsonSerializer.Serialize(customizeData, JsonOptions))!;
         }
         
+        string IsDefinedOrHex<TEnum>(TEnum value) where TEnum : Enum
+        {
+            return Enum.IsDefined(typeof(TEnum), value) ? value.ToString() : $"0x{Convert.ToUInt32(value):X8}";
+        }
+        
         void AddShaderKeys()
         {
             foreach (var key in ShaderKeys)
             {
                 var category = key.Category;
                 var value = key.Value;
-                extrasDict[$"0x{category:X8}"] = $"0x{value:X8}";
+                if (Enum.IsDefined(typeof(ShaderCategory), category))
+                {
+                    var keyCat = (ShaderCategory)category;
+                    var valStr = keyCat switch
+                    {
+                        ShaderCategory.CategoryHairType => IsDefinedOrHex((HairType)value),
+                        ShaderCategory.CategorySkinType => IsDefinedOrHex((SkinType)value),
+                        ShaderCategory.CategoryDiffuseAlpha => IsDefinedOrHex((DiffuseAlpha)value),
+                        ShaderCategory.CategorySpecularType => IsDefinedOrHex((SpecularMode)value),
+                        ShaderCategory.CategoryTextureType => IsDefinedOrHex((TextureMode)value),
+                        ShaderCategory.CategoryFlowMapType => IsDefinedOrHex((FlowType)value),
+                        _ => $"0x{value:X8}"
+                    };
+                    
+                    extrasDict[keyCat.ToString()] = valStr;
+                }
+                else
+                {
+                    var keyStr = $"0x{category:X8}";
+                    extrasDict[keyStr] = $"0x{value:X8}";
+                }
             }
         }
         
@@ -433,7 +502,12 @@ public class MaterialSet
         {
             foreach (var (usage, path) in TextureUsageDict)
             {
-                extrasDict[usage.ToString()] = path;
+                var usageStr = usage.ToString();
+                extrasDict[usageStr] = path.GamePath;
+                if (path.FullPath != path.GamePath)
+                {
+                    extrasDict[$"{usageStr}_FullPath"] = path.FullPath;
+                }
             }
         }
 

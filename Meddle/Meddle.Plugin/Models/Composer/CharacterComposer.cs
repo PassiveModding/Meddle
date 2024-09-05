@@ -53,32 +53,30 @@ public class CharacterComposer
             root.AddNode(rootBone);
         }
 
-        var textureMappings = characterInstance.TextureMap;
-
         for (var i = 0; i < characterInfo.Models.Count; i++)
         {
             var modelInfo = characterInfo.Models[i];
-            if (modelInfo.PathFromCharacter.Contains("b0003_top")) continue;
-            var mdlData = dataProvider.LookupData(modelInfo.Path);
+            if (modelInfo.Path.GamePath.Contains("b0003_top")) continue;
+            var mdlData = dataProvider.LookupData(modelInfo.Path.FullPath);
             if (mdlData == null)
             {
                 log.LogWarning("Failed to load model file: {modelPath}", modelInfo.Path);
                 continue;
             }
 
-            log.LogInformation("Loaded model {modelPath}", modelInfo.Path);
+            log.LogInformation("Loaded model {modelPath}", modelInfo.Path.FullPath);
             var mdlFile = new MdlFile(mdlData);
             var materialBuilders = new List<MaterialBuilder>();
             foreach (var materialInfo in modelInfo.Materials)
             {
-                var mtrlData = dataProvider.LookupData(materialInfo.Path);
+                var mtrlData = dataProvider.LookupData(materialInfo.Path.FullPath);
                 if (mtrlData == null)
                 {
-                    log.LogWarning("Failed to load material file: {mtrlPath}", materialInfo.Path);
-                    throw new Exception($"Failed to load material file: {materialInfo.Path}");
+                    log.LogWarning("Failed to load material file: {mtrlPath}", materialInfo.Path.FullPath);
+                    throw new Exception($"Failed to load material file: {materialInfo.Path.FullPath}");
                 }
 
-                log.LogInformation("Loaded material {mtrlPath}", materialInfo.Path);
+                log.LogInformation("Loaded material {mtrlPath}", materialInfo.Path.FullPath);
                 var mtrlFile = new MtrlFile(mtrlData);
                 if (materialInfo.ColorTable != null)
                 {
@@ -90,14 +88,26 @@ public class CharacterComposer
                 var shpkData = dataProvider.LookupData(shpkPath);
                 if (shpkData == null) throw new Exception($"Failed to load shader package file: {shpkPath}");
                 var shpkFile = new ShpkFile(shpkData);
-                var material = new MaterialSet(mtrlFile, materialInfo.Path, shpkFile, shpkName);
+                var material = new MaterialSet(mtrlFile, materialInfo.Path.GamePath, 
+                                               shpkFile, 
+                                               shpkName, 
+                                               materialInfo.Textures
+                                                           .Select(x => x.Path)
+                                                           .ToArray(),
+                                               handleString =>
+                                               {
+                                                   var match = materialInfo.Textures.FirstOrDefault(x => 
+                                                       x.Path.GamePath == handleString.GamePath && 
+                                                       x.Path.FullPath == handleString.FullPath);
+                                                   return match?.Resource;
+                                               });
                 material.SetCustomizeParameters(characterInstance.CustomizeParameter);
                 material.SetCustomizeData(characterInstance.CustomizeData);
-                material.SetTexturePathMappings(characterInstance.TextureMap);
+                
                 materialBuilders.Add(material.Compose(dataProvider));
             }
 
-            var model = new Model(modelInfo.Path, mdlFile, modelInfo.ShapeAttributeGroup);
+            var model = new Model(modelInfo.Path.GamePath, mdlFile, modelInfo.ShapeAttributeGroup);
             EnsureBonesExist(model, bones, rootBone);
             (GenderRace from, GenderRace to, RaceDeformer deformer)? deform;
             if (modelInfo.Deformer != null)
@@ -110,7 +120,7 @@ public class CharacterComposer
             }
             else
             {
-                var parsed = RaceDeformer.ParseRaceCode(modelInfo.PathFromCharacter);
+                var parsed = RaceDeformer.ParseRaceCode(modelInfo.Path.GamePath);
                 if (Enum.IsDefined(parsed))
                 {
                     deform = (parsed, characterInfo.GenderRace, new RaceDeformer(PbdFile!, bones));

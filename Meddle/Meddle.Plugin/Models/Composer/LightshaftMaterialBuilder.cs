@@ -19,8 +19,8 @@ public class LightshaftMaterialBuilder : GenericMaterialBuilder
         base.Apply();
         this.WithBaseColor(new Vector4(1, 1, 1, 0));
         WithAlpha(AlphaMode.BLEND, 0.5f);
-        Extras = set.ComposeExtrasNode();
         
+        Extras = set.ComposeExtrasNode();
         return this;
     }
 }
