@@ -116,6 +116,29 @@ public class MaterialSet
         texture = new TexFile(data).ToResource();
         return true;
     }
+
+    public bool TryGetImageBuilderStrict(DataProvider provider, TextureUsage usage, out ImageBuilder builder)
+    {
+        if (!TextureUsageDict.TryGetValue(usage, out var path))
+        {
+            throw new Exception($"Texture usage {usage} not found in material set");
+        }
+        
+        builder = provider.LookupTexture(path.FullPath) ?? throw new Exception($"Texture {path.FullPath} not found");
+        return true;
+    }
+    
+    public bool TryGetImageBuilder(DataProvider provider, TextureUsage usage, out ImageBuilder? builder)
+    {
+        if (!TextureUsageDict.TryGetValue(usage, out var path))
+        {
+            builder = null;
+            return false;
+        }
+        
+        builder = provider.LookupTexture(path.FullPath);
+        return builder != null;
+    }
     
     public bool TryGetTexture(DataProvider provider, TextureUsage usage, out TextureResource texture)
     {
@@ -387,6 +410,7 @@ public class MaterialSet
         switch (ShpkName)
         {
             case "bg.shpk":
+            case "bguvscroll.shpk":
                 return new BgMaterialBuilder(mtrlName, new BgParams(), this, dataProvider);
             case "bgcolorchange.shpk":
                 return new BgMaterialBuilder(mtrlName, new BgColorChangeParams(stainColor), this, dataProvider);

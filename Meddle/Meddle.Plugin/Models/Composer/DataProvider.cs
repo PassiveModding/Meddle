@@ -64,6 +64,29 @@ public class DataProvider
         }).Value;
     }
     
+    private ConcurrentDictionary<string, Lazy<ImageBuilder?>> textureCache = new();
+    public ImageBuilder? LookupTexture(string gamePath)
+    {
+        gamePath = gamePath.TrimHandlePath();
+        if (!gamePath.EndsWith(".tex")) throw new ArgumentException("Texture path must end with .tex", nameof(gamePath));
+        if (Path.IsPathRooted(gamePath))
+        {
+            throw new ArgumentException("Texture path must be a game path", nameof(gamePath));
+        }
+        
+        return textureCache.GetOrAdd(gamePath, key =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return new Lazy<ImageBuilder?>(() =>
+            {
+                var data = LookupData(key, false);
+                if (data == null) return null;
+                var texFile = new TexFile(data);
+                return CacheTexture(texFile.ToResource().ToTexture(), key);
+            }, LazyThreadSafetyMode.ExecutionAndPublication);
+        }).Value;
+    }
+    
     public byte[]? LookupData(string fullPath, bool cacheIfTexture = true)
     {
         fullPath = fullPath.TrimHandlePath();

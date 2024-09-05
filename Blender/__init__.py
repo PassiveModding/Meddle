@@ -20,15 +20,54 @@ class VIEW3D_PT_update_meddle_shaders(Panel):
         layout = self.layout
 
         row = layout.row()
-        row.operator("meddle.fix_ior", text="Fix IOR")
+        row.operator("meddle.fix_ior", text="Fix ior")
 
         row = layout.row()
-        row.operator("meddle.fix_terrain", text="Fix Terrain")
+        row.operator("meddle.fix_bg", text="Fix bg.shpk")
 
+        row = layout.row()
+        row.operator("meddle.connect_volume", text="Connect Volume")
 
+class MEDDLE_OT_connect_volume(Operator):
+    """Connects the volume output to the material output"""
+    bl_idname = "meddle.connect_volume"
+    bl_label = "Connect Volume"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        # Iterate all materials in the scene
+        for mat in bpy.data.materials:
+            # Check if the material uses nodes
+            if not mat.use_nodes:
+                continue
+            
+            # Look for the Principled BSDF node
+            principled_bsdf = None
+            for node in mat.node_tree.nodes:
+                if node.type == 'BSDF_PRINCIPLED':
+                    principled_bsdf = node
+                    break
+            
+            if not principled_bsdf:
+                print(f"Material '{mat.name}' does not have a Principled BSDF node.")
+                continue
+            
+            material_output = None
+            for node in mat.node_tree.nodes:
+                if node.type == 'OUTPUT_MATERIAL':
+                    material_output = node
+                    break
+
+            if not material_output:
+                print(f"Material '{mat.name}' does not have a Material Output node.")
+                continue
+
+            mat.node_tree.links.new(principled_bsdf.outputs['BSDF'], material_output.inputs['Volume'])
+
+        return {'FINISHED'}
 
 class MEDDLE_OT_fix_ior(Operator):
-    """Sets the IOR value in the Principled BSDF node of all materials"""
+    """Sets the IOR value in the Principled BSDF node of all materials to the value of the custom property g_GlassIOR or 1.0 if not found"""
     bl_idname = "meddle.fix_ior"
     bl_label = "Update Shaders"
     bl_options = {'REGISTER', 'UNDO'}
@@ -58,14 +97,16 @@ class MEDDLE_OT_fix_ior(Operator):
                 # Set the IOR value in the Principled BSDF node
                 principled_bsdf.inputs['IOR'].default_value = ior_value[0]
             else:
-                print(f"Material '{mat.name}' does not have the custom property 'g_GlassIOR'.")
+                print(f"Material '{mat.name}' does not have the custom property 'g_GlassIOR'. Setting IOR to 1.0.")
+                # Set the IOR value in the Principled BSDF node to 1.0
+                principled_bsdf.inputs['IOR'].default_value = 1.0
 
         return {'FINISHED'}
     
-class MEDDLE_OT_fix_terrain(Operator):
+class MEDDLE_OT_fix_bg(Operator):
     """Looks up the g_SamplerXXXMap1 values on bg materials and creates the relevant texture nodes"""
-    bl_idname = "meddle.fix_terrain"
-    bl_label = "Fix Terrain"
+    bl_idname = "meddle.fix_bg"
+    bl_label = "Fix bg.shpk"
     bl_options = {'REGISTER', 'UNDO'}
 
     directory: StringProperty(subtype='DIR_PATH')
@@ -100,9 +141,6 @@ class MEDDLE_OT_fix_terrain(Operator):
             if not principled_bsdf:
                 continue
 
-            # set IOR to 1.0
-            principled_bsdf.inputs['IOR'].default_value = 1.0
-            
             # look for g_SamplerColorMap1, g_SamplerNormalMap1, g_SamplerSpecularMap1
             g_SamplerColorMap1 = None
             if "g_SamplerColorMap1" in mat:
@@ -182,10 +220,10 @@ class MEDDLE_OT_fix_terrain(Operator):
                         g_SamplerColorMap1Node.label = "BASE COLOR 1"
 
                     g_SamplerColorMap1Node.image = bpy.data.images.load(self.directory + g_SamplerColorMap1 + ".png")
-                    mat.node_tree.links.new(g_SamplerColorMap1Node.outputs['Color'], mix_color.inputs['Color1'])
+                    mat.node_tree.links.new(g_SamplerColorMap1Node.outputs['Color'], mix_color.inputs['Color2'])
 
                     # use base_color
-                    mat.node_tree.links.new(g_SamplerColorMap0Node.outputs['Color'], mix_color.inputs['Color2'])
+                    mat.node_tree.links.new(g_SamplerColorMap0Node.outputs['Color'], mix_color.inputs['Color1'])
 
                     # organize nodes
                     g_SamplerColorMap1Node.location = (g_SamplerColorMap0Node.location.x, g_SamplerColorMap0Node.location.y - 150)
@@ -220,10 +258,10 @@ class MEDDLE_OT_fix_terrain(Operator):
                         gSamplerNormalMap1Node = mat.node_tree.nodes.new('ShaderNodeTexImage')
                         gSamplerNormalMap1Node.label = "NORMAL MAP 1"
                     gSamplerNormalMap1Node.image = bpy.data.images.load(self.directory + g_SamplerNormalMap1 + ".png")
-                    mat.node_tree.links.new(gSamplerNormalMap1Node.outputs['Color'], mix_normal.inputs['Color1'])
+                    mat.node_tree.links.new(gSamplerNormalMap1Node.outputs['Color'], mix_normal.inputs['Color2'])
 
                     # use base_normal
-                    mat.node_tree.links.new(g_SamplerNormalMap0Node.outputs['Color'], mix_normal.inputs['Color2'])
+                    mat.node_tree.links.new(g_SamplerNormalMap0Node.outputs['Color'], mix_normal.inputs['Color1'])
 
                     # organize nodes
                     gSamplerNormalMap1Node.location = (g_SamplerNormalMap0Node.location.x, g_SamplerNormalMap0Node.location.y - 150)
@@ -239,13 +277,15 @@ class MEDDLE_OT_fix_terrain(Operator):
 def register():
     bpy.utils.register_class(VIEW3D_PT_update_meddle_shaders)
     bpy.utils.register_class(MEDDLE_OT_fix_ior)
-    bpy.utils.register_class(MEDDLE_OT_fix_terrain)
+    bpy.utils.register_class(MEDDLE_OT_fix_bg)
+    bpy.utils.register_class(MEDDLE_OT_connect_volume)
     bpy.types.Scene.selected_folder = StringProperty(name="Selected Folder", description="Path to the selected folder")
 
 def unregister():
     bpy.utils.unregister_class(VIEW3D_PT_update_meddle_shaders)
     bpy.utils.unregister_class(MEDDLE_OT_fix_ior)
-    bpy.utils.unregister_class(MEDDLE_OT_fix_terrain)
+    bpy.utils.unregister_class(MEDDLE_OT_fix_bg)
+    bpy.utils.unregister_class(MEDDLE_OT_connect_volume)
 
 if __name__ == "__main__":
     register()

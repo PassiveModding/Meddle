@@ -111,39 +111,6 @@ public class BgMaterialBuilder : MeddleMaterialBuilder, IVertexPaintMaterialBuil
             return new DetailSet(detailD, detailN, detailColor, detailNormalScale, detailColorUvScale, detailNormalUvScale);
         }
     }
-    
-    private TextureSet GetTextureSet()
-    {
-        if (!set.TryGetTextureStrict(dataProvider, TextureUsage.g_SamplerColorMap0, out var colorMap0Texture))
-        {
-            throw new Exception("ColorMap0 texture not found");
-        }
-        
-        if (!set.TryGetTextureStrict(dataProvider, TextureUsage.g_SamplerSpecularMap0, out var specularMap0Texture))
-        {
-            throw new Exception("SpecularMap0 texture not found");
-        }
-        
-        if (!set.TryGetTextureStrict(dataProvider, TextureUsage.g_SamplerNormalMap0, out var normalMap0Texture))
-        {
-            throw new Exception("NormalMap0 texture not found");
-        }
-        
-        var sizes = new List<Vector2> {colorMap0Texture.Size, specularMap0Texture.Size, normalMap0Texture.Size};
-        var colorMap1 = set.TryGetTexture(dataProvider, TextureUsage.g_SamplerColorMap1, out var colorMap1Texture);
-        var specularMap1 = set.TryGetTexture(dataProvider, TextureUsage.g_SamplerSpecularMap1, out var specularMap1Texture);
-        var normalMap1 = set.TryGetTexture(dataProvider, TextureUsage.g_SamplerNormalMap1, out var normalMap1Texture);
-        
-        var size = sizes.MaxBy(x => x.X * x.Y);
-        var colorTex0 = colorMap0Texture.ToTexture(size);
-        var specularTex0 = specularMap0Texture.ToTexture(size);
-        var normalTex0 = normalMap0Texture.ToTexture(size);
-        var colorTex1 = colorMap1 ? colorMap1Texture.ToTexture(size) : null;
-        var specularTex1 = specularMap1 ? specularMap1Texture.ToTexture(size) : null;
-        var normalTex1 = normalMap1 ? normalMap1Texture.ToTexture(size) : null;
-        
-        return new TextureSet(colorTex0, specularTex0, normalTex0, colorTex1, specularTex1, normalTex1);
-    }
 
     public bool VertexPaint { get; private set; }
 
@@ -163,7 +130,27 @@ public class BgMaterialBuilder : MeddleMaterialBuilder, IVertexPaintMaterialBuil
     public override MeddleMaterialBuilder Apply()
     {
         var extras = new List<(string, object)>();
-        var textureSet = GetTextureSet();
+
+        if (!set.TryGetImageBuilderStrict(dataProvider, TextureUsage.g_SamplerColorMap0, out var colorMap0Texture))
+        {
+            throw new Exception("ColorMap0 texture not found");
+        }
+        
+        if (!set.TryGetImageBuilderStrict(dataProvider, TextureUsage.g_SamplerSpecularMap0, out var specularMap0Texture))
+        {
+            throw new Exception("SpecularMap0 texture not found");
+        }
+        
+        if (!set.TryGetImageBuilderStrict(dataProvider, TextureUsage.g_SamplerNormalMap0, out var normalMap0Texture))
+        {
+            throw new Exception("NormalMap0 texture not found");
+        }
+        
+        set.TryGetImageBuilder(dataProvider, TextureUsage.g_SamplerColorMap1, out var colorMap1Texture);
+        set.TryGetImageBuilder(dataProvider, TextureUsage.g_SamplerSpecularMap1, out var specularMap1Texture);
+        set.TryGetImageBuilder(dataProvider, TextureUsage.g_SamplerNormalMap1, out var normalMap1Texture);
+        
+        
         var alphaType = set.GetShaderKeyOrDefault(DiffuseAlphaKey, 0);
         if (alphaType == DiffuseAlphaValue)
         {
@@ -181,10 +168,10 @@ public class BgMaterialBuilder : MeddleMaterialBuilder, IVertexPaintMaterialBuil
         VertexPaint = set.ShaderKeys.Any(x => x is {Category: BgVertexPaintKey, Value: BgVertexPaintValue});
         extras.Add(("VertexPaint", VertexPaint));
 
-        WithNormal(dataProvider.CacheTexture(textureSet.Normal0, $"Computed/{set.ComputedTextureName("normal")}"));
-        WithBaseColor(dataProvider.CacheTexture(textureSet.Color0, $"Computed/{set.ComputedTextureName("diffuse")}"));
+        WithNormal(normalMap0Texture);
+        WithBaseColor(colorMap0Texture);
         // only the green/y channel is used here for roughness
-        WithMetallicRoughness(dataProvider.CacheTexture(textureSet.Specular0, $"Computed/{set.ComputedTextureName("specular")}"), 0.0f, 1.0f);
+        WithMetallicRoughness(specularMap0Texture, 0.0f, 1.0f);
         
         IndexOfRefraction = 1.0f;
         
