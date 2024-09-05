@@ -181,11 +181,24 @@ public class BgMaterialBuilder : MeddleMaterialBuilder, IVertexPaintMaterialBuil
         VertexPaint = set.ShaderKeys.Any(x => x is {Category: BgVertexPaintKey, Value: BgVertexPaintValue});
         extras.Add(("VertexPaint", VertexPaint));
         
+        var metallicRoughnessTexture = new SKTexture(textureSet.Color0.Width, textureSet.Color0.Height);
+        for (var x = 0; x < textureSet.Color0.Width; x++)
+        for (var y = 0; y < textureSet.Color0.Height; y++)
+        {
+            var mask = textureSet.Specular0[x, y].ToVector4();
+            var specMaskA = mask.X; // ?
+            var roughness = mask.Y;
+            var specMaskB = mask.Z; // ?
+            
+            var metallic = 0.0f;
+            metallicRoughnessTexture[x, y] = new Vector4(1.0f, roughness, metallic, 1.0f).ToSkColor();
+        }
         
         // Stub
         WithNormal(dataProvider.CacheTexture(textureSet.Normal0, $"Computed/{set.ComputedTextureName("normal")}"));
         WithBaseColor(dataProvider.CacheTexture(textureSet.Color0, $"Computed/{set.ComputedTextureName("diffuse")}"));
         //WithSpecularColor(dataProvider.CacheTexture(textureSet.Specular0, $"Computed/{set.ComputedTextureName("specular")}"));
+        WithMetallicRoughness(dataProvider.CacheTexture(metallicRoughnessTexture, $"Computed/{set.ComputedTextureName("metallicRoughness")}"));
         
         Extras = set.ComposeExtrasNode(extras.ToArray());
         return this;
