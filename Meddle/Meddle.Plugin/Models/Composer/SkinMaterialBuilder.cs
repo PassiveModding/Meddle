@@ -63,9 +63,14 @@ public class SkinMaterialBuilder : MeddleMaterialBuilder
             var mask = maskTexture[x, y].ToVector4();
             var diffuse = diffuseTexture[x, y].ToVector4();
             
-            
             var diffuseAlpha = diffuse.W;
             var skinInfluence = normal.Z;
+            var specularPower = mask.X;
+            var roughness = mask.Y;
+            var sssThickness = mask.Z;
+            var metallic = 0.0f;
+            var hairHighlightInfluence = mask.W;
+            
             var sColor = Vector3.Lerp(diffuseColor, skinColor, skinInfluence);
             diffuse *= new Vector4(sColor, 1.0f);
                 
@@ -74,7 +79,7 @@ public class SkinMaterialBuilder : MeddleMaterialBuilder
                 var hair = hairColor;
                 if (data.Highlights)
                 {
-                    hair = Vector3.Lerp(hairColor, highlightColor, mask.W);
+                    hair = Vector3.Lerp(hairColor, highlightColor, hairHighlightInfluence);
                 }
 
                 // tt arbitrary darkening instead of using flow map
@@ -86,26 +91,21 @@ public class SkinMaterialBuilder : MeddleMaterialBuilder
             }
                 
             diffuseAlpha = set.IsTransparent ? diffuseAlpha * alphaMultiplier : (diffuseAlpha * alphaMultiplier < 1.0f ? 0.0f : 1.0f);
-            
-            var specular = mask.X;
-            var roughness = mask.Y;
-            var subsurface = mask.Z;
-            var metallic = 0.0f;
-            var roughnessPixel = new Vector4(subsurface, roughness, metallic, specular);
+
                 
             if (skinType == SkinType.Face)
             {
                 if (data.LipStick)
                 {
                     diffuse = Vector4.Lerp(diffuse, lipColor, normal.W * lipColor.W);
-                    roughnessPixel *= lipRoughnessScale;
                 }
+                roughness *= lipRoughnessScale;
             }
             
             diffuseTexture[x, y] = (diffuse with {W = diffuseAlpha}).ToSkColor();
             normalTexture[x, y] = (normal with { Z = 1.0f, W = 1.0f}).ToSkColor();
-            metallicRoughnessTexture[x, y] = roughnessPixel.ToSkColor();
-            sssTexture[x, y] = new Vector4(subsurface, subsurface, subsurface, 1).ToSkColor();
+            metallicRoughnessTexture[x, y] = new Vector4(1.0f, roughness, metallic, 1.0f).ToSkColor();
+            sssTexture[x, y] = new Vector4(sssThickness, sssThickness, sssThickness, 1).ToSkColor();
         }
         
         WithBaseColor(dataProvider.CacheTexture(diffuseTexture, $"Computed/{set.ComputedTextureName("diffuse")}"));

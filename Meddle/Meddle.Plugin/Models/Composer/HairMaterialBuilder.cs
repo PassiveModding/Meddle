@@ -33,47 +33,46 @@ public class HairMaterialBuilder : MeddleMaterialBuilder
         var maskTexture = maskRes.ToTexture(normalTexture.Size);
         
         var hairColor = parameters.MainColor;
-        var tattooColor = parameters.OptionColor;
-        var highlightColor = parameters.MeshColor;
+        var bonusColor = hairType switch
+        {
+            HairType.Face => parameters.OptionColor, // tattoo
+            HairType.Hair => parameters.MeshColor, // hair highlight
+            _ => hairColor
+        };
         
+        // TODO: Eyelashes should be black, possibly to do with vertex colors
         var diffuseTexture = new SKTexture(normalTexture.Width, normalTexture.Height);
-        var occ_x_x_x_Texture = new SKTexture(normalTexture.Width, normalTexture.Height);
-        var vol_thick_x_x_Texture = new SKTexture(normalTexture.Width, normalTexture.Height);
+        var metallicRoughnessTexture = new SKTexture(normalTexture.Width, normalTexture.Height);
         for (int x = 0; x < normalTexture.Width; x++)
         for (int y = 0; y < normalTexture.Height; y++)
         {
             var normal = normalTexture[x, y].ToVector4();
             var mask = maskTexture[x, y].ToVector4();
-
-            var bonusColor = hairType switch
-            {
-                HairType.Face => tattooColor,
-                HairType.Hair => highlightColor,
-                _ => hairColor
-            };
             
             var bonusIntensity = normal.Z;
-            var diffusePixel = Vector3.Lerp(hairColor, bonusColor, bonusIntensity);
-            var occlusion = mask.W * mask.W;
+            var specular = mask.X;
+            var roughness = mask.Y;
+            var sssThickness = mask.Z;
+            var metallic = 0.0f;
+            var diffuseMaskOrAmbientOcclusion = mask.W;
             
+            var diffusePixel = Vector3.Lerp(hairColor, bonusColor, bonusIntensity);
+            
+            metallicRoughnessTexture[x, y] = new Vector4(1.0f, roughness, metallic, 1.0f).ToSkColor();
             diffuseTexture[x, y] = new Vector4(diffusePixel, normal.W).ToSkColor();
-            occ_x_x_x_Texture[x, y] = new Vector4(occlusion, 0f, 0f, 1.0f).ToSkColor();
             normalTexture[x, y] = (normal with { Z = 1.0f, W = 1.0f }).ToSkColor();
-            vol_thick_x_x_Texture[x, y] = new Vector4(mask.Z, mask.Z, mask.Z, 1.0f).ToSkColor();
         }
 
         WithDoubleSide(set.RenderBackfaces);
         WithBaseColor(dataProvider.CacheTexture(diffuseTexture, $"Computed/{set.ComputedTextureName("diffuse")}"));
         WithNormal(dataProvider.CacheTexture(normalTexture, $"Computed/{set.ComputedTextureName("normal")}"));
-        WithOcclusion(dataProvider.CacheTexture(occ_x_x_x_Texture, $"Computed/{set.ComputedTextureName("occlusion")}"));
-        WithMetallicRoughness(0, 1);
-        WithAlpha(AlphaMode.BLEND, set.GetConstantOrThrow<float>(MaterialConstant.g_AlphaThreshold));
+        WithMetallicRoughness(dataProvider.CacheTexture(metallicRoughnessTexture, $"Computed/{set.ComputedTextureName("metallicRoughness")}"));
+        WithAlpha(AlphaMode.MASK, set.GetConstantOrThrow<float>(MaterialConstant.g_AlphaThreshold));
         IndexOfRefraction = set.GetConstantOrThrow<float>(MaterialConstant.g_GlassIOR);
         
         Extras = set.ComposeExtrasNode(
             ("hairColor", hairColor.AsFloatArray()),
-            ("tattooColor", tattooColor.AsFloatArray()),
-            ("highlightColor", highlightColor.AsFloatArray())
+            ("bonusColor", bonusColor.AsFloatArray())
         );
         return this;
     }
