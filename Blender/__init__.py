@@ -149,52 +149,55 @@ class MEDDLE_OT_fix_terrain(Operator):
                     break
 
             if vertex_color_node is None:
-                break
+                continue
 
-            if color_map is not None and base_color is not None:
-                mix_color = mat.node_tree.nodes.new('ShaderNodeMixRGB')
-                if "dummy_" in color_map:
-                    mix_color.blend_type = 'MULTIPLY'
-                else:
-                    mix_color.blend_type = 'MIX'
-                mix_color.inputs['Fac'].default_value = 1.0
-                mat.node_tree.links.new(mix_color.outputs['Color'], principled_bsdf.inputs['Base Color'])
-                mat.node_tree.links.new(vertex_color_node.outputs['Alpha'], mix_color.inputs['Fac'])
+            try:
+                if color_map is not None and base_color is not None:
+                    mix_color = mat.node_tree.nodes.new('ShaderNodeMixRGB')
+                    if "dummy_" in color_map:
+                        mix_color.blend_type = 'MULTIPLY'
+                    else:
+                        mix_color.blend_type = 'MIX'
+                    mix_color.inputs['Fac'].default_value = 1.0
+                    mat.node_tree.links.new(mix_color.outputs['Color'], principled_bsdf.inputs['Base Color'])
+                    mat.node_tree.links.new(vertex_color_node.outputs['Alpha'], mix_color.inputs['Fac'])
 
-                # load color texture using the selected folder + color_map + ".png"
-                color_texture = mat.node_tree.nodes.new('ShaderNodeTexImage')
-                color_texture.image = bpy.data.images.load(self.directory + color_map + ".png")
-                mat.node_tree.links.new(color_texture.outputs['Color'], mix_color.inputs['Color2'])
+                    # load color texture using the selected folder + color_map + ".png"
+                    color_texture = mat.node_tree.nodes.new('ShaderNodeTexImage')
+                    color_texture.image = bpy.data.images.load(self.directory + color_map + ".png")
+                    mat.node_tree.links.new(color_texture.outputs['Color'], mix_color.inputs['Color2'])
 
-                # use base_color
-                mat.node_tree.links.new(base_color.outputs['Color'], mix_color.inputs['Color1'])
+                    # use base_color
+                    mat.node_tree.links.new(base_color.outputs['Color'], mix_color.inputs['Color1'])
 
-                # organize nodes
-                color_texture.location = (base_color.location.x, base_color.location.y - 150)
-                mix_color.location = (base_color.location.x + 300, base_color.location.y)
+                    # organize nodes
+                    color_texture.location = (base_color.location.x, base_color.location.y - 150)
+                    mix_color.location = (base_color.location.x + 300, base_color.location.y)
 
-            if normal_map is not None and base_normal is not None and normal_tangent is not None:
-                mix_normal = mat.node_tree.nodes.new('ShaderNodeMixRGB')
-                if "dummy_" in normal_map:
-                    mix_normal.blend_type = 'MULTIPLY'
-                else:
-                    mix_normal.blend_type = 'MIX'
-                mix_normal.inputs['Fac'].default_value = 1.0
-                mat.node_tree.links.new(mix_normal.outputs['Color'], normal_tangent.inputs['Color'])
-                mat.node_tree.links.new(vertex_color_node.outputs['Alpha'], mix_normal.inputs['Fac'])
+                if normal_map is not None and base_normal is not None and normal_tangent is not None:
+                    mix_normal = mat.node_tree.nodes.new('ShaderNodeMixRGB')
+                    if "dummy_" in normal_map:
+                        mix_normal.blend_type = 'MULTIPLY'
+                    else:
+                        mix_normal.blend_type = 'MIX'
+                    mix_normal.inputs['Fac'].default_value = 1.0
+                    mat.node_tree.links.new(mix_normal.outputs['Color'], normal_tangent.inputs['Color'])
+                    mat.node_tree.links.new(vertex_color_node.outputs['Alpha'], mix_normal.inputs['Fac'])
 
-                # load normal texture using the selected folder + normal_map + ".png"
-                normal_texture = mat.node_tree.nodes.new('ShaderNodeTexImage')
-                normal_texture.image = bpy.data.images.load(self.directory + normal_map + ".png")
-                mat.node_tree.links.new(normal_texture.outputs['Color'], mix_normal.inputs['Color2'])
+                    # load normal texture using the selected folder + normal_map + ".png"
+                    normal_texture = mat.node_tree.nodes.new('ShaderNodeTexImage')
+                    normal_texture.image = bpy.data.images.load(self.directory + normal_map + ".png")
+                    mat.node_tree.links.new(normal_texture.outputs['Color'], mix_normal.inputs['Color2'])
 
-                # use base_normal
-                mat.node_tree.links.new(base_normal.outputs['Color'], mix_normal.inputs['Color1'])
+                    # use base_normal
+                    mat.node_tree.links.new(base_normal.outputs['Color'], mix_normal.inputs['Color1'])
 
-                # organize nodes
-                normal_texture.location = (base_normal.location.x, base_normal.location.y - 150)
-                mix_normal.location = (base_normal.location.x + 300, base_normal.location.y)
-            
+                    # organize nodes
+                    normal_texture.location = (base_normal.location.x, base_normal.location.y - 150)
+                    mix_normal.location = (base_normal.location.x + 300, base_normal.location.y)
+            except Exception as e:
+                print(f"Error: {e}")
+                continue           
 
 
         return {'FINISHED'}
