@@ -200,6 +200,8 @@ public class BgMaterialBuilder : MeddleMaterialBuilder, IVertexPaintMaterialBuil
         //WithSpecularColor(dataProvider.CacheTexture(textureSet.Specular0, $"Computed/{set.ComputedTextureName("specular")}"));
         WithMetallicRoughness(dataProvider.CacheTexture(metallicRoughnessTexture, $"Computed/{set.ComputedTextureName("metallicRoughness")}"));
         
+        IndexOfRefraction = 1.0f;
+        
         Extras = set.ComposeExtrasNode(extras.ToArray());
         return this;
     }

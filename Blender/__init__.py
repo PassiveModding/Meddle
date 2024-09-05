@@ -99,6 +99,9 @@ class MEDDLE_OT_fix_terrain(Operator):
             
             if not principled_bsdf:
                 continue
+
+            # set IOR to 1.0
+            principled_bsdf.inputs['IOR'].default_value = 1.0
             
             # look for g_SamplerColorMap1, g_SamplerNormalMap1, g_SamplerSpecularMap1
             color_map = None
