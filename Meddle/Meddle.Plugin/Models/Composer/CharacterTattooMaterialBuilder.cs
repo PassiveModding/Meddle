@@ -41,7 +41,9 @@ public class CharacterTattooMaterialBuilder : MeddleMaterialBuilder
         for (var y = 0; y < normalTexture.Height; y++)
         {
             var normal = normalTexture[x, y].ToVector4();
-            if (normal.Z != 0)
+            var influence = normal.Z;
+            
+            if (influence > 0)
             {
                 diffuseTexture[x, y] = new Vector4(color, normal.W).ToSkColor();
             }
@@ -49,6 +51,8 @@ public class CharacterTattooMaterialBuilder : MeddleMaterialBuilder
             {
                 diffuseTexture[x, y] = new Vector4(0, 0, 0, normal.W).ToSkColor();
             }
+            
+            normalTexture[x, y] = (normal with { Z = 1.0f, W = 1.0f }).ToSkColor();
         }
 
         WithBaseColor(dataProvider.CacheTexture(diffuseTexture, $"Computed/{set.ComputedTextureName("diffuse")}"));
@@ -58,7 +62,7 @@ public class CharacterTattooMaterialBuilder : MeddleMaterialBuilder
         
         IndexOfRefraction = set.GetConstantOrThrow<float>(MaterialConstant.g_GlassIOR);
         var alphaThreshold = set.GetConstantOrThrow<float>(MaterialConstant.g_AlphaThreshold);
-        WithAlpha(AlphaMode.MASK, alphaThreshold);
+        WithAlpha(AlphaMode.BLEND, alphaThreshold);
         
         Extras = set.ComposeExtrasNode();
         return this;
