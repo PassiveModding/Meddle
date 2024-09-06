@@ -296,6 +296,70 @@ class MEDDLE_OT_fix_bg(Operator):
                 continue           
 
 
+        for mat in bpy.data.materials:
+            # Check if the material uses nodes
+            if not mat.use_nodes:
+                continue
+
+            if "ShaderPackage" not in mat:
+                continue
+
+            if mat["ShaderPackage"] != "bg.shpk":
+                continue
+            
+            # Look for the Principled BSDF node
+            principled_bsdf = None
+            for node in mat.node_tree.nodes:
+                if node.type == 'BSDF_PRINCIPLED':
+                    principled_bsdf = node
+                    break
+            
+            if not principled_bsdf:
+                continue
+
+            # get the node connected to the bsdf "Normal" input
+            normal_map = None
+            for node in mat.node_tree.nodes:
+                if node.type == 'NORMAL_MAP':
+                    normal_map = node
+                    break
+
+            if normal_map is None:
+                continue
+
+            # create node to remove the blue channel
+
+            separate_rgb = None
+            for node in mat.node_tree.nodes:
+                if node.type == 'SEPARATE_COLOR' and node.name == "Separate Normal Map":
+                    separate_rgb = node
+                    break
+
+            if separate_rgb is None:
+                separate_rgb = mat.node_tree.nodes.new('ShaderNodeSeparateColor')
+                separate_rgb.location = (normal_map.location.x + 300, normal_map.location.y)
+                separate_rgb.name = "Separate Normal Map"
+
+            mat.node_tree.links.new(normal_map.outputs['Normal'], separate_rgb.inputs['Color'])
+
+            # create node to add the blue channel
+
+            combine_rgb = None
+            for node in mat.node_tree.nodes:
+                if node.type == 'COMBINE_COLOR' and node.name == "Combine Normal Map":
+                    combine_rgb = node
+                    break
+
+            if combine_rgb is None:
+                combine_rgb = mat.node_tree.nodes.new('ShaderNodeCombineColor')
+                combine_rgb.location = (separate_rgb.location.x + 300, separate_rgb.location.y)
+                combine_rgb.name = "Combine Normal Map"
+                
+            combine_rgb.inputs['Blue'].default_value = 1.0
+            mat.node_tree.links.new(separate_rgb.outputs['Red'], combine_rgb.inputs['Red'])
+            mat.node_tree.links.new(separate_rgb.outputs['Green'], combine_rgb.inputs['Green'])
+            mat.node_tree.links.new(combine_rgb.outputs['Color'], principled_bsdf.inputs['Normal'])
+
         return {'FINISHED'}
     
 def register():
