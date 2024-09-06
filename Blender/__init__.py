@@ -226,10 +226,19 @@ class MEDDLE_OT_fix_bg(Operator):
                         g_SamplerColorMap1Node.label = "BASE COLOR 1"
 
                     g_SamplerColorMap1Node.image = bpy.data.images.load(self.directory + g_SamplerColorMap1 + ".png")
-                    mat.node_tree.links.new(g_SamplerColorMap1Node.outputs['Color'], mix_color.inputs['Color2'])
 
-                    # use base_color
-                    mat.node_tree.links.new(g_SamplerColorMap0Node.outputs['Color'], mix_color.inputs['Color1'])
+                    if "CategoryTextureType" in mat:
+                        if mat["CategoryTextureType"] == "0x1DF2985C" or mat["CategoryTextureType"] == "SwapMapPriority":
+                            # swap color1 and color2
+                            print("Swapping color1 and color2")
+                            mat.node_tree.links.new(g_SamplerColorMap1Node.outputs['Color'], mix_color.inputs['Color1'])
+                            mat.node_tree.links.new(g_SamplerColorMap0Node.outputs['Color'], mix_color.inputs['Color2'])
+                        else:
+                            mat.node_tree.links.new(g_SamplerColorMap1Node.outputs['Color'], mix_color.inputs['Color2'])
+                            mat.node_tree.links.new(g_SamplerColorMap0Node.outputs['Color'], mix_color.inputs['Color1'])
+                    else:
+                        mat.node_tree.links.new(g_SamplerColorMap1Node.outputs['Color'], mix_color.inputs['Color2'])
+                        mat.node_tree.links.new(g_SamplerColorMap0Node.outputs['Color'], mix_color.inputs['Color1'])
 
                     # organize nodes
                     g_SamplerColorMap1Node.location = (g_SamplerColorMap0Node.location.x, g_SamplerColorMap0Node.location.y - 150)
@@ -264,10 +273,19 @@ class MEDDLE_OT_fix_bg(Operator):
                         gSamplerNormalMap1Node = mat.node_tree.nodes.new('ShaderNodeTexImage')
                         gSamplerNormalMap1Node.label = "NORMAL MAP 1"
                     gSamplerNormalMap1Node.image = bpy.data.images.load(self.directory + g_SamplerNormalMap1 + ".png")
-                    mat.node_tree.links.new(gSamplerNormalMap1Node.outputs['Color'], mix_normal.inputs['Color2'])
 
-                    # use base_normal
-                    mat.node_tree.links.new(g_SamplerNormalMap0Node.outputs['Color'], mix_normal.inputs['Color1'])
+                    if "CategoryTextureType" in mat:
+                        if mat["CategoryTextureType"] == "0x1DF2985C" or mat["CategoryTextureType"] == "SwapMapPriority":
+                            # swap color1 and color2
+                            print("Swapping color1 and color2")
+                            mat.node_tree.links.new(gSamplerNormalMap1Node.outputs['Color'], mix_normal.inputs['Color1'])
+                            mat.node_tree.links.new(g_SamplerNormalMap0Node.outputs['Color'], mix_normal.inputs['Color2'])
+                        else:
+                            mat.node_tree.links.new(gSamplerNormalMap1Node.outputs['Color'], mix_normal.inputs['Color2'])
+                            mat.node_tree.links.new(g_SamplerNormalMap0Node.outputs['Color'], mix_normal.inputs['Color1'])
+                    else:
+                        mat.node_tree.links.new(gSamplerNormalMap1Node.outputs['Color'], mix_normal.inputs['Color2'])
+                        mat.node_tree.links.new(g_SamplerNormalMap0Node.outputs['Color'], mix_normal.inputs['Color1'])
 
                     # organize nodes
                     gSamplerNormalMap1Node.location = (g_SamplerNormalMap0Node.location.x, g_SamplerNormalMap0Node.location.y - 150)

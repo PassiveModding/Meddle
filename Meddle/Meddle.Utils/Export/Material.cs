@@ -48,7 +48,8 @@ public enum TextureMode : uint
 {
     Default = 0x5CC605B5,       // Default mask texture
     Compatibility = 0x600EF9DF, // Used to enable diffuse texture
-    Simple = 0x22A4AABF         // meh
+    Simple = 0x22A4AABF,        // meh
+    SwapMapPriority = 0x1DF2985C, // seems for bg.shpk to determine the order to mix Map0 and Map1 textures
 }
 
 public enum SpecularMode : uint
