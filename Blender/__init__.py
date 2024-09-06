@@ -26,10 +26,10 @@ class VIEW3D_PT_update_meddle_shaders(Panel):
         row.operator("meddle.fix_bg", text="Fix bg.shpk")
 
         row = layout.row()
-        row.operator("meddle.connect_volume", text="Connect Volume")
+        row.operator("meddle.connect_volume", text="Connect Skin/Iris Volume")
 
 class MEDDLE_OT_connect_volume(Operator):
-    """Connects the volume output to the material output"""
+    """Connects the volume output to the material output for skin.shpk and iris.shpk"""
     bl_idname = "meddle.connect_volume"
     bl_label = "Connect Volume"
     bl_options = {'REGISTER', 'UNDO'}
@@ -39,6 +39,12 @@ class MEDDLE_OT_connect_volume(Operator):
         for mat in bpy.data.materials:
             # Check if the material uses nodes
             if not mat.use_nodes:
+                continue
+
+            if "ShaderPackage" not in mat:
+                continue
+
+            if mat["ShaderPackage"] != "skin.shpk" and mat["ShaderPackage"] != "iris.shpk":
                 continue
             
             # Look for the Principled BSDF node
