@@ -1,6 +1,6 @@
 ﻿using System.Numerics;
 using System.Runtime.CompilerServices;
-using Meddle.Utils.Models;
+using Meddle.Utils;
 
 namespace Meddle.Plugin.Models.Composer;
 

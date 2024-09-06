@@ -1,7 +1,11 @@
-﻿using System.Text;
+﻿using System.Numerics;
+using System.Runtime.InteropServices;
+using System.Text;
 using Meddle.Utils.Files;
+using Meddle.Utils.Files.Structs.Material;
+using Vector2 = FFXIVClientStructs.FFXIV.Common.Math.Vector2;
 
-namespace Meddle.Utils.Models;
+namespace Meddle.Utils.Helpers;
 
 public static class MaterialUtils
 {
@@ -63,5 +67,33 @@ public static class MaterialUtils
             colorSetStrings.Add(offset, str);
         }
         return colorSetStrings;
+    }
+
+    public static IColorTableSet? GetColorTable(this MtrlFile file)
+    {
+        if (file.FileHeader.DataSetSize == 0)
+        {
+            return null;
+        }
+
+        if (!file.HasTable)
+        {
+            return null;
+        }
+        
+        var dataSetReader = new SpanBinaryReader(file.DataSet);
+        return file.LargeColorTable switch
+        {
+            true => new ColorTableSet
+            {
+                ColorTable = new ColorTable(ref dataSetReader),
+                ColorDyeTable = file.HasDyeTable ? new ColorDyeTable(ref dataSetReader) : null
+            },
+            false => new LegacyColorTableSet
+            {
+                ColorTable = new LegacyColorTable(ref dataSetReader),
+                ColorDyeTable = file.HasDyeTable ? new LegacyColorDyeTable(ref dataSetReader) : null
+            }
+        };
     }
 }

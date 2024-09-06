@@ -1,10 +1,11 @@
 ﻿using System.Numerics;
 using Meddle.Plugin.Models.Layout;
+using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
-using Meddle.Utils.Models;
+using Meddle.Utils.Helpers;
 using Microsoft.Extensions.Logging;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
@@ -42,7 +43,8 @@ public class CharacterComposer
         }
     }
 
-    private void HandleModel(ParsedCharacterInfo characterInfo, ParsedModelInfo modelInfo, SceneBuilder scene, List<BoneNodeBuilder> bones, BoneNodeBuilder? rootBone)
+    private void HandleModel(GenderRace genderRace, CustomizeParameter customizeParameter, CustomizeData customizeData, 
+                             ParsedModelInfo modelInfo, SceneBuilder scene, List<BoneNodeBuilder> bones, BoneNodeBuilder? rootBone)
     {
         if (modelInfo.Path.GamePath.Contains("b0003_top"))
         {
@@ -73,11 +75,6 @@ public class CharacterComposer
 
             log.LogInformation("Loaded material {mtrlPath}", materialInfo.Path.FullPath);
             var mtrlFile = new MtrlFile(mtrlData);
-            if (materialInfo.ColorTable != null)
-            {
-                mtrlFile.ColorTable = materialInfo.ColorTable.Value;
-            }
-
             var shpkName = mtrlFile.GetShaderPackageName();
             var shpkPath = $"shader/sm5/shpk/{shpkName}";
             var shpkData = dataProvider.LookupData(shpkPath);
@@ -96,8 +93,12 @@ public class CharacterComposer
                                                        x.Path.FullPath == handleString.FullPath);
                                                return match?.Resource;
                                            });
-            material.SetCustomizeParameters(characterInfo.CustomizeParameter);
-            material.SetCustomizeData(characterInfo.CustomizeData);
+            if (materialInfo.ColorTable != null)
+            {
+                material.SetColorTable(materialInfo.ColorTable);
+            }
+            material.SetCustomizeParameters(customizeParameter);
+            material.SetCustomizeData(customizeData);
 
             materialBuilders[i] = material.Compose(dataProvider);
         });
@@ -118,7 +119,7 @@ public class CharacterComposer
             var parsed = RaceDeformer.ParseRaceCode(modelInfo.Path.GamePath);
             if (Enum.IsDefined(parsed))
             {
-                deform = (parsed, characterInfo.GenderRace, new RaceDeformer(PbdFile!, bones));
+                deform = (parsed, genderRace, new RaceDeformer(PbdFile!, bones));
             }
             else
             {
@@ -162,11 +163,8 @@ public class CharacterComposer
         }
     }
     
-    public void ComposeCharacterInstance(ParsedCharacterInstance characterInstance, SceneBuilder scene, NodeBuilder root)
+    public void ComposeCharacterInstance(ParsedCharacterInfo characterInfo, SceneBuilder scene, NodeBuilder root)
     {
-        var characterInfo = characterInstance.CharacterInfo;
-        if (characterInfo == null) return;
-
         var bones = SkeletonUtils.GetBoneMap(characterInfo.Skeleton, true, out var rootBone);
         if (rootBone != null)
         {
@@ -175,8 +173,31 @@ public class CharacterComposer
 
         foreach (var t in characterInfo.Models)
         {
-            HandleModel(characterInfo, t, scene, bones, rootBone);
+            HandleModel(characterInfo.GenderRace, characterInfo.CustomizeParameter, characterInfo.CustomizeData, 
+                        t, scene, bones, rootBone);
         }
+    }
+    
+    public void ComposeModels(ParsedModelInfo[] models, GenderRace genderRace, CustomizeParameter customizeParameter, 
+                              CustomizeData customizeData, ParsedSkeleton skeleton, SceneBuilder scene, NodeBuilder root)
+    {
+        var bones = SkeletonUtils.GetBoneMap(skeleton, true, out var rootBone);
+        if (rootBone != null)
+        {
+            root.AddNode(rootBone);
+        }
+
+        foreach (var t in models)
+        {
+            HandleModel(genderRace, customizeParameter, customizeData, t, scene, bones, rootBone);
+        }
+    }
+    
+    public void ComposeCharacterInstance(ParsedCharacterInstance characterInstance, SceneBuilder scene, NodeBuilder root)
+    {
+        var characterInfo = characterInstance.CharacterInfo;
+        if (characterInfo == null) return;
+        ComposeCharacterInstance(characterInfo, scene, root);
     }
     
     private void EnsureBonesExist(Model model, List<BoneNodeBuilder> bones, BoneNodeBuilder? root)

@@ -1,7 +1,7 @@
 ﻿using ImGuiNET;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
-using Meddle.Utils.Models;
+using Meddle.Utils.Helpers;
 using Microsoft.Extensions.Logging;
 
 namespace Meddle.UI.Windows;

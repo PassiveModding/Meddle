@@ -2,7 +2,7 @@
 using System.Runtime.InteropServices;
 using SkiaSharp;
 
-namespace Meddle.Utils.Models;
+namespace Meddle.Utils;
 
 public sealed class SKTexture
     {

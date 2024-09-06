@@ -7,8 +7,6 @@ using Meddle.Utils.Materials;
 using SharpGLTF.Geometry;
 using SharpGLTF.Geometry.VertexTypes;
 using SharpGLTF.Materials;
-using SharpGLTF.Memory;
-using SharpGLTF.Schema2;
 using Mesh = Meddle.Utils.Export.Mesh;
 
 namespace Meddle.Utils;
@@ -328,7 +326,6 @@ public class MeshBuilder
 
         var hasColor = vertex[0].Color != null;
         var hasUv = vertex[0].UV != null;
-
         if (hasColor && hasUv)
         {
             return typeof(VertexColor1Texture2);
@@ -389,100 +386,3 @@ public class MeshBuilder
     private static Vector3 ToVec3(Vector4 v) => new(v.X, v.Y, v.Z);
     private static (Vector2 XY, Vector2 ZW) ToVec2(Vector4 v) => (new(v.X, v.Y), new(v.Z, v.W));
 }
-
-/*public struct VertexPositionNormalTangent2 : IVertexGeometry, IEquatable<VertexPositionNormalTangent2>
-{
-    public VertexPositionNormalTangent2(in Vector3 p, in Vector3 n, in Vector4 t, in Vector4 t2)
-    {
-        this.Position = p;
-        this.Normal = n;
-        this.Tangent = t;
-        this.Tangent2 = t2;
-    }
-
-    public static implicit operator VertexPositionNormalTangent2(in (Vector3 Pos, Vector3 Nrm, Vector4 Tgt, Vector4 Tgt2) tuple)
-    {
-        return new VertexPositionNormalTangent2(tuple.Pos, tuple.Nrm, tuple.Tgt, tuple.Tgt2);
-    }
-
-    #region data
-    
-    public Vector3 Position;        
-    public Vector3 Normal;
-    public Vector4 Tangent;
-    public Vector4 Tangent2;
-
-    IEnumerable<KeyValuePair<string, AttributeFormat>> IVertexReflection.GetEncodingAttributes()
-    {
-        yield return new KeyValuePair<string, AttributeFormat>("POSITION", new AttributeFormat(DimensionType.VEC3));
-        yield return new KeyValuePair<string, AttributeFormat>("NORMAL", new AttributeFormat(DimensionType.VEC3));
-        yield return new KeyValuePair<string, AttributeFormat>("TANGENT", new AttributeFormat(DimensionType.VEC4));
-        yield return new KeyValuePair<string, AttributeFormat>("TANGENT2", new AttributeFormat(DimensionType.VEC4));
-    }
-
-    public override readonly int GetHashCode() { return Position.GetHashCode(); }
-
-    /// <inheritdoc/>
-    public override readonly bool Equals(object obj) { return obj is VertexPositionNormalTangent2 other && AreEqual(this, other); }
-
-    /// <inheritdoc/>
-    public readonly bool Equals(VertexPositionNormalTangent2 other) { return AreEqual(this, other); }
-    public static bool operator ==(in VertexPositionNormalTangent2 a, in VertexPositionNormalTangent2 b) { return AreEqual(a, b); }
-    public static bool operator !=(in VertexPositionNormalTangent2 a, in VertexPositionNormalTangent2 b) { return !AreEqual(a, b); }
-    public static bool AreEqual(in VertexPositionNormalTangent2 a, in VertexPositionNormalTangent2 b)
-    {
-        return a.Position == b.Position && a.Normal == b.Normal && a.Tangent == b.Tangent && a.Tangent2 == b.Tangent2;
-    }        
-
-    #endregion
-
-    #region API
-
-    void IVertexGeometry.SetPosition(in Vector3 position) { this.Position = position; }
-
-    void IVertexGeometry.SetNormal(in Vector3 normal) { this.Normal = normal; }
-
-    void IVertexGeometry.SetTangent(in Vector4 tangent) { this.Tangent = tangent; }
-    
-    void SetTangent2(in Vector4 tangent2) { this.Tangent2 = tangent2; }
-
-    /// <inheritdoc/>
-    public readonly VertexGeometryDelta Subtract(IVertexGeometry baseValue)
-    {
-        var baseVertex = (VertexPositionNormalTangent2)baseValue;
-        var tangentDelta = this.Tangent - baseVertex.Tangent;
-
-        return new VertexGeometryDelta(
-            this.Position - baseVertex.Position,
-            this.Normal - baseVertex.Normal,
-            new Vector3(tangentDelta.X, tangentDelta.Y, tangentDelta.Z));
-    }
-
-    public void Add(in VertexGeometryDelta delta)
-    {
-        this.Position += delta.PositionDelta;
-        this.Normal += delta.NormalDelta;
-        this.Tangent += new Vector4(delta.TangentDelta, 0);
-    }
-
-    public readonly Vector3 GetPosition() { return this.Position; }
-    public readonly bool TryGetNormal(out Vector3 normal) { normal = this.Normal; return true; }
-    public readonly bool TryGetTangent(out Vector4 tangent) { tangent = this.Tangent; return true; }
-    public readonly bool TryGetTangent2(out Vector4 tangent2) { tangent2 = this.Tangent2; return true; }
-
-    /// <inheritdoc/>
-    public void ApplyTransform(in Matrix4x4 xform)
-    {
-        Position = Vector3.Transform(Position, xform);
-        Normal = Vector3.Normalize(Vector3.TransformNormal(Normal, xform));
-
-        var txyz = Vector3.Normalize(Vector3.TransformNormal(new Vector3(Tangent.X, Tangent.Y, Tangent.Z), xform));
-        Tangent = new Vector4(txyz, Tangent.W);
-        
-        var t2xyz = Vector3.Normalize(Vector3.TransformNormal(new Vector3(Tangent2.X, Tangent2.Y, Tangent2.Z), xform));
-        Tangent2 = new Vector4(t2xyz, Tangent2.W);
-    }
-
-    #endregion
-}
-*/

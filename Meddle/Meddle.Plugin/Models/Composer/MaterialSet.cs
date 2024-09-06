@@ -9,8 +9,8 @@ using Meddle.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.Structs.Material;
+using Meddle.Utils.Helpers;
 using Meddle.Utils.Materials;
-using Meddle.Utils.Models;
 using SharpGLTF.Materials;
 using ShaderPackage = Meddle.Utils.Export.ShaderPackage;
 
@@ -176,7 +176,11 @@ public class MaterialSet
     public bool IsTransparent => (shaderFlagData & (uint)ShaderFlags.EnableTranslucency) != 0;
     
     
-    public readonly ColorTable? ColorTable;
+    private IColorTableSet? colorTable;
+    public void SetColorTable(IColorTableSet? table)
+    {
+        this.colorTable = table;
+    }
     
     // BgColorChange
     private Vector4? stainColor;
@@ -338,7 +342,7 @@ public class MaterialSet
         this.textureLoader = textureLoader;
         shaderFlagData = file.ShaderHeader.Flags;
         var package = new ShaderPackage(shpk, shpkName);
-        ColorTable = file.ColorTable;
+        colorTable = file.GetColorTable();
         
         ShaderKeys = new ShaderKey[file.ShaderKeys.Length];
         for (var i = 0; i < file.ShaderKeys.Length; i++)
@@ -417,7 +421,8 @@ public class MaterialSet
             case "lightshaft.shpk":
                 return new LightshaftMaterialBuilder(mtrlName, this, dataProvider);
             case "character.shpk":
-                return new CharacterMaterialBuilder(mtrlName, this, dataProvider);
+            case "characterlegacy.shpk":
+                return new CharacterMaterialBuilder(mtrlName, this, dataProvider, colorTable);
             case "charactertattoo.shpk":
                 return new CharacterTattooMaterialBuilder(mtrlName, this, dataProvider, customizeParameters ?? new CustomizeParameter());
             case "characterocclusion.shpk":
@@ -477,8 +482,8 @@ public class MaterialSet
 
         void AddColorTable()
         {
-            if (ColorTable == null) return;
-            extrasDict["ColorTable"] = JsonNode.Parse(JsonSerializer.Serialize(ColorTable, JsonOptions))!;
+            if (colorTable == null) return;
+            extrasDict["ColorTable"] = JsonNode.Parse(JsonSerializer.Serialize(colorTable, JsonOptions))!;
         }
         
         void AddCustomizeData()

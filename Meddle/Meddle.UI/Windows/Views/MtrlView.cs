@@ -6,7 +6,7 @@ using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
 using Meddle.Utils.Files.Structs.Material;
-using Meddle.Utils.Models;
+using Meddle.Utils.Helpers;
 
 namespace Meddle.UI.Windows.Views;
 
@@ -315,23 +315,23 @@ public class MtrlView : IView
         ImGui.Text("Tile Set");
         ImGui.NextColumn();
 
-        for (var i = 0; i < file.ColorTable.Rows.Length; i++)
-        {
-            if (file.LargeColorTable)
-            {
-                DrawRow(i);
-            }
-            else
-            {
-                ImGui.Text($"Legacy Row {i}");
-                DrawRow(i);
-            }
-        }
+        // for (var i = 0; i < file.ColorTable.Rows.Length; i++)
+        // {
+        //     if (file.LargeColorTable)
+        //     {
+        //         DrawRow(i);
+        //     }
+        //     else
+        //     {
+        //         ImGui.Text($"Legacy Row {i}");
+        //         DrawRow(i);
+        //     }
+        // }
 
         ImGui.Columns(1);
     }
 
-    private void DrawRow(int i)
+    /*private void DrawRow(int i)
     {
         ref var row = ref file.ColorTable.Rows[i];
         ImGui.Text($"{i}");
@@ -387,5 +387,5 @@ public class MtrlView : IView
         ImGui.NextColumn();
         ImGui.Text($"{row.TileIndex}");
         ImGui.NextColumn();
-    }
+    }*/
 }

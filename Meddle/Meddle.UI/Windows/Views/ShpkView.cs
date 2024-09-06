@@ -5,7 +5,7 @@ using ImGuiNET;
 using Meddle.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
-using Meddle.Utils.Models;
+using Meddle.Utils.Helpers;
 
 namespace Meddle.UI.Windows.Views;
 

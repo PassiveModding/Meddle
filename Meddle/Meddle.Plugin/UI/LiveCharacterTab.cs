@@ -1,4 +1,5 @@
-﻿using Dalamud.Game.ClientState.Objects.Types;
+﻿using System.Diagnostics;
+using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface;
 using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.Textures;
@@ -9,6 +10,8 @@ using FFXIVClientStructs.FFXIV.Common.Math;
 using FFXIVClientStructs.Interop;
 using ImGuiNET;
 using Meddle.Plugin.Models;
+using Meddle.Plugin.Models.Composer;
+using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.Services.UI;
@@ -18,6 +21,7 @@ using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
 using Microsoft.Extensions.Logging;
+using SharpGLTF.Scenes;
 using SkiaSharp;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
 using CSCharacterBase = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.CharacterBase;
@@ -32,6 +36,7 @@ public unsafe class LiveCharacterTab : ITab
 {
     private readonly CommonUi commonUi;
     private readonly ExportService exportService;
+    private readonly LayoutService layoutService;
     public MenuType MenuType => MenuType.Default;
 
     private readonly FileDialogManager fileDialog = new()
@@ -54,6 +59,7 @@ public unsafe class LiveCharacterTab : ITab
     public LiveCharacterTab(
         ILogger<LiveCharacterTab> log,
         ExportService exportService,
+        LayoutService layoutService,
         ITextureProvider textureProvider,
         ParseService parseService,
         TextureCache textureCache,
@@ -63,6 +69,7 @@ public unsafe class LiveCharacterTab : ITab
     {
         this.log = log;
         this.exportService = exportService;
+        this.layoutService = layoutService;
         this.textureProvider = textureProvider;
         this.parseService = parseService;
         this.textureCache = textureCache;
@@ -168,10 +175,10 @@ public unsafe class LiveCharacterTab : ITab
         if (modelType == CSCharacterBase.ModelType.Human)
         {
             DrawHumanCharacter((CSHuman*)cBase, out customizeData, out customizeParams, out genderRace);
-            if (ImGui.Button("Export All Models With Attaches"))
-            {
-                ExportAllModelsWithAttaches(character, customizeParams, customizeData, genderRace);
-            }
+            // if (ImGui.Button("Export All Models With Attaches"))
+            // {
+            //     ExportAllModelsWithAttaches(character, customizeParams, customizeData, genderRace);
+            // }
         }
         else
         {
@@ -235,39 +242,50 @@ public unsafe class LiveCharacterTab : ITab
         }
 
         ImGui.SameLine();
-        var selectedModelCount = cBase->ModelsSpan.ToArray().Count(modelPtr =>
+        var currentSelectedModels = cBase->ModelsSpan.ToArray().Where(modelPtr =>
         {
             if (modelPtr == null) return false;
             return selectedModels.ContainsKey((nint)modelPtr.Value) && selectedModels[(nint)modelPtr.Value];
-        });
-        using (ImRaii.Disabled(selectedModelCount == 0))
+        }).ToArray();
+        using (ImRaii.Disabled(currentSelectedModels.Length == 0))
         {
-            if (ImGui.Button($"Export Selected Models ({selectedModelCount})") && selectedModelCount > 0)
+            if (ImGui.Button($"Export Selected Models ({currentSelectedModels.Length})") && currentSelectedModels.Length > 0)
             {
                 var colorTableTextures = parseService.ParseColorTableTextures(cBase);
-                var models = new List<MdlFileGroup>();
-                foreach (var modelPtr in cBase->ModelsSpan)
-                {
-                    if (modelPtr == null) continue;
-                    if (!selectedModels.TryGetValue((nint)modelPtr.Value, out var isSelected) || !isSelected) continue;
-                    var model = modelPtr.Value;
-                    if (model == null) continue;
-                    var modelData = parseService.HandleModelPtr(cBase, (int)model->SlotIndex, colorTableTextures);
-                    if (modelData == null) continue;
-                    models.Add(modelData);
-                }
-
+                var models = new List<ParsedModelInfo>();
+                customizeData ??= new CustomizeData();
+                customizeParams ??= new CustomizeParameter();
                 var skeleton = StructExtensions.GetParsedSkeleton(cBase);
-                var cGroup = new CharacterGroup(customizeParams ?? new CustomizeParameter(),
-                                                customizeData ?? new CustomizeData(), genderRace, models.ToArray(),
-                                                skeleton, []);
-
-                fileDialog.SaveFolderDialog("Save Model", "Character",
+                foreach (var currentSelectedModel in currentSelectedModels)
+                {
+                    var modelInfo = layoutService.HandleModel(cBase, currentSelectedModel.Value, colorTableTextures);
+                    if (modelInfo != null)
+                    {
+                        models.Add(modelInfo);
+                    }
+                }
+                
+                var folder = $"Models-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
+                fileDialog.SaveFolderDialog("Save Model", folder,
                                             (result, path) =>
                                             {
                                                 if (!result) return;
-
-                                                Task.Run(() => { exportService.Export(cGroup, path); });
+                                                
+                                                Task.Run(() =>
+                                                {
+                                                    var cacheDir = Path.Combine(path, "cache");
+                                                    Directory.CreateDirectory(cacheDir);
+                                                    var composer = new CharacterComposer(
+                                                        log,
+                                                        new DataProvider(cacheDir, pack, log, CancellationToken.None));
+                                                    var scene = new SceneBuilder();
+                                                    var root = new NodeBuilder();
+                                                    composer.ComposeModels(models.ToArray(), genderRace, customizeParams, 
+                                                                           customizeData, skeleton, scene, root);
+                                                    scene.AddNode(root);
+                                                    scene.ToGltf2().SaveGLTF(Path.Combine(path, "character.gltf"));
+                                                    Process.Start("explorer.exe", path);
+                                                });
                                             }, Plugin.TempDirectory);
             }
         }
@@ -288,7 +306,7 @@ public unsafe class LiveCharacterTab : ITab
         }
     }
 
-    private void ExportAllModelsWithAttaches(CSCharacter* character, CustomizeParameter? customizeParams, CustomizeData? customizeData, GenderRace genderRace)
+    /*private void ExportAllModelsWithAttaches(CSCharacter* character, CustomizeParameter? customizeParams, CustomizeData? customizeData, GenderRace genderRace)
     {
         var drawObject = character->GameObject.DrawObject;
         if (drawObject == null)
@@ -325,26 +343,26 @@ public unsafe class LiveCharacterTab : ITab
             {
                 // hacky workaround since mount is actually a "root" and the character is attached to them
                 // TODO: transform needs to be adjusted to be relative to the mount
-                /*var playerAttach = StructExtensions.GetParsedAttach(cBase);
-                var attachPointName =
-                    playerAttach.OwnerSkeleton!.PartialSkeletons[playerAttach.PartialSkeletonIdx].HkSkeleton!.BoneNames[
-                        (int)playerAttach.BoneIdx];
-
-                attachGroup.Attach.OwnerSkeleton = playerAttach.TargetSkeleton;
-                attachGroup.Attach.TargetSkeleton = attachGroup.Skeleton;
-                for (int i = 0; i < attachGroup.Skeleton.PartialSkeletons.Count; i++)
-                {
-                    var partial = attachGroup.Skeleton.PartialSkeletons[i];
-                    for (int j = 0; j < partial.HkSkeleton!.BoneNames.Count; j++)
-                    {
-                        if (partial.HkSkeleton.BoneNames[j] == attachPointName)
-                        {
-                            attachGroup.Attach.BoneIdx = (uint)j;
-                            attachGroup.Attach.PartialSkeletonIdx = (byte)i;
-                            break;
-                        }
-                    }
-                }*/
+                // var playerAttach = StructExtensions.GetParsedAttach(cBase);
+                // var attachPointName =
+                //     playerAttach.OwnerSkeleton!.PartialSkeletons[playerAttach.PartialSkeletonIdx].HkSkeleton!.BoneNames[
+                //         (int)playerAttach.BoneIdx];
+                //
+                // attachGroup.Attach.OwnerSkeleton = playerAttach.TargetSkeleton;
+                // attachGroup.Attach.TargetSkeleton = attachGroup.Skeleton;
+                // for (int i = 0; i < attachGroup.Skeleton.PartialSkeletons.Count; i++)
+                // {
+                //     var partial = attachGroup.Skeleton.PartialSkeletons[i];
+                //     for (int j = 0; j < partial.HkSkeleton!.BoneNames.Count; j++)
+                //     {
+                //         if (partial.HkSkeleton.BoneNames[j] == attachPointName)
+                //         {
+                //             attachGroup.Attach.BoneIdx = (uint)j;
+                //             attachGroup.Attach.PartialSkeletonIdx = (byte)i;
+                //             break;
+                //         }
+                //     }
+                // }
                     
                 attaches.Add(attachGroup);
             }
@@ -382,25 +400,36 @@ public unsafe class LiveCharacterTab : ITab
                                             exportService.Export(group, path); 
                                         });
                                     }, Plugin.TempDirectory);
-    }
+    }*/
     
     private void ExportAllModels(CSCharacterBase* cBase, CustomizeParameter? customizeParams, CustomizeData? customizeData, GenderRace genderRace)
     {
-        var group = parseService.ParseCharacterBase(cBase) with
+        var info = layoutService.HandleDrawObject((DrawObject*)cBase);
+        if (info == null)
         {
-            CustomizeParams = customizeParams ?? new CustomizeParameter(),
-            CustomizeData = customizeData ?? new CustomizeData(),
-            GenderRace = genderRace
-        };
+            log.LogError("Failed to get character info from draw object");
+            return;
+        }
         
-        fileDialog.SaveFolderDialog("Save Model", "Character",
+        var folderName = $"Character-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
+        fileDialog.SaveFolderDialog("Save Model", folderName,
                                     (result, path) =>
                                     {
                                         if (!result) return;
 
                                         Task.Run(() =>
                                         {
-                                            exportService.Export(group, path); 
+                                            var cacheDir = Path.Combine(path, "cache");
+                                            Directory.CreateDirectory(cacheDir);
+                                            var composer = new CharacterComposer(
+                                                log,
+                                                new DataProvider(cacheDir, pack, log, CancellationToken.None));
+                                            var scene = new SceneBuilder();
+                                            var root = new NodeBuilder();
+                                            composer.ComposeCharacterInstance(info, scene, root);
+                                            scene.AddNode(root);
+                                            scene.ToGltf2().SaveGLTF(Path.Combine(path, "character.gltf"));
+                                            Process.Start("explorer.exe", path);
                                         });
                                     }, Plugin.TempDirectory);
     }
@@ -475,29 +504,43 @@ public unsafe class LiveCharacterTab : ITab
             if (ImGui.MenuItem("Export as glTF"))
             {
                 var folderName = Path.GetFileNameWithoutExtension(fileName);
+                var characterInfo = layoutService.HandleDrawObject((DrawObject*)cBase);
+                if (characterInfo == null)
+                {
+                    log.LogError("Failed to get character info from draw object");
+                    return;
+                }
+                
+                var colorTableTextures = parseService.ParseColorTableTextures(cBase);
+                
                 fileDialog.SaveFolderDialog("Save Model", folderName,
-                                            (result, path) =>
-                                            {
-                                                if (!result) return;
-                                                var colorTableTextures = parseService.ParseColorTableTextures(cBase);
-                                                var modelData =
-                                                    parseService.HandleModelPtr(
-                                                        cBase, (int)model->SlotIndex, colorTableTextures);
-                                                if (modelData == null)
-                                                {
-                                                    log.LogError("Failed to get model data for {FileName}", fileName);
-                                                    return;
-                                                }
-
-                                                var skeleton = StructExtensions.GetParsedSkeleton(model);
-                                                var cGroup = new CharacterGroup(
-                                                    customizeParams ?? new CustomizeParameter(),
-                                                    customizeData ?? new CustomizeData(), genderRace, [modelData],
-                                                    skeleton, []);
-
-
-                                                Task.Run(() => { exportService.Export(cGroup, path); });
-                                            }, Plugin.TempDirectory);
+                            (result, path) =>
+                            {
+                                if (!result) return;
+                                
+                                var modelData = layoutService.HandleModel(cBase, model, colorTableTextures);
+                                if (modelData == null)
+                                {
+                                    log.LogError("Failed to get model data for {FileName}", fileName);
+                                    return;
+                                }
+            
+                                Task.Run(() =>
+                                {
+                                    var cacheDir = Path.Combine(path, "cache");
+                                    Directory.CreateDirectory(cacheDir);
+                                    var composer = new CharacterComposer(
+                                        log,
+                                        new DataProvider(cacheDir, pack, log, CancellationToken.None));
+                                    var scene = new SceneBuilder();
+                                    var root = new NodeBuilder();
+                                    composer.ComposeModels([modelData], characterInfo.GenderRace, characterInfo.CustomizeParameter, 
+                                                           characterInfo.CustomizeData, characterInfo.Skeleton, scene, root);
+                                    scene.AddNode(root);
+                                    scene.ToGltf2().SaveGLTF(Path.Combine(path, "model.gltf"));
+                                    Process.Start("explorer.exe", path);
+                                });
+                            }, Plugin.TempDirectory);
             }
 
             ImGui.EndPopup();
@@ -769,6 +812,7 @@ public unsafe class LiveCharacterTab : ITab
                                                     var imageData = str.DetachAsData().AsSpan();
                                                     File.WriteAllBytes(filePath, imageData.ToArray());
                                                 }
+                                                Process.Start("explorer.exe", path);
                                             }, Plugin.TempDirectory);
             }
 

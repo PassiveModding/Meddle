@@ -4,7 +4,6 @@ using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
-using Meddle.Utils.Models;
 using Microsoft.Extensions.Logging;
 using SharpGLTF.Materials;
 using SharpGLTF.Memory;

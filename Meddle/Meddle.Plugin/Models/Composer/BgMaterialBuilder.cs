@@ -5,7 +5,6 @@ using Meddle.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Materials;
-using Meddle.Utils.Models;
 using SharpGLTF.Materials;
 
 namespace Meddle.Plugin.Models.Composer;

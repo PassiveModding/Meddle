@@ -2,7 +2,6 @@
 using Meddle.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Materials;
-using Meddle.Utils.Models;
 using AlphaMode = SharpGLTF.Materials.AlphaMode;
 
 namespace Meddle.Plugin.Models.Composer;

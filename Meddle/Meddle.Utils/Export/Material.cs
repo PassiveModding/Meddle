@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 using System.Text.Json.Serialization;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.Structs.Material;
-using Meddle.Utils.Models;
+using Meddle.Utils.Helpers;
 
 namespace Meddle.Utils.Export;
 
@@ -61,13 +61,13 @@ public enum SpecularMode : uint
 public enum MaterialConstant : uint
 {
     g_AlphaThreshold = 0x29AC0223,
-    g_ShaderID = 0x59BDA0B1,
+    g_ShaderID = 0x59BDA0B1, // ??? Set to 0: disable SSS, add a metallic effect. Set to 1: SSS enabled. Set to 6 (hroth) disable SSS, fur parallax enabled
     g_DiffuseColor = 0x2C2A34DD,
     g_SpecularColor = 0x141722D5,
     g_SpecularColorMask = 0xCB0338DC,
     g_LipRoughnessScale = 0x3632401A,
     g_WhiteEyeColor = 0x11C90091,
-    g_SphereMapIndex = 0x074953E9,
+    g_SphereMapIndex = 0x074953E9, // array index for chara/common/texture/sphere_d_array.tex
     g_EmissiveColor = 0x38A64362,
     g_SSAOMask = 0xB7FA33E2,
     g_TileIndex = 0x4255F2F4,
@@ -77,9 +77,9 @@ public enum MaterialConstant : uint
     g_SheenRate = 0x800EE35F,
     g_SheenTintRate = 0x1F264897,
     g_SheenAperture = 0xF490F76E,
-    g_IrisRingColor = 0x50E36D56,
+    g_IrisRingColor = 0x50E36D56, // doesn't appear to do anything
     g_IrisRingEmissiveIntensity = 0x7DABA471,
-    g_IrisThickness = 0x66C93D3E,
+    g_IrisThickness = 0x66C93D3E, // SSS Thickness on eyes?
     g_IrisOptionColorRate = 0x29253809,
     g_AlphaAperture = 0xD62BF368,
     g_AlphaOffset = 0xD07A6A65,
@@ -96,73 +96,84 @@ public enum MaterialConstant : uint
     g_ShadowAlphaThreshold = 0xD925FF32,
     g_NearClip = 0x17A52926,
     g_AngleClip = 0x71DBDA81,
-    g_CausticsReflectionPowerBright = 0x0CC09E67, // 213950055
-    g_CausticsReflectionPowerDark = 0xC295EA6C, // 3264604780
-    g_HeightMapScale = 0xA320B199, // 2736828825
-    g_HeightMapUVScale = 0x5B99505D, // 1536774237
-    g_MultiWaveScale = 0x37363FDD, // 926302173
-    g_WaveSpeed = 0xE4C68FF3, // 3838218227
-    g_WaveTime = 0x8EB9D2A6, // 2394542758
-    g_AlphaMultiParam = 0x07EDA444, // 133014596
-    g_AmbientOcclusionMask = 0x575ABFB2, // 1465565106
-    g_ColorUVScale = 0xA5D02C52, // 2781883474
-    g_DetailColorUvScale = 0xC63D9716, // 3325925142
-    g_DetailID = 0x8981D4D9, // 2306987225
-    g_DetailNormalScale = 0x9F42EDA2, // 2671963554
-    g_EnvMapPower = 0xEEF5665F, // 4009059935
-    g_FresnelValue0 = 0x62E44A4F, // 1659128399
-    g_HeightScale = 0x8F8B0070, // 2408251504
-    g_InclusionAperture = 0xBCA22FD4, // 3164745684
-    g_IrisRingForceColor = 0x58DE06E2, // 1490945762
-    g_LayerDepth = 0xA9295FEF, // 2838061039
-    g_LayerIrregularity = 0x0A00B0A1, // 167817377
-    g_LayerScale = 0xBFCC6602, // 3217843714
-    g_LayerVelocity = 0x72181E22, // 1914183202
-    g_LipFresnelValue0 = 0x174BB64E, // 390837838
-    g_LipShininess = 0x878B272C, // 2274043692
-    g_MultiDetailColor = 0x11FD4221, // 301810209
-    g_MultiDiffuseColor = 0x3F8AC211, // 1066058257
-    g_MultiEmissiveColor = 0xAA676D0F, // 2858904847
-    g_MultiHeightScale = 0x43E59A68, // 1139120744
-    g_MultiNormalScale = 0x793AC5A3, // 2033894819
-    g_MultiSpecularColor = 0x86D60CB8, // 2262174904
-    g_MultiSSAOMask = 0x926E860D, // 2456716813
-    g_MultiWhitecapDistortion = 0x93504F3B, // 2471513915
-    g_MultiWhitecapScale = 0x312B69C1, // 824928705
-    g_NormalScale1 = 0x0DD83E61, // 232275553
-    g_NormalUVScale = 0xBB99CF76, // 3147419510
-    g_PrefersFailure = 0x5394405B, // 1402224731
-    g_ReflectionPower = 0x223A3329, // 574239529
-    g_ScatteringLevel = 0xB500BB24, // 3036724004
-    g_ShadowOffset = 0x96D2B53D, // 2530391357
-    g_ShadowPosOffset = 0x5351646E, // 1397843054
-    g_SpecularMask = 0x36080AD0, // 906496720
-    g_SpecularPower = 0xD9CB6B9C, // 3653987228
-    g_SpecularUVScale = 0x8D03A782, // 2365826946
-    g_ToonIndex = 0xDF15112D, // 3742699821
-    g_ToonLightScale = 0x3CCE9E4C, // 1020173900
-    g_ToonReflectionScale = 0xD96FAF7A, // 3647975290
-    g_ToonSpecIndex = 0x00A680BC, // 10911932
-    g_TransparencyDistance = 0x1624F841, // 371521601
-    g_WaveletDistortion = 0x3439B378, // 876196728
-    g_WaveletNoiseParam = 0x1279815C, // 309952860
-    g_WaveletOffset = 0x9BE8354A, // 2615686474
-    g_WaveletScale = 0xD62C681E, // 3593234462
-    g_WaveTime1 = 0x6EE5BF35, // 1860550453
-    g_WhitecapDistance = 0x5D26B262, // 1562817122
-    g_WhitecapDistortion = 0x61053025, // 1627729957
-    g_WhitecapNoiseScale = 0x0FF95B0C, // 268000012
-    g_WhitecapScale = 0xA3EA47AC, // 2750039980
-    g_WhitecapSpeed = 0x408A9CDE, // 1082825950
-    g_Fresnel = 0xE3AA427A, // 3819586170
-    g_Gradation = 0x94B40EEE, // 2494828270
-    g_Intensity = 0xBCBA70E1, // 3166335201
-    g_Shininess = 0x992869AB, // 2569562539
-    g_DetailColor = 0xDD93D839, // 3717453881
-    g_LayerColor = 0x35DC0B6F, // 903613295
-    g_RefractionColor = 0xBA163700, // 3122018048
-    g_WhitecapColor = 0x29FA2AC1, // 704260801
-    g_DetailNormalUvScale = 0x025A9BEE, // 39492590
+    g_CausticsReflectionPowerBright = 0x0CC09E67, 
+    g_CausticsReflectionPowerDark = 0xC295EA6C, 
+    
+    g_HeightScale = 0x8F8B0070, 
+    g_HeightMapScale = 0xA320B199, 
+    g_HeightMapUVScale = 0x5B99505D, 
+    g_MultiWaveScale = 0x37363FDD, 
+    g_WaveSpeed = 0xE4C68FF3, 
+    g_WaveTime = 0x8EB9D2A6, 
+    g_AlphaMultiParam = 0x07EDA444, 
+    g_AmbientOcclusionMask = 0x575ABFB2, 
+    g_ColorUVScale = 0xA5D02C52, 
+    
+    g_DetailID = 0x8981D4D9, // Index into bgcommon/nature/detail/texture/detail_d_array.tex and bgcommon/nature/detail/texture/detail_n_array.tex
+    g_DetailNormalScale = 0x9F42EDA2, 
+    g_DetailColorUvScale = 0xC63D9716,
+    g_DetailColor = 0xDD93D839, 
+    g_DetailNormalUvScale = 0x025A9BEE, 
+    
+    g_EnvMapPower = 0xEEF5665F, 
+    g_FresnelValue0 = 0x62E44A4F, 
+    g_InclusionAperture = 0xBCA22FD4, 
+    g_IrisRingForceColor = 0x58DE06E2, // seems to adjust the colour or specular of the iris ring
+    g_LayerDepth = 0xA9295FEF, 
+    g_LayerIrregularity = 0x0A00B0A1, 
+    g_LayerScale = 0xBFCC6602, 
+    g_LayerVelocity = 0x72181E22, 
+    g_LipFresnelValue0 = 0x174BB64E, 
+    g_LipShininess = 0x878B272C, 
+    g_MultiDetailColor = 0x11FD4221, 
+    g_MultiDiffuseColor = 0x3F8AC211, 
+    g_MultiEmissiveColor = 0xAA676D0F, 
+    g_MultiHeightScale = 0x43E59A68, 
+    g_MultiNormalScale = 0x793AC5A3, 
+    g_MultiSpecularColor = 0x86D60CB8, 
+    g_MultiSSAOMask = 0x926E860D, 
+    g_MultiWhitecapDistortion = 0x93504F3B, 
+    g_MultiWhitecapScale = 0x312B69C1, 
+    g_NormalScale1 = 0x0DD83E61, 
+    g_NormalUVScale = 0xBB99CF76, 
+    g_PrefersFailure = 0x5394405B, 
+    g_ReflectionPower = 0x223A3329, 
+    g_ScatteringLevel = 0xB500BB24, 
+    g_ShadowOffset = 0x96D2B53D, 
+    g_ShadowPosOffset = 0x5351646E, 
+    g_SpecularMask = 0x36080AD0, 
+    g_SpecularPower = 0xD9CB6B9C, 
+    g_SpecularUVScale = 0x8D03A782, 
+    g_ToonIndex = 0xDF15112D, 
+    g_ToonLightScale = 0x3CCE9E4C, 
+    g_ToonReflectionScale = 0xD96FAF7A, 
+    g_ToonSpecIndex = 0x00A680BC, 
+    g_TransparencyDistance = 0x1624F841, 
+    g_WaveletDistortion = 0x3439B378, 
+    g_WaveletNoiseParam = 0x1279815C, 
+    g_WaveletOffset = 0x9BE8354A, 
+    g_WaveletScale = 0xD62C681E, 
+    g_WaveTime1 = 0x6EE5BF35, 
+    g_WhitecapDistance = 0x5D26B262, 
+    g_WhitecapDistortion = 0x61053025, 
+    g_WhitecapNoiseScale = 0x0FF95B0C, 
+    g_WhitecapScale = 0xA3EA47AC, 
+    g_WhitecapSpeed = 0x408A9CDE, 
+    g_Fresnel = 0xE3AA427A, 
+    g_Gradation = 0x94B40EEE, 
+    g_Intensity = 0xBCBA70E1, 
+    g_Shininess = 0x992869AB, 
+    g_LayerColor = 0x35DC0B6F, 
+    g_RefractionColor = 0xBA163700, 
+    g_WhitecapColor = 0x29FA2AC1, 
+    
+    // The following are have unknown names but their usage is generally known
+    unk_LimbalRingRange = 0xE18398AE, // from centre of iris, the start and end point of the limbal ring
+    unk_LimbalRingFade = 0x5B608CFE, // inner and outer fade of limbal ring
+    unk_IrisParallaxDepth = 0x37DEA328, // Iris parallax depth (needs to be >0) 
+    unk_IrisEmissiveOverride = 0x8EA14846, // Override iris emissive color with feature color
+    unk_IrisEmissiveOverrideOpacity = 0x7918D232, // Opacity of the Feature Color Emissive Override.
+    unk_TileSharpening = 0x6421DD30, // Positive value "smoothes" the texture, negative value "sharpens" the texture
 }
 
 public class Material
@@ -246,7 +257,7 @@ public class Material
         }
         
         MtrlConstants = materialConstantDict;
-        ColorTable = file.ColorTable;
+        ColorTable = file.GetColorTable();
     }
 
     public string HandlePath { get; private set; }
@@ -268,8 +279,6 @@ public class Material
 
         return 1.0f;
     }
-
-
     
     public IReadOnlyList<ShaderKey> ShaderKeys { get; private set; }
     public Dictionary<MaterialConstant, float[]> MtrlConstants { get; private set; }
@@ -277,7 +286,7 @@ public class Material
     public IReadOnlyList<Texture> Textures { get; private set; }
 
     [JsonIgnore]
-    public ColorTable ColorTable { get; private set; }
+    public IColorTableSet ColorTable { get; private set; }
 
     public bool TryGetTexture(TextureUsage usage, out Texture texture)
     {

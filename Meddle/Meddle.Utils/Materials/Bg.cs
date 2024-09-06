@@ -1,6 +1,5 @@
 ﻿using System.Numerics;
 using Meddle.Utils.Export;
-using Meddle.Utils.Models;
 using SharpGLTF.Materials;
 
 namespace Meddle.Utils.Materials;

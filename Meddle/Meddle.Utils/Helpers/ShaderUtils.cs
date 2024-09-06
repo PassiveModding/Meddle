@@ -1,6 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 
-namespace Meddle.Utils.Models;
+namespace Meddle.Utils.Helpers;
 
 public static class ShaderUtils
 {

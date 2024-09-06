@@ -1,6 +1,6 @@
 ﻿using System.Numerics;
 using Meddle.Utils.Export;
-using Meddle.Utils.Models;
+using Meddle.Utils.Files.Structs.Material;
 using SharpGLTF.Materials;
 using CustomizeParameter = Meddle.Utils.Export.CustomizeParameter;
 
@@ -71,7 +71,8 @@ public static partial class MaterialUtility
                 var maskPixel = maskTexture[x, y].ToVector4();
                 var indexPixel = indexTexture[x, y];
 
-                var blended = material.ColorTable.GetBlendedPair(indexPixel.Red, indexPixel.Green);
+                
+                var blended = ((ColorTableSet)material.ColorTable).ColorTable.GetBlendedPair(indexPixel.Red, indexPixel.Green);
                 if (texMode == TextureMode.Compatibility)
                 {
                     var diffusePixel = diffuseTexture![x, y].ToVector4();
@@ -253,7 +254,7 @@ public static partial class MaterialUtility
             var normalPixel = normal[x, y].ToVector4();
             var indexPixel = indexTexture[x, y];
             
-            var blended = material.ColorTable.GetBlendedPair(indexPixel.Red, indexPixel.Green);
+            var blended = ((LegacyColorTableSet)material.ColorTable).ColorTable.GetBlendedPair(normalPixel.W);
             if (texMode == TextureMode.Compatibility)
             {
                 var diffusePixel = diffuseTexture![x, y].ToVector4();

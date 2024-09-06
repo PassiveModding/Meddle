@@ -2,8 +2,8 @@
 using Meddle.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
+using Meddle.Utils.Files.Structs.Material;
 using Meddle.Utils.Materials;
-using Meddle.Utils.Models;
 using SharpGLTF.Materials;
 
 namespace Meddle.Plugin.Models.Composer;
@@ -12,11 +12,13 @@ public class CharacterMaterialBuilder : MeddleMaterialBuilder
 {
     private readonly MaterialSet set;
     private readonly DataProvider dataProvider;
+    private readonly IColorTableSet? colorTableSet;
 
-    public CharacterMaterialBuilder(string name, MaterialSet set, DataProvider dataProvider) : base(name)
+    public CharacterMaterialBuilder(string name, MaterialSet set, DataProvider dataProvider, IColorTableSet? colorTableSet) : base(name)
     {
         this.set = set;
         this.dataProvider = dataProvider;
+        this.colorTableSet = colorTableSet;
     }
 
     public override MeddleMaterialBuilder Apply()
@@ -55,7 +57,8 @@ public class CharacterMaterialBuilder : MeddleMaterialBuilder
             var mask = maskTexture[x, y].ToVector4();
             var indexColor = indexTexture[x, y];
 
-            var blended = set.ColorTable!.Value.GetBlendedPair(indexColor.Red, indexColor.Green);
+            var blended = ((ColorTableSet?)colorTableSet)!.Value.ColorTable
+                                .GetBlendedPair(indexColor.Red, indexColor.Green);
             if (textureMode == TextureMode.Compatibility)
             {
                 var diffuse = diffuseTexture![x, y].ToVector4();
