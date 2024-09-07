@@ -180,6 +180,20 @@ class MEDDLE_OT_fix_bg(Operator):
                     normal_tangent = node
                     break
 
+            g_SamplerSpecularMap1 = None
+            if "g_SamplerSpecularMap1" in mat:
+                g_SamplerSpecularMap1 = mat["g_SamplerSpecularMap1"]
+                print(f"Found custom property 'g_SamplerSpecularMap1' in material '{mat.name}' with value {g_SamplerSpecularMap1}.")
+            else:
+                print(f"Material '{mat.name}' does not have the custom property 'g_SamplerSpecularMap1'.")
+
+            g_SamplerSpecularMap0Node = None
+            for node in mat.node_tree.nodes:
+                if node.label == "METALLIC ROUGHNESS":
+                    g_SamplerSpecularMap0Node = node
+                    break
+                
+
             # specular_map = None
             #if "g_SamplerSpecularMap1" in mat:
             #    specular_map = mat["g_SamplerSpecularMap1"]
@@ -195,6 +209,15 @@ class MEDDLE_OT_fix_bg(Operator):
             if vertex_color_node is None:
                 continue
 
+            #mix_map_1 = False
+            #if "CategoryTextureType" in mat:
+            #    if mat["CategoryTextureType"] == "MixMap1" or mat["CategoryTextureType"] == "0x1DF2985C":
+            #        mix_map_1 = True
+
+            if "VertexPaint" in mat:
+                if mat["VertexPaint"] == True:
+                    print(f"Material '{mat.name}' has VertexPaint enabled.")
+
             try:
                 if g_SamplerColorMap1 is not None and g_SamplerColorMap0Node is not None:
                     mix_color = None
@@ -206,10 +229,7 @@ class MEDDLE_OT_fix_bg(Operator):
                         mix_color = mat.node_tree.nodes.new('ShaderNodeMixRGB')
                         mix_color.label = "MIX COLOR"
 
-                    if "dummy_" in g_SamplerColorMap1:
-                        mix_color.blend_type = 'MULTIPLY'
-                    else:
-                        mix_color.blend_type = 'MIX'
+                    mix_color.blend_type = 'MIX'
                     mix_color.inputs['Fac'].default_value = 1.0
                     mat.node_tree.links.new(mix_color.outputs['Color'], principled_bsdf.inputs['Base Color'])
                     mat.node_tree.links.new(vertex_color_node.outputs['Alpha'], mix_color.inputs['Fac'])
@@ -227,23 +247,17 @@ class MEDDLE_OT_fix_bg(Operator):
 
                     g_SamplerColorMap1Node.image = bpy.data.images.load(self.directory + g_SamplerColorMap1 + ".png")
 
-                    if "CategoryTextureType" in mat:
-                        if mat["CategoryTextureType"] == "0x1DF2985C" or mat["CategoryTextureType"] == "SwapMapPriority":
-                            # swap color1 and color2
-                            print("Swapping color1 and color2")
-                            mat.node_tree.links.new(g_SamplerColorMap1Node.outputs['Color'], mix_color.inputs['Color1'])
-                            mat.node_tree.links.new(g_SamplerColorMap0Node.outputs['Color'], mix_color.inputs['Color2'])
-                        else:
-                            mat.node_tree.links.new(g_SamplerColorMap1Node.outputs['Color'], mix_color.inputs['Color2'])
-                            mat.node_tree.links.new(g_SamplerColorMap0Node.outputs['Color'], mix_color.inputs['Color1'])
-                    else:
-                        mat.node_tree.links.new(g_SamplerColorMap1Node.outputs['Color'], mix_color.inputs['Color2'])
-                        mat.node_tree.links.new(g_SamplerColorMap0Node.outputs['Color'], mix_color.inputs['Color1'])
+
+                    mat.node_tree.links.new(g_SamplerColorMap0Node.outputs['Color'], mix_color.inputs['Color1'])
+                    mat.node_tree.links.new(g_SamplerColorMap1Node.outputs['Color'], mix_color.inputs['Color2'])
 
                     # organize nodes
                     g_SamplerColorMap1Node.location = (g_SamplerColorMap0Node.location.x, g_SamplerColorMap0Node.location.y - 150)
                     mix_color.location = (g_SamplerColorMap0Node.location.x + 300, g_SamplerColorMap0Node.location.y)
+            except Exception as e:
+                print(f"Error: {e}")
 
+            try:
                 if g_SamplerNormalMap1 is not None and g_SamplerNormalMap0Node is not None and normal_tangent is not None:
                     mix_normal = None
                     for node in mat.node_tree.nodes:
@@ -254,10 +268,7 @@ class MEDDLE_OT_fix_bg(Operator):
                         mix_normal = mat.node_tree.nodes.new('ShaderNodeMixRGB')
                         mix_normal.label = "MIX NORMAL"
 
-                    if "dummy_" in g_SamplerNormalMap1:
-                        mix_normal.blend_type = 'MULTIPLY'
-                    else:
-                        mix_normal.blend_type = 'MIX'
+                    mix_normal.blend_type = 'MIX'
                     mix_normal.inputs['Fac'].default_value = 1.0
                     mat.node_tree.links.new(mix_normal.outputs['Color'], normal_tangent.inputs['Color'])
                     mat.node_tree.links.new(vertex_color_node.outputs['Alpha'], mix_normal.inputs['Fac'])
@@ -274,23 +285,79 @@ class MEDDLE_OT_fix_bg(Operator):
                         gSamplerNormalMap1Node.label = "NORMAL MAP 1"
                     gSamplerNormalMap1Node.image = bpy.data.images.load(self.directory + g_SamplerNormalMap1 + ".png")
 
-                    if "CategoryTextureType" in mat:
-                        if mat["CategoryTextureType"] == "0x1DF2985C" or mat["CategoryTextureType"] == "SwapMapPriority":
-                            # swap color1 and color2
-                            print("Swapping color1 and color2")
-                            mat.node_tree.links.new(gSamplerNormalMap1Node.outputs['Color'], mix_normal.inputs['Color1'])
-                            mat.node_tree.links.new(g_SamplerNormalMap0Node.outputs['Color'], mix_normal.inputs['Color2'])
-                        else:
-                            mat.node_tree.links.new(gSamplerNormalMap1Node.outputs['Color'], mix_normal.inputs['Color2'])
-                            mat.node_tree.links.new(g_SamplerNormalMap0Node.outputs['Color'], mix_normal.inputs['Color1'])
-                    else:
-                        mat.node_tree.links.new(gSamplerNormalMap1Node.outputs['Color'], mix_normal.inputs['Color2'])
-                        mat.node_tree.links.new(g_SamplerNormalMap0Node.outputs['Color'], mix_normal.inputs['Color1'])
+                    mat.node_tree.links.new(g_SamplerNormalMap0Node.outputs['Color'], mix_normal.inputs['Color1'])
+                    mat.node_tree.links.new(gSamplerNormalMap1Node.outputs['Color'], mix_normal.inputs['Color2'])
 
                     # organize nodes
                     gSamplerNormalMap1Node.location = (g_SamplerNormalMap0Node.location.x, g_SamplerNormalMap0Node.location.y - 150)
                     mix_normal.location = (g_SamplerNormalMap0Node.location.x + 300, g_SamplerNormalMap0Node.location.y)
                     normal_tangent.location = (g_SamplerNormalMap0Node.location.x + 600, g_SamplerNormalMap0Node.location.y)
+
+                if g_SamplerSpecularMap1 is not None and g_SamplerSpecularMap0Node is not None:
+                    mix_specular = None
+                    for node in mat.node_tree.nodes:
+                        if node.label == "MIX SPECULAR":
+                            mix_specular = node
+                            break
+                    if mix_specular is None:
+                        mix_specular = mat.node_tree.nodes.new('ShaderNodeMixRGB')
+                        mix_specular.label = "MIX SPECULAR"
+
+                    mix_specular.blend_type = 'MIX'
+                    mix_specular.inputs['Fac'].default_value = 1.0
+                    mat.node_tree.links.new(mix_specular.outputs['Color'], principled_bsdf.inputs['Metallic'])
+                    mat.node_tree.links.new(vertex_color_node.outputs['Alpha'], mix_specular.inputs['Fac'])
+
+                    # load specular texture using the selected folder + specular_map + ".png"
+                    g_SamplerSpecularMap1Node = None
+                    for node in mat.node_tree.nodes:
+                        if node.label == "METALLIC ROUGHNESS 1":
+                            g_SamplerSpecularMap1Node = node
+                            break
+
+                    if g_SamplerSpecularMap1Node is None:
+                        g_SamplerSpecularMap1Node = mat.node_tree.nodes.new('ShaderNodeTexImage')
+                        g_SamplerSpecularMap1Node.label = "METALLIC ROUGHNESS 1"
+                    g_SamplerSpecularMap1Node.image = bpy.data.images.load(self.directory + g_SamplerSpecularMap1 + ".png")
+
+                    metallic_factor_node = None
+                    for node in mat.node_tree.nodes:
+                        if node.label == "Metallic Factor":
+                            metallic_factor_node = node
+                            break
+
+                    if metallic_factor_node is None:
+                        metallic_factor_node = mat.node_tree.nodes.new('ShaderNodeMath')
+                        metallic_factor_node.operation = 'MULTIPLY'
+                        metallic_factor_node.label = "Metallic Factor"
+                        metallic_factor_node.inputs['Value'].default_value = 0.0
+
+                    # Specular -> Mix/Multiply -> Separate Color -> [Green -> Roughness] [Blue -> Metallic Factor -> Metallic]
+
+                    separate_color = None
+                    for node in mat.node_tree.nodes:
+                        if node.type == 'SEPARATE_COLOR' and node.name == "Separate Metallic Roughness":
+                            separate_color = node
+                            break
+
+                    if separate_color is None:
+                        separate_color = mat.node_tree.nodes.new('ShaderNodeSeparateColor')
+                        separate_color.location = (g_SamplerSpecularMap0Node.location.x + 300, g_SamplerSpecularMap0Node.location.y)
+                        separate_color.name = "Separate Metallic Roughness"
+
+                    mat.node_tree.links.new(g_SamplerSpecularMap0Node.outputs['Color'], mix_specular.inputs['Color1'])
+                    mat.node_tree.links.new(g_SamplerSpecularMap1Node.outputs['Color'], mix_specular.inputs['Color2'])
+
+                    mat.node_tree.links.new(mix_specular.outputs['Color'], separate_color.inputs['Color'])
+                    mat.node_tree.links.new(separate_color.outputs['Green'], principled_bsdf.inputs['Roughness'])
+                    mat.node_tree.links.new(separate_color.outputs['Blue'], metallic_factor_node.inputs['Value'])
+                    mat.node_tree.links.new(metallic_factor_node.outputs['Value'], principled_bsdf.inputs['Metallic'])
+
+                    # organize nodes
+                    g_SamplerSpecularMap1Node.location = (g_SamplerSpecularMap0Node.location.x, g_SamplerSpecularMap0Node.location.y - 150)
+                    mix_specular.location = (g_SamplerSpecularMap0Node.location.x + 300, g_SamplerSpecularMap0Node.location.y)
+                    separate_color.location = (g_SamplerSpecularMap0Node.location.x + 600, g_SamplerSpecularMap0Node.location.y)
+                    metallic_factor_node.location = (g_SamplerSpecularMap0Node.location.x + 900, g_SamplerSpecularMap0Node.location.y)
             except Exception as e:
                 print(f"Error: {e}")
                 continue           
@@ -359,6 +426,20 @@ class MEDDLE_OT_fix_bg(Operator):
             mat.node_tree.links.new(separate_rgb.outputs['Red'], combine_rgb.inputs['Red'])
             mat.node_tree.links.new(separate_rgb.outputs['Green'], combine_rgb.inputs['Green'])
             mat.node_tree.links.new(combine_rgb.outputs['Color'], principled_bsdf.inputs['Normal'])
+
+            # get material output node
+            material_output = None
+            for node in mat.node_tree.nodes:
+                if node.type == 'OUTPUT_MATERIAL':
+                    material_output = node
+                    break
+
+            if material_output is None:
+                continue
+
+            # connect separate blue channel to material output
+            mat.node_tree.links.new(separate_rgb.outputs['Blue'], material_output.inputs['Displacement'])
+
 
         return {'FINISHED'}
     
