@@ -80,6 +80,7 @@ public class IrisMaterialBuilder : MeddleMaterialBuilder
         WithSpecularColor(dataProvider.CacheTexture(specularTexture, $"Computed/{set.ComputedTextureName("specular")}"));
         WithEmissive(dataProvider.CacheTexture(emissiveTexture, $"Computed/{set.ComputedTextureName("emissive")}"));
         
+        IndexOfRefraction = set.GetConstantOrThrow<float>(MaterialConstant.g_GlassIOR);
         var alphaThreshold = set.GetConstantOrThrow<float>(MaterialConstant.g_AlphaThreshold);
         if (alphaThreshold > 0)
             WithAlpha(AlphaMode.MASK, alphaThreshold);

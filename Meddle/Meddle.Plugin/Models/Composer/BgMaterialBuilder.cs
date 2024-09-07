@@ -30,10 +30,6 @@ public class BgMaterialBuilder : MeddleMaterialBuilder, IVertexPaintMaterialBuil
     private readonly IBgMaterialBuilderParams bgParams;
     private readonly MaterialSet set;
     private readonly DataProvider dataProvider;
-    private const uint BgVertexPaintKey = 0x4F4F0636;
-    private const uint BgVertexPaintValue = 0xBD94649A;
-    private const uint DiffuseAlphaKey = 0xA9A3EE25;
-    private const uint DiffuseAlphaValue = 0x72AAA9AE; // if present, alpha channel on diffuse texture is used?? and should respect g_AlphaThreshold
     public BgMaterialBuilder(string name, IBgMaterialBuilderParams bgParams, MaterialSet set, DataProvider dataProvider) : base(name)
     {
         this.bgParams = bgParams;
@@ -150,8 +146,8 @@ public class BgMaterialBuilder : MeddleMaterialBuilder, IVertexPaintMaterialBuil
         set.TryGetImageBuilder(dataProvider, TextureUsage.g_SamplerNormalMap1, out var normalMap1Texture);
         
         
-        var alphaType = set.GetShaderKeyOrDefault(DiffuseAlphaKey, 0);
-        if (alphaType == DiffuseAlphaValue)
+        var alphaType = set.GetShaderKeyOrDefault(ShaderCategory.CategoryDiffuseAlpha, DiffuseAlpha.Default);
+        if (alphaType == DiffuseAlpha.UseDiffuseAlphaAsOpacity)
         {
             var alphaThreshold = set.GetConstantOrThrow<float>(MaterialConstant.g_AlphaThreshold);
             WithAlpha(AlphaMode.MASK, alphaThreshold); // TODO: which mode?
@@ -164,9 +160,18 @@ public class BgMaterialBuilder : MeddleMaterialBuilder, IVertexPaintMaterialBuil
             extras.Add(("DiffuseColor", diffuseColor.AsFloatArray()));
         }
 
-        VertexPaint = set.ShaderKeys.Any(x => x is {Category: BgVertexPaintKey, Value: BgVertexPaintValue});
-        extras.Add(("VertexPaint", VertexPaint));
-
+        var vertexPaintValue = set.GetShaderKeyOrDefault(ShaderCategory.CategoryBgVertexPaint, BgVertexPaint.Default);
+        if (vertexPaintValue == BgVertexPaint.Enable)
+        {
+            VertexPaint = true;
+            extras.Add(("VertexPaint", true));
+        }
+        else
+        {
+            VertexPaint = false;
+            extras.Add(("VertexPaint", false));
+        }
+        
         WithNormal(normalMap0Texture);
         WithBaseColor(colorMap0Texture);
         // only the green/y channel is used here for roughness

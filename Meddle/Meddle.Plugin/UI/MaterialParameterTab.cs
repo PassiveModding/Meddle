@@ -58,7 +58,14 @@ public class MaterialParameterTab : ITab
 
        commonUi.DrawCharacterSelect(ref selectedCharacter);
 
-        if (selectedCharacter != null)
+       if (ImGui.Button("Clear Cache"))
+       {
+           shpkCache.Clear();
+           mtrlConstantCache.Clear();
+           materialCache.Clear();
+       }
+
+       if (selectedCharacter != null)
         {
             DrawCharacter(selectedCharacter);
         }

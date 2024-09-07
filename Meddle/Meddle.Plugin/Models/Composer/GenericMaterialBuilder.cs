@@ -39,6 +39,7 @@ public class GenericMaterialBuilder : MeddleMaterialBuilder
             }
         }
         
+        IndexOfRefraction = set.GetConstantOrDefault(MaterialConstant.g_GlassIOR, 1.0f);
         Extras = set.ComposeExtrasNode();
         return this;
     }
