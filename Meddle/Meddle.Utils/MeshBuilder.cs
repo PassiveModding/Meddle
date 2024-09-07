@@ -233,11 +233,13 @@ public class MeshBuilder
             Vector4 vertexColor = new Vector4(1, 1, 1, 1);
             if (MaterialBuilder is IVertexPaintMaterialBuilder paintBuilder)
             {
-                vertexColor = paintBuilder.VertexPaint switch
+                // Even if vertex paint is false, it's probably a good idea to keep the channels
+                // for bg.shpk, the alpha channel is used to mix between Map0 and Map1 textures
+                vertexColor = vertex.Color!.Value; /*paintBuilder.VertexPaint switch
                 {
                     true => vertex.Color!.Value,
                     false => new Vector4(1, 1, 1, 1)
-                };
+                };*/
             }
             
             materialParamCache.Insert(0, vertexColor);
