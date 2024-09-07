@@ -29,8 +29,8 @@
     </PropertyGroup>
     
     <ItemGroup>
-        <PackageReference Include="SharpGLTF.Core" Version="1.0.1" />
-        <PackageReference Include="SharpGLTF.Toolkit" Version="1.0.1" />
+        <PackageReference Include="SharpGLTF.Core" Version="1.0.2" />
+        <PackageReference Include="SharpGLTF.Toolkit" Version="1.0.2" />
         <PackageReference Include="SkiaSharp" Version="2.88.8"/>
         <PackageReference Include="System.IO.Hashing" Version="8.0.0"/>
         <Reference Include="FFXIVClientStructs">
