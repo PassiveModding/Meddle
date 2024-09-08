@@ -12,7 +12,7 @@ public enum ShaderCategory : uint
 {
     CategorySkinType = 0x380CAED0,
     CategoryHairType = 0x24826489,
-    CategoryTextureType = 0xB616DC5A,  // DEFAULT, COMPATIBILITY, SIMPLE
+    GetValuesTextureType = 0xB616DC5A,  // DEFAULT, COMPATIBILITY, SIMPLE
     CategorySpecularType = 0xC8BD1DEF, // MASK, DEFAULT
     CategoryFlowMapType = 0x40D1481E,  // STANDARD, FLOW
     CategoryDiffuseAlpha = 0xA9A3EE25, // Alpha channel on diffuse texture is used
@@ -21,8 +21,8 @@ public enum ShaderCategory : uint
 
 public enum BgVertexPaint : uint
 {
-    Default = 0x0,
-    Enable = 0xBD94649A
+    Off = 0x7C6FA05B, // Default off
+    On = 0xBD94649A
 }
 
 public enum DiffuseAlpha : uint
@@ -56,7 +56,11 @@ public enum TextureMode : uint
     Default = 0x5CC605B5,       // Default mask texture
     Compatibility = 0x600EF9DF, // Used to enable diffuse texture
     Simple = 0x22A4AABF,        // meh
+    
+    // BG.shpk
+    Ox669A451B = 0x669A451B,
     MixMap1 = 0x1DF2985C, // seems to indicate the presence of dummy textures for bg.shpk map1
+    Ox941820BE = 0x941820BE
 }
 
 public enum SpecularMode : uint

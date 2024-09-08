@@ -512,7 +512,7 @@ public class MaterialSet
                         ShaderCategory.CategorySkinType => IsDefinedOrHex((SkinType)value),
                         ShaderCategory.CategoryDiffuseAlpha => IsDefinedOrHex((DiffuseAlpha)value),
                         ShaderCategory.CategorySpecularType => IsDefinedOrHex((SpecularMode)value),
-                        ShaderCategory.CategoryTextureType => IsDefinedOrHex((TextureMode)value),
+                        ShaderCategory.GetValuesTextureType => IsDefinedOrHex((TextureMode)value),
                         ShaderCategory.CategoryFlowMapType => IsDefinedOrHex((FlowType)value),
                         _ => $"0x{value:X8}"
                     };

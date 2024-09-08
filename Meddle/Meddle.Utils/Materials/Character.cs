@@ -11,9 +11,9 @@ public static partial class MaterialUtility
     public static MaterialBuilder BuildCharacter(Material material, string name)
     {
         TextureMode texMode;
-        if (material.ShaderKeys.Any(x => x.Category == (uint)ShaderCategory.CategoryTextureType))
+        if (material.ShaderKeys.Any(x => x.Category == (uint)ShaderCategory.GetValuesTextureType))
         {
-            var key = material.ShaderKeys.First(x => x.Category == (uint)ShaderCategory.CategoryTextureType);
+            var key = material.ShaderKeys.First(x => x.Category == (uint)ShaderCategory.GetValuesTextureType);
             texMode = (TextureMode)key.Value;
         }
         else
@@ -209,9 +209,9 @@ public static partial class MaterialUtility
     {
         return BuildCharacter(material, name);
         TextureMode texMode;
-        if (material.ShaderKeys.Any(x => x.Category == (uint)ShaderCategory.CategoryTextureType))
+        if (material.ShaderKeys.Any(x => x.Category == (uint)ShaderCategory.GetValuesTextureType))
         {
-            var key = material.ShaderKeys.First(x => x.Category == (uint)ShaderCategory.CategoryTextureType);
+            var key = material.ShaderKeys.First(x => x.Category == (uint)ShaderCategory.GetValuesTextureType);
             texMode = (TextureMode)key.Value;
         }
         else

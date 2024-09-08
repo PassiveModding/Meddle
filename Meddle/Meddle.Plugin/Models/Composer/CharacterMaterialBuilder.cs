@@ -23,7 +23,7 @@ public class CharacterMaterialBuilder : MeddleMaterialBuilder
 
     public override MeddleMaterialBuilder Apply()
     {
-        var textureMode = set.GetShaderKeyOrDefault(ShaderCategory.CategoryTextureType, TextureMode.Default);
+        var textureMode = set.GetShaderKeyOrDefault(ShaderCategory.GetValuesTextureType, TextureMode.Default);
         var specularMode = set.GetShaderKeyOrDefault(ShaderCategory.CategorySpecularType, SpecularMode.Default); // TODO: is default actually default
         var flowType = set.GetShaderKeyOrDefault(ShaderCategory.CategoryFlowMapType, FlowType.Standard);
         

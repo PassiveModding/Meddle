@@ -160,8 +160,8 @@ public class BgMaterialBuilder : MeddleMaterialBuilder, IVertexPaintMaterialBuil
             extras.Add(("DiffuseColor", diffuseColor.AsFloatArray()));
         }
 
-        var vertexPaintValue = set.GetShaderKeyOrDefault(ShaderCategory.CategoryBgVertexPaint, BgVertexPaint.Default);
-        if (vertexPaintValue == BgVertexPaint.Enable)
+        var vertexPaintValue = set.GetShaderKeyOrDefault(ShaderCategory.CategoryBgVertexPaint, BgVertexPaint.Off);
+        if (vertexPaintValue == BgVertexPaint.On)
         {
             VertexPaint = true;
             extras.Add(("VertexPaint", true));
