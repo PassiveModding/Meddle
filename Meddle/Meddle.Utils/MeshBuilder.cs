@@ -217,7 +217,13 @@ public class MeshBuilder
         // ReSharper disable CompareOfFloatsByEqualityOperator
         if (GeometryT == typeof(VertexPositionNormalTangent))
         {
-            geometryParamCache.Add(vertex.Tangent1!.Value with { W = vertex.Tangent1.Value.W == 1 ? 1 : -1 });
+            var tangent = vertex.Tangent1!.Value with {W = vertex.Tangent1.Value.W == 1 ? 1 : -1};
+            if (!tangent.IsValidTangent())
+            {
+                tangent = tangent.SanitizeTangent();
+            }
+            
+            geometryParamCache.Add(tangent);
         }
         // if (GeometryT == typeof(VertexPositionNormalTangent2))
         // {
