@@ -73,6 +73,7 @@ public class LayoutService : IService
             if (objects.Any(o => o.Id == instance.Id))
             {
                 var gameObject = (GameObject*)instance.Id;
+                
                 var characterInfo = HandleDrawObject(gameObject->DrawObject);
                 characterInstance.CharacterInfo = characterInfo;
             }
@@ -238,8 +239,11 @@ public class LayoutService : IService
         var light = lightPtr.Value;
         if (light->Id.Type != InstanceType.Light)
             return null;
+        
+        var typedInstance = (LightLayoutInstance*)light;
+        var color = typedInstance->LightPtr->LightItem->Color;
 
-        return new ParsedLightInstance((nint)light, new Transform(*light->GetTransformImpl()));
+        return new ParsedLightInstance((nint)light, new Transform(*light->GetTransformImpl()), color);
     }
 
     private unsafe ParsedInstance? ParseSharedGroup(Pointer<SharedGroupLayoutInstance> sharedGroupPtr, ParseCtx ctx)

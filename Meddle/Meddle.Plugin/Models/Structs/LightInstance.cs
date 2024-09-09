@@ -2,6 +2,7 @@
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Layer;
+using FFXIVClientStructs.FFXIV.Common.Math;
 
 namespace Meddle.Plugin.Models.Structs;
 
@@ -25,5 +26,11 @@ public unsafe struct Light
 public unsafe struct LightItem
 {
     [FieldOffset(0x20)] public Transform* Transform;
+
+    /// <summary>
+    /// Note, channels define RGBA but values can be greater than 1, indicating a higher intensity?
+    /// </summary>
+    [FieldOffset(0x28)] public Vector4 Color;
+    
     [FieldOffset(0x8C)] public float UnkFloat;
 }

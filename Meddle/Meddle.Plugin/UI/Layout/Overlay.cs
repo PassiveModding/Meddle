@@ -113,9 +113,18 @@ public partial class LayoutWindow
             }
         }
 
-        if (instance is ParsedBgPartsInstance bgInstance)
+        if (instance is ParsedLightInstance lightInstance)
         {
-            ImGui.Text($"Path: {bgInstance.Path}");
+            ImGui.ColorButton("Color", lightInstance.Color);
+        }
+
+        if (instance is IPathInstance pathInstance)
+        {
+            ImGui.Text($"Path: {pathInstance.Path.FullPath}");
+            if (pathInstance.Path.GamePath != pathInstance.Path.FullPath)
+            {
+                ImGui.Text($"Game Path: {pathInstance.Path.GamePath}");
+            }
         }
         
         if (instance is ParsedCharacterInstance characterInstance)

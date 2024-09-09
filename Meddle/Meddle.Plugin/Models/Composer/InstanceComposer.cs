@@ -141,7 +141,12 @@ public class InstanceComposer : IDisposable
         {
             // TODO: Probably can fill some parts here given more info
             root.Name = $"{lightInstance.Type}_{lightInstance.Id}";
-            var lightBuilder = new LightBuilder.Point();
+            var lightBuilder = new LightBuilder.Point
+            {
+                // honestly just guesswork
+                Color = new Vector3(lightInstance.Color.X, lightInstance.Color.Y, lightInstance.Color.Z),
+                Intensity = lightInstance.Color.W,
+            };
             scene.AddLight(lightBuilder, root);
             wasAdded = true;
         }

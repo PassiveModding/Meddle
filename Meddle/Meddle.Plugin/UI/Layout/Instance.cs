@@ -81,6 +81,11 @@ public partial class LayoutWindow
                 UiUtil.Text($"Game Path: {pathedInstance.Path.GamePath}", pathedInstance.Path.GamePath);
             }
             
+            if (instance is ParsedLightInstance light)
+            {
+                ImGui.ColorButton("Color", light.Color);
+            }
+            
             if (instance is ParsedHousingInstance ho)
             {
                 ImGui.Text($"Kind: {ho.Kind}");
