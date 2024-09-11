@@ -22,7 +22,7 @@ public enum ShaderCategory : uint
 public enum BgVertexPaint : uint
 {
     Off = 0x7C6FA05B, // Default off
-    On = 0xBD94649A
+    On = 0xBD94649A // Treat vertex color as diffuse map0, and map0 as map1???
 }
 
 public enum DiffuseAlpha : uint
@@ -36,7 +36,7 @@ public enum SkinType : uint
     Body = 0x2BDB45F1,
     Face = 0xF5673524,
     Hrothgar = 0x57FF3B64,
-    Default = 0
+    Default = 0x0
 }
 
 public enum HairType : uint
