@@ -2,6 +2,7 @@
 using System.Runtime.InteropServices;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
+using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
@@ -20,6 +21,7 @@ using Meddle.Utils.Export;
 using Meddle.Utils.Files.SqPack;
 using Meddle.Utils.Files.Structs.Material;
 using Microsoft.Extensions.Logging;
+using CustomizeData = Meddle.Utils.Export.CustomizeData;
 using CustomizeParameter = Meddle.Plugin.Models.Structs.CustomizeParameter;
 using HousingFurniture = FFXIVClientStructs.FFXIV.Client.Game.HousingFurniture;
 using Model = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Model;
@@ -241,9 +243,10 @@ public class LayoutService : IService
             return null;
         
         var typedInstance = (LightLayoutInstance*)light;
-        var color = typedInstance->LightPtr->LightItem->Color;
+        if (typedInstance->LightPtr == null || typedInstance->LightPtr->LightItem == null)
+            return null;
 
-        return new ParsedLightInstance((nint)light, new Transform(*light->GetTransformImpl()), color);
+        return new ParsedLightInstance((nint)light, new Transform(*light->GetTransformImpl()), typedInstance->LightPtr->LightItem);
     }
 
     private unsafe ParsedInstance? ParseSharedGroup(Pointer<SharedGroupLayoutInstance> sharedGroupPtr, ParseCtx ctx)

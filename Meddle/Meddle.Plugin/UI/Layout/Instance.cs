@@ -83,7 +83,7 @@ public partial class LayoutWindow
             
             if (instance is ParsedLightInstance light)
             {
-                ImGui.ColorButton("Color", light.Color);
+                ImGui.ColorButton("Color", new Vector4(light.Light.Color.Rgb, light.Light.Color.Intensity));
             }
             
             if (instance is ParsedHousingInstance ho)

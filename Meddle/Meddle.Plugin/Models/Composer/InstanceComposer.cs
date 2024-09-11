@@ -1,7 +1,11 @@
 ﻿using System.Collections.Concurrent;
 using System.Numerics;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using Meddle.Plugin.Models.Layout;
+using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Export;
@@ -100,6 +104,7 @@ public class InstanceComposer : IDisposable
     {
         if (cancellationToken.IsCancellationRequested) return null;
         var root = new NodeBuilder();
+        var transform = parsedInstance.Transform;
         if (parsedInstance is IPathInstance pathInstance)
         {
             root.Name = $"{parsedInstance.Type}_{Path.GetFileNameWithoutExtension(pathInstance.Path.GamePath)}";
@@ -139,16 +144,92 @@ public class InstanceComposer : IDisposable
 
         if (parsedInstance is ParsedLightInstance lightInstance)
         {
-            // TODO: Probably can fill some parts here given more info
-            root.Name = $"{lightInstance.Type}_{lightInstance.Id}";
-            var lightBuilder = new LightBuilder.Point
+            // idk if its blender, sharpgltf or game engine stuff but flip the rotation for lights (only tested spot though)
+            var rotation = transform.Rotation;
+            rotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI);
+                    
+            transform = transform with {Rotation = rotation};
+            var light = lightInstance.Light;
+            
+            root.Name = $"{lightInstance.Type}_{light.LightType}_{lightInstance.Id}";
+
+            LightBuilder? lightBuilder = null;
+            switch (light.LightType)
             {
-                // honestly just guesswork
-                Color = new Vector3(lightInstance.Color.X, lightInstance.Color.Y, lightInstance.Color.Z),
-                Intensity = lightInstance.Color.W,
-            };
-            scene.AddLight(lightBuilder, root);
-            wasAdded = true;
+                case LightType.Directional:
+                    lightBuilder = new LightBuilder.Directional
+                    {
+                        Color = light.Color.Rgb,
+                        Intensity = LuxIntensity(light.Color.HdrIntensity),
+                        Name = root.Name,
+                    };
+                    break;
+                case LightType.PointLight:
+                // TODO: Capsule and area dont belong here but there isn't a gltf equivalent
+                case LightType.CapsuleLight:
+                case LightType.AreaLight:
+                    lightBuilder = new LightBuilder.Point
+                    {
+                        Color = light.Color.Rgb,
+                        Intensity = CandelaIntensity(light.Color.HdrIntensity),
+                        Range = light.Range,
+                        Name = root.Name
+                    };
+                    break;
+                case LightType.SpotLight:
+                    var (outerConeAngle, innerConeAngle) = FixSpotLightAngles(
+                        DegreesToRadians(light.LightAngle + light.FalloffAngle), 
+                        DegreesToRadians(light.LightAngle));
+                    
+                    lightBuilder = new LightBuilder.Spot
+                    {
+                        Color = light.Color.Rgb,
+                        Intensity = CandelaIntensity(light.Color.HdrIntensity),
+                        Range = light.Range,
+                        InnerConeAngle = innerConeAngle,
+                        OuterConeAngle = outerConeAngle,
+                        Name = root.Name
+                    };
+                    break;
+                default:
+                    log.LogWarning("Unsupported light type: {LightType}", light.LightType);
+                    break;
+            }
+
+            if (lightBuilder != null)
+            {
+                var extras = new Dictionary<string, object>()
+                {
+                    { "LightType", light.LightType.ToString() },
+                    { "Range", light.Range },
+                    { "FalloffType", light.FalloffType },
+                    { "Falloff", light.Falloff },
+                    { "ShadowFar", light.ShadowFar },
+                    { "ShadowNear", light.ShadowNear },
+                    { "CharaShadowRange", light.CharaShadowRange },
+                    { "LightAngle", light.LightAngle },
+                    { "FalloffAngle", light.FalloffAngle },
+                    { "AreaAngle", light.AreaAngle },
+                    { "ColorHDR", light.Color._vec3 },
+                    { "ColorRGB", light.Color.Rgb },
+                    { "Intensity", light.Color.Intensity },
+                    { "BoundsMin", light.Bounds.Min },
+                    { "BoundsMax", light.Bounds.Max },
+                    { "Flags", light.Flags },
+                };
+
+                foreach (var lightFlag in Enum.GetValues<LightFlags>())
+                {
+                    extras.Add(lightFlag.ToString(), light.Flags.HasFlag(lightFlag));
+                }
+                
+                // doesn't appear to set extras on the light itself
+                lightBuilder.Extras = JsonNode.Parse(JsonSerializer.Serialize(extras, MaterialSet.JsonOptions));
+                
+                root.Extras = JsonNode.Parse(JsonSerializer.Serialize(extras, MaterialSet.JsonOptions));
+                scene.AddLight(lightBuilder, root);
+                wasAdded = true;
+            }
         }
 
         if (parsedInstance is ParsedTerrainInstance terrainInstance)
@@ -176,11 +257,52 @@ public class InstanceComposer : IDisposable
 
         if (wasAdded)
         {
-            root.SetLocalTransform(parsedInstance.Transform.AffineTransform, true);
+            root.SetLocalTransform(transform.AffineTransform, true);
             return root;
         }
 
         return null;
+    }
+    
+    private (float outer, float inner) FixSpotLightAngles(float outerConeAngle, float innerConeAngle)
+    {                    
+        // inner must be less than or equal to outer
+        // outer (due to blender bug and sharpgltf removing if the value is equal to the default) needs to be greater than inner and not equal to pi / 4
+        // TODO: https://github.com/KhronosGroup/glTF-Blender-IO/issues/2349
+        if (innerConeAngle > outerConeAngle)
+        {
+            throw new Exception("Inner cone angle must be less than or equal to outer cone angle");
+        }
+                    
+        if (MathF.Abs(outerConeAngle - (MathF.PI / 4f)) < 0.0001f)
+        {
+            outerConeAngle = (MathF.PI / 4f) - 0.0001f;
+        }
+                    
+        if (innerConeAngle > outerConeAngle)
+        {
+            innerConeAngle = outerConeAngle;
+        }
+        
+        return (outerConeAngle, innerConeAngle);
+    }
+    
+    
+    // directional lights use illuminance in lux (lm/ m2)
+    private float LuxIntensity(float intensity)
+    {
+        return intensity;
+    }
+    
+    // Point and spot lights use luminous intensity in candela (lm/ sr)
+    private float CandelaIntensity(float intensity)
+    {
+        return intensity * 100f;
+    }
+    
+    private float DegreesToRadians(float degrees)
+    {
+        return degrees * (MathF.PI / 180f);
     }
 
     private void ComposeTerrainInstance(ParsedTerrainInstance terrainInstance, SceneBuilder scene, NodeBuilder root)

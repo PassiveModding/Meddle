@@ -132,11 +132,11 @@ public interface IStainableInstance
 
 public class ParsedLightInstance : ParsedInstance
 {
-    public Vector4 Color { get; set; }
+    public RenderLight Light { get; }
     
-    public ParsedLightInstance(nint id, Transform transform, Vector4 color) : base(id, ParsedInstanceType.Light, transform)
+    public unsafe ParsedLightInstance(nint id, Transform transform, RenderLight* light) : base(id, ParsedInstanceType.Light, transform)
     {
-        Color = color;
+        Light = *light;
     }
 }
 
