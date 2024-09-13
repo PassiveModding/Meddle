@@ -144,6 +144,12 @@ public class InstanceComposer : IDisposable
 
         if (parsedInstance is ParsedLightInstance lightInstance)
         {
+            if (lightInstance.Light.Range <= 0)
+            {
+                log.LogWarning("Light {LightId} has a range of 0 or less ({Range})", lightInstance.Id, lightInstance.Light.Range);
+                return null;
+            }
+            
             // idk if its blender, sharpgltf or game engine stuff but flip the rotation for lights (only tested spot though)
             var rotation = transform.Rotation;
             rotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI);
