@@ -44,7 +44,9 @@ public class CharacterComposer
     }
 
     private void HandleModel(GenderRace genderRace, CustomizeParameter customizeParameter, CustomizeData customizeData, 
-                             ParsedModelInfo modelInfo, SceneBuilder scene, List<BoneNodeBuilder> bones, BoneNodeBuilder? rootBone)
+                             ParsedModelInfo modelInfo, SceneBuilder scene, List<BoneNodeBuilder> bones, 
+                             BoneNodeBuilder? rootBone,
+                             Matrix4x4 transform)
     {
         if (modelInfo.Path.GamePath.Contains("b0003_top"))
         {
@@ -133,11 +135,11 @@ public class CharacterComposer
             InstanceBuilder instance;
             if (bones.Count > 0)
             {
-                instance = scene.AddSkinnedMesh(mesh.Mesh, Matrix4x4.Identity, bones.Cast<NodeBuilder>().ToArray());
+                instance = scene.AddSkinnedMesh(mesh.Mesh, transform, bones.Cast<NodeBuilder>().ToArray());
             }
             else
             {
-                instance = scene.AddRigidMesh(mesh.Mesh, Matrix4x4.Identity);
+                instance = scene.AddRigidMesh(mesh.Mesh, transform);
             }
 
             if (model.Shapes.Count != 0 && mesh.Shapes != null)
@@ -163,21 +165,146 @@ public class CharacterComposer
         }
     }
     
-    public void ComposeCharacterInstance(ParsedCharacterInfo characterInfo, SceneBuilder scene, NodeBuilder root)
+    private int attachSuffix;
+    private readonly object attachLock = new();
+    
+    public (List<BoneNodeBuilder> bones, BoneNodeBuilder root)? ComposeCharacterInfo(ParsedCharacterInfo characterInfo, (ParsedCharacterInfo Owner, List<BoneNodeBuilder> OwnerBones, ParsedAttach Attach)? attachData, SceneBuilder scene, NodeBuilder root)
     {
         var bones = SkeletonUtils.GetBoneMap(characterInfo.Skeleton, true, out var rootBone);
-        if (rootBone != null)
+        if (rootBone == null)
+        {
+            log.LogWarning("Root bone not found");
+            return null;
+        }
+        bool rootParented = false;
+        
+        Matrix4x4 transform = Matrix4x4.Identity;
+        if (attachData != null)
+        {
+            var attach = attachData.Value.Attach;
+            if (rootBone == null) throw new InvalidOperationException("Root bone not found");
+            var attachName = attachData.Value.Owner.Skeleton.PartialSkeletons[attach.PartialSkeletonIdx]
+                                           .HkSkeleton!.BoneNames[(int)attach.BoneIdx];
+            log.LogInformation("Attaching {AttachName} to {RootBone}", attachName, rootBone.BoneName);
+            lock (attachLock)
+            {
+                Interlocked.Increment(ref attachSuffix);
+                rootBone.SetSuffixRecursively(attachSuffix);
+            }
+
+            if (attach.OffsetTransform is { } ct)
+            {
+                rootBone.WithLocalScale(ct.Scale);
+                rootBone.WithLocalRotation(ct.Rotation);
+                rootBone.WithLocalTranslation(ct.Translation);
+                if (rootBone.AnimationTracksNames.Contains("pose"))
+                {
+                    rootBone.UseScale().UseTrackBuilder("pose").WithPoint(0, ct.Scale);
+                    rootBone.UseRotation().UseTrackBuilder("pose").WithPoint(0, ct.Rotation);
+                    rootBone.UseTranslation().UseTrackBuilder("pose").WithPoint(0, ct.Translation);
+                }
+            }
+            
+            var attachPointBone = attachData.Value.OwnerBones.FirstOrDefault(x => x.BoneName.Equals(attachName, StringComparison.Ordinal));
+            if (attachPointBone == null)
+            {
+                scene.AddNode(rootBone);
+                rootParented = true;
+            }
+            else
+            {
+                attachPointBone.AddNode(rootBone);
+                rootParented = true;
+            }
+            
+            NodeBuilder? c = rootBone;
+            while (c != null)
+            {
+                transform *= c.LocalMatrix;
+                c = c.Parent;
+            }
+        }
+        else if (characterInfo.Attach.ExecuteType != 0)
+        {
+            var rootAttach = characterInfo.Attaches.FirstOrDefault(x => x.Attach.ExecuteType == 0);
+            if (rootAttach == null)
+            {
+                log.LogWarning("Root attach not found");
+            }
+            else
+            {
+                log.LogWarning("Root attach found");
+                // handle root first, then attach this to the root
+                var rootAttachData = ComposeCharacterInfo(rootAttach, null, scene, root);
+                if (rootAttachData != null)
+                {
+                    var attachName = rootAttach.Skeleton.PartialSkeletons[characterInfo.Attach.PartialSkeletonIdx].HkSkeleton!
+                                               .BoneNames[(int)characterInfo.Attach.BoneIdx];
+                    if (rootBone == null) throw new InvalidOperationException("Root bone not found");
+                    var attachRoot = rootAttachData.Value.root;
+                    lock (attachLock)
+                    {
+                        Interlocked.Increment(ref attachSuffix);
+                        attachRoot.SetSuffixRecursively(attachSuffix);
+                    }
+
+                    if (rootAttach.Attach.OffsetTransform is { } ct)
+                    {
+                        attachRoot.WithLocalScale(ct.Scale);
+                        attachRoot.WithLocalRotation(ct.Rotation);
+                        attachRoot.WithLocalTranslation(ct.Translation);
+                        if (attachRoot.AnimationTracksNames.Contains("pose"))
+                        {
+                            attachRoot.UseScale().UseTrackBuilder("pose").WithPoint(0, ct.Scale);
+                            attachRoot.UseRotation().UseTrackBuilder("pose").WithPoint(0, ct.Rotation);
+                            attachRoot.UseTranslation().UseTrackBuilder("pose").WithPoint(0, ct.Translation);
+                        }
+                    }
+
+                    var attachPointBone = rootAttachData.Value.bones.FirstOrDefault(x => x.BoneName.Equals(attachName, StringComparison.Ordinal));
+                    if (attachPointBone == null)
+                    {
+                        scene.AddNode(rootBone);
+                        rootParented = true;
+                    }
+                    else
+                    {
+                        attachPointBone.AddNode(rootBone);
+                        rootParented = true;
+                    }
+                    
+                    NodeBuilder? c = rootBone;
+                    while (c != null)
+                    {
+                        transform *= c.LocalMatrix;
+                        c = c.Parent;
+                    }
+                    
+                    rootBone = attachRoot;
+                }
+            }
+        }
+
+        if (!rootParented)
         {
             root.AddNode(rootBone);
         }
 
         foreach (var t in characterInfo.Models)
         {
-            HandleModel(characterInfo.GenderRace, characterInfo.CustomizeParameter, characterInfo.CustomizeData, 
-                        t, scene, bones, rootBone);
+            HandleModel(characterInfo.GenderRace, characterInfo.CustomizeParameter, characterInfo.CustomizeData, t, scene, bones, rootBone, transform);
         }
+
+        for (var i = 0; i < characterInfo.Attaches.Length; i++)
+        {
+            var attach = characterInfo.Attaches[i];
+            if (attach.Attach.ExecuteType == 0) continue;
+            ComposeCharacterInfo(attach, (characterInfo, bones, attach.Attach), scene, root);
+        }
+        
+        return (bones, rootBone);
     }
-    
+
     public void ComposeModels(ParsedModelInfo[] models, GenderRace genderRace, CustomizeParameter customizeParameter, 
                               CustomizeData customizeData, ParsedSkeleton skeleton, SceneBuilder scene, NodeBuilder root)
     {
@@ -189,7 +316,7 @@ public class CharacterComposer
 
         foreach (var t in models)
         {
-            HandleModel(genderRace, customizeParameter, customizeData, t, scene, bones, rootBone);
+            HandleModel(genderRace, customizeParameter, customizeData, t, scene, bones, rootBone, Matrix4x4.Identity);
         }
     }
     
@@ -197,7 +324,7 @@ public class CharacterComposer
     {
         var characterInfo = characterInstance.CharacterInfo;
         if (characterInfo == null) return;
-        ComposeCharacterInstance(characterInfo, scene, root);
+        ComposeCharacterInfo(characterInfo, null, scene, root);
     }
     
     private void EnsureBonesExist(Model model, List<BoneNodeBuilder> bones, BoneNodeBuilder? root)

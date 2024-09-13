@@ -199,14 +199,17 @@ public class ParsedCharacterInfo
     public CustomizeData CustomizeData;
     public CustomizeParameter CustomizeParameter;
     public readonly GenderRace GenderRace;
+    public readonly ParsedAttach Attach;
+    public ParsedCharacterInfo[] Attaches = [];
 
-    public ParsedCharacterInfo(IList<ParsedModelInfo> models, ParsedSkeleton skeleton, CustomizeData customizeData, CustomizeParameter customizeParameter, GenderRace genderRace)
+    public ParsedCharacterInfo(IList<ParsedModelInfo> models, ParsedSkeleton skeleton, ParsedAttach attach, CustomizeData customizeData, CustomizeParameter customizeParameter, GenderRace genderRace)
     {
         Models = models;
         Skeleton = skeleton;
         CustomizeData = customizeData;
         CustomizeParameter = customizeParameter;
         GenderRace = genderRace;
+        Attach = attach;
     }
 }
 
@@ -216,7 +219,6 @@ public class ParsedCharacterInstance : ParsedInstance, IResolvableInstance, ICha
     public string Name;
     public ObjectKind Kind;
     public bool Visible;
-    
     
     public ParsedCharacterInstance(nint id, string name, ObjectKind kind, Transform transform, bool visible) : base(id, ParsedInstanceType.Character, transform)
     {

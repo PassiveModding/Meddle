@@ -14,6 +14,7 @@ using ImGuiNET;
 using Lumina.Excel.GeneratedSheets;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Layout;
+using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
@@ -66,6 +67,21 @@ public class LayoutService : IService
         }
     }
 
+    private bool IsCharacterKind(ObjectKind kind)
+    {
+        return kind switch
+        {
+            ObjectKind.Pc => true,
+            ObjectKind.Mount => true,
+            ObjectKind.Companion => true,
+            ObjectKind.Retainer => true,
+            ObjectKind.BattleNpc => true,
+            ObjectKind.EventNpc => true,
+            ObjectKind.Ornament => true,
+            _ => false
+        };
+    }
+    
     public unsafe void ResolveInstance(ParsedInstance instance)
     {
         if (instance is ParsedCharacterInstance {CharacterInfo: null} characterInstance)
@@ -75,9 +91,20 @@ public class LayoutService : IService
             if (objects.Any(o => o.Id == instance.Id))
             {
                 var gameObject = (GameObject*)instance.Id;
-                
-                var characterInfo = HandleDrawObject(gameObject->DrawObject);
-                characterInstance.CharacterInfo = characterInfo;
+                if (IsCharacterKind(gameObject->ObjectKind))
+                {
+                    var characterInfo = HandleCharacter((Character*)gameObject);
+                    characterInstance.CharacterInfo = characterInfo;
+                }
+                else
+                {
+                    var characterInfo = HandleDrawObject(gameObject->DrawObject);
+                    characterInstance.CharacterInfo = characterInfo;
+                }
+            }
+            else
+            {
+                logger.LogWarning("Character instance {Id} no longer exists", instance.Id);
             }
         }
 
@@ -338,8 +365,8 @@ public class LayoutService : IService
 
         return new ParsedBgPartsInstance((nint)bgPartPtr.Value, new Transform(*bgPart->GetTransformImpl()), path);
     }
-
-    public unsafe ParsedInstance[] ParseObjects(bool resolveCharacterInfo = false)
+    
+    public unsafe ParsedInstance[] ParseObjects()
     {
         var gameObjectManager = sigUtil.GetGameObjectManager();
 
@@ -358,18 +385,8 @@ public class LayoutService : IService
             if (drawObject == null)
                 continue;
 
-            ParsedCharacterInfo? characterInfo = null;
-            if (resolveCharacterInfo)
-            {
-                characterInfo = HandleDrawObject(drawObject);
-            }
-
             var transform = new Transform(drawObject->Position, drawObject->Rotation, drawObject->Scale);
-            objects.Add(
-                new ParsedCharacterInstance((nint)obj, obj->NameString, type, transform, drawObject->IsVisible)
-                {
-                    CharacterInfo = characterInfo
-                });
+            objects.Add(new ParsedCharacterInstance((nint)obj, obj->NameString, type, transform, drawObject->IsVisible));
         }
 
         return objects.ToArray();
@@ -447,6 +464,54 @@ public class LayoutService : IService
             return modelInfo;
     }
     
+    public unsafe ParsedCharacterInfo? HandleCharacter(Character* character)
+    {
+        if (character == null)
+        {
+            return null;
+        }
+        
+        var drawObject = character->DrawObject;
+        if (drawObject == null)
+        {
+            return null;
+        }
+        
+        var characterInfo = HandleDrawObject(drawObject);
+        if (characterInfo == null)
+        {
+            return null;
+        }
+        
+        var attaches = new List<ParsedCharacterInfo>();
+        var mountInfo = HandleCharacter(character->Mount.MountObject);
+        if (mountInfo != null)
+        {
+            attaches.Add(mountInfo);
+        }
+        
+        var ornamentInfo = HandleCharacter((Character*)character->OrnamentData.OrnamentObject);
+        if (ornamentInfo != null)
+        {
+            attaches.Add(ornamentInfo);
+        }
+
+        foreach (var weapon in character->DrawData.WeaponData)
+        {
+            var weaponInfo = HandleDrawObject(weapon.DrawObject);
+            if (weaponInfo != null)
+            {
+                attaches.Add(weaponInfo);
+            }
+        }
+
+        characterInfo.Attaches = attaches.ToArray();
+        
+        return characterInfo;
+    }
+    
+    
+    
     public unsafe ParsedCharacterInfo? HandleDrawObject(DrawObject* drawObject)
     {
         if (drawObject == null)
@@ -473,7 +538,7 @@ public class LayoutService : IService
         var skeleton = StructExtensions.GetParsedSkeleton(characterBase);
         var (customizeParams, customizeData, genderRace) = ParseHuman(characterBase);
 
-        return new ParsedCharacterInfo(models, skeleton, customizeData, customizeParams, genderRace);
+        return new ParsedCharacterInfo(models, skeleton, StructExtensions.GetParsedAttach(characterBase), customizeData, customizeParams, genderRace);
     }
 
     public unsafe (Meddle.Utils.Export.CustomizeParameter, CustomizeData, GenderRace) ParseHuman(CharacterBase* characterBase)

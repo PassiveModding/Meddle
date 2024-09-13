@@ -7,11 +7,10 @@ namespace Meddle.Plugin.Utils;
 
 public static class SkeletonUtils
 {
-    public static List<BoneNodeBuilder> GetBoneMap(
-        IReadOnlyList<ParsedPartialSkeleton> partialSkeletons, bool includePose, out BoneNodeBuilder? root)
+    public static (List<BoneNodeBuilder> List, BoneNodeBuilder Root)[] GetBoneMaps(IReadOnlyList<ParsedPartialSkeleton> partialSkeletons, bool includePose)
     {
         List<BoneNodeBuilder> boneMap = new();
-        root = null;
+        List<BoneNodeBuilder> rootList = new();
 
         for (var partialIdx = 0; partialIdx < partialSkeletons.Count; partialIdx++)
         {
@@ -65,9 +64,7 @@ public static class SkeletonUtils
                     skeleBones[parentIdx].AddNode(bone);
                 else
                 {
-                    if (root != null)
-                        throw new InvalidOperationException($"Multiple root bones found {root.BoneName} and {name}");
-                    root = bone;
+                    rootList.Add(bone);
                 }
 
                 skeleBones[i] = bone;
@@ -75,18 +72,42 @@ public static class SkeletonUtils
             }
         }
 
-        if (!NodeBuilder.IsValidArmature(boneMap))
+        // create separate lists based on each root
+        var boneMapList = new List<(List<BoneNodeBuilder> List, BoneNodeBuilder root)>();
+        foreach (var root in rootList)
         {
-            throw new InvalidOperationException(
-                $"Joints are not valid, {string.Join(", ", boneMap.Select(x => x.Name))}");
+            var bones = NodeBuilder.Flatten(root).Cast<BoneNodeBuilder>().ToList();
+            if (!NodeBuilder.IsValidArmature(bones))
+            {
+                throw new InvalidOperationException($"Armature is invalid, {string.Join(", ", bones.Select(x => x.BoneName))}");
+            }
+            
+            boneMapList.Add((bones, root));
         }
 
-        return boneMap;
+        return boneMapList.ToArray();
     }
 
     public static List<BoneNodeBuilder> GetBoneMap(ParsedSkeleton skeleton, bool includePose, out BoneNodeBuilder? root)
     {
-        return GetBoneMap(skeleton.PartialSkeletons, includePose, out root);
+        var maps = GetBoneMaps(skeleton.PartialSkeletons, includePose);
+        if (maps.Length == 0)
+        {
+            throw new InvalidOperationException("No roots were found");
+        }
+
+        // only known instance of this thus far is the Air-Wheeler A9 mount
+        // contains two roots, one for the mount and an n_pluslayer which contains an additional skeleton
+        var rootMap = maps.FirstOrDefault(x => x.Root.BoneName.Equals("n_root", StringComparison.OrdinalIgnoreCase));
+        if (rootMap != default)
+        {
+            root = rootMap.Root;
+            return rootMap.List;
+        }
+        
+        var map0 = maps[0];
+        root = map0.Root;
+        return map0.List;
     }
 
     public record AttachGrouping(List<BoneNodeBuilder> Bones, BoneNodeBuilder? Root, List<(DateTime Time, AttachSet Attach)> Timeline);

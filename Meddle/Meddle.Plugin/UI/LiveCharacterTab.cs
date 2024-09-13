@@ -175,10 +175,10 @@ public unsafe class LiveCharacterTab : ITab
         if (modelType == CSCharacterBase.ModelType.Human)
         {
             DrawHumanCharacter((CSHuman*)cBase, out customizeData, out customizeParams, out genderRace);
-            // if (ImGui.Button("Export All Models With Attaches"))
-            // {
-            //     ExportAllModelsWithAttaches(character, customizeParams, customizeData, genderRace);
-            // }
+            if (ImGui.Button("Export All Models With Attaches"))
+            {
+                ExportAllModelsWithAttaches(character, customizeParams, customizeData, genderRace);
+            }
         }
         else
         {
@@ -306,109 +306,23 @@ public unsafe class LiveCharacterTab : ITab
         }
     }
 
-    /*private void ExportAllModelsWithAttaches(CSCharacter* character, CustomizeParameter? customizeParams, CustomizeData? customizeData, GenderRace genderRace)
+    private void ExportAllModelsWithAttaches(CSCharacter* character, CustomizeParameter? customizeParams, CustomizeData? customizeData, GenderRace genderRace)
     {
-        var drawObject = character->GameObject.DrawObject;
-        if (drawObject == null)
-        {
-            log.LogError("Draw object is null");
-            return;
-        }
-        
-        var cBase = (CSCharacterBase*)drawObject;
-        var group = parseService.ParseCharacterBase(cBase) with
-        {
-            CustomizeParams = customizeParams ?? new CustomizeParameter(), 
-            CustomizeData = customizeData ?? new CustomizeData(),
-            GenderRace = genderRace
-        };
-        
-        var attaches = new List<AttachedModelGroup>();
-        if (character->OrnamentData.OrnamentObject != null)
-        {
-            var draw = character->OrnamentData.OrnamentObject->GetDrawObject();
-            var attachGroup = parseService.ParseDrawObjectAsAttach(draw);
-            if (attachGroup != null)
-            {
-                attaches.Add(attachGroup);
-            }
-        }
-        
-        if (character->Mount.MountObject != null)
-        {
-            var draw = character->Mount.MountObject->GetDrawObject();
-            var attachGroup = parseService.ParseDrawObjectAsAttach(draw);            
-
-            if (attachGroup != null)
-            {
-                // hacky workaround since mount is actually a "root" and the character is attached to them
-                // TODO: transform needs to be adjusted to be relative to the mount
-                // var playerAttach = StructExtensions.GetParsedAttach(cBase);
-                // var attachPointName =
-                //     playerAttach.OwnerSkeleton!.PartialSkeletons[playerAttach.PartialSkeletonIdx].HkSkeleton!.BoneNames[
-                //         (int)playerAttach.BoneIdx];
-                //
-                // attachGroup.Attach.OwnerSkeleton = playerAttach.TargetSkeleton;
-                // attachGroup.Attach.TargetSkeleton = attachGroup.Skeleton;
-                // for (int i = 0; i < attachGroup.Skeleton.PartialSkeletons.Count; i++)
-                // {
-                //     var partial = attachGroup.Skeleton.PartialSkeletons[i];
-                //     for (int j = 0; j < partial.HkSkeleton!.BoneNames.Count; j++)
-                //     {
-                //         if (partial.HkSkeleton.BoneNames[j] == attachPointName)
-                //         {
-                //             attachGroup.Attach.BoneIdx = (uint)j;
-                //             attachGroup.Attach.PartialSkeletonIdx = (byte)i;
-                //             break;
-                //         }
-                //     }
-                // }
-                    
-                attaches.Add(attachGroup);
-            }
-        }
-        
-        if (character->CompanionData.CompanionObject != null)
-        {
-            var draw = character->CompanionData.CompanionObject->GetDrawObject();
-            var attachGroup = parseService.ParseDrawObjectAsAttach(draw);
-            if (attachGroup != null)
-            {
-                attaches.Add(attachGroup);
-            }
-        }
-
-        foreach (var weaponData in character->DrawData.WeaponData)
-        {
-            if (weaponData.DrawObject == null) continue;
-            var draw = weaponData.DrawObject;
-            var attachGroup = parseService.ParseDrawObjectAsAttach(draw);
-            if (attachGroup != null)
-            {
-                attaches.Add(attachGroup);
-            }
-        }
-        
-        group = group with { AttachedModelGroups = attaches.ToArray() };
-        fileDialog.SaveFolderDialog("Save Model", "Character",
-                                    (result, path) =>
-                                    {
-                                        if (!result) return;
-
-                                        Task.Run(() =>
-                                        {
-                                            exportService.Export(group, path); 
-                                        });
-                                    }, Plugin.TempDirectory);
-    }*/
-    
-    private void ExportAllModels(CSCharacterBase* cBase, CustomizeParameter? customizeParams, CustomizeData? customizeData, GenderRace genderRace)
-    {
-        var info = layoutService.HandleDrawObject((DrawObject*)cBase);
+        var info = layoutService.HandleCharacter(character);
         if (info == null)
         {
             log.LogError("Failed to get character info from draw object");
             return;
+        }
+        
+        if (customizeParams != null)
+        {
+            info.CustomizeParameter = customizeParams;
+        }
+        
+        if (customizeData != null)
+        {
+            info.CustomizeData = customizeData;
         }
         
         var folderName = $"Character-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
@@ -426,7 +340,49 @@ public unsafe class LiveCharacterTab : ITab
                                                 new DataProvider(cacheDir, pack, log, CancellationToken.None));
                                             var scene = new SceneBuilder();
                                             var root = new NodeBuilder();
-                                            composer.ComposeCharacterInstance(info, scene, root);
+                                            composer.ComposeCharacterInfo(info, null, scene, root);
+                                            scene.AddNode(root);
+                                            scene.ToGltf2().SaveGLTF(Path.Combine(path, "character.gltf"));
+                                            Process.Start("explorer.exe", path);
+                                        });
+                                    }, Plugin.TempDirectory);
+    }
+    
+    private void ExportAllModels(CSCharacterBase* cBase, CustomizeParameter? customizeParams, CustomizeData? customizeData, GenderRace genderRace)
+    {
+        var info = layoutService.HandleDrawObject((DrawObject*)cBase);
+        if (info == null)
+        {
+            log.LogError("Failed to get character info from draw object");
+            return;
+        }
+
+        if (customizeParams != null)
+        {
+            info.CustomizeParameter = customizeParams;
+        }
+        
+        if (customizeData != null)
+        {
+            info.CustomizeData = customizeData;
+        }
+        
+        var folderName = $"Character-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
+        fileDialog.SaveFolderDialog("Save Model", folderName,
+                                    (result, path) =>
+                                    {
+                                        if (!result) return;
+
+                                        Task.Run(() =>
+                                        {
+                                            var cacheDir = Path.Combine(path, "cache");
+                                            Directory.CreateDirectory(cacheDir);
+                                            var composer = new CharacterComposer(
+                                                log,
+                                                new DataProvider(cacheDir, pack, log, CancellationToken.None));
+                                            var scene = new SceneBuilder();
+                                            var root = new NodeBuilder();
+                                            composer.ComposeCharacterInfo(info, null, scene, root);
                                             scene.AddNode(root);
                                             scene.ToGltf2().SaveGLTF(Path.Combine(path, "character.gltf"));
                                             Process.Start("explorer.exe", path);
