@@ -126,20 +126,9 @@ public class BgMaterialBuilder : MeddleMaterialBuilder, IVertexPaintMaterialBuil
     {
         var extras = new List<(string, object)>();
 
-        if (!set.TryGetImageBuilderStrict(dataProvider, TextureUsage.g_SamplerColorMap0, out var colorMap0Texture))
-        {
-            throw new Exception("ColorMap0 texture not found");
-        }
-        
-        if (!set.TryGetImageBuilderStrict(dataProvider, TextureUsage.g_SamplerSpecularMap0, out var specularMap0Texture))
-        {
-            throw new Exception("SpecularMap0 texture not found");
-        }
-        
-        if (!set.TryGetImageBuilderStrict(dataProvider, TextureUsage.g_SamplerNormalMap0, out var normalMap0Texture))
-        {
-            throw new Exception("NormalMap0 texture not found");
-        }
+        var colorMap0Texture = set.GetImageBuilderStrict(dataProvider, TextureUsage.g_SamplerColorMap0);
+        var specularMap0Texture = set.GetImageBuilderStrict(dataProvider, TextureUsage.g_SamplerSpecularMap0);
+        var normalMap0Texture = set.GetImageBuilderStrict(dataProvider, TextureUsage.g_SamplerNormalMap0);
         
         set.TryGetImageBuilder(dataProvider, TextureUsage.g_SamplerColorMap1, out var colorMap1Texture);
         set.TryGetImageBuilder(dataProvider, TextureUsage.g_SamplerSpecularMap1, out var specularMap1Texture);
@@ -156,7 +145,16 @@ public class BgMaterialBuilder : MeddleMaterialBuilder, IVertexPaintMaterialBuil
         
         if (bgParams is BgColorChangeParams bgColorChangeParams && GetDiffuseColor(out var bgColorChangeDiffuseColor))
         {
-            var diffuseColor = bgColorChangeParams.StainColor ?? bgColorChangeDiffuseColor;
+            Vector4 diffuseColor;
+            if (bgColorChangeParams.StainColor != null && bgColorChangeParams.StainColor != Vector4.Zero)
+            {
+                diffuseColor = bgColorChangeParams.StainColor.Value with { W = 1.0f };
+            }
+            else
+            {
+                diffuseColor = bgColorChangeDiffuseColor;
+            }
+            
             extras.Add(("DiffuseColor", diffuseColor.AsFloatArray()));
         }
 

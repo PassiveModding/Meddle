@@ -117,15 +117,15 @@ public class MaterialSet
         return true;
     }
 
-    public bool TryGetImageBuilderStrict(DataProvider provider, TextureUsage usage, out ImageBuilder builder)
+    public ImageBuilder GetImageBuilderStrict(DataProvider provider, TextureUsage usage)
     {
         if (!TextureUsageDict.TryGetValue(usage, out var path))
         {
             throw new Exception($"Texture usage {usage} not found in material set");
         }
         
-        builder = provider.LookupTexture(path.FullPath) ?? throw new Exception($"Texture {path.FullPath} not found");
-        return true;
+        var builder = provider.LookupTexture(path.FullPath) ?? throw new Exception($"Texture {path.FullPath} not found");
+        return builder;
     }
     
     public bool TryGetImageBuilder(DataProvider provider, TextureUsage usage, out ImageBuilder? builder)
