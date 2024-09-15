@@ -48,6 +48,7 @@ jobs:
             - name: Build plugin in release mode
               run: |
                   version=$(echo ${{ github.ref_name }} | sed 's/testing_v//')
+                  echo "Version: $version"
                   dotnet build -c Release --no-restore --nologo -o ./bin/Release -p:Version=$version -p:AssemblyVersion=$version -p:FileVersion=$version
 
             - name: Generate Checksums
