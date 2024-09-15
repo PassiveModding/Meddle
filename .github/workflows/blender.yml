@@ -9,6 +9,7 @@ on:
   push:
     paths:
       - 'Blender/**'
+      - '.github/workflows/blender.yml'
 
 permissions:
   contents: write
