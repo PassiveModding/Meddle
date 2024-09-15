@@ -5,7 +5,7 @@
     "InternalName": "Meddle.Plugin",
     "Description": "Did I mention I'm a model? Export models to glTF format.",
     "AssemblyVersion": "0.1.17",
-    "TestingAssemblyVersion": "0.1.18-beta",
+    "TestingAssemblyVersion": "0.1.18",
     "RepoUrl": "https://github.com/PassiveModding/Meddle",
     "IconUrl": "https://github.com/PassiveModding/Meddle/raw/main/icon.png", 
     "ApplicableVersion": "any",
