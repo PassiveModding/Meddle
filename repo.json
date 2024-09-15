@@ -5,9 +5,9 @@
     "InternalName": "Meddle.Plugin",
     "Description": "Did I mention I'm a model? Export models to glTF format.",
     "AssemblyVersion": "0.1.17",
-    "TestingAssemblyVersion": "0.1.17",
+    "TestingAssemblyVersion": "0.1.17.1",
     "RepoUrl": "https://github.com/PassiveModding/Meddle",
-    "IconUrl": "https://github.com/PassiveModding/Meddle/raw/main/icon.png", 
+    "IconUrl": "https://github.com/PassiveModding/Meddle/raw/main/icon.png",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 10,
     "Tags": [
@@ -15,7 +15,7 @@
       "Models"
     ],
     "DownloadLinkInstall": "https://github.com/PassiveModding/Meddle/releases/download/v0.1.17/latest.zip",
-    "DownloadLinkTesting": "https://github.com/PassiveModding/Meddle/releases/download/v0.1.17/latest.zip",
+    "DownloadLinkTesting": "https://github.com/PassiveModding/Meddle/releases/download/testing_v0.1.17.1/latest.zip",
     "DownloadLinkUpdate": "https://github.com/PassiveModding/Meddle/releases/download/v0.1.17/latest.zip"
   }
 ]
