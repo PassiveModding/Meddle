@@ -109,7 +109,7 @@ jobs:
         run: |
             cd ../../
             
-            release_version=$(echo ${{ github.ref_name }} | sed 's/^v//')
+            release_version=$(echo ${{ github.ref_name }} | sed 's/^v//; s/-.*//')
             repo_url=$(echo ${{ github.server_url }}/${{ github.repository }} | sed 's/#/\\#/g')
             
             sed -i repo.json -E \
