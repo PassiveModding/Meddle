@@ -46,7 +46,9 @@ jobs:
               run: dotnet restore
 
             - name: Build plugin in release mode
-              run: dotnet build -c Release --no-restore --nologo -o ./bin/Release -p:Version=${{ github.ref_name }} -p:AssemblyVersion=${{ github.ref_name }} -p:FileVersion=${{ github.ref_name }}
+              run: |
+                $version = echo ${{ github.ref_name }} | sed 's/^testing_v//g'
+                dotnet build -c Release --no-restore --nologo -o ./bin/Release -p:Version=$version -p:AssemblyVersion=$version -p:FileVersion=$version
 
             - name: Generate Checksums
               working-directory: Meddle/Meddle.Plugin/bin/Release/Meddle.Plugin
@@ -84,12 +86,9 @@ jobs:
               run: |
                   cd ../../
                   
-                  release_version="${{ github.ref_name }}"
-                  release_version="${release_version#v}}"
-                  release_version="${release_version#testing_}"
-                  repo_url="${{ github.server_url }}/${{ github.repository }}"
-                  repo_url="${repo_url/#/\\#/g}"
-                  
+                  $release_version = echo ${{ github.ref_name }} | sed 's/testing_v//'
+                  $repo_url = echo ${{ github.server_url }}/${{ github.repository }} | sed 's/#/\\#/g'
+                                    
                   # Update the JSON file using jq
                   jq --arg release_version "$release_version" \
                   --arg repo_url "$repo_url/releases/download/${{ github.ref_name }}/latest.zip" \
