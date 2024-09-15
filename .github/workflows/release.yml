@@ -78,10 +78,11 @@ jobs:
           path: |
             Meddle/Meddle.Plugin/bin/Release/Meddle.Plugin/latest.zip
             Meddle/Meddle.Plugin/bin/Release/Meddle.Plugin/checksums.sha512
+            Blender/MeddleTools.zip
 
       - name: Update repo.json
-          # skip if tag contains "rc" or "beta"
-        if: !contains(github.ref, 'rc') && !contains(github.ref, 'beta')
+        # if does not contain rc or beta
+        if: contains(github.ref_name, 'rc') == false && contains(github.ref_name, 'beta') == false
         run: |
             cd ../../
             
@@ -103,7 +104,8 @@ jobs:
             git push origin HEAD:main
 
       - name: Update repo.json testing only
-        if: contains(github.ref, 'rc') || contains(github.ref, 'beta')
+        # if contains rc or beta
+        if: contains(github.ref_name, 'rc') == true || contains(github.ref_name, 'beta') == true
         run: |
             cd ../../
             
