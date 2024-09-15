@@ -9,8 +9,8 @@ concurrency:
 on:
     push:
         tags:
-            - 'testing_*'
-
+            - "testing_*"
+        
 # So we can use the GitHub API to create releases with the run token.
 permissions:
     contents: write
@@ -47,8 +47,8 @@ jobs:
 
             - name: Build plugin in release mode
               run: |
-                version=$(echo ${{ github.ref_name }} | sed 's/testing_v//')
-                dotnet build -c Release --no-restore --nologo -o ./bin/Release -p:Version=$version -p:AssemblyVersion=$version -p:FileVersion=$version
+                  version=$(echo ${{ github.ref_name }} | sed 's/testing_v//')
+                  dotnet build -c Release --no-restore --nologo -o ./bin/Release -p:Version=$version -p:AssemblyVersion=$version -p:FileVersion=$version
 
             - name: Generate Checksums
               working-directory: Meddle/Meddle.Plugin/bin/Release/Meddle.Plugin
@@ -85,15 +85,14 @@ jobs:
             - name: Update repo.json
               run: |
                   cd ../../
-                  
+
                   release_version=$(echo "${{ github.ref_name }}" | sed 's/^testing_v//')
                   repo_url="$(echo "${{ github.server_url }}/${{ github.repository }}" | sed 's/#/\\#/g')"
-                                    
+                                  
                   # Update the JSON file using jq
                   jq --arg release_version "$release_version" \
                   --arg repo_url "$repo_url/releases/download/${{ github.ref_name }}/latest.zip" \
-                  .TestingAssemblyVersion = $release_version |
-                  .DownloadLinkTesting = $repo_url' repo.json > tmp.json && mv tmp.json repo.json
-                  
+                  '.TestingAssemblyVersion = $release_version | .DownloadLinkTesting = $repo_url' repo.json > tmp.json && mv tmp.json repo.json
+
                   # echo file for testing purposes
                   cat repo.json
