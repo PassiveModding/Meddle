@@ -98,15 +98,16 @@ public class ExportService : IDisposable, IService
         Process.Start("explorer.exe", folder);
     }
 
-    public void ExportAnimation(
-        List<(DateTime, AttachSet[])> frames, bool includePositionalData, CancellationToken token = default)
+    public void ExportAnimation(List<(DateTime, AttachSet[])> frames, bool includePositionalData, string path, CancellationToken token = default)
     {
         try
         {
             using var activity = ActivitySource.StartActivity();
             var boneSets = SkeletonUtils.GetAnimatedBoneMap(frames.ToArray());
             var startTime = frames.Min(x => x.Item1);
-            var folder = GetPathForOutput();
+            //var folder = GetPathForOutput();
+            var folder = path;
+            Directory.CreateDirectory(folder);
             foreach (var (id, (bones, root, timeline)) in boneSets)
             {
                 var scene = new SceneBuilder();

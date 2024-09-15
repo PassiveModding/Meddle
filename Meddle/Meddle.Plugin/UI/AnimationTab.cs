@@ -1,4 +1,5 @@
 ﻿using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
@@ -24,7 +25,11 @@ public class AnimationTab : ITab
     private bool includePositionalData;
     private ICharacter? selectedCharacter;
     public MenuType MenuType => MenuType.Default;
-
+    private readonly FileDialogManager fileDialog = new()
+    {
+        AddedWindowFlags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoDocking
+    };
+    
     public AnimationTab(
         IFramework framework, ILogger<AnimationTab> logger,
         ExportService exportService,
@@ -74,7 +79,14 @@ public class AnimationTab : ITab
         
         if (ImGui.Button("Export"))
         {
-            exportService.ExportAnimation(frames, includePositionalData);
+            var folderName = $"Animation-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
+            fileDialog.SaveFolderDialog("Save Animation", folderName, (result, path) =>
+            {
+                if (!result) return;
+                exportService.ExportAnimation(frames, includePositionalData, path);
+            }, Plugin.TempDirectory);   
+            
+            
         }
 
         ImGui.SameLine();
@@ -82,6 +94,8 @@ public class AnimationTab : ITab
         ImGui.Separator();
 
         DrawSelectedCharacter();
+        
+        fileDialog.Draw();
     }
 
     public void Dispose()
