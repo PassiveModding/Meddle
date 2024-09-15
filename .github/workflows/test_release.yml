@@ -87,7 +87,9 @@ jobs:
                   cd ../../
 
                   release_version=$(echo "${{ github.ref_name }}" | sed 's/^testing_v//')
+                  echo "Release Version: $release_version"
                   repo_url="$(echo "${{ github.server_url }}/${{ github.repository }}" | sed 's/#/\\#/g')"
+                  echo "Repo URL: $repo_url"
                                   
                   # Update the JSON file using jq
                   jq --arg release_version "$release_version" \
