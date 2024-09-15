@@ -19,17 +19,17 @@ class VIEW3D_PT_update_meddle_shaders(Panel):
     def draw(self, context):
         layout = self.layout
 
-        row = layout.row()
-        row.operator("meddle.fix_ior", text="Fix ior")
+        #row = layout.row()
+        #row.operator("meddle.fix_ior", text="Fix ior")
 
         row = layout.row()
         row.operator("meddle.fix_bg", text="Fix bg.shpk")
 
         row = layout.row()
-        row.operator("meddle.stain_housing", text="Stain Housing")
+        row.operator("meddle.stain_housing", text="Fix bgcolorchange.shpk")
 
         row = layout.row()
-        row.operator("meddle.connect_volume", text="Connect Skin/Iris Volume")
+        row.operator("meddle.connect_volume", text="Fix skin.shpk/iris.shpk")
 
 class MEDDLE_OT_connect_volume(Operator):
     """Connects the volume output to the material output for skin.shpk and iris.shpk"""
@@ -286,7 +286,7 @@ class MEDDLE_OT_stain_housing(Operator):
         return {'FINISHED'}
 
 class MEDDLE_OT_fix_bg(Operator):
-    """Looks up the g_SamplerXXXMap1 values on bg materials and creates the relevant texture nodes"""
+    """Looks up the g_SamplerXXXMap1 values on bg materials and creates the relevant texture nodes, select the 'cache' directory from your meddle export folder"""
     bl_idname = "meddle.fix_bg"
     bl_label = "Fix bg.shpk"
     bl_options = {'REGISTER', 'UNDO'}
@@ -448,6 +448,7 @@ class MEDDLE_OT_fix_bg(Operator):
             # organize nodes
             g_SamplerColorMap1Node.location = (g_SamplerColorMap0Node.location.x, g_SamplerColorMap0Node.location.y - 150)
             mix_color.location = (g_SamplerColorMap0Node.location.x + 300, g_SamplerColorMap0Node.location.y)
+        
            
     def handleSpecularChannels(self, mat, vertex_color_node, principled_bsdf):
         g_SamplerSpecularMap1 = None
