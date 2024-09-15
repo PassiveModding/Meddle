@@ -10,6 +10,7 @@
     "IconUrl": "https://github.com/PassiveModding/Meddle/raw/main/icon.png",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 10,
+    "TestingDalamudApiLevel": 10,
     "Tags": [
       "Xande",
       "Models"
