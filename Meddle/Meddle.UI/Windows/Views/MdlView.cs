@@ -1,14 +1,17 @@
 ﻿using ImGuiNET;
 using Meddle.Utils.Files;
+using Meddle.Utils.Files.SqPack;
 using Meddle.Utils.Files.Structs.Model;
-using Meddle.Utils.Models;
+using Meddle.Utils.Helpers;
 
 namespace Meddle.UI.Windows.Views;
 
-public class MdlView(MdlFile mdlFile, string? path) : IView
+public class MdlView(MdlFile mdlFile, string? path, SqPack sqPack, ImageHandler imageHandler) : IView
 {
+    private readonly SqPack sqPack = sqPack;
+    private readonly ImageHandler imageHandler = imageHandler;
     private readonly HexView hexView = new(mdlFile.RawData);
-
+    private Dictionary<string, (MtrlFile, MtrlView)> mtrlFiles = new();
     public void Draw()
     {
         ImGui.Text($"Version: {mdlFile.FileHeader.Version}");
@@ -48,8 +51,26 @@ public class MdlView(MdlFile mdlFile, string? path) : IView
             
             for (var i = 0; i < mdlFile.MaterialNameOffsets.Length; i++)
             {
+                ImGui.PushID(i);
                 var material = materialNames[(int)mdlFile.MaterialNameOffsets[i]];
-                ImGui.Text($"Material {i}: {material}");
+                if (ImGui.CollapsingHeader($"Material {i}: {material}"))
+                {
+                    if (!mtrlFiles.ContainsKey(material))
+                    {
+                        if (!material.StartsWith("/"))
+                        {
+                            var data = sqPack.GetFile(material);
+                            var mtrlFile = new MtrlFile(data!.Value.file.RawData);
+                            mtrlFiles[material] = (mtrlFile, new MtrlView(mtrlFile, sqPack, imageHandler));
+                        }
+                        else
+                        {
+                            continue;
+                        }
+                    }
+                    mtrlFiles[material].Item2.Draw();
+                }
+                ImGui.PopID();
             }
         }
 

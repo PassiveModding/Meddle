@@ -66,22 +66,4 @@ public unsafe class Texture
                 Usage = usage;
         }
     }
-    
-    
-    public static TextureResource GetResource(TexFile file)
-    {
-        var h = file.Header;
-        D3DResourceMiscFlags flags = 0;
-        if (h.Type.HasFlag(TexFile.Attribute.TextureTypeCube))
-            flags |= D3DResourceMiscFlags.TextureCube;
-        return new TextureResource(
-            TexFile.GetDxgiFormatFromTextureFormat(h.Format), 
-               h.Width, 
-               h.Height, 
-               h.CalculatedMips, 
-               h.CalculatedArraySize, 
-               TexFile.GetTexDimensionFromAttribute(h.Type), 
-               flags, 
-               file.TextureBuffer);
-    }
 }

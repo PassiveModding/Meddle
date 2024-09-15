@@ -1,6 +1,6 @@
-﻿using Meddle.Utils.Export;
+﻿using System.Numerics;
+using Meddle.Utils.Export;
 using Meddle.Utils.Files;
-using Meddle.Utils.Models;
 using OtterTex;
 using SkiaSharp;
 
@@ -19,6 +19,23 @@ public static class ImageUtils
             TexFile.TextureFormat.BC7 => (width + 3) / 4 * 16,
             _ => width * 4,
         };
+    }
+    
+    public static TextureResource ToResource(this TexFile file)
+    {
+        var h = file.Header;
+        D3DResourceMiscFlags flags = 0;
+        if (h.Type.HasFlag(TexFile.Attribute.TextureTypeCube))
+            flags |= D3DResourceMiscFlags.TextureCube;
+        return new TextureResource(
+            TexFile.GetDxgiFormatFromTextureFormat(h.Format), 
+            h.Width, 
+            h.Height, 
+            h.CalculatedMips, 
+            h.CalculatedArraySize, 
+            TexFile.GetTexDimensionFromAttribute(h.Type), 
+            flags, 
+            file.TextureBuffer);
     }
     
     public static ReadOnlySpan<byte> ImageAsPng(Image image)
@@ -147,7 +164,7 @@ public static class ImageUtils
         return img;
     }
     
-    public static unsafe SKTexture ToTexture(this Image img, (int width, int height)? resize = null)
+    public static unsafe SKTexture ToTexture(this Image img, Vector2? resize = null)
     {
         if (img.Format != DXGIFormat.R8G8B8A8UNorm)
             throw new ArgumentException("Image must be in RGBA format.", nameof(img));
@@ -161,9 +178,21 @@ public static class ImageUtils
         
         if (resize != null)
         {
-            bitmap = bitmap.Resize(new SKImageInfo(resize.Value.width, resize.Value.height, SKColorType.Rgba8888, SKAlphaType.Unpremul), SKFilterQuality.High);
+            bitmap = bitmap.Resize(new SKImageInfo((int)resize.Value.X, (int)resize.Value.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul), SKFilterQuality.High);
         }
         
+        return new SKTexture(bitmap);
+    }
+    
+    public static SKTexture ToTexture(this TextureResource resource, Vector2 size)
+    {
+        if (resource.Width == (int)size.X && resource.Height == (int)size.Y)
+        {
+            return resource.ToTexture();
+        }
+        
+        var bitmap = resource.ToBitmap();
+        bitmap = bitmap.Resize(new SKImageInfo((int)size.X, (int)size.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul), SKFilterQuality.High);
         return new SKTexture(bitmap);
     }
     

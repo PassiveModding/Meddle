@@ -2,7 +2,7 @@
 using System.Runtime.InteropServices;
 using SkiaSharp;
 
-namespace Meddle.Utils.Models;
+namespace Meddle.Utils;
 
 public sealed class SKTexture
     {
@@ -10,6 +10,7 @@ public sealed class SKTexture
 
         public int Width { get; }
         public int Height { get; }
+        public Vector2 Size => new(Width, Height);
 
         public SKBitmap Bitmap
         {

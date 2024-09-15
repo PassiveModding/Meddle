@@ -1,6 +1,6 @@
 ﻿using System.Numerics;
 using Meddle.Utils.Export;
-using Meddle.Utils.Models;
+using Meddle.Utils.Files.Structs.Material;
 using SharpGLTF.Materials;
 using CustomizeParameter = Meddle.Utils.Export.CustomizeParameter;
 
@@ -11,9 +11,9 @@ public static partial class MaterialUtility
     public static MaterialBuilder BuildCharacter(Material material, string name)
     {
         TextureMode texMode;
-        if (material.ShaderKeys.Any(x => x.Category == (uint)ShaderCategory.CategoryTextureType))
+        if (material.ShaderKeys.Any(x => x.Category == (uint)ShaderCategory.GetValuesTextureType))
         {
-            var key = material.ShaderKeys.First(x => x.Category == (uint)ShaderCategory.CategoryTextureType);
+            var key = material.ShaderKeys.First(x => x.Category == (uint)ShaderCategory.GetValuesTextureType);
             texMode = (TextureMode)key.Value;
         }
         else
@@ -71,7 +71,8 @@ public static partial class MaterialUtility
                 var maskPixel = maskTexture[x, y].ToVector4();
                 var indexPixel = indexTexture[x, y];
 
-                var blended = material.ColorTable.GetBlendedPair(indexPixel.Red, indexPixel.Green);
+                
+                var blended = ((ColorTableSet)material.ColorTable).ColorTable.GetBlendedPair(indexPixel.Red, indexPixel.Green);
                 if (texMode == TextureMode.Compatibility)
                 {
                     var diffusePixel = diffuseTexture![x, y].ToVector4();
@@ -208,9 +209,9 @@ public static partial class MaterialUtility
     {
         return BuildCharacter(material, name);
         TextureMode texMode;
-        if (material.ShaderKeys.Any(x => x.Category == (uint)ShaderCategory.CategoryTextureType))
+        if (material.ShaderKeys.Any(x => x.Category == (uint)ShaderCategory.GetValuesTextureType))
         {
-            var key = material.ShaderKeys.First(x => x.Category == (uint)ShaderCategory.CategoryTextureType);
+            var key = material.ShaderKeys.First(x => x.Category == (uint)ShaderCategory.GetValuesTextureType);
             texMode = (TextureMode)key.Value;
         }
         else
@@ -253,7 +254,7 @@ public static partial class MaterialUtility
             var normalPixel = normal[x, y].ToVector4();
             var indexPixel = indexTexture[x, y];
             
-            var blended = material.ColorTable.GetBlendedPair(indexPixel.Red, indexPixel.Green);
+            var blended = ((LegacyColorTableSet)material.ColorTable).ColorTable.GetBlendedPair(normalPixel.W);
             if (texMode == TextureMode.Compatibility)
             {
                 var diffusePixel = diffuseTexture![x, y].ToVector4();

@@ -1,11 +1,12 @@
 ﻿using System.Numerics;
+using System.Runtime.InteropServices;
 using ImGuiNET;
 using Meddle.UI.Models;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
 using Meddle.Utils.Files.Structs.Material;
-using Meddle.Utils.Models;
+using Meddle.Utils.Helpers;
 
 namespace Meddle.UI.Windows.Views;
 
@@ -135,23 +136,62 @@ public class MtrlView : IView
         if (ImGui.CollapsingHeader("Shader Values"))
         {
             ImGui.Text($"Shader Keys [{file.ShaderKeys.Length}]");
+            ImGui.BeginTable("ShaderKeys", 4, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable);
+            ImGui.TableSetupColumn("Index");
+            ImGui.TableSetupColumn("Name");
+            ImGui.TableSetupColumn("Category");
+            ImGui.TableSetupColumn("Value");
+            ImGui.TableHeadersRow();
+            
             for (var i = 0; i < file.ShaderKeys.Length; i++)
             {
                 var key = file.ShaderKeys[i];
-
+                ImGui.TableNextRow();
+                ImGui.TableSetColumnIndex(0);
+                ImGui.Text($"{i}");
+                ImGui.TableSetColumnIndex(1);
                 if (Enum.IsDefined((ShaderCategory)key.Category))
                 {
-                    ImGui.Text($"[{i}][{key.Category:X4}] {((ShaderCategory)key.Category).ToString()} {key.Value:X4}");
+                    ImGui.Text($"{((ShaderCategory)key.Category).ToString()}");
                 }
-                else
+                ImGui.TableSetColumnIndex(2);
+                ImGui.Text($"{key.Category:X4}");
+                if (ImGui.IsItemHovered())
                 {
-                    ImGui.Text($"[{i}][{key.Category:X4}] {key.Value:X4}");
+                    ImGui.BeginTooltip();
+                    ImGui.Text($"0x{key.Category:X4}");
+                    ImGui.EndTooltip();
+                }
+                if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
+                {
+                    ImGui.SetClipboardText($"0x{key.Category:X4}");
+                }
+                ImGui.TableSetColumnIndex(3);
+                ImGui.Text($"0x{key.Value:X4}");
+                
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.BeginTooltip();
+                    ImGui.Text($"0x{key.Value:X4}");
+                    ImGui.EndTooltip();
+                }
+                if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
+                {
+                    ImGui.SetClipboardText($"0x{key.Value:X4}");
                 }
             }
-
+            ImGui.EndTable();
+            
             ImGui.Text($"Constants [{file.Constants.Length}]");
+            ImGui.BeginTable("Constants", 4, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable);
+            ImGui.TableSetupColumn("Index");
+            ImGui.TableSetupColumn("Name");
+            ImGui.TableSetupColumn("Key");
+            ImGui.TableSetupColumn("Value");
+            ImGui.TableHeadersRow();
             for (var i = 0; i < file.Constants.Length; i++)
             {
+                ImGui.TableNextRow();
                 var constant = file.Constants[i];
                 var index = constant.ValueOffset / 4;
                 var count = constant.ValueSize / 4;
@@ -162,42 +202,76 @@ public class MtrlView : IView
                     var bytes = BitConverter.GetBytes(value);
                     buf.AddRange(bytes);
                 }
+                var floatBuf = MemoryMarshal.Cast<byte, float>(buf.ToArray()).ToArray();
 
-                //ImGui.Text(
-                //    $"[{i}][{constant.ConstantId:X4}|{constant.ConstantId}] off:{constant.ValueOffset:X2} size:{constant.ValueSize:X2} [{BitConverter.ToString(buf.ToArray())}]");
+                ImGui.TableSetColumnIndex(0);
+                ImGui.Text($"{i}");
+                ImGui.TableSetColumnIndex(1);
                 if (Enum.IsDefined((MaterialConstant)constant.ConstantId))
                 {
-                    ImGui.Text(
-                        $"[{i}][{constant.ConstantId:X4}|{constant.ConstantId}] {((MaterialConstant)constant.ConstantId).ToString()} [{BitConverter.ToString(buf.ToArray())}]");
+                    ImGui.Text($"{((MaterialConstant)constant.ConstantId).ToString()}");
                 }
-                else
+                ImGui.TableSetColumnIndex(2);
+                ImGui.Text($"{constant.ConstantId:X4}");
+                if (ImGui.IsItemHovered())
                 {
-                    ImGui.Text(
-                        $"[{i}][{constant.ConstantId:X4}|{constant.ConstantId}] Unknown [{BitConverter.ToString(buf.ToArray())}]");
+                    ImGui.BeginTooltip();
+                    ImGui.Text($"0x{constant.ConstantId:X4}");
+                    ImGui.EndTooltip();
                 }
+                if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
+                {
+                    ImGui.SetClipboardText($"0x{constant.ConstantId:X4}");
+                }
+                ImGui.TableSetColumnIndex(3);
+                ImGui.Text($"{string.Join(", ", floatBuf)}");
             }
+            ImGui.EndTable();
 
             ImGui.Text($"Samplers [{file.Samplers.Length}]");
+            ImGui.BeginTable("Samplers", 4, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable);
+            ImGui.TableSetupColumn("Index");
+            ImGui.TableSetupColumn("Name");
+            ImGui.TableSetupColumn("Id");
+            ImGui.TableSetupColumn("Flags");
+            ImGui.TableHeadersRow();
             for (var i = 0; i < file.Samplers.Length; i++)
             {
+                ImGui.TableNextRow();
                 var sampler = file.Samplers[i];
+                ImGui.TableSetColumnIndex(0);
+                ImGui.Text($"{i}");
+                ImGui.TableSetColumnIndex(1);
                 if (Enum.IsDefined((TextureUsage)sampler.SamplerId))
                 {
-                    ImGui.Text(
-                        $"[{i}][{sampler.SamplerId:X4}] {((TextureUsage)sampler.SamplerId).ToString()} {sampler.Flags:X4}");
+                    ImGui.Text($"{((TextureUsage)sampler.SamplerId).ToString()}");
                 }
-                else
+                ImGui.TableSetColumnIndex(2);
+                ImGui.Text($"{sampler.SamplerId:X4}");
+                if (ImGui.IsItemHovered())
                 {
-                    ImGui.Text($"[{i}][{sampler.SamplerId:X4}] Unknown {sampler.Flags:X4}");
+                    ImGui.BeginTooltip();
+                    ImGui.Text($"0x{sampler.SamplerId:X4}");
+                    ImGui.EndTooltip();
+                }
+                if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
+                {
+                    ImGui.SetClipboardText($"0x{sampler.SamplerId:X4}");
+                }
+                ImGui.TableSetColumnIndex(3);
+                ImGui.Text($"0x{sampler.Flags:X4}");
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.BeginTooltip();
+                    ImGui.Text($"0x{sampler.Flags:X4}");
+                    ImGui.EndTooltip();
+                }
+                if (ImGui.IsItemClicked(ImGuiMouseButton.Left))
+                {
+                    ImGui.SetClipboardText($"0x{sampler.Flags:X4}");
                 }
             }
-
-            ImGui.Text($"Shader Values [{file.ShaderValues.Length}]");
-            for (var i = 0; i < file.ShaderValues.Length; i++)
-            {
-                var value = file.ShaderValues[i];
-                ImGui.Text($"[{i}]{value:X8}");
-            }
+            ImGui.EndTable();
         }
 
         if (ImGui.CollapsingHeader("Color Table"))
@@ -241,23 +315,23 @@ public class MtrlView : IView
         ImGui.Text("Tile Set");
         ImGui.NextColumn();
 
-        for (var i = 0; i < file.ColorTable.Rows.Length; i++)
-        {
-            if (file.LargeColorTable)
-            {
-                DrawRow(i);
-            }
-            else
-            {
-                ImGui.Text($"Legacy Row {i}");
-                DrawRow(i);
-            }
-        }
+        // for (var i = 0; i < file.ColorTable.Rows.Length; i++)
+        // {
+        //     if (file.LargeColorTable)
+        //     {
+        //         DrawRow(i);
+        //     }
+        //     else
+        //     {
+        //         ImGui.Text($"Legacy Row {i}");
+        //         DrawRow(i);
+        //     }
+        // }
 
         ImGui.Columns(1);
     }
 
-    private void DrawRow(int i)
+    /*private void DrawRow(int i)
     {
         ref var row = ref file.ColorTable.Rows[i];
         ImGui.Text($"{i}");
@@ -313,5 +387,5 @@ public class MtrlView : IView
         ImGui.NextColumn();
         ImGui.Text($"{row.TileIndex}");
         ImGui.NextColumn();
-    }
+    }*/
 }

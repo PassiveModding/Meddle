@@ -1,6 +1,8 @@
 ﻿using System.Numerics;
+using Dalamud.Interface.Utility.Raii;
 using ImGuiNET;
 using Meddle.Plugin.Models.Layout;
+using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Utils;
 
 namespace Meddle.Plugin.UI.Layout;
@@ -23,31 +25,7 @@ public partial class LayoutWindow
         {
             if (ImGui.Begin("##LayoutOverlay", flags))
             {
-                DrawLayers(currentLayout, out hovered, out selected);
-                if (hovered.Count > 0 && hovered.Any(x => drawTypes.HasFlag(x.Type)))
-                {
-                    ImGui.BeginTooltip();
-                    foreach (var instance in hovered)
-                    {
-                        DrawTooltip(instance);
-                    }
-                    ImGui.EndTooltip();
-                }
-
-                if (traceToHovered)
-                {
-                    var first = hovered.FirstOrDefault();
-                    if (first != null)
-                    {
-                        if (WorldToScreen(first.Transform.Translation, out var screenPos, out var inView) &&
-                            WorldToScreen(currentPos, out var currentScreenPos, out var currentInView))
-                        {
-                            var bg = ImGui.GetBackgroundDrawList();
-                            bg.AddLine(currentScreenPos, screenPos, ImGui.GetColorU32(config.WorldDotColor), 2);
-                        }
-                    }
-                }
-                
+                DrawLayers(currentLayout, null, out hovered, out selected);
             }
         } 
         finally
@@ -56,13 +34,13 @@ public partial class LayoutWindow
         }
     }
     
-    private void DrawLayers(ParsedInstance[] instances, out List<ParsedInstance> hovered, out List<ParsedInstance> selected)
+    private void DrawLayers(ParsedInstance[] instances, ParsedInstance? parent, out List<ParsedInstance> hovered, out List<ParsedInstance> selected)
     {
         hovered = new List<ParsedInstance>();
         selected = new List<ParsedInstance>();
         foreach (var instance in instances)
         {
-            var state = DrawInstanceOverlay(instance);
+            var state = DrawInstanceOverlay(instance, parent);
             if (state == InstanceSelectState.Hovered)
             {
                 hovered.Add(instance);
@@ -70,6 +48,15 @@ public partial class LayoutWindow
             else if (state == InstanceSelectState.Selected)
             {
                 selected.Add(instance);
+            }
+
+            if (instance is ParsedSharedInstance shared && drawChildren)
+            {
+                foreach (var child in shared.Children)
+                {
+                    DrawLayers([child], shared, out var childHovered, out var childSelected);
+                    hovered.AddRange(childHovered);
+                }
             }
         }
     }
@@ -113,9 +100,26 @@ public partial class LayoutWindow
             }
         }
 
-        if (instance is ParsedBgPartsInstance bgInstance)
+        if (instance is ParsedLightInstance lightInstance)
         {
-            ImGui.Text($"Path: {bgInstance.Path}");
+            ImGui.Text($"Light Type: {lightInstance.Light.LightType}");
+            ImGui.ColorButton("Color", new Vector4(lightInstance.Light.Color.Rgb, lightInstance.Light.Color.Intensity));
+            ImGui.SameLine();
+            ImGui.Text($"HDR: {lightInstance.Light.Color._vec3.ToFormatted()}");
+            ImGui.SameLine();
+            ImGui.Text($"RGB: {lightInstance.Light.Color.Rgb.ToFormatted()}");
+            ImGui.SameLine();
+            ImGui.Text($"Intensity: {lightInstance.Light.Color.Intensity}");
+            ImGui.Text($"Range: {lightInstance.Light.Range}");
+        }
+
+        if (instance is IPathInstance pathInstance)
+        {
+            ImGui.Text($"Path: {pathInstance.Path.FullPath}");
+            if (pathInstance.Path.GamePath != pathInstance.Path.FullPath)
+            {
+                ImGui.Text($"Game Path: {pathInstance.Path.GamePath}");
+            }
         }
         
         if (instance is ParsedCharacterInstance characterInstance)
@@ -145,7 +149,7 @@ public partial class LayoutWindow
         None
     }
     
-    private InstanceSelectState DrawInstanceOverlay(ParsedInstance obj)
+    private InstanceSelectState DrawInstanceOverlay(ParsedInstance obj, ParsedInstance? parent)
     {
         var localPos = sigUtil.GetLocalPosition();
         if (Vector3.Abs(obj.Transform.Translation - localPos).Length() > config.WorldCutoffDistance)
@@ -168,10 +172,53 @@ public partial class LayoutWindow
         var screenPosVec = new Vector2(screenPos.X, screenPos.Y);
         var bg = ImGui.GetBackgroundDrawList();
 
-        bg.AddCircleFilled(screenPosVec, 5, ImGui.GetColorU32(config.WorldDotColor));
+        var dotColor = config.WorldDotColor;
+        if (selectedInstances.ContainsKey(obj.Id) || (parent != null && selectedInstances.ContainsKey(parent.Id)))
+        {
+            dotColor = new Vector4(1f, 1f, 1f, 0.5f);
+        }
+        
+        // if obj is light instance, draw a short line in the direction of the light
+        if (obj is ParsedLightInstance light)
+        {
+            dotColor = new Vector4(light.Light.Color.Rgb, 0.5f);
+
+            if (light.Light.LightType != LightType.PointLight)
+            {
+                var range = Math.Min(light.Light.Range, 1);
+                var lightDir = Vector3.Transform(new Vector3(0, 0, range), obj.Transform.Rotation);
+                WorldToScreen(obj.Transform.Translation + lightDir, out var endPos, out _);
+                bg.AddLine(screenPosVec, endPos, ImGui.GetColorU32(dotColor), 2);
+            }
+            
+            bg.AddCircle(screenPosVec, 5.1f, ImGui.GetColorU32(config.WorldDotColor));
+        }
+        
+        bg.AddCircleFilled(screenPosVec, 5, ImGui.GetColorU32(dotColor));
+        
         if (ImGui.IsMouseHoveringRect(screenPosVec - new Vector2(5, 5), screenPosVec + new Vector2(5, 5)) &&
             !ImGui.IsWindowHovered(ImGuiHoveredFlags.AnyWindow))
         {
+            if (traceToHovered)
+            {
+                if (WorldToScreen(currentPos, out var currentScreenPos, out var currentInView))
+                {
+                    bg.AddLine(currentScreenPos, screenPos, ImGui.GetColorU32(config.WorldDotColor), 2);
+                }
+            }
+            
+            if (drawChildren && traceToParent && parent != null)
+            {
+                if (WorldToScreen(parent.Transform.Translation, out var parentScreenPos, out var parentInView))
+                {
+                    bg.AddLine(screenPos, parentScreenPos, ImGui.GetColorU32(config.WorldDotColor), 2);
+                }
+            }
+            
+            using (var tt = ImRaii.Tooltip())
+            {
+                DrawTooltip(obj);
+            }
             ImGui.SetNextFrameWantCaptureMouse(true);
             if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
             {

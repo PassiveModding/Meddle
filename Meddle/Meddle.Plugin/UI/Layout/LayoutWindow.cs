@@ -16,7 +16,7 @@ using SharpGLTF.Schema2;
 
 namespace Meddle.Plugin.UI.Layout;
 
-public partial class LayoutWindow : Window
+public partial class LayoutWindow : Window, IDisposable
 {
     private readonly LayoutService layoutService;
     private readonly Configuration config;
@@ -157,6 +157,19 @@ public partial class LayoutWindow : Window
 
                 var items = set.ToArray();
 
+                var count = 0;
+                foreach (var item in items)
+                {
+                    if (item is ParsedSharedInstance shared)
+                    {
+                        count += shared.Flatten().Length;
+                    }
+                    else
+                    {
+                        count++;
+                    }
+                }
+                
                 ExportButton($"Export {items.Length} instance(s)", items);
                 ImGui.SameLine();
                 if (ImGui.Button($"Add {items.Length} instance(s) to selection"))
@@ -166,6 +179,8 @@ public partial class LayoutWindow : Window
                         selectedInstances[item.Id] = item;
                     }
                 }
+                ImGui.SameLine();
+                ImGui.Text($"Total: {count}");
 
                 DrawInstanceTable(items, DrawLayoutButtons);
             }
@@ -299,9 +314,14 @@ public partial class LayoutWindow : Window
                                             {
                                                 gltf.SaveAsWavefront(Path.Combine(path, $"{defaultName}.obj"));
                                             }
-
+                                            
                                             Process.Start("explorer.exe", path);
                                         }, cancelToken.Token);
                                     }, Plugin.TempDirectory);
+    }
+
+    public void Dispose()
+    {
+        cancelToken.Cancel();
     }
 }

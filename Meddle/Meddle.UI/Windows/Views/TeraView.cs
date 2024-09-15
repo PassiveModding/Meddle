@@ -5,8 +5,8 @@ using Meddle.UI.Models;
 using Meddle.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
+using Meddle.Utils.Helpers;
 using Meddle.Utils.Materials;
-using Meddle.Utils.Models;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
 using SqPack = Meddle.Utils.Files.SqPack.SqPack;
@@ -23,6 +23,7 @@ public class TeraView : IView
     private readonly PathManager pathManager;
     private readonly List<(string Path, LgbFile.Group.InstanceObject ObjectInfo)> bgObjects = new();
     private readonly HexView hexView;
+    private readonly List<(string Path, Vector2 Position, MdlFile file, MdlView view)> mdlFiles = new();
 
     public TeraView(
         TeraFile teraFile, string? handlePath, SqPack sqPack, Configuration config, ImageHandler imageHandler,
@@ -55,6 +56,19 @@ public class TeraView : IView
                             bgObjects.Add((bgData.ModelPath, instanceObject));
                         }
                     }
+                }
+            }
+            var mdlRoot = handlePath.Replace("/terrain.tera", "");
+            for (int i = 0; i < teraFile.Header.PlateCount; i++)
+            {
+                var pos = teraFile.GetPlatePosition(i);
+                var mdlPath = $"{mdlRoot}/{i:D4}.mdl";
+                var mdlData = sqPack.GetFile(mdlPath);
+                if (mdlData != null)
+                {
+                    var mdlFile = new MdlFile(mdlData.Value.file.RawData);
+                    var view = new MdlView(mdlFile, mdlPath, sqPack, this.imageHandler);
+                    mdlFiles.Add((mdlPath, pos, mdlFile, view));
                 }
             }
         }
@@ -214,6 +228,18 @@ public class TeraView : IView
 
     public void Draw()
     {
+        foreach (var (mdlPath, pos, mdlFile, view) in mdlFiles)
+        {
+            ImGui.PushID(mdlPath);
+            if (ImGui.TreeNode(mdlPath))
+            {
+                ImGui.Text($"Position: {pos}");
+                view.Draw();
+                ImGui.TreePop();
+            }
+            ImGui.PopID();
+        }
+        
         hexView.DrawHexDump();
 
         ImGui.BeginDisabled(!exportTask.IsCompleted);

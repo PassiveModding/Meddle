@@ -1,7 +1,7 @@
 ﻿using System.Text;
 using Meddle.Utils.Files;
 
-namespace Meddle.Utils.Models;
+namespace Meddle.Utils.Helpers;
 
 public static class ModelUtils
 {  

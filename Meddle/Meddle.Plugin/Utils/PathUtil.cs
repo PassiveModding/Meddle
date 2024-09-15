@@ -7,13 +7,10 @@ namespace Meddle.Plugin.Utils;
 
 public static class PathUtil
 {
+    // lumina still fails on certain textures ie. array
     public static byte[]? GetFileOrReadFromDisk(this IDataManager pack, string path)
     {
-        // if path is in format |...|path/to/file, trim the |...| part
-        if (path[0] == '|')
-        {
-            path = path.Substring(path.IndexOf('|', 1) + 1);
-        }
+        path = path.TrimHandlePath();
 
         // if path is rooted, get from disk
         if (Path.IsPathRooted(path))
@@ -28,12 +25,8 @@ public static class PathUtil
     
     public static byte[]? GetFileOrReadFromDisk(this SqPack pack, string path)
     {
-        // if path is in format |...|path/to/file, trim the |...| part
-        if (path[0] == '|')
-        {
-            path = path.Substring(path.IndexOf('|', 1) + 1);
-        }
-
+        path = path.TrimHandlePath();
+        
         // if path is rooted, get from disk
         if (Path.IsPathRooted(path))
         {
@@ -43,6 +36,17 @@ public static class PathUtil
 
         var file = pack.GetFile(path);
         return file?.file.RawData.ToArray();
+    }
+    
+    public static string TrimHandlePath(this string path)
+    {
+        // if path is in format |...|path/to/file, trim the |...| part
+        if (path[0] == '|')
+        {
+            path = path.Substring(path.IndexOf('|', 1) + 1);
+        }
+
+        return path;
     }
     
     public static string ParseString(this StdString stdString)

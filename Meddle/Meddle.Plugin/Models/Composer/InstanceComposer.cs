@@ -1,56 +1,85 @@
 ﻿using System.Collections.Concurrent;
 using System.Numerics;
-using System.Runtime.InteropServices;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using Meddle.Plugin.Models.Layout;
+using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
-using Meddle.Utils.Materials;
-using Meddle.Utils.Models;
+using Meddle.Utils.Helpers;
 using Microsoft.Extensions.Logging;
 using SharpGLTF.Materials;
-using SharpGLTF.Memory;
 using SharpGLTF.Scenes;
-using SkiaSharp;
 
 namespace Meddle.Plugin.Models.Composer;
 
-public class InstanceComposer
+public class InstanceComposer : IDisposable
 {
-    public InstanceComposer(ILogger log, SqPack manager, Configuration config, ParsedInstance[] instances, string? cacheDir = null, 
-                       Action<ProgressEvent>? progress = null, CancellationToken cancellationToken = default)
+    private readonly CancellationToken cancellationToken;
+    private readonly Configuration config;
+    private readonly int count;
+    private readonly SqPack dataManager;
+    private readonly ParsedInstance[] instances;
+    private readonly ILogger log;
+    private readonly Action<ProgressEvent>? progress;
+    private int countProgress;
+    private readonly DataProvider dataProvider;
+
+    public InstanceComposer(
+        ILogger log, SqPack manager,
+        Configuration config,
+        ParsedInstance[] instances,
+        string? cacheDir = null,
+        Action<ProgressEvent>? progress = null,
+        CancellationToken cancellationToken = default)
     {
         CacheDir = cacheDir ?? Path.GetTempPath();
         Directory.CreateDirectory(CacheDir);
         this.instances = instances;
         this.log = log;
-        this.dataManager = manager;
+        dataManager = manager;
         this.config = config;
         this.progress = progress;
         this.cancellationToken = cancellationToken;
-        this.count = instances.Length;
+        count = instances.Length;
+        dataProvider = new DataProvider(CacheDir, dataManager, log, cancellationToken);
     }
 
-    private readonly ILogger log;
-    private readonly SqPack dataManager;
-    private readonly Configuration config;
-    private readonly Action<ProgressEvent>? progress;
-    private readonly CancellationToken cancellationToken;
-    private readonly int count;
-    private int countProgress;
     public string CacheDir { get; }
-    private readonly ParsedInstance[] instances;
-    private readonly ConcurrentDictionary<string, (string PathOnDisk, MemoryImage MemoryImage)> imageCache = new();
-    private readonly ConcurrentDictionary<string, (ShpkFile File, ShaderPackage Package)> shpkCache = new();
-    private readonly ConcurrentDictionary<string, MaterialBuilder> mtrlCache = new();
+
+    public void Dispose()
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+    }
+
+    private void Iterate(Action<ParsedInstance> action, bool parallel)
+    {
+        if (parallel)
+        {
+            Parallel.ForEach(instances, new ParallelOptions
+            {
+                CancellationToken = cancellationToken,
+                MaxDegreeOfParallelism = Math.Max(Environment.ProcessorCount / 2, 1)
+            }, action);
+        }
+        else
+        {
+            foreach (var instance in instances)
+            {
+                action(instance);
+            }
+        }
+    }
 
     public void Compose(SceneBuilder scene)
     {
         progress?.Invoke(new ProgressEvent("Export", 0, count));
-        Parallel.ForEach(instances, instance =>
+        Iterate(instance =>
         {
             try
             {
@@ -68,72 +97,145 @@ public class InstanceComposer
             //countProgress++;
             Interlocked.Increment(ref countProgress);
             progress?.Invoke(new ProgressEvent("Export", countProgress, count));
-        });
-        /*foreach (var instance in instances)
-        {
-            try
-            {
-                var node = ComposeInstance(scene, instance);
-                if (node != null)
-                {
-                    scene.AddNode(node);
-                }
-            }
-            catch (Exception ex)
-            {
-                log.LogError(ex, "Failed to compose instance {instanceId} {instanceType}", instance.Id, instance.Type);
-            }
-
-            countProgress++;
-            progress?.Invoke(new ProgressEvent("Export", countProgress, count));
-        }*/
+        }, false);
     }
 
     public NodeBuilder? ComposeInstance(SceneBuilder scene, ParsedInstance parsedInstance)
     {
         if (cancellationToken.IsCancellationRequested) return null;
         var root = new NodeBuilder();
+        var transform = parsedInstance.Transform;
         if (parsedInstance is IPathInstance pathInstance)
         {
-            root.Name = $"{parsedInstance.Type}_{Path.GetFileNameWithoutExtension(pathInstance.Path)}";
+            root.Name = $"{parsedInstance.Type}_{Path.GetFileNameWithoutExtension(pathInstance.Path.GamePath)}";
         }
         else
         {
             root.Name = $"{parsedInstance.Type}_{parsedInstance.Id}";
         }
-        
-        bool wasAdded = false;
-        if (parsedInstance is ParsedBgPartsInstance {Path: not null} bgPartsInstance)
+
+        var wasAdded = false;
+        if (parsedInstance is ParsedBgPartsInstance {Path.FullPath: not null} bgPartsInstance)
         {
             var meshes = ComposeBgPartsInstance(bgPartsInstance);
             foreach (var mesh in meshes)
             {
                 scene.AddRigidMesh(mesh.Mesh, root, Matrix4x4.Identity);
             }
-            
+
             wasAdded = true;
         }
 
-        if (parsedInstance is ParsedCharacterInstance { CharacterInfo: not null } characterInstance)
+        if (parsedInstance is ParsedCharacterInstance {CharacterInfo: not null} characterInstance)
         {
             if (characterInstance.Kind == ObjectKind.Pc && !string.IsNullOrWhiteSpace(config.PlayerNameOverride))
             {
                 root.Name = $"{characterInstance.Type}_{characterInstance.Kind}_{config.PlayerNameOverride}";
             }
             else
-            {                
+            {
                 root.Name = $"{characterInstance.Type}_{characterInstance.Kind}_{characterInstance.Name}";
             }
-            ComposeCharacterInstance(characterInstance, scene, root);
+
+            var characterComposer = new CharacterComposer(log, dataProvider);
+            characterComposer.ComposeCharacterInstance(characterInstance, scene, root);
             wasAdded = true;
         }
+
         if (parsedInstance is ParsedLightInstance lightInstance)
         {
-            // TODO: Probably can fill some parts here given more info
-            root.Name = $"{lightInstance.Type}_{lightInstance.Id}";
-            var lightBuilder = new LightBuilder.Point();
-            scene.AddLight(lightBuilder, root);
-            wasAdded = true;
+            if (lightInstance.Light.Range <= 0)
+            {
+                log.LogWarning("Light {LightId} has a range of 0 or less ({Range})", lightInstance.Id, lightInstance.Light.Range);
+                return null;
+            }
+            
+            // idk if its blender, sharpgltf or game engine stuff but flip the rotation for lights (only tested spot though)
+            var rotation = transform.Rotation;
+            rotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI);
+                    
+            transform = transform with {Rotation = rotation};
+            var light = lightInstance.Light;
+            
+            root.Name = $"{lightInstance.Type}_{light.LightType}_{lightInstance.Id}";
+
+            LightBuilder? lightBuilder = null;
+            switch (light.LightType)
+            {
+                case LightType.Directional:
+                    lightBuilder = new LightBuilder.Directional
+                    {
+                        Color = light.Color.Rgb,
+                        Intensity = LuxIntensity(light.Color.HdrIntensity),
+                        Name = root.Name,
+                    };
+                    break;
+                case LightType.PointLight:
+                // TODO: Capsule and area dont belong here but there isn't a gltf equivalent
+                case LightType.CapsuleLight:
+                case LightType.AreaLight:
+                    lightBuilder = new LightBuilder.Point
+                    {
+                        Color = light.Color.Rgb,
+                        Intensity = CandelaIntensity(light.Color.HdrIntensity),
+                        Range = light.Range,
+                        Name = root.Name
+                    };
+                    break;
+                case LightType.SpotLight:
+                    var (outerConeAngle, innerConeAngle) = FixSpotLightAngles(
+                        DegreesToRadians(light.LightAngle + light.FalloffAngle), 
+                        DegreesToRadians(light.LightAngle));
+                    
+                    lightBuilder = new LightBuilder.Spot
+                    {
+                        Color = light.Color.Rgb,
+                        Intensity = CandelaIntensity(light.Color.HdrIntensity),
+                        Range = light.Range,
+                        InnerConeAngle = innerConeAngle,
+                        OuterConeAngle = outerConeAngle,
+                        Name = root.Name
+                    };
+                    break;
+                default:
+                    log.LogWarning("Unsupported light type: {LightType}", light.LightType);
+                    break;
+            }
+
+            if (lightBuilder != null)
+            {
+                var extras = new Dictionary<string, object>()
+                {
+                    { "LightType", light.LightType.ToString() },
+                    { "Range", light.Range },
+                    { "FalloffType", light.FalloffType },
+                    { "Falloff", light.Falloff },
+                    { "ShadowFar", light.ShadowFar },
+                    { "ShadowNear", light.ShadowNear },
+                    { "CharaShadowRange", light.CharaShadowRange },
+                    { "LightAngle", light.LightAngle },
+                    { "FalloffAngle", light.FalloffAngle },
+                    { "AreaAngle", light.AreaAngle },
+                    { "ColorHDR", light.Color._vec3 },
+                    { "ColorRGB", light.Color.Rgb },
+                    { "Intensity", light.Color.Intensity },
+                    { "BoundsMin", light.Bounds.Min },
+                    { "BoundsMax", light.Bounds.Max },
+                    { "Flags", light.Flags },
+                };
+
+                foreach (var lightFlag in Enum.GetValues<LightFlags>())
+                {
+                    extras.Add(lightFlag.ToString(), light.Flags.HasFlag(lightFlag));
+                }
+                
+                // doesn't appear to set extras on the light itself
+                lightBuilder.Extras = JsonNode.Parse(JsonSerializer.Serialize(extras, MaterialSet.JsonOptions));
+                
+                root.Extras = JsonNode.Parse(JsonSerializer.Serialize(extras, MaterialSet.JsonOptions));
+                scene.AddLight(lightBuilder, root);
+                wasAdded = true;
+            }
         }
 
         if (parsedInstance is ParsedTerrainInstance terrainInstance)
@@ -153,242 +255,93 @@ public class InstanceComposer
                     root.AddNode(childNode);
                     wasAdded = true;
                 }
-                
-                progress?.Invoke(new ProgressEvent("Shared Instance", countProgress, count, new ProgressEvent(root.Name, i, sharedInstance.Children.Count)));
+
+                progress?.Invoke(new ProgressEvent("Shared Instance", countProgress, count,
+                                                   new ProgressEvent(root.Name, i, sharedInstance.Children.Count)));
             }
         }
 
         if (wasAdded)
         {
-            root.SetLocalTransform(parsedInstance.Transform.AffineTransform, true);
+            root.SetLocalTransform(transform.AffineTransform, true);
             return root;
         }
-        
+
         return null;
     }
-
-    private TexFile? cubeMapTex;
-    private PbdFile? pbdFile;
-
-    private void EnsureBonesExist(Model model, List<BoneNodeBuilder> bones, BoneNodeBuilder? root)
-    {
-        foreach (var mesh in model.Meshes)
-        {
-            if (mesh.BoneTable == null) continue;
-
-            foreach (var boneName in mesh.BoneTable)
-            {
-                if (bones.All(b => !b.BoneName.Equals(boneName, StringComparison.Ordinal)))
-                {
-                    log.LogInformation("Adding bone {BoneName} from mesh {MeshPath}", boneName,
-                                          model.Path);
-                    var bone = new BoneNodeBuilder(boneName);
-                    if (root == null) throw new InvalidOperationException("Root bone not found");
-                    root.AddNode(bone);
-                    log.LogInformation("Added bone {BoneName} to {ParentBone}", boneName, root.BoneName);
-
-                    bones.Add(bone);
-                }
-            }
-        }
-    }
     
-    private void ComposeCharacterInstance(ParsedCharacterInstance characterInstance, SceneBuilder scene, NodeBuilder root)
-    {
-        if (cubeMapTex == null)
+    private (float outer, float inner) FixSpotLightAngles(float outerConeAngle, float innerConeAngle)
+    {                    
+        // inner must be less than or equal to outer
+        // outer (due to blender bug and sharpgltf removing if the value is equal to the default) needs to be greater than inner and not equal to pi / 4
+        // TODO: https://github.com/KhronosGroup/glTF-Blender-IO/issues/2349
+        if (innerConeAngle > outerConeAngle)
         {
-            var catchlight = dataManager.GetFileOrReadFromDisk("chara/common/texture/sphere_d_array.tex");
-            if (catchlight == null) throw new Exception("Failed to load catchlight texture");
-            cubeMapTex = new TexFile(catchlight);
+            throw new Exception("Inner cone angle must be less than or equal to outer cone angle");
         }
-
-        if (pbdFile == null)
+                    
+        if (MathF.Abs(outerConeAngle - (MathF.PI / 4f)) < 0.0001f)
         {
-            var pbdData = dataManager.GetFileOrReadFromDisk("chara/xls/boneDeformer/human.pbd");
-            if (pbdData == null) throw new Exception("Failed to load human.pbd");
-            pbdFile = new PbdFile(pbdData);
+            outerConeAngle = (MathF.PI / 4f) - 0.0001f;
+        }
+                    
+        if (innerConeAngle > outerConeAngle)
+        {
+            innerConeAngle = outerConeAngle;
         }
         
-        var characterInfo = characterInstance.CharacterInfo;
-        if (characterInfo == null) return;
-
-        var bones = SkeletonUtils.GetBoneMap(characterInfo.Skeleton, true, out var rootBone);
-        if (rootBone != null)
-        {
-            root.AddNode(rootBone);
-        }
-
-        for (var i = 0; i < characterInfo.Models.Count; i++)
-        {
-            var modelInfo = characterInfo.Models[i];
-            if (modelInfo.PathFromCharacter.Contains("b0003_top")) continue;
-            var mdlData = dataManager.GetFileOrReadFromDisk(modelInfo.Path);
-            if (mdlData == null)
-            {
-                log.LogWarning("Failed to load model file: {modelPath}", modelInfo.Path);
-                continue;
-            }
-
-            log.LogInformation("Loaded model {modelPath}", modelInfo.Path);
-            var mdlFile = new MdlFile(mdlData);
-            var materialBuilders = new List<MaterialBuilder>();
-            foreach (var materialInfo in modelInfo.Materials)
-            {
-                var mtrlData = dataManager.GetFileOrReadFromDisk(materialInfo.Path);
-                if (mtrlData == null)
-                {
-                    log.LogWarning("Failed to load material file: {mtrlPath}", materialInfo.Path);
-                    throw new Exception($"Failed to load material file: {materialInfo.Path}");
-                }
-
-                log.LogInformation("Loaded material {mtrlPath}", materialInfo.Path);
-                var mtrlFile = new MtrlFile(mtrlData);
-                if (materialInfo.ColorTable != null)
-                {
-                    mtrlFile.ColorTable = materialInfo.ColorTable.Value;
-                }
-                
-                var shpkName = mtrlFile.GetShaderPackageName();
-                var shpkPath = $"shader/sm5/shpk/{shpkName}";
-                if (!shpkCache.TryGetValue(shpkPath, out var shader))
-                {
-                    var shpkData = dataManager.GetFileOrReadFromDisk(shpkPath);
-                    if (shpkData == null) throw new Exception($"Failed to load shader package file: {shpkPath}");
-                    var shpkFile = new ShpkFile(shpkData);
-                    shader = (shpkFile, new ShaderPackage(shpkFile, null!));
-                    shpkCache.TryAdd(shpkPath, shader);
-                    log.LogInformation("Loaded shader package {shpkPath}", shpkPath);
-                }
-
-                var texDict = new Dictionary<string, TextureResource>();
-
-                foreach (var textureInfo in materialInfo.Textures)
-                {
-                    texDict[textureInfo.PathFromMaterial] = textureInfo.Resource;
-                }
-
-                var material = new Material(materialInfo.Path, mtrlFile, texDict, shader.File);
-                var customizeParams = characterInfo.CustomizeParameter;
-                var customizeData = characterInfo.CustomizeData;
-                var name = $"{Path.GetFileNameWithoutExtension(materialInfo.PathFromModel)}_{Path.GetFileNameWithoutExtension(shpkName)}_{characterInstance.Id}";
-                var builder = material.ShaderPackageName switch
-                {
-                    "bg.shpk" => MaterialUtility.BuildBg(material, name),
-                    "bgprop.shpk" => MaterialUtility.BuildBgProp(material, name),
-                    "character.shpk" => MaterialUtility.BuildCharacter(material, name),
-                    "characterocclusion.shpk" => MaterialUtility.BuildCharacterOcclusion(material, name),
-                    "characterlegacy.shpk" => MaterialUtility.BuildCharacterLegacy(material, name),
-                    "charactertattoo.shpk" => MaterialUtility.BuildCharacterTattoo(
-                        material, name, customizeParams, customizeData),
-                    "hair.shpk" => MaterialUtility.BuildHair(material, name, customizeParams, customizeData),
-                    "skin.shpk" => MaterialUtility.BuildSkin(material, name, customizeParams, customizeData),
-                    "iris.shpk" =>
-                        MaterialUtility.BuildIris(material, name, cubeMapTex, customizeParams, customizeData),
-                    "water.shpk" => MaterialUtility.BuildWater(material, name),
-                    "lightshaft.shpk" => MaterialUtility.BuildLightShaft(material, name),
-                    _ => ComposeGenericMaterial(materialInfo.Path)
-                };
-
-                materialBuilders.Add(builder);
-            }
-
-            var model = new Model(modelInfo.Path, mdlFile, modelInfo.ShapeAttributeGroup);
-            EnsureBonesExist(model, bones, rootBone);
-            (GenderRace from, GenderRace to, RaceDeformer deformer)? deform;
-            if (modelInfo.Deformer != null)
-            {
-                // custom pbd may exist
-                var pbdFileData = dataManager.GetFileOrReadFromDisk(modelInfo.Deformer.Value.PbdPath);
-                if (pbdFileData == null)
-                    throw new InvalidOperationException(
-                        $"Failed to get deformer pbd {modelInfo.Deformer.Value.PbdPath}");
-                deform = ((GenderRace)modelInfo.Deformer.Value.DeformerId,
-                             (GenderRace)modelInfo.Deformer.Value.RaceSexId,
-                             new RaceDeformer(new PbdFile(pbdFileData), bones));
-                log.LogDebug("Using deformer pbd {Path}", modelInfo.Deformer.Value.PbdPath);
-            }
-            else
-            {
-                var parsed = RaceDeformer.ParseRaceCode(modelInfo.PathFromCharacter);
-                if (Enum.IsDefined(parsed))
-                {
-                    deform = (parsed, characterInfo.GenderRace, new RaceDeformer(pbdFile, bones));
-                }
-                else
-                {
-                    deform = null;
-                }
-            }
-
-            var meshes = ModelBuilder.BuildMeshes(model, materialBuilders, bones, deform);
-            foreach (var mesh in meshes)
-            {
-                InstanceBuilder instance;
-                if (bones.Count > 0)
-                {
-                    instance = scene.AddSkinnedMesh(mesh.Mesh, Matrix4x4.Identity, bones.Cast<NodeBuilder>().ToArray());
-                }
-                else
-                {
-                    instance = scene.AddRigidMesh(mesh.Mesh, Matrix4x4.Identity);
-                }
-
-                if (model.Shapes.Count != 0 && mesh.Shapes != null)
-                {
-                    // This will set the morphing value to 1 if the shape is enabled, 0 if not
-                    var enabledShapes = Model.GetEnabledValues(model.EnabledShapeMask, model.ShapeMasks)
-                                             .ToArray();
-                    var shapes = model.Shapes
-                                      .Where(x => mesh.Shapes.Contains(x.Name))
-                                      .Select(x => (x, enabledShapes.Contains(x.Name)));
-                    instance.Content.UseMorphing().SetValue(shapes.Select(x => x.Item2 ? 1f : 0).ToArray());
-                }
-                
-                if (mesh.Submesh != null)
-                {
-                    // Remove subMeshes that are not enabled
-                    var enabledAttributes = Model.GetEnabledValues(model.EnabledAttributeMask, model.AttributeMasks);
-                    if (!mesh.Submesh.Attributes.All(enabledAttributes.Contains))
-                    {
-                        instance.Remove();
-                    }
-                }
-            }
-            
-            progress?.Invoke(new ProgressEvent("Character Instance", countProgress, count, new ProgressEvent(root.Name, i, characterInfo.Models.Count)));
-        }
+        return (outerConeAngle, innerConeAngle);
+    }
+    
+    
+    // directional lights use illuminance in lux (lm/ m2)
+    private float LuxIntensity(float intensity)
+    {
+        return intensity;
+    }
+    
+    // Point and spot lights use luminous intensity in candela (lm/ sr)
+    private float CandelaIntensity(float intensity)
+    {
+        return intensity * 100f;
+    }
+    
+    private float DegreesToRadians(float degrees)
+    {
+        return degrees * (MathF.PI / 180f);
     }
 
     private void ComposeTerrainInstance(ParsedTerrainInstance terrainInstance, SceneBuilder scene, NodeBuilder root)
     {
-        var teraPath = $"{terrainInstance.Path}/bgplate/terrain.tera";
-        var teraData = dataManager.GetFileOrReadFromDisk(teraPath);
+        var teraPath = $"{terrainInstance.Path.GamePath}/bgplate/terrain.tera";
+        var teraData = dataProvider.LookupData(teraPath);
         if (teraData == null) throw new Exception($"Failed to load terrain file: {teraPath}");
         var teraFile = new TeraFile(teraData);
-        
+
+        var processed = 0;
         for (var i = 0; i < teraFile.Header.PlateCount; i++)
         {
             if (cancellationToken.IsCancellationRequested) return;
             log.LogInformation("Parsing plate {i}", i);
-            var platePos = teraFile.GetPlatePosition(i);
+            var platePos = teraFile.GetPlatePosition((int)i);
             var plateTransform = new Transform(new Vector3(platePos.X, 0, platePos.Y), Quaternion.Identity, Vector3.One);
-            var mdlPath = $"{terrainInstance.Path}/bgplate/{i:D4}.mdl";
-            var mdlData = dataManager.GetFileOrReadFromDisk(mdlPath);
+            var mdlPath = $"{terrainInstance.Path.GamePath}/bgplate/{i:D4}.mdl";
+            var mdlData = dataProvider.LookupData(mdlPath);
             if (mdlData == null) throw new Exception($"Failed to load model file: {mdlPath}");
             log.LogInformation("Loaded model {mdlPath}", mdlPath);
             var mdlFile = new MdlFile(mdlData);
-            
+
             var materials = mdlFile.GetMaterialNames().Select(x => x.Value).ToArray();
             var materialBuilders = new List<MaterialBuilder>();
             foreach (var mtrlPath in materials)
             {
-                var materialBuilder = ComposeGenericMaterial(mtrlPath);
+                var materialBuilder = ComposeMaterial(mtrlPath, terrainInstance);
                 materialBuilders.Add(materialBuilder);
             }
 
             var model = new Model(mdlPath, mdlFile, null);
             var meshes = ModelBuilder.BuildMeshes(model, materialBuilders, [], null);
-            
+
             var plateRoot = new NodeBuilder($"Plate{i:D4}");
             foreach (var mesh in meshes)
             {
@@ -396,16 +349,17 @@ public class InstanceComposer
             }
 
             root.AddNode(plateRoot);
-            progress?.Invoke(new ProgressEvent("Terrain Instance", countProgress, count, new ProgressEvent(root.Name, i, (int)teraFile.Header.PlateCount)));
+            Interlocked.Increment(ref processed);
+            progress?.Invoke(new ProgressEvent("Terrain Instance", countProgress, count, new ProgressEvent(root.Name, processed, (int)teraFile.Header.PlateCount)));
         }
     }
 
     private IReadOnlyList<ModelBuilder.MeshExport> ComposeBgPartsInstance(ParsedBgPartsInstance bgPartsInstance)
     {
-        var mdlData = dataManager.GetFileOrReadFromDisk(bgPartsInstance.Path);
+        var mdlData = dataProvider.LookupData(bgPartsInstance.Path.FullPath);
         if (mdlData == null)
         {
-            log.LogWarning("Failed to load model file: {bgPartsInstance.Path}", bgPartsInstance.Path);
+            log.LogWarning("Failed to load model file: {Path}", bgPartsInstance.Path.FullPath);
             return [];
         }
 
@@ -415,186 +369,34 @@ public class InstanceComposer
         var materialBuilders = new List<MaterialBuilder>();
         foreach (var mtrlPath in materials)
         {
-            var output = ComposeGenericMaterial(mtrlPath);
+            var output = ComposeMaterial(mtrlPath, bgPartsInstance);
             materialBuilders.Add(output);
         }
 
-        var model = new Model(bgPartsInstance.Path, mdlFile, null);
+        var model = new Model(bgPartsInstance.Path.GamePath, mdlFile, null);
         var meshes = ModelBuilder.BuildMeshes(model, materialBuilders, [], null);
         return meshes;
     }
-    
-    private MaterialBuilder ComposeGenericMaterial(string path)
+
+    private MaterialBuilder ComposeMaterial(string path, ParsedInstance instance)
     {
-        if (mtrlCache.TryGetValue(path, out var cached))
+        // TODO: Really not ideal but can't rely on just the path since material inputs can change
+        var mtrlFile = dataProvider.GetMtrlFile(path);
+        var shpkName = mtrlFile.GetShaderPackageName();
+        var shpkPath = $"shader/sm5/shpk/{shpkName}";
+        var shpkFile = dataProvider.GetShpkFile(shpkPath);
+        var material = new MaterialSet(mtrlFile, path, shpkFile, shpkName, null, null);
+        if (instance is IStainableInstance stainableInstance)
         {
-            return cached;
-        }
-        
-        var mtrlData = dataManager.GetFileOrReadFromDisk(path);
-        if (mtrlData == null) throw new Exception($"Failed to load material file: {path}");
-        log.LogInformation("Loaded material {path}", path);
-
-        var mtrlFile = new MtrlFile(mtrlData);
-        var texturePaths = mtrlFile.GetTexturePaths();
-        var shpkPath = $"shader/sm5/shpk/{mtrlFile.GetShaderPackageName()}";
-        if (!shpkCache.TryGetValue(shpkPath, out var shader))
-        {
-            var shpkData = dataManager.GetFileOrReadFromDisk(shpkPath);
-            if (shpkData == null)
-                throw new Exception($"Failed to load shader package file: {shpkPath}");
-            var shpkFile = new ShpkFile(shpkData);
-            shader = (shpkFile, new ShaderPackage(shpkFile, null!));
-            shpkCache.TryAdd(shpkPath, shader);
-            log.LogInformation("Loaded shader package {shpkPath}", shpkPath);
-        }
-        var material = new MaterialSet(mtrlFile, shader.File);
-        var output = new MaterialBuilder(Path.GetFileNameWithoutExtension(path))
-                     .WithMetallicRoughnessShader()
-                     .WithBaseColor(Vector4.One);
-
-        var alphaThreshold = material.GetConstantOrDefault(MaterialConstant.g_AlphaThreshold, 0.0f);
-        if (alphaThreshold > 0)
-            output.WithAlpha(AlphaMode.MASK, alphaThreshold);
-        
-        // Initialize texture in cache
-        foreach (var (offset, texPath) in texturePaths)
-        {
-            if (imageCache.ContainsKey(texPath)) continue;
-            CacheTexture(texPath);
+            material.SetStainColor(stainableInstance.StainColor);
         }
 
-        var setTypes = new HashSet<TextureUsage>();
-        foreach (var sampler in mtrlFile.Samplers)
+        if (instance is ICharacterInstance characterInstance)
         {
-            if (sampler.TextureIndex == byte.MaxValue) continue;
-            var textureInfo = mtrlFile.TextureOffsets[sampler.TextureIndex];
-            var texturePath = texturePaths[textureInfo.Offset];
-            if (!imageCache.TryGetValue(texturePath, out var tex)) continue;
-            // bg textures can have additional textures, which may be dummy textures, ignore them
-            if (texturePath.Contains("dummy_")) continue;
-            if (!shader.Package.TextureLookup.TryGetValue(sampler.SamplerId, out var usage))
-            {
-                log.LogWarning("Unknown texture usage for texture {texturePath} ({textureUsage})", texturePath, (TextureUsage)sampler.SamplerId);
-                continue;
-            }
-            
-            var channel = MaterialUtility.MapTextureUsageToChannel(usage);
-            if (channel != null && setTypes.Add(usage))
-            {
-                var fileName = $"{Path.GetFileNameWithoutExtension(texturePath)}_{usage}_{shader.Package.Name}";
-                var imageBuilder = ImageBuilder.From(tex.MemoryImage, fileName);
-                imageBuilder.AlternateWriteFileName = $"{fileName}.*";
-                output.WithChannelImage(channel.Value, imageBuilder);
-            }
-            else if (channel != null)
-            {
-                log.LogDebug("Duplicate texture {texturePath} with usage {usage}", texturePath, usage);
-            }
-            else
-            {
-                log.LogDebug("Unknown texture usage {usage} for texture {texturePath}", usage, texturePath);
-            }
-        }
-        
-        mtrlCache.TryAdd(path, output);
-        return output;
-    }
-
-    public class MaterialSet
-    {
-        private readonly MtrlFile file;
-        private readonly ShpkFile shpk;
-        private readonly ShaderKey[] shaderKeys;
-        private readonly Dictionary<MaterialConstant, float[]> materialConstantDict;
-
-        public float GetConstantOrDefault(MaterialConstant id, float @default)
-        {
-            return materialConstantDict.TryGetValue(id, out var values) ? values[0] : @default;
-        }
-    
-        public Vector2 GetConstantOrDefault(MaterialConstant id, Vector2 @default)
-        {
-            return materialConstantDict.TryGetValue(id, out var values) ? new Vector2(values[0], values[1]) : @default;
-        }
-    
-        public Vector3 GetConstantOrDefault(MaterialConstant id, Vector3 @default)
-        {
-            return materialConstantDict.TryGetValue(id, out var values) ? new Vector3(values[0], values[1], values[2]) : @default;
+            material.SetCustomizeParameters(characterInstance.CustomizeParameter);
+            material.SetCustomizeData(characterInstance.CustomizeData);
         }
 
-        public Vector4 GetConstantOrDefault(MaterialConstant id, Vector4 @default)
-        {
-            return materialConstantDict.TryGetValue(id, out var values)
-                       ? new Vector4(values[0], values[1], values[2], values[3])
-                       : @default;
-        }
-        
-        public MaterialSet(MtrlFile file, ShpkFile shpk)
-        {
-            this.file = file;
-            this.shpk = shpk;
-            
-            shaderKeys = new ShaderKey[file.ShaderKeys.Length];
-            for (var i = 0; i < file.ShaderKeys.Length; i++)
-            {
-                shaderKeys[i] = new ShaderKey
-                {
-                    Category = file.ShaderKeys[i].Category,
-                    Value = file.ShaderKeys[i].Value
-                };
-            }
-
-            materialConstantDict = new Dictionary<MaterialConstant, float[]>();
-            foreach (var constant in file.Constants)
-            {
-                var index = constant.ValueOffset / 4;
-                var count = constant.ValueSize / 4;
-                var buf = new List<byte>(128);
-                for (var j = 0; j < count; j++)
-                {
-                    var value = file.ShaderValues[index + j];
-                    var bytes = BitConverter.GetBytes(value);
-                    buf.AddRange(bytes);
-                }
-
-                var floats = MemoryMarshal.Cast<byte, float>(buf.ToArray());
-                var values = new float[count];
-                for (var j = 0; j < count; j++)
-                {
-                    values[j] = floats[j];
-                }
-
-                // even if duplicate, last probably takes precedence
-                var id = (MaterialConstant)constant.ConstantId;
-                materialConstantDict[id] = values;
-            }
-        }
-    }
-    
-    private void CacheTexture(string texPath)
-    {
-        var texData = dataManager.GetFileOrReadFromDisk(texPath);
-        if (texData == null) throw new Exception($"Failed to load texture file: {texPath}");
-        log.LogInformation("Loaded texture {texPath}", texPath);
-        var texFile = new TexFile(texData);
-        var diskPath = Path.Combine(CacheDir, Path.GetDirectoryName(texPath) ?? "",
-                                    Path.GetFileNameWithoutExtension(texPath)) + ".png";
-        var texture = Texture.GetResource(texFile).ToTexture();
-        byte[] textureBytes;
-        using (var memoryStream = new MemoryStream())
-        {
-            texture.Bitmap.Encode(memoryStream, SKEncodedImageFormat.Png, 100);
-            textureBytes = memoryStream.ToArray();
-        }
-
-        var dirPath = Path.GetDirectoryName(diskPath);
-        if (!string.IsNullOrEmpty(dirPath) && !Directory.Exists(dirPath))
-        {
-            Directory.CreateDirectory(dirPath);
-        }
-
-        File.WriteAllBytes(diskPath, textureBytes);
-        imageCache.TryAdd(texPath, (diskPath, new MemoryImage(() => File.ReadAllBytes(diskPath))));
+        return dataProvider.GetMaterialBuilder(material, path, shpkName);
     }
 }

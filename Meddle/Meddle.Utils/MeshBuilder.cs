@@ -3,9 +3,11 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
+using Meddle.Utils.Materials;
 using SharpGLTF.Geometry;
 using SharpGLTF.Geometry.VertexTypes;
 using SharpGLTF.Materials;
+using Mesh = Meddle.Utils.Export.Mesh;
 
 namespace Meddle.Utils;
 
@@ -176,30 +178,7 @@ public class MeshBuilder
                     if (boneWeight == 0)
                         continue;
 
-                    var indices = vertex.BlendIndices?.Select(x => (int)x).ToArray();
-                    
-                    var serializedVertexData = new
-                    {
-                        Vertex = new
-                        {
-                            vertex.Position,
-                            vertex.BlendWeights,
-                            BlendIndices = indices,
-                            vertex.Normal,
-                            vertex.UV,
-                            vertex.Color,
-                            vertex.Tangent2,
-                            vertex.Tangent1
-                        },
-                        JoinLutSize = JointLut.Length,
-                        JointLut = JointLut,
-                        BoneIndex = boneIndex,
-                        BoneWeight = boneWeight
-                    };
-                    
-                    var json = JsonSerializer.Serialize(serializedVertexData, new JsonSerializerOptions { WriteIndented = true, IncludeFields = true});
-                    
-                    throw new InvalidOperationException($"Bone index {boneIndex} is out of bounds! Vertex data: {json}");
+                    throw new InvalidOperationException($"Bone index {boneIndex} is out of bounds!");
                 }
                 var mappedBoneIndex = JointLut[boneIndex];
 
@@ -228,22 +207,52 @@ public class MeshBuilder
                 currentPos = deformedPos;
             }
         }
-
+        
         geometryParamCache.Add(currentPos);
 
         // Means it's either VertexPositionNormal or VertexPositionNormalTangent; both have Normal
         if (GeometryT != typeof(VertexPosition)) geometryParamCache.Add(vertex.Normal!.Value);
 
         // Tangent W should be 1 or -1, but sometimes XIV has their -1 as 0?
+        // ReSharper disable CompareOfFloatsByEqualityOperator
         if (GeometryT == typeof(VertexPositionNormalTangent))
         {
-            // ReSharper disable once CompareOfFloatsByEqualityOperator
-            geometryParamCache.Add(vertex.Tangent1!.Value with { W = vertex.Tangent1.Value.W == 1 ? 1 : -1 });
+            var tangent = vertex.Tangent1!.Value with {W = vertex.Tangent1.Value.W == 1 ? 1 : -1};
+            if (!tangent.IsValidTangent())
+            {
+                tangent = tangent.SanitizeTangent();
+            }
+            
+            geometryParamCache.Add(tangent);
         }
+        // if (GeometryT == typeof(VertexPositionNormalTangent2))
+        // {
+        //     geometryParamCache.Add(vertex.Tangent1!.Value with { W = vertex.Tangent1.Value.W == 1 ? 1 : -1 });
+        //     geometryParamCache.Add(vertex.Tangent2!.Value with { W = vertex.Tangent2.Value.W == 1 ? 1 : -1 });
+        // }
+        // ReSharper restore CompareOfFloatsByEqualityOperator
 
         // AKA: Has "Color1" component
-        //if( _materialT != typeof( VertexTexture2 ) ) _materialParamCache.Insert( 0, vertex.Color!.Value );
-        if (MaterialT != typeof(VertexTexture2)) materialParamCache.Insert(0, new Vector4(255, 255, 255, 255));
+        // Some models have a color component, but it's packed data, so we don't use it as color
+        if (MaterialT != typeof(VertexTexture2))
+        {
+            Vector4 vertexColor = new Vector4(1, 1, 1, 1);
+            if (MaterialBuilder is IVertexPaintMaterialBuilder paintBuilder)
+            {
+                // Even if vertex paint is false, it's probably a good idea to keep the channels
+                // for bg.shpk, the alpha channel is used to mix between Map0 and Map1 textures
+                vertexColor = vertex.Color!.Value; /*paintBuilder.VertexPaint switch
+                {
+                    true => vertex.Color!.Value,
+                    false => new Vector4(1, 1, 1, 1)
+                };*/
+            }
+            
+            materialParamCache.Insert(0, vertexColor);
+        }
+
+        //if(MaterialT != typeof(VertexTexture2)) materialParamCache.Insert(0, vertex.Color!.Value);
+        //if(MaterialT != typeof(VertexTexture2)) materialParamCache.Insert(0, new Vector4(1, 1, 1, 1));
 
         // AKA: Has "TextureN" component
         if (MaterialT != typeof(VertexColor1))
@@ -271,6 +280,11 @@ public class MeshBuilder
         {
             return typeof(VertexPosition);
         }
+        
+        // if (vertex[0].Tangent2 != null && vertex[0].Tangent1 != null)
+        // {
+        //     return typeof(VertexPositionNormalTangent2);
+        // }
 
         if (vertex[0].Tangent1 != null)
         {
@@ -284,6 +298,31 @@ public class MeshBuilder
 
         return typeof(VertexPosition);
     }
+    
+    private static IVertexGeometry CreateGeometryParamCache(Vertex vertex, Type type)
+    {
+        // ReSharper disable CompareOfFloatsByEqualityOperator
+        switch (type)
+        {
+            case not null when type == typeof(VertexPosition):
+                return new VertexPosition(vertex.Position!.Value);
+            case not null when type == typeof(VertexPositionNormal):
+                return new VertexPositionNormal(vertex.Position!.Value, vertex.Normal!.Value);
+            case not null when type == typeof(VertexPositionNormalTangent):
+                // Tangent W should be 1 or -1, but sometimes XIV has their -1 as 0?
+                return new VertexPositionNormalTangent(vertex.Position!.Value, 
+                       vertex.Normal!.Value, 
+                       vertex.Tangent1!.Value with { W = vertex.Tangent1.Value.W == 1 ? 1 : -1 });
+            // case not null when type == typeof(VertexPositionNormalTangent2):
+            //     return new VertexPositionNormalTangent2(vertex.Position!.Value, 
+            //         vertex.Normal!.Value, 
+            //         vertex.Tangent1!.Value with { W = vertex.Tangent1.Value.W == 1 ? 1 : -1 },
+            //         vertex.Tangent2!.Value with { W = vertex.Tangent2.Value.W == 1 ? 1 : -1 });
+            default:
+                return new VertexPosition(vertex.Position!.Value);
+        }
+        // ReSharper restore CompareOfFloatsByEqualityOperator
+    }
 
     /// <summary>Obtain the correct material type for a set of vertices.</summary>
     private static Type GetVertexMaterialType(IReadOnlyList<Vertex> vertex)
@@ -295,13 +334,45 @@ public class MeshBuilder
 
         var hasColor = vertex[0].Color != null;
         var hasUv = vertex[0].UV != null;
-
-        return hasColor switch
+        if (hasColor && hasUv)
         {
-            true when hasUv => typeof(VertexColor1Texture2),
-            false when hasUv => typeof(VertexTexture2),
-            _ => typeof(VertexColor1),
-        };
+            return typeof(VertexColor1Texture2);
+        }
+        
+        if (hasColor)
+        {
+            return typeof(VertexColor1);
+        }
+        
+        if (hasUv)
+        {
+            return typeof(VertexTexture2);
+        }
+        
+        return typeof(VertexColor1);
+    }
+    
+    private static IVertexMaterial CreateMaterialParamCache(Vertex vertex, Type type)
+    {
+        switch (type)
+        {
+            case not null when type == typeof(VertexColor1):
+            {
+                return new VertexColor1(vertex.Color!.Value);
+            }
+            case not null when type == typeof(VertexTexture2):
+            {
+                var (xy, zw) = ToVec2(vertex.UV!.Value);
+                return new VertexTexture2(xy, zw);
+            }
+            case not null when type == typeof(VertexColor1Texture2):
+            {
+                var (xy, zw) = ToVec2(vertex.UV!.Value);
+                return new VertexColor1Texture2(vertex.Color!.Value, xy, zw);
+            }
+            default:
+                return new VertexEmpty();
+        }
     }
     
     private static Type GetVertexSkinningType(IReadOnlyList<Vertex> vertex, bool isSkinned)

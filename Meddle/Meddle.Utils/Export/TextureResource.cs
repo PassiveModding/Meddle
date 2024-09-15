@@ -1,4 +1,5 @@
-﻿using OtterTex;
+﻿using System.Numerics;
+using OtterTex;
 
 namespace Meddle.Utils.Export;
 
@@ -7,6 +8,8 @@ public readonly struct TextureResource(DXGIFormat format, int width, int height,
     public DXGIFormat Format { get; init; } = format;
     public int Width { get; init; } = width;
     public int Height { get; init; } = height;
+    public Vector2 Size => new(Width, Height);
+    
     public int MipLevels { get; init; } = mipLevels;
     public int ArraySize { get; init; } = arraySize;
     public TexDimension Dimension { get; init; } = dimension;

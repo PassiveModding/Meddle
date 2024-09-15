@@ -16,11 +16,18 @@ public partial class LayoutWindow
         // ReSharper restore InconsistentNaming
     }
 
-    private const ParsedInstanceType DefaultDrawTypes = ParsedInstanceType.Character | ParsedInstanceType.Housing | ParsedInstanceType.Terrain | ParsedInstanceType.BgPart | ParsedInstanceType.SharedGroup;
+    private const ParsedInstanceType DefaultDrawTypes = ParsedInstanceType.Character | 
+                                                        ParsedInstanceType.Housing | 
+                                                        ParsedInstanceType.Terrain | 
+                                                        ParsedInstanceType.BgPart | 
+                                                        ParsedInstanceType.Light |
+                                                        ParsedInstanceType.SharedGroup;
     private const ExportType DefaultExportType = ExportType.GLTF;
     private ParsedInstanceType drawTypes = DefaultDrawTypes;
     private ExportType exportType = DefaultExportType;
     private bool drawOverlay = true;
+    private bool drawChildren;
+    private bool traceToParent = true;
     private bool orderByDistance = true;
     private bool traceToHovered = true;
     private bool hideOffscreenCharacters = true;
@@ -44,10 +51,18 @@ public partial class LayoutWindow
         }
 
         ImGui.Checkbox("Draw Overlay", ref drawOverlay);
+        ImGui.Checkbox("Draw Children", ref drawChildren);
+        if (drawChildren)
+        {
+            ImGui.Checkbox("Trace to Parent", ref traceToParent);
+        }
         ImGui.Checkbox("Order by Distance", ref orderByDistance);
         ImGui.Checkbox("Trace to Hovered", ref traceToHovered);
         ImGui.Checkbox("Hide Offscreen Characters", ref hideOffscreenCharacters);
+        
         ImGui.DragInt("Max Item Count", ref maxItemCount, 1, 1, 50000);
+        ImGui.SameLine();
+        ImGui.TextDisabled("(?)");
         if (ImGui.IsItemHovered())
         {
             ImGui.SetTooltip("The maximum number of items to draw in the layout window, does not affect exports");

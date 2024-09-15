@@ -61,12 +61,24 @@ public static class UiUtil
         ImGui.Checkbox("Highlights", ref customize.Highlights);
     }
 
+    public static void DrawColorTable(IColorTableSet table)
+    {
+        if (table is ColorTableSet set)
+        {
+            DrawColorTable(set.ColorTable, set.ColorDyeTable);
+        }
+        else
+        {
+            ImGui.Text("Unsupported ColorTableSet");
+        }
+    }
+    
     public static void DrawColorTable(ColorTable table, ColorDyeTable? dyeTable = null)
     {
         DrawColorTable(table.Rows, dyeTable);
     }
 
-    public static void DrawColorTable(ColorTableRow[] tableRows, ColorDyeTable? dyeTable = null)
+    public static void DrawColorTable(ReadOnlySpan<ColorTableRow> tableRows, ColorDyeTable? dyeTable = null)
     {
         if (ImGui.BeginTable("ColorTable", 9, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable))
         {
@@ -83,27 +95,14 @@ public static class UiUtil
 
             for (var i = 0; i < tableRows.Length; i++)
             {
-                DrawRow(i, ref tableRows[i], dyeTable);
+                DrawRow(i, tableRows[i], dyeTable);
             }
 
             ImGui.EndTable();
         }
     }
 
-    public static void DrawColorTable(MtrlFile file)
-    {
-        ImGui.Text($"Color Table: {file.HasTable}");
-        ImGui.Text($"Dye Table: {file.HasDyeTable}");
-        ImGui.Text($"Extended Color Table: {file.LargeColorTable}");
-        if (!file.HasTable)
-        {
-            return;
-        }
-
-        DrawColorTable(file.ColorTable, file.HasDyeTable ? file.ColorDyeTable : null);
-    }
-
-    private static void DrawRow(int i, ref ColorTableRow row, ColorDyeTable? dyeTable)
+    private static void DrawRow(int i, ColorTableRow row, ColorDyeTable? dyeTable)
     {
         ImGui.TableNextRow();
         ImGui.TableSetColumnIndex(0);
@@ -113,7 +112,7 @@ public static class UiUtil
         if (dyeTable != null)
         {
             ImGui.SameLine();
-            var diff = dyeTable.Value[i].Diffuse;
+            var diff = dyeTable.Value.Rows[i].Diffuse;
             ImGui.Checkbox("##rowdiff", ref diff);
         }
 
@@ -122,7 +121,7 @@ public static class UiUtil
         if (dyeTable != null)
         {
             ImGui.SameLine();
-            var spec = dyeTable.Value[i].Specular;
+            var spec = dyeTable.Value.Rows[i].Specular;
             ImGui.Checkbox("##rowspec", ref spec);
         }
 
@@ -131,7 +130,7 @@ public static class UiUtil
         if (dyeTable != null)
         {
             ImGui.SameLine();
-            var emm = dyeTable.Value[i].Emissive;
+            var emm = dyeTable.Value.Rows[i].Emissive;
             ImGui.Checkbox("##rowemm", ref emm);
         }
 
@@ -142,7 +141,7 @@ public static class UiUtil
         ImGui.TableSetColumnIndex(6);
         if (dyeTable != null)
         {
-            var specStrength = dyeTable.Value[i].SpecularStrength;
+            var specStrength = dyeTable.Value.Rows[i].SpecularStrength;
             ImGui.Checkbox("##rowspecstr", ref specStrength);
             ImGui.SameLine();
         }
@@ -151,7 +150,7 @@ public static class UiUtil
         ImGui.TableSetColumnIndex(7);
         if (dyeTable != null)
         {
-            var gloss = dyeTable.Value[i].Gloss;
+            var gloss = dyeTable.Value.Rows[i].Gloss;
             ImGui.Checkbox("##rowgloss", ref gloss);
             ImGui.SameLine();
         }

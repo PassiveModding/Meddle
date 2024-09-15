@@ -1,0 +1,32 @@
+﻿name: Blender Release
+
+# Add a concurrency group incase a tag is created, deleted, and then recreated while a release is in progress.
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+    
+on:
+  push:
+    paths:
+      - 'Blender/**'
+      - '.github/workflows/blender.yml'
+
+permissions:
+  contents: write
+  
+jobs:
+  BlenderRelease:
+    if: github.event.pull_request.draft == false # Ignore draft PRs
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash    
+    steps:
+        - name: Checkout Repository
+          uses: actions/checkout@v4
+
+        - name: Upload Artifact
+          uses: actions/upload-artifact@v4
+          with:
+            name: MeddleTools
+            path: Blender/

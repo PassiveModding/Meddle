@@ -414,23 +414,23 @@
       },
       "SharpGLTF.Core": {
         "type": "Transitive",
-        "resolved": "1.0.1",
-        "contentHash": "ykeV1oNHcJrEJE7s0pGAsf/nYGYY7wqF9nxCMxJUjp/WdW+UUgR1cGdbAa2lVZPkiXEwLzWenZ5wPz7yS0Gj9w=="
+        "resolved": "1.0.2",
+        "contentHash": "FhTVtpzhlL7J836t+BuGr7kMylpV1KoEFMfuSRGJ4ut/Hw7dMJYon2yvs9/jEaTCstZa0Nam4lp3CkizSz5/+w=="
       },
       "SharpGLTF.Runtime": {
         "type": "Transitive",
-        "resolved": "1.0.1",
-        "contentHash": "KsgEBKLfsEnu2IPeKaWp4Ih97+kby17IohrAB6Ev8gET18iS80nKMW/APytQWpenMmcWU06utInpANqyrwRlDg==",
+        "resolved": "1.0.2",
+        "contentHash": "IVWirVtBX1nOUwDCYwDwbNsRUzNfMTJSkszTvte9X11whr2JhrxtRnuWQIhGiY3hkrvDXW6eCQ+GumVOIAuKgg==",
         "dependencies": {
-          "SharpGLTF.Core": "1.0.1"
+          "SharpGLTF.Core": "1.0.2"
         }
       },
       "SharpGLTF.Toolkit": {
         "type": "Transitive",
-        "resolved": "1.0.1",
-        "contentHash": "LYBjHdHW5Z8R1oT1iI04si3559tWdZ3jTdHfDEu0jqhuyU8w3oJRLFUoDfVeCOI5zWXlVQPtlpjhH9XTfFFAcA==",
+        "resolved": "1.0.2",
+        "contentHash": "N71Oa5+V/ByOTiOemQG77Uvo7zlROLdqJik2LTkYcrRObe23fIB8Qoj2Cn/Xi0o4ZSCpwtEmxH+dz/Hg4/x/SQ==",
         "dependencies": {
-          "SharpGLTF.Runtime": "1.0.1"
+          "SharpGLTF.Runtime": "1.0.2"
         }
       },
       "SkiaSharp": {
@@ -512,8 +512,8 @@
       "meddle.utils": {
         "type": "Project",
         "dependencies": {
-          "SharpGLTF.Core": "[1.0.1, )",
-          "SharpGLTF.Toolkit": "[1.0.1, )",
+          "SharpGLTF.Core": "[1.0.2, )",
+          "SharpGLTF.Toolkit": "[1.0.2, )",
           "SkiaSharp": "[2.88.8, )",
           "System.IO.Hashing": "[8.0.0, )"
         }

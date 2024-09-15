@@ -7,8 +7,8 @@ using Meddle.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
+using Meddle.Utils.Helpers;
 using Meddle.Utils.Materials;
-using Meddle.Utils.Models;
 using Meddle.Utils.Skeletons.Havok;
 using Meddle.Utils.Skeletons.Havok.Models;
 using SharpGLTF.Materials;
@@ -194,7 +194,7 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                     ImGui.SeparatorText("Model Info");
                     if (!views.TryGetValue(path, out var mdlView))
                     {
-                        views[path] = mdlView = new MdlView(mdlGroup.MdlFile, path);
+                        views[path] = mdlView = new MdlView(mdlGroup.MdlFile, path, pack, imageHandler);
                     }
 
                     mdlView.Draw();
@@ -423,7 +423,7 @@ public class ExportView(SqPack pack, Configuration configuration, ImageHandler i
                         Directory.CreateDirectory(texFolder);
                     }
 
-                    var texture = new Texture(Texture.GetResource(texGroup.TexFile), texPath, null, null, null);
+                    var texture = new Texture(texGroup.TexFile.ToResource(), texPath, null, null, null);
                     var skTex = texture.ToTexture().Bitmap;
 
                     var str = new SKDynamicMemoryWStream();

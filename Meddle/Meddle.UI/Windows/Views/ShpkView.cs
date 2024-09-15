@@ -5,7 +5,7 @@ using ImGuiNET;
 using Meddle.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
-using Meddle.Utils.Models;
+using Meddle.Utils.Helpers;
 
 namespace Meddle.UI.Windows.Views;
 
@@ -324,15 +324,52 @@ public class ShpkView : IView
         
         if (ImGui.CollapsingHeader("Material Params"))
         {
-            if (ImGui.BeginTable("MaterialParams", 5, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable | ImGuiTableFlags.SizingFixedFit))
+            if (ImGui.Button("Copy"))
             {
-                ImGui.TableSetupColumn("Idx", ImGuiTableColumnFlags.WidthFixed);
+                var sb = new StringBuilder();
+                foreach (var materialParam in file.MaterialParams)
+                {
+                    var idString = Enum.IsDefined((MaterialConstant)materialParam.Id) ? $"{(MaterialConstant)materialParam.Id}" : $"0x{materialParam.Id:X8}";
+                    var defaults = file.MaterialParamDefaults
+                                       .Skip(materialParam.ByteOffset / 4).Take(materialParam.ByteSize / 4)
+                                       .ToArray();
+                    var msg = $"[{string.Join(", ", defaults.Select(x => $"{x}"))}]";
+                    sb.AppendLine($"{idString} = {msg}");
+                }
+                ImGui.SetClipboardText(sb.ToString());
+            }
+            
+            if (ImGui.BeginTable("MaterialParams", 5, ImGuiTableFlags.Sortable | ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable | ImGuiTableFlags.SizingFixedFit))
+            {
+                ImGui.TableSetupColumn("Idx", ImGuiTableColumnFlags.WidthFixed, 0.0f, 0);
                 ImGui.TableSetupColumn("Id", ImGuiTableColumnFlags.WidthFixed);
                 ImGui.TableSetupColumn("ByteOffset", ImGuiTableColumnFlags.WidthFixed);
                 ImGui.TableSetupColumn("ByteSize", ImGuiTableColumnFlags.WidthFixed);
                 ImGui.TableSetupColumn("Defaults", ImGuiTableColumnFlags.WidthStretch);
                 ImGui.TableHeadersRow();
-                var orderedMaterialParams = file.MaterialParams.Select((x, idx) => (x, idx)).OrderBy(x => x.x.ByteOffset).ToArray();
+                
+                var orderedMaterialParams = file.MaterialParams.Select((x, idx) => (x, idx)).ToArray();
+                var sortSpecs = ImGui.TableGetSortSpecs();
+                var spec = sortSpecs.Specs;
+                var column = spec.ColumnIndex;
+                var descending = spec.SortDirection == ImGuiSortDirection.Descending;
+                orderedMaterialParams = column switch
+                {
+                    0 => descending
+                             ? orderedMaterialParams.OrderByDescending(x => x.idx).ToArray()
+                             : orderedMaterialParams.OrderBy(x => x.idx).ToArray(),
+                    1 => descending
+                             ? orderedMaterialParams.OrderByDescending(x => x.x.Id).ToArray()
+                             : orderedMaterialParams.OrderBy(x => x.x.Id).ToArray(),
+                    2 => descending
+                             ? orderedMaterialParams.OrderByDescending(x => x.x.ByteOffset).ToArray()
+                             : orderedMaterialParams.OrderBy(x => x.x.ByteOffset).ToArray(),
+                    3 => descending
+                             ? orderedMaterialParams.OrderByDescending(x => x.x.ByteSize).ToArray()
+                             : orderedMaterialParams.OrderBy(x => x.x.ByteSize).ToArray(),
+                    _ => orderedMaterialParams
+                };
+
                 foreach (var (materialParam, i) in orderedMaterialParams)
                 {
                     // get defaults from byteoffset -> byteoffset + bytesize

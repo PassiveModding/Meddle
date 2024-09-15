@@ -27,6 +27,8 @@ Much of this code is from or based on the following projects and wouldn't have b
 - [PathFinder](https://github.com/chirpxiv/ffxiv-pathfinder) [[MIT](https://github.com/chirpxiv/ffxiv-pathfinder/blob/main/LICENSE)]
   - 🐇
   - reference for world overlay logic
+- [Ktisis](https://github.com/ktisis-tools/Ktisis) [[GNU GPL v3](https://github.com/ktisis-tools/Ktisis/blob/main/LICENSE)]
+  - lighting structs
 
 Important contributors:
 - [WorkingRobot](https://github.com/WorkingRobot) 

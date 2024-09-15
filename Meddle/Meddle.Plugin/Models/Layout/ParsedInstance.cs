@@ -1,4 +1,5 @@
-﻿using FFXIVClientStructs.FFXIV.Client.Game.Object;
+﻿using System.Numerics;
+using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
 using Lumina.Excel.GeneratedSheets;
 using Meddle.Plugin.Models.Skeletons;
@@ -30,7 +31,7 @@ public interface IResolvableInstance
 
 public interface IPathInstance
 {
-    public string Path { get; }
+    public HandleString Path { get; }
 }
 
 public abstract class ParsedInstance
@@ -62,7 +63,7 @@ public class ParsedUnsupportedInstance : ParsedInstance
 
 public class ParsedSharedInstance : ParsedInstance, IPathInstance
 {
-    public string Path { get; }
+    public HandleString Path { get; }
     public IReadOnlyList<ParsedInstance> Children { get; }
 
     public ParsedSharedInstance(nint id, Transform transform, string path, IReadOnlyList<ParsedInstance> children) : base(id, ParsedInstanceType.SharedGroup, transform)
@@ -112,26 +113,36 @@ public class ParsedHousingInstance : ParsedSharedInstance
     public ObjectKind Kind { get; }
 }
 
-public class ParsedBgPartsInstance : ParsedInstance, IPathInstance
+public class ParsedBgPartsInstance : ParsedInstance, IPathInstance, IStainableInstance
 {
-    public string Path { get; }
+    public HandleString Path { get; }
 
     public ParsedBgPartsInstance(nint id, Transform transform, string path) : base(id, ParsedInstanceType.BgPart, transform)
     {
         Path = path;
     }
+
+    public Vector4? StainColor { get; set; }
+}
+
+public interface IStainableInstance
+{
+    public Vector4? StainColor { get; set; }
 }
 
 public class ParsedLightInstance : ParsedInstance
 {
-    public ParsedLightInstance(nint id, Transform transform) : base(id, ParsedInstanceType.Light, transform)
+    public RenderLight Light { get; }
+    
+    public unsafe ParsedLightInstance(nint id, Transform transform, RenderLight* light) : base(id, ParsedInstanceType.Light, transform)
     {
+        Light = *light;
     }
 }
 
 public class ParsedTerrainInstance : ParsedInstance, IPathInstance
 {
-    public string Path { get; }
+    public HandleString Path { get; }
 
     public ParsedTerrainInstance(nint id, Transform transform, string path) : base(id, ParsedInstanceType.Terrain, transform)
     {
@@ -146,54 +157,69 @@ public class ParsedInstanceSet
 
 public class ParsedTextureInfo(string path, string pathFromMaterial, TextureResource resource) 
 {
-    public string Path { get; } = path;
-    public string PathFromMaterial { get; } = pathFromMaterial;
+    public HandleString Path { get; } = new() { FullPath = path, GamePath = pathFromMaterial };
     public TextureResource Resource { get; } = resource;
 }
 
-public class ParsedMaterialInfo(string path, string pathFromModel, string shpk, ColorTable? colorTable, IList<ParsedTextureInfo> textures) 
+public class ParsedMaterialInfo(string path, string pathFromModel, string shpk, IColorTableSet? colorTable, IList<ParsedTextureInfo> textures) 
 {
-    public string Path { get; } = path;
-    public string PathFromModel { get; } = pathFromModel;
+    public HandleString Path { get; } = new() { FullPath = path, GamePath = pathFromModel };
     public string Shpk { get; } = shpk;
-    public ColorTable? ColorTable { get; } = colorTable;
+    public IColorTableSet? ColorTable { get; } = colorTable;
     public IList<ParsedTextureInfo> Textures { get; } = textures;
 }
 
-public class ParsedModelInfo(string path, string pathFromCharacter, DeformerCachedStruct? deformer, Model.ShapeAttributeGroup shapeAttributeGroup, IList<ParsedMaterialInfo> materials) 
+public class ParsedModelInfo(nint id, string path, string pathFromCharacter, DeformerCachedStruct? deformer, Model.ShapeAttributeGroup shapeAttributeGroup, IList<ParsedMaterialInfo> materials) 
 {
-    public string Path { get; } = path;
-    public string PathFromCharacter { get; } = pathFromCharacter;
+    public nint Id { get; }
+    public HandleString Path { get; } = new() { FullPath = path, GamePath = pathFromCharacter };
     public DeformerCachedStruct? Deformer { get; } = deformer;
     public Model.ShapeAttributeGroup ShapeAttributeGroup { get; } = shapeAttributeGroup;
     public IList<ParsedMaterialInfo> Materials { get; } = materials;
+}
+
+public interface ICharacterInstance
+{
+    public CustomizeData CustomizeData { get; }
+    public CustomizeParameter CustomizeParameter { get; }
+}
+
+public struct HandleString
+{
+    public string FullPath;
+    public string GamePath;
+
+    public static implicit operator HandleString(string path) => new() { FullPath = path, GamePath = path };
 }
 
 public class ParsedCharacterInfo
 {
     public readonly IList<ParsedModelInfo> Models;
     public readonly ParsedSkeleton Skeleton;
-    public readonly CustomizeData CustomizeData;
-    public readonly CustomizeParameter CustomizeParameter;
+    public CustomizeData CustomizeData;
+    public CustomizeParameter CustomizeParameter;
     public readonly GenderRace GenderRace;
+    public readonly ParsedAttach Attach;
+    public ParsedCharacterInfo[] Attaches = [];
 
-    public ParsedCharacterInfo(IList<ParsedModelInfo> models, ParsedSkeleton skeleton, CustomizeData customizeData, CustomizeParameter customizeParameter, GenderRace genderRace)
+    public ParsedCharacterInfo(IList<ParsedModelInfo> models, ParsedSkeleton skeleton, ParsedAttach attach, CustomizeData customizeData, CustomizeParameter customizeParameter, GenderRace genderRace)
     {
         Models = models;
         Skeleton = skeleton;
         CustomizeData = customizeData;
         CustomizeParameter = customizeParameter;
         GenderRace = genderRace;
+        Attach = attach;
     }
 }
 
-public class ParsedCharacterInstance : ParsedInstance, IResolvableInstance
+public class ParsedCharacterInstance : ParsedInstance, IResolvableInstance, ICharacterInstance
 {
     public ParsedCharacterInfo? CharacterInfo;
     public string Name;
     public ObjectKind Kind;
     public bool Visible;
-
+    
     public ParsedCharacterInstance(nint id, string name, ObjectKind kind, Transform transform, bool visible) : base(id, ParsedInstanceType.Character, transform)
     {
         Name = name;
@@ -209,4 +235,7 @@ public class ParsedCharacterInstance : ParsedInstance, IResolvableInstance
         layoutService.ResolveInstance(this);
         IsResolved = true;
     }
+
+    public CustomizeData CustomizeData => CharacterInfo?.CustomizeData ?? new CustomizeData();
+    public CustomizeParameter CustomizeParameter => CharacterInfo?.CustomizeParameter ?? new CustomizeParameter();
 }

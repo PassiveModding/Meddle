@@ -7,23 +7,23 @@ public class MtrlFile
     public const uint MtrlMagic = 0x1030000;
 
     private readonly byte[] _data;
-    public byte[] AdditionalData;
-    public ColorDyeTable ColorDyeTable;
-    public ColorSet[] ColorSets;
-
-    public ColorTable ColorTable;
-    public Constant[] Constants;
 
     public MaterialFileHeader FileHeader;
-    public Sampler[] Samplers;
-
-    public MaterialShaderHeader ShaderHeader;
-
-    public ShaderKey[] ShaderKeys;
-    public uint[] ShaderValues;
-    public byte[] Strings;
     public TextureOffset[] TextureOffsets;
     public UvColorSet[] UvColorSets;
+    public ColorSet[] ColorSets;
+    public byte[] Strings;
+    public byte[] AdditionalData;
+    public byte[] DataSet;
+    
+    //public ColorTable ColorTable;
+    //public ColorDyeTable ColorDyeTable;
+    
+    public MaterialShaderHeader ShaderHeader;
+    public ShaderKey[] ShaderKeys;
+    public Constant[] Constants;
+    public Sampler[] Samplers;
+    public uint[] ShaderValues;
 
     public MtrlFile(byte[] data) : this((ReadOnlySpan<byte>)data) { }
 
@@ -49,24 +49,25 @@ public class MtrlFile
 
         if (FileHeader.DataSetSize > 0)
         {
-            var dataSet = reader.Read<byte>(FileHeader.DataSetSize).ToArray();
-            var dataSetReader = new SpanBinaryReader(dataSet);
-            if (LargeColorTable)
-            {
-                ColorTable = HasTable ? ColorTable.Load(ref dataSetReader) : ColorTable.Default();
-                if (HasDyeTable)
-                    ColorDyeTable = dataSetReader.Read<ColorDyeTable>();
-            }
-            else
-            {
-                ColorTable = HasTable ? ColorTable.LoadLegacy(ref dataSetReader) : ColorTable.DefaultLegacy();
-                if (HasDyeTable)
-                    ColorDyeTable = new ColorDyeTable(dataSetReader.Read<LegacyColorDyeTable>());
-            }
+            DataSet = reader.Read<byte>(FileHeader.DataSetSize).ToArray();
+            // var dataSetReader = new SpanBinaryReader(DataSet);
+            // if (LargeColorTable)
+            // {
+            //     ColorTable = HasTable ? ColorTable.Load(ref dataSetReader) : ColorTable.Default();
+            //     if (HasDyeTable)
+            //         ColorDyeTable = dataSetReader.Read<ColorDyeTable>();
+            // }
+            // else
+            // {
+            //     ColorTable = HasTable ? ColorTable.LoadLegacy(ref dataSetReader) : ColorTable.DefaultLegacy();
+            //     if (HasDyeTable)
+            //         ColorDyeTable = new ColorDyeTable(dataSetReader.Read<LegacyColorDyeTable>());
+            // }
         }
         else
         {
-            ColorTable = ColorTable.Default();
+            DataSet = Array.Empty<byte>();
+            //ColorTable = ColorTable.Default();
         }
 
         ShaderHeader = reader.Read<MaterialShaderHeader>();
