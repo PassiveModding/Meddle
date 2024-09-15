@@ -110,4 +110,4 @@ jobs:
                 git config --local user.email "github-actions@users.noreply.github.com"
                 git commit -m "Update repo.json for ${{ github.ref_name }}"
                 
-                git push origin HEAD:main
+                #git push origin HEAD:main
