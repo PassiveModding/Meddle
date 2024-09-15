@@ -80,22 +80,43 @@ jobs:
             Meddle/Meddle.Plugin/bin/Release/Meddle.Plugin/checksums.sha512
 
       - name: Update repo.json
+          # skip if tag contains "rc" or "beta"
+        if: !contains(github.ref, 'rc') && !contains(github.ref, 'beta')
         run: |
-          cd ../../
+            cd ../../
+            
+            release_version=$(echo ${{ github.ref_name }} | sed 's/^v//')
+            repo_url=$(echo ${{ github.server_url }}/${{ github.repository }} | sed 's/#/\\#/g')
+            
+            sed -i repo.json -E \
+                -e 's#"AssemblyVersion": "([0-9]*\.){2,3}[0-9]*"#"AssemblyVersion": "'"$release_version"'"#g' \
+                -e 's#"TestingAssemblyVersion": "([0-9]*\.){2,3}[0-9]*"#"TestingAssemblyVersion": "'"$release_version"'"#' \
+                -e 's#"DownloadLinkInstall": "[^"]*"#"DownloadLinkInstall": "'"$repo_url/releases/download/${{ github.ref_name }}/latest.zip"'"#g' \
+                -e 's#"DownloadLinkTesting": "[^"]*"#"DownloadLinkTesting": "'"$repo_url/releases/download/${{ github.ref_name }}/latest.zip"'"#g' \
+                -e 's#"DownloadLinkUpdate": "[^"]*"#"DownloadLinkUpdate": "'"$repo_url/releases/download/${{ github.ref_name }}/latest.zip"'"#g'
+            
+            git add repo.json
+            git config --local user.name "github-actions [bot]"
+            git config --local user.email "github-actions@users.noreply.github.com"
+            git commit -m "Update repo.json for ${{ github.ref_name }}"
+            
+            git push origin HEAD:main
 
-          release_version=$(echo ${{ github.ref_name }} | sed 's/^v//')
-          repo_url=$(echo ${{ github.server_url }}/${{ github.repository }} | sed 's/#/\\#/g')
-
-          sed -i repo.json -E \
-              -e 's#"AssemblyVersion": "([0-9]*\.){2,3}[0-9]*"#"AssemblyVersion": "'"$release_version"'"#g' \
-              -e 's#"TestingAssemblyVersion": "([0-9]*\.){2,3}[0-9]*"#"TestingAssemblyVersion": "'"$release_version"'"#' \
-              -e 's#"DownloadLinkInstall": "[^"]*"#"DownloadLinkInstall": "'"$repo_url/releases/download/${{ github.ref_name }}/latest.zip"'"#g' \
-              -e 's#"DownloadLinkTesting": "[^"]*"#"DownloadLinkTesting": "'"$repo_url/releases/download/${{ github.ref_name }}/latest.zip"'"#g' \
-              -e 's#"DownloadLinkUpdate": "[^"]*"#"DownloadLinkUpdate": "'"$repo_url/releases/download/${{ github.ref_name }}/latest.zip"'"#g'
-
-          git add repo.json
-          git config --local user.name "github-actions [bot]"
-          git config --local user.email "github-actions@users.noreply.github.com"
-          git commit -m "Update repo.json for ${{ github.ref_name }}"
-          
-          git push origin HEAD:main
+      - name: Update repo.json testing only
+        if: contains(github.ref, 'rc') || contains(github.ref, 'beta')
+        run: |
+            cd ../../
+            
+            release_version=$(echo ${{ github.ref_name }} | sed 's/^v//')
+            repo_url=$(echo ${{ github.server_url }}/${{ github.repository }} | sed 's/#/\\#/g')
+            
+            sed -i repo.json -E \
+                -e 's#"TestingAssemblyVersion": "([0-9]*\.){2,3}[0-9]*"#"TestingAssemblyVersion": "'"$release_version"'"#' \
+                -e 's#"DownloadLinkTesting": "[^"]*"#"DownloadLinkTesting": "'"$repo_url/releases/download/${{ github.ref_name }}/latest.zip"'"#g'
+            
+            git add repo.json
+            git config --local user.name "github-actions [bot]"
+            git config --local user.email "github-actions@users.noreply.github.com"
+            git commit -m "Update repo.json for ${{ github.ref_name }}"
+            
+            git push origin HEAD:main
