@@ -95,9 +95,10 @@ jobs:
                   # Update the JSON file using jq
                   jq --arg release_version "$release_version" \
                   --arg repo_url "$repo_url/releases/download/${{ github.ref_name }}/latest.zip" \
-                  '.[0].TestingAssemblyVersion = $release_version | .[0].DownloadLinkTesting = $repo_url' repo.json > tmp.json && mv tmp.json repo.json
+                  '.[0].TestingAssemblyVersion = $release_version |
+                  .[0].DownloadLinkTesting = $repo_url' \
+                  repo.json > tmp.json && mv tmp.json repo.json
 
-                  # echo file for testing purposes
                   cat repo.json
 
                   git add repo.json
