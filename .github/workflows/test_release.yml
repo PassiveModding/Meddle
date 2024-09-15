@@ -47,7 +47,7 @@ jobs:
 
             - name: Build plugin in release mode
               run: |
-                $version = echo ${{ github.ref_name }} | sed 's/^testing_v//g'
+                version=$(echo ${{ github.ref_name }} | sed 's/testing_v//')
                 dotnet build -c Release --no-restore --nologo -o ./bin/Release -p:Version=$version -p:AssemblyVersion=$version -p:FileVersion=$version
 
             - name: Generate Checksums
@@ -86,8 +86,8 @@ jobs:
               run: |
                   cd ../../
                   
-                  $release_version = echo ${{ github.ref_name }} | sed 's/testing_v//'
-                  $repo_url = echo ${{ github.server_url }}/${{ github.repository }} | sed 's/#/\\#/g'
+                  release_version=$(echo "${{ github.ref_name }}" | sed 's/^testing_v//')
+                  repo_url="$(echo "${{ github.server_url }}/${{ github.repository }}" | sed 's/#/\\#/g')"
                                     
                   # Update the JSON file using jq
                   jq --arg release_version "$release_version" \
