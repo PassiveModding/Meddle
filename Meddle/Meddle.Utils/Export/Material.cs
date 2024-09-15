@@ -17,12 +17,19 @@ public enum ShaderCategory : uint
     CategoryFlowMapType = 0x40D1481E,  // STANDARD, FLOW
     CategoryDiffuseAlpha = 0xA9A3EE25, // Alpha channel on diffuse texture is used
     CategoryBgVertexPaint = 0x4F4F0636, // Enable vertex paint
+    CategoryBgTextureMode = 0x36F72D5F, // Number of textures in BG shader
+}
+
+public enum BgTextureMode : uint
+{
+    Map0 = 0x1E314009,
+    Map1 = 0x9807BAC4
 }
 
 public enum BgVertexPaint : uint
 {
     Off = 0x7C6FA05B, // Default off
-    On = 0xBD94649A // Treat vertex color as diffuse map0, and map0 as map1???
+    On = 0xBD94649A // Doesn't actually seem to mean use vertex color, from what I can tell, just use color0 texture and ignore rest
 }
 
 public enum DiffuseAlpha : uint
@@ -58,9 +65,9 @@ public enum TextureMode : uint
     Simple = 0x22A4AABF,        // meh
     
     // BG.shpk
-    Ox669A451B = 0x669A451B,
-    MixMap1 = 0x1DF2985C, // seems to indicate the presence of dummy textures for bg.shpk map1
-    Ox941820BE = 0x941820BE
+    BG_UNK0 = 0x669A451B,
+    BG_UNK1 = 0x1DF2985C, 
+    BG_UNK2 = 0x941820BE, // Mix both textures? 
 }
 
 public enum SpecularMode : uint

@@ -514,6 +514,7 @@ public class MaterialSet
                         ShaderCategory.CategorySpecularType => IsDefinedOrHex((SpecularMode)value),
                         ShaderCategory.GetValuesTextureType => IsDefinedOrHex((TextureMode)value),
                         ShaderCategory.CategoryFlowMapType => IsDefinedOrHex((FlowType)value),
+                        ShaderCategory.CategoryBgVertexPaint => IsDefinedOrHex((BgVertexPaint)value),
                         _ => $"0x{value:X8}"
                     };
                     
