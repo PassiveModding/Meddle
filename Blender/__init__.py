@@ -431,7 +431,14 @@ class MEDDLE_OT_fix_bg(Operator):
         else:
             print(f"Material '{mat.name}' does not have the custom property 'g_SamplerColorMap1'.")
 
-        if g_SamplerColorMap1 is not None and g_SamplerColorMap0Node is not None and vertex_color_node is not None:
+        # indicates faux wind influence assigned to the vertex_color_node R/G channels
+        bg_vertex_paint = False
+        if 'CategoryBgVertexPaint' in mat:
+            if mat['CategoryBgVertexPaint'] == 'On':
+                bg_vertex_paint = True
+            
+
+        if g_SamplerColorMap1 is not None and g_SamplerColorMap0Node is not None and vertex_color_node is not None and bg_vertex_paint is False:
             mix_color = None
             for node in mat.node_tree.nodes:
                 if node.label == "MIX COLOR":
@@ -466,8 +473,10 @@ class MEDDLE_OT_fix_bg(Operator):
             # organize nodes
             g_SamplerColorMap1Node.location = (g_SamplerColorMap0Node.location.x, g_SamplerColorMap0Node.location.y - 150)
             mix_color.location = (g_SamplerColorMap0Node.location.x + 300, g_SamplerColorMap0Node.location.y)
-        
-           
+        elif g_SamplerColorMap0Node is not None:
+            # connect color directly to principled bsdf
+            mat.node_tree.links.new(g_SamplerColorMap0Node.outputs['Color'], principled_bsdf.inputs['Base Color'])
+             
     def handleSpecularChannels(self, mat, vertex_color_node, principled_bsdf):
         g_SamplerSpecularMap1 = None
         if "g_SamplerSpecularMap1" in mat:
