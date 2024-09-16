@@ -50,70 +50,25 @@ public partial class LayoutWindow
                 selected.Add(instance);
             }
 
-            if (instance is ParsedSharedInstance shared && drawChildren)
+            if (instance is ParsedSharedInstance shared && config.LayoutConfig.DrawChildren)
             {
                 foreach (var child in shared.Children)
                 {
-                    DrawLayers([child], shared, out var childHovered, out var childSelected);
+                    DrawLayers([child], shared, out var childHovered, out _);
                     hovered.AddRange(childHovered);
                 }
             }
         }
     }
     
-    private void DrawTooltip(ParsedInstance instance)
+    private void DrawTooltip(ParsedInstance instance, bool extras = true)
     {
-        if (!drawTypes.HasFlag(instance.Type))
+        if (!config.LayoutConfig.DrawTypes.HasFlag(instance.Type))
             return;
         if (instance is ParsedCharacterInstance {Visible: false})
             return;
         
-        ImGui.Text($"Type: {instance.Type}");
-        if (instance is ParsedUnsupportedInstance unsupportedInstance)
-        {
-            ImGui.Text($"Instance Type: {unsupportedInstance.InstanceType}");
-        }
-        
-        ImGui.Text($"Position: {instance.Transform.Translation.ToFormatted()}");
-        ImGui.Text($"Rotation: {instance.Transform.Rotation.ToFormatted()}");
-        ImGui.Text($"Scale: {instance.Transform.Scale.ToFormatted()}");
-
-        if (instance is ParsedHousingInstance housingInstance)
-        {
-            ImGui.Text($"Housing: {housingInstance.Name}");
-            ImGui.Text($"Kind: {housingInstance.Kind}");
-            if (housingInstance.Item != null)
-            {
-                ImGui.Text($"Item Name: {housingInstance.Item.Name}");
-            }
-
-            Vector4? color = housingInstance.Stain == null
-                                 ? null
-                                 : ImGui.ColorConvertU32ToFloat4(housingInstance.Stain.Color);
-            if (color != null)
-            {
-                ImGui.ColorButton("Stain", color.Value);
-            }
-            else
-            {
-                ImGui.Text("No Stain");
-            }
-        }
-
-        if (instance is ParsedLightInstance lightInstance)
-        {
-            ImGui.Text($"Light Type: {lightInstance.Light.LightType}");
-            ImGui.ColorButton("Color", new Vector4(lightInstance.Light.Color.Rgb, lightInstance.Light.Color.Intensity));
-            ImGui.SameLine();
-            ImGui.Text($"HDR: {lightInstance.Light.Color._vec3.ToFormatted()}");
-            ImGui.SameLine();
-            ImGui.Text($"RGB: {lightInstance.Light.Color.Rgb.ToFormatted()}");
-            ImGui.SameLine();
-            ImGui.Text($"Intensity: {lightInstance.Light.Color.Intensity}");
-            ImGui.Text($"Range: {lightInstance.Light.Range}");
-        }
-
-        if (instance is IPathInstance pathInstance)
+        if (extras && instance is IPathInstance pathInstance)
         {
             ImGui.Text($"Path: {pathInstance.Path.FullPath}");
             if (pathInstance.Path.GamePath != pathInstance.Path.FullPath)
@@ -122,23 +77,84 @@ public partial class LayoutWindow
             }
         }
         
-        if (instance is ParsedCharacterInstance characterInstance)
+        ImGui.Text($"Pos: {instance.Transform.Translation.ToFormatted()} Rot: {instance.Transform.Rotation.ToFormatted()} Scale: {instance.Transform.Scale.ToFormatted()}");
+
+        if (extras)
         {
-            ImGui.Text($"Character: {characterInstance.Name}");
-            ImGui.Text($"Kind: {characterInstance.Kind}");
+            if (instance is ParsedUnsupportedInstance unsupportedInstance)
+            {
+                ImGui.Text($"Instance Type: {unsupportedInstance.InstanceType}");
+            }
+
+            if (instance is ParsedHousingInstance housingInstance)
+            {
+                ImGui.Text($"Housing: {housingInstance.Name}");
+                ImGui.Text($"Kind: {housingInstance.Kind}");
+                if (housingInstance.Item != null)
+                {
+                    ImGui.Text($"Item Name: {housingInstance.Item.Name}");
+                }
+
+                Vector4? color = housingInstance.Stain == null
+                                     ? null
+                                     : ImGui.ColorConvertU32ToFloat4(housingInstance.Stain.Color);
+                if (color != null)
+                {
+                    ImGui.ColorButton("Stain", color.Value);
+                }
+                else
+                {
+                    ImGui.Text("No Stain");
+                }
+            }
+
+            if (instance is ParsedLightInstance lightInstance)
+            {
+                ImGui.Text($"Light Type: {lightInstance.Light.LightType}");
+                ImGui.ColorButton(
+                    "Color", new Vector4(lightInstance.Light.Color.Rgb, lightInstance.Light.Color.Intensity));
+                ImGui.SameLine();
+                ImGui.Text($"HDR: {lightInstance.Light.Color._vec3.ToFormatted()}");
+                ImGui.SameLine();
+                ImGui.Text($"RGB: {lightInstance.Light.Color.Rgb.ToFormatted()}");
+                ImGui.SameLine();
+                ImGui.Text($"Intensity: {lightInstance.Light.Color.Intensity}");
+                ImGui.Text($"Range: {lightInstance.Light.Range}");
+            }
+
+            if (instance is ParsedCharacterInstance characterInstance)
+            {
+                ImGui.Text($"Character: {characterInstance.Name}");
+                ImGui.Text($"Kind: {characterInstance.Kind}");
+            }
         }
 
         // children
         if (instance is ParsedSharedInstance { Children.Count: > 0 } shared)
         {
-            ImGui.Text("Children:");
-            ImGui.Indent();
-            foreach (var child in shared.Children)
+            var groupedChildren = shared.Children.GroupBy(x =>
             {
-                DrawTooltip(child);
-            }
+                var type = x.Type;
+                if (x is IPathInstance parsedInstance)
+                {
+                    return (type, parsedInstance.Path.FullPath);
+                }
 
-            ImGui.Unindent();
+                return (type, "");
+            });
+
+            using var groupIndent = ImRaii.PushIndent();
+            foreach (var childGroup in groupedChildren)
+            {
+                using var childIndent = ImRaii.PushIndent();
+                var childArray = childGroup.ToArray();
+                ImGui.Text($"{childGroup.Key.type}: {childGroup.Count()}");
+                for (var i = 0; i < childArray.Length; i++)
+                {
+                    var child = childArray[i];
+                    DrawTooltip(child, i == 0);
+                }
+            }
         }
     }
 
@@ -154,9 +170,9 @@ public partial class LayoutWindow
         var localPos = sigUtil.GetLocalPosition();
         if (Vector3.Abs(obj.Transform.Translation - localPos).Length() > config.WorldCutoffDistance)
             return InstanceSelectState.None;
-        if (!WorldToScreen(obj.Transform.Translation, out var screenPos, out var inView))
+        if (!WorldToScreen(obj.Transform.Translation, out var screenPos, out _))
             return InstanceSelectState.None;
-        if (!drawTypes.HasFlag(obj.Type))
+        if (!config.LayoutConfig.DrawTypes.HasFlag(obj.Type))
             return InstanceSelectState.None;
         if (obj is ParsedCharacterInstance {Visible: false})
             return InstanceSelectState.None;
@@ -165,7 +181,7 @@ public partial class LayoutWindow
         {
             var flattened = sharedInstance.Flatten();
             // if none of the children are in drawTypes, return
-            if (!flattened.Where(x => x is not ParsedSharedInstance).Any(x => drawTypes.HasFlag(x.Type)))
+            if (!flattened.Where(x => x is not ParsedSharedInstance).Any(x => config.LayoutConfig.DrawTypes.HasFlag(x.Type)))
                 return InstanceSelectState.None;
         }
         
@@ -199,23 +215,23 @@ public partial class LayoutWindow
         if (ImGui.IsMouseHoveringRect(screenPosVec - new Vector2(5, 5), screenPosVec + new Vector2(5, 5)) &&
             !ImGui.IsWindowHovered(ImGuiHoveredFlags.AnyWindow))
         {
-            if (traceToHovered)
+            if (config.LayoutConfig.TraceToHovered)
             {
-                if (WorldToScreen(currentPos, out var currentScreenPos, out var currentInView))
+                if (WorldToScreen(currentPos, out var currentScreenPos, out _))
                 {
                     bg.AddLine(currentScreenPos, screenPos, ImGui.GetColorU32(config.WorldDotColor), 2);
                 }
             }
             
-            if (drawChildren && traceToParent && parent != null)
+            if (config.LayoutConfig is {DrawChildren: true, TraceToParent: true} && parent != null)
             {
-                if (WorldToScreen(parent.Transform.Translation, out var parentScreenPos, out var parentInView))
+                if (WorldToScreen(parent.Transform.Translation, out var parentScreenPos, out _))
                 {
                     bg.AddLine(screenPos, parentScreenPos, ImGui.GetColorU32(config.WorldDotColor), 2);
                 }
             }
             
-            using (var tt = ImRaii.Tooltip())
+            using (ImRaii.Tooltip())
             {
                 DrawTooltip(obj);
             }

@@ -24,6 +24,7 @@ public partial class LayoutWindow : Window, IDisposable
     private readonly ILogger<LayoutWindow> log;
     private readonly TextureCache textureCache;
     private readonly ITextureProvider textureProvider;
+    private readonly ResolverService resolverService;
     private readonly SqPack dataManager;
 
     private ProgressEvent? progress;
@@ -47,6 +48,7 @@ public partial class LayoutWindow : Window, IDisposable
         ILogger<LayoutWindow> log,
         TextureCache textureCache,
         ITextureProvider textureProvider,
+        ResolverService resolverService,
         SqPack dataManager) : base("Layout")
     {
         this.layoutService = layoutService;
@@ -55,12 +57,13 @@ public partial class LayoutWindow : Window, IDisposable
         this.log = log;
         this.textureCache = textureCache;
         this.textureProvider = textureProvider;
+        this.resolverService = resolverService;
         this.dataManager = dataManager;
     }
 
     private void SetupCurrentState()
     {
-        currentLayout = layoutService.GetWorldState() ?? [];
+        currentLayout = layoutService.LastState ?? [];
         currentPos = sigUtil.GetLocalPosition();
     }
 
@@ -97,14 +100,15 @@ public partial class LayoutWindow : Window, IDisposable
 
             if (shouldUpdateState)
             {
+                layoutService.LastDrawTime = DateTime.Now;
                 SetupCurrentState();
                 shouldUpdateState = false;
             }
             
-            if (drawOverlay)
+            if (config.LayoutConfig.DrawOverlay)
             {
                 shouldUpdateState = true;
-                DrawOverlayWindow(out var hovered, out var selected);
+                DrawOverlayWindow(out _, out var selected);
                 foreach (var group in selected)
                 {
                     selectedInstances[group.Id] = group;
@@ -144,13 +148,13 @@ public partial class LayoutWindow : Window, IDisposable
                               if (x is ParsedTerrainInstance) return true;
                               return Vector3.Distance(x.Transform.Translation, currentPos) < config.WorldCutoffDistance;
                           })
-                          .Where(x => drawTypes.HasFlag(x.Type));
-                if (orderByDistance)
+                          .Where(x => config.LayoutConfig.DrawTypes.HasFlag(x.Type));
+                if (config.LayoutConfig.OrderByDistance)
                 {
                     set = set.OrderBy(x => Vector3.Distance(x.Transform.Translation, sigUtil.GetLocalPosition()));
                 }
 
-                if (hideOffscreenCharacters)
+                if (config.LayoutConfig.HideOffscreenCharacters)
                 {
                     set = set.Where(x => x is not ParsedCharacterInstance {Visible: false});
                 }
@@ -218,7 +222,7 @@ public partial class LayoutWindow : Window, IDisposable
             {
                 if (ImGui.Button(FontAwesomeIcon.Redo.ToIconString()))
                 {
-                    resolvableInstance.Resolve(layoutService);
+                    resolvableInstance.Resolve(resolverService);
                 }
             }
 
@@ -280,10 +284,10 @@ public partial class LayoutWindow : Window, IDisposable
             return;
         }
 
-        layoutService.ResolveInstances(instances);
+        resolverService.ResolveInstances(instances);
 
         var defaultName = $"InstanceExport-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
-        var currentExportType = exportType;
+        var currentExportType = config.LayoutConfig.ExportType;
         cancelToken = new CancellationTokenSource();
         fileDialog.SaveFolderDialog("Save Instances", defaultName,
                                     (result, path) =>

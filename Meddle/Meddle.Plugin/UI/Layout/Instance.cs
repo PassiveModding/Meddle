@@ -19,7 +19,7 @@ public partial class LayoutWindow
                                              ImGuiTableFlags.Reorderable);
         ImGui.TableSetupColumn("Data", ImGuiTableColumnFlags.WidthStretch);
         ImGui.TableSetupColumn("Options");
-        foreach (var instance in instances.Take(maxItemCount))
+        foreach (var instance in instances.Take(config.LayoutConfig.MaxItemCount))
         {
             DrawInstance(instance, [], additionalOptions);
         }
@@ -106,6 +106,11 @@ public partial class LayoutWindow
             {
                 DrawCharacter(character);
             }
+
+            if (instance is ParsedTerrainInstance terrain)
+            {
+                DrawTerrain(terrain);
+            }
         }
         
         ImGui.TableSetColumnIndex(1);
@@ -116,6 +121,60 @@ public partial class LayoutWindow
             foreach (var obj in childShared.Children)
             {
                 DrawInstance(obj, stack, additionalOptions);
+            }
+        }
+    }
+
+    private void DrawTerrain(ParsedTerrainInstance terrain)
+    {
+        if (terrain.Data == null) return;
+        var file = terrain.Data.TeraFile;
+        ImGui.Text($"Plate Count: {file.Header.PlateCount}");
+        ImGui.Text($"Plate Count: {file.Header.PlateSize}");
+        ImGui.Text($"Clip Distance: {file.Header.ClipDistance}");
+
+        using var treeNode = ImRaii.TreeNode("Plates");
+        if (treeNode.Success)
+        {
+            for (int i = 0; i < file.Header.PlateCount; i++)
+            {
+                using var plateNode = ImRaii.TreeNode($"Plate {i}");
+                if (!plateNode.Success) continue;
+                var position = file.GetPlatePosition(i);
+                ImGui.Text($"Position: {position}");
+                if (!terrain.Data.ResolvedPlates.TryGetValue(i, out var plate))
+                {
+                    var path = $"{terrain.Path.GamePath}/bgplate/{i:D4}.mdl";
+                    plate = resolverService.ParseModelFromPath(path);
+                    terrain.Data.ResolvedPlates[i] = plate;
+                }
+                
+                // TODO: Draw plate
+                if (plate == null)
+                {
+                    ImGui.Text("No plate data");
+                    continue;
+                }
+                UiUtil.Text($"Model Path: {plate.Path.FullPath}", plate.Path.FullPath);
+                UiUtil.Text($"Game Path: {plate.Path.GamePath}", plate.Path.GamePath);
+                
+                foreach (var material in plate.Materials)
+                {
+                    using var materialNode = ImRaii.TreeNode($"Material: {material.Path.GamePath}");
+                    if (!materialNode.Success) continue;
+                    UiUtil.Text($"Material Path: {material.Path.FullPath}", material.Path.FullPath);
+                    UiUtil.Text($"Game Path: {material.Path.GamePath}", material.Path.GamePath);
+                    UiUtil.Text($"Shader Path: {material.Shpk}", material.Shpk);
+                    ImGui.Text($"Texture Count: {material.Textures.Count}");
+                    foreach (var texture in material.Textures)
+                    {
+                        using var textureNode = ImRaii.TreeNode($"Texture: {texture.Path.GamePath}");
+                        if (!textureNode.Success) continue;
+                        UiUtil.Text($"Texture Path: {texture.Path.FullPath}", texture.Path.FullPath);
+                        UiUtil.Text($"Game Path: {texture.Path.GamePath}", texture.Path.GamePath);
+                        DrawTexture(texture.Path.FullPath, texture.Resource);
+                    }
+                }
             }
         }
     }

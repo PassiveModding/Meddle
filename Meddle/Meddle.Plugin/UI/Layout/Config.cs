@@ -23,16 +23,21 @@ public partial class LayoutWindow
                                                         ParsedInstanceType.Light |
                                                         ParsedInstanceType.SharedGroup;
     private const ExportType DefaultExportType = ExportType.GLTF;
-    private ParsedInstanceType drawTypes = DefaultDrawTypes;
-    private ExportType exportType = DefaultExportType;
-    private bool drawOverlay = true;
-    private bool drawChildren;
-    private bool traceToParent = true;
-    private bool orderByDistance = true;
-    private bool traceToHovered = true;
-    private bool hideOffscreenCharacters = true;
-    private int maxItemCount = 100;
+
+    public class LayoutConfig
+    {
+        public ParsedInstanceType DrawTypes { get; set; } = DefaultDrawTypes;
+        public ExportType ExportType { get; set; } = DefaultExportType;
+        public bool DrawOverlay { get; set; } = true;
+        public bool DrawChildren { get; set; }
+        public bool TraceToParent { get; set; } = true;
+        public bool OrderByDistance { get; set; } = true;
+        public bool TraceToHovered { get; set; } = true;
+        public bool HideOffscreenCharacters { get; set; } = true;
+        public int MaxItemCount { get; set; } = 100;
+    }
     
+
     private void DrawOptions()
     {
         if (!ImGui.CollapsingHeader("Options")) return;
@@ -50,24 +55,56 @@ public partial class LayoutWindow
             config.Save();
         }
 
-        ImGui.Checkbox("Draw Overlay", ref drawOverlay);
-        ImGui.Checkbox("Draw Children", ref drawChildren);
-        if (drawChildren)
+        var drawOverlay = config.LayoutConfig.DrawOverlay;
+        if (ImGui.Checkbox("Draw Overlay", ref drawOverlay))
         {
-            ImGui.Checkbox("Trace to Parent", ref traceToParent);
+            config.LayoutConfig.DrawOverlay = drawOverlay;
+            config.Save();
         }
-        ImGui.Checkbox("Order by Distance", ref orderByDistance);
-        ImGui.Checkbox("Trace to Hovered", ref traceToHovered);
-        ImGui.Checkbox("Hide Offscreen Characters", ref hideOffscreenCharacters);
         
-        ImGui.DragInt("Max Item Count", ref maxItemCount, 1, 1, 50000);
-        ImGui.SameLine();
-        ImGui.TextDisabled("(?)");
-        if (ImGui.IsItemHovered())
+        var drawChildren = config.LayoutConfig.DrawChildren;
+        if (ImGui.Checkbox("Draw Children", ref drawChildren))
         {
-            ImGui.SetTooltip("The maximum number of items to draw in the layout window, does not affect exports");
+            config.LayoutConfig.DrawChildren = drawChildren;
+            config.Save();
         }
-
+        
+        var traceToParent = config.LayoutConfig.TraceToParent;
+        if (drawChildren && ImGui.Checkbox("Trace to Parent", ref traceToParent))
+        {
+            config.LayoutConfig.TraceToParent = traceToParent;
+            config.Save();
+        }
+        
+        var orderByDistance = config.LayoutConfig.OrderByDistance;
+        if (ImGui.Checkbox("Order by Distance", ref orderByDistance))
+        {
+            config.LayoutConfig.OrderByDistance = orderByDistance;
+            config.Save();
+        }
+        
+        var traceToHovered = config.LayoutConfig.TraceToHovered;
+        if (ImGui.Checkbox("Trace to Hovered", ref traceToHovered))
+        {
+            config.LayoutConfig.TraceToHovered = traceToHovered;
+            config.Save();
+        }
+        
+        var hideOffscreenCharacters = config.LayoutConfig.HideOffscreenCharacters;
+        if (ImGui.Checkbox("Hide Offscreen Characters", ref hideOffscreenCharacters))
+        {
+            config.LayoutConfig.HideOffscreenCharacters = hideOffscreenCharacters;
+            config.Save();
+        }
+        
+        var maxItemCount = config.LayoutConfig.MaxItemCount;
+        if (ImGui.DragInt("Max Item Count", ref maxItemCount, 1, 1, 50000))
+        {
+            config.LayoutConfig.MaxItemCount = maxItemCount;
+            config.Save();
+        }
+        
+        var drawTypes = config.LayoutConfig.DrawTypes;
         if (ImGui.BeginCombo("Draw Types", drawTypes.ToString()))
         {
             foreach (var type in Enum.GetValues<ParsedInstanceType>())
@@ -95,6 +132,7 @@ public partial class LayoutWindow
             drawTypes = DefaultDrawTypes;
         }
         
+        var exportType = config.LayoutConfig.ExportType;
         if (ImGui.BeginCombo("Export Type", exportType.ToString()))
         {
             foreach (var type in Enum.GetValues<ExportType>())
@@ -121,19 +159,31 @@ public partial class LayoutWindow
         {
             exportType = DefaultExportType;
         }
+        
+        if (drawTypes != config.LayoutConfig.DrawTypes)
+        {
+            config.LayoutConfig.DrawTypes = drawTypes;
+            config.Save();
+        }
+        
+        if (exportType != config.LayoutConfig.ExportType)
+        {
+            config.LayoutConfig.ExportType = exportType;
+            config.Save();
+        }
     }
     
-    private static T[] GetFlags<T>(T flags) where T : Enum
-    {
-        var list = new List<T>();
-        foreach (T type in Enum.GetValues(typeof(T)))
-        {
-            if (flags.HasFlag(type))
-            {
-                list.Add(type);
-            }
-        }
-
-        return list.ToArray();
-    }
+    // private static T[] GetFlags<T>(T flags) where T : Enum
+    // {
+    //     var list = new List<T>();
+    //     foreach (T type in Enum.GetValues(typeof(T)))
+    //     {
+    //         if (flags.HasFlag(type))
+    //         {
+    //             list.Add(type);
+    //         }
+    //     }
+    //
+    //     return list.ToArray();
+    // }
 }

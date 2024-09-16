@@ -1,10 +1,9 @@
-﻿using System.Numerics;
-using System.Runtime.InteropServices;
+﻿using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Numerics;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
-using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
-using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Group;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Layer;
@@ -12,126 +11,71 @@ using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Terrain;
 using FFXIVClientStructs.Interop;
 using ImGuiNET;
 using Lumina.Excel.GeneratedSheets;
-using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Layout;
-using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Utils;
-using Meddle.Utils;
-using Meddle.Utils.Export;
-using Meddle.Utils.Files.SqPack;
-using Meddle.Utils.Files.Structs.Material;
 using Microsoft.Extensions.Logging;
-using CustomizeData = Meddle.Utils.Export.CustomizeData;
-using CustomizeParameter = Meddle.Plugin.Models.Structs.CustomizeParameter;
 using HousingFurniture = FFXIVClientStructs.FFXIV.Client.Game.HousingFurniture;
-using Model = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Model;
 using Transform = Meddle.Plugin.Models.Transform;
 
 namespace Meddle.Plugin.Services;
 
-public class LayoutService : IService
+public class LayoutService : IService, IDisposable
 {
     private readonly Dictionary<uint, Item> itemDict;
-    private readonly ILogger<HousingService> logger;
-    private readonly IDataManager dataManager;
-    private readonly SqPack pack;
-    private readonly ParseService parseService;
-    private readonly PbdHooks pbdHooks;
+    private readonly ILogger<LayoutService> logger;
+    private readonly IFramework framework;
     private readonly SigUtil sigUtil;
     private readonly Dictionary<uint, Stain> stainDict;
 
     public LayoutService(
-        SigUtil sigUtil, ILogger<HousingService> logger,
+        SigUtil sigUtil, 
+        ILogger<LayoutService> logger,
         IDataManager dataManager,
-        SqPack pack,
-        ParseService parseService, PbdHooks pbdHooks)
+        IFramework framework)
     {
         this.sigUtil = sigUtil;
         this.logger = logger;
-        this.dataManager = dataManager;
-        this.pack = pack;
-        this.parseService = parseService;
-        this.pbdHooks = pbdHooks;
+        this.framework = framework;
         stainDict = dataManager.GetExcelSheet<Stain>()!.ToDictionary(row => row.RowId, row => row);
         itemDict = dataManager.GetExcelSheet<Item>()!
                               .Where(item => item.AdditionalData != 0 && item.ItemSearchCategory.Row is 65 or 66)
                               .ToDictionary(row => row.AdditionalData, row => row);
+        this.framework.Update += Update;
     }
 
-    public void ResolveInstances(ParsedInstance[] instances)
-    {
-        foreach (var instance in instances)
-        {
-            ResolveInstance(instance);
-        }
-    }
-
-    private bool IsCharacterKind(ObjectKind kind)
-    {
-        return kind switch
-        {
-            ObjectKind.Pc => true,
-            ObjectKind.Mount => true,
-            ObjectKind.Companion => true,
-            ObjectKind.Retainer => true,
-            ObjectKind.BattleNpc => true,
-            ObjectKind.EventNpc => true,
-            ObjectKind.Ornament => true,
-            _ => false
-        };
-    }
+    public DateTime LastDrawTime { get; set; }
     
-    public unsafe void ResolveInstance(ParsedInstance instance)
+    public ParsedInstance[]? LastState { get; private set; }
+    
+    private void Update(IFramework framework)
     {
-        if (instance is ParsedCharacterInstance {CharacterInfo: null} characterInstance)
-        {
-            var objects = ParseObjects();
-            // check to ensure the character instance is still valid
-            if (objects.Any(o => o.Id == instance.Id))
-            {
-                var gameObject = (GameObject*)instance.Id;
-                if (IsCharacterKind(gameObject->ObjectKind))
-                {
-                    var characterInfo = HandleCharacter((Character*)gameObject);
-                    characterInstance.CharacterInfo = characterInfo;
-                }
-                else
-                {
-                    var characterInfo = HandleDrawObject(gameObject->DrawObject);
-                    characterInstance.CharacterInfo = characterInfo;
-                }
-            }
-            else
-            {
-                logger.LogWarning("Character instance {Id} no longer exists", instance.Id);
-            }
-        }
-
-        if (instance is ParsedSharedInstance sharedInstance)
-        {
-            foreach (var child in sharedInstance.Children)
-            {
-                ResolveInstance(child);
-            }
-        }
+        // if last draw time longer than 5sec ago, skip
+        if (LastDrawTime != default && DateTime.Now - LastDrawTime > TimeSpan.FromSeconds(5))
+            return;
+        
+        var worldState = GetWorldState();
+        LastState = worldState;
     }
 
+    public static ActivitySource ActivitySource { get; } = new("Meddle.LayoutService");
+    
     public unsafe ParsedInstance[]? GetWorldState()
     {
+        using var activity = ActivitySource.StartActivity();
         var layoutWorld = sigUtil.GetLayoutWorld();
         if (layoutWorld == null)
             return null;
 
         var currentTerritory = GetCurrentTerritory();
-        var housingItems = ParseTerritory(currentTerritory);
+        var housingItems = ParseTerritoryFurniture(currentTerritory);
+        var parseCtx = new ParseContext(housingItems);
         var objects = ParseObjects();
-        var parseCtx = new ParseCtx(housingItems);
         var loadedLayouts = layoutWorld->LoadedLayouts.ToArray();
         var loadedLayers = loadedLayouts
-                           .Select(layout => Parse(layout.Value, parseCtx))
+                           .Select(layout => ParseLayout(layout.Value, parseCtx))
                            .SelectMany(x => x).ToArray();
-        var globalLayers = Parse(layoutWorld->GlobalLayout, parseCtx);
+        var globalLayers = ParseLayout(layoutWorld->GlobalLayout, parseCtx);
 
         var layers = new List<ParsedInstance>();
 
@@ -154,14 +98,14 @@ public class LayoutService : IService
         return housingManager->CurrentTerritory;
     }
 
-    private unsafe ParsedInstanceSet[] Parse(LayoutManager* activeLayout, ParseCtx ctx)
+    private unsafe ParsedInstanceSet[] ParseLayout(LayoutManager* activeLayout, ParseContext context)
     {
         if (activeLayout == null) return [];
-
+        using var activity = ActivitySource.StartActivity();
         var layers = new List<ParsedInstanceSet>();
         foreach (var (_, layerPtr) in activeLayout->Layers)
         {
-            var layer = ParseLayer(layerPtr, ctx);
+            var layer = ParseLayer(layerPtr, context);
             if (layer != null)
             {
                 layers.Add(layer);
@@ -170,7 +114,7 @@ public class LayoutService : IService
 
         foreach (var (_, terrainPtr) in activeLayout->Terrains)
         {
-            var terrain = ParseTerrain(terrainPtr, ctx);
+            var terrain = ParseTerrain(terrainPtr);
             if (terrain != null)
             {
                 layers.Add(new ParsedInstanceSet
@@ -183,34 +127,38 @@ public class LayoutService : IService
         return layers.ToArray();
     }
 
-    private unsafe ParsedTerrainInstance? ParseTerrain(Pointer<TerrainManager> terrainPtr, ParseCtx ctx)
+    private unsafe ParsedTerrainInstance? ParseTerrain(Pointer<TerrainManager> terrainPtr)
     {
         if (terrainPtr == null || terrainPtr.Value == null)
             return null;
+        
+        using var activity = ActivitySource.StartActivity();
         
         var terrainManager = terrainPtr.Value;
         var path = terrainManager->PathString;
         return new ParsedTerrainInstance((nint)terrainManager, new Transform(Vector3.Zero, Quaternion.Identity, Vector3.One), path);
     }
 
-    private unsafe ParsedInstanceSet? ParseLayer(Pointer<LayerManager> layerManagerPtr, ParseCtx ctx)
+    private unsafe ParsedInstanceSet? ParseLayer(Pointer<LayerManager> layerManagerPtr, ParseContext context)
     {
         if (layerManagerPtr == null || layerManagerPtr.Value == null)
             return null;
 
+        using var activity = ActivitySource.StartActivity();
         var layerManager = layerManagerPtr.Value;
         var instances = new List<ParsedInstance>();
         foreach (var (_, instancePtr) in layerManager->Instances)
         {
             if (instancePtr == null || instancePtr.Value == null)
                 continue;
-
-            var instance = ParseInstance(instancePtr, ctx);
+            
+            var instance = ParseInstance(instancePtr, context);
             if (instance == null)
                 continue;
-
+        
             instances.Add(instance);
         }
+        
 
         return new ParsedInstanceSet
         {
@@ -218,12 +166,15 @@ public class LayoutService : IService
         };
     }
 
-    private unsafe ParsedInstance? ParseInstance(Pointer<ILayoutInstance> instancePtr, ParseCtx ctx)
+    private unsafe ParsedInstance? ParseInstance(Pointer<ILayoutInstance> instancePtr, ParseContext context)
     {
         if (instancePtr == null || instancePtr.Value == null)
             return null;
 
+        using var activity = ActivitySource.StartActivity();
         var instanceLayout = instancePtr.Value;
+        activity?.SetTag("instanceType", instanceLayout->Id.Type.ToString());
+        activity?.SetTag("instancePtr", (nint)instanceLayout);
         switch (instanceLayout->Id.Type)
         {
             case InstanceType.BgPart:
@@ -235,7 +186,7 @@ public class LayoutService : IService
             case InstanceType.SharedGroup:
             {
                 var sharedGroup = (SharedGroupLayoutInstance*)instanceLayout;
-                var part = ParseSharedGroup(sharedGroup, ctx);
+                var part = ParseSharedGroup(sharedGroup, context);
                 return part;
             }
             case InstanceType.Light:
@@ -276,7 +227,7 @@ public class LayoutService : IService
         return new ParsedLightInstance((nint)light, new Transform(*light->GetTransformImpl()), typedInstance->LightPtr->LightItem);
     }
 
-    private unsafe ParsedInstance? ParseSharedGroup(Pointer<SharedGroupLayoutInstance> sharedGroupPtr, ParseCtx ctx)
+    private unsafe ParsedInstance? ParseSharedGroup(Pointer<SharedGroupLayoutInstance> sharedGroupPtr, ParseContext context)
     {
         if (sharedGroupPtr == null || sharedGroupPtr.Value == null)
             return null;
@@ -292,7 +243,7 @@ public class LayoutService : IService
                 continue;
 
             var instanceData = instanceDataPtr.Value;
-            var child = ParseInstance(instanceData->Instance, ctx);
+            var child = ParseInstance(instanceData->Instance, context);
             if (child == null)
                 continue;
             children.Add(child);
@@ -303,7 +254,7 @@ public class LayoutService : IService
 
 
         var primaryPath = sharedGroup->GetPrimaryPath();
-        string? path = null;
+        string? path;
         if (primaryPath != null)
         {
             path = SpanMemoryUtils.GetStringFromNullTerminated(primaryPath);
@@ -313,7 +264,7 @@ public class LayoutService : IService
             throw new Exception("SharedGroup has no primary path");
         }
 
-        var furnitureMatch = ctx.HousingItems.FirstOrDefault(item => item.LayoutInstance == sharedGroupPtr);
+        var furnitureMatch = context.HousingItems.FirstOrDefault(item => item.LayoutInstance == sharedGroupPtr);
         if (furnitureMatch is not null)
         {
             // TODO: Kinda messy
@@ -353,7 +304,7 @@ public class LayoutService : IService
             return null;
 
         var primaryPath = bgPart->GetPrimaryPath();
-        string? path = null;
+        string? path;
         if (primaryPath != null)
         {
             path = SpanMemoryUtils.GetStringFromNullTerminated(primaryPath);
@@ -368,6 +319,7 @@ public class LayoutService : IService
     
     public unsafe ParsedInstance[] ParseObjects()
     {
+        using var activity = ActivitySource.StartActivity();
         var gameObjectManager = sigUtil.GetGameObjectManager();
 
         var objects = new List<ParsedInstance>();
@@ -384,7 +336,7 @@ public class LayoutService : IService
             var drawObject = obj->DrawObject;
             if (drawObject == null)
                 continue;
-
+            
             var transform = new Transform(drawObject->Position, drawObject->Rotation, drawObject->Scale);
             objects.Add(new ParsedCharacterInstance((nint)obj, obj->NameString, type, transform, drawObject->IsVisible));
         }
@@ -392,191 +344,7 @@ public class LayoutService : IService
         return objects.ToArray();
     }
 
-    public unsafe ParsedModelInfo? HandleModel(Pointer<CharacterBase> cbasePtr, Pointer<Model> modelPtr, Dictionary<int, IColorTableSet> colorTableSets)
-    {
-        if (modelPtr == null) return null;
-        var model = modelPtr.Value;
-        if (model == null) return null;
-        var modelPath = model->ModelResourceHandle->ResourceHandle.FileName.ParseString();
-        if (cbasePtr == null) return null;
-        if (cbasePtr.Value == null) return null;
-        var characterBase = cbasePtr.Value;
-        var modelPathFromCharacter = characterBase->ResolveMdlPath(model->SlotIndex);
-        var shapeAttributeGroup = StructExtensions.ParseModelShapeAttributes(model);
-
-        var materials = new List<ParsedMaterialInfo>();
-        for (var mtrlIdx = 0; mtrlIdx < model->MaterialsSpan.Length; mtrlIdx++)
-        {
-            var materialPtr = model->MaterialsSpan[mtrlIdx];
-            if (materialPtr == null) continue;
-            var material = materialPtr.Value;
-            if (material == null) continue;
-
-            var materialPath = material->MaterialResourceHandle->ResourceHandle.FileName.ParseString();
-            var materialPathFromModel =
-                model->ModelResourceHandle->GetMaterialFileNameBySlotAsString((uint)mtrlIdx);
-            var shaderName = material->MaterialResourceHandle->ShpkNameString;
-            IColorTableSet? colorTable = null;
-            if (colorTableSets.TryGetValue((int)(model->SlotIndex * CharacterBase.MaterialsPerSlot) + mtrlIdx,
-                                               out var gpuColorTable))
-            {
-                colorTable = gpuColorTable;
-            }
-            else if (material->MaterialResourceHandle->ColorTableSpan.Length == 32)
-            {
-                var colorTableRows = material->MaterialResourceHandle->ColorTableSpan;
-                var colorTableBytes = MemoryMarshal.AsBytes(colorTableRows);
-                var colorTableBuf = new byte[colorTableBytes.Length];
-                colorTableBytes.CopyTo(colorTableBuf);
-                var reader = new SpanBinaryReader(colorTableBuf);
-                colorTable = new ColorTableSet
-                {
-                    ColorTable = new ColorTable(ref reader)
-                };
-            }
-
-            var textures = new List<ParsedTextureInfo>();
-            for (var texIdx = 0; texIdx < material->MaterialResourceHandle->TexturesSpan.Length; texIdx++)
-            {
-                var texturePtr = material->MaterialResourceHandle->TexturesSpan[texIdx];
-                if (texturePtr.TextureResourceHandle == null) continue;
-
-                var texturePath = texturePtr.TextureResourceHandle->FileName.ParseString();
-                if (texIdx < material->TextureCount)
-                {
-                    var texturePathFromMaterial = material->MaterialResourceHandle->TexturePathString(texIdx);
-                    var (resource, stride) =
-                        DXHelper.ExportTextureResource(texturePtr.TextureResourceHandle->Texture);
-                    var textureInfo = new ParsedTextureInfo(texturePath, texturePathFromMaterial, resource);
-                    textures.Add(textureInfo);
-                }
-            }
-
-            var materialInfo =
-                new ParsedMaterialInfo(materialPath, materialPathFromModel, shaderName, colorTable, textures);
-            materials.Add(materialInfo);
-        }
-
-        var deform = pbdHooks.TryGetDeformer((nint)cbasePtr.Value, model->SlotIndex);
-        var modelInfo =
-            new ParsedModelInfo((nint)model, modelPath, modelPathFromCharacter, deform, shapeAttributeGroup, materials);
-        
-            return modelInfo;
-    }
-    
-    public unsafe ParsedCharacterInfo? HandleCharacter(Character* character)
-    {
-        if (character == null)
-        {
-            return null;
-        }
-        
-        var drawObject = character->DrawObject;
-        if (drawObject == null)
-        {
-            return null;
-        }
-        
-        var characterInfo = HandleDrawObject(drawObject);
-        if (characterInfo == null)
-        {
-            return null;
-        }
-        
-        var attaches = new List<ParsedCharacterInfo>();
-        var mountInfo = HandleCharacter(character->Mount.MountObject);
-        if (mountInfo != null)
-        {
-            attaches.Add(mountInfo);
-        }
-        
-        var ornamentInfo = HandleCharacter((Character*)character->OrnamentData.OrnamentObject);
-        if (ornamentInfo != null)
-        {
-            attaches.Add(ornamentInfo);
-        }
-
-        foreach (var weapon in character->DrawData.WeaponData)
-        {
-            var weaponInfo = HandleDrawObject(weapon.DrawObject);
-            if (weaponInfo != null)
-            {
-                attaches.Add(weaponInfo);
-            }
-        }
-
-        characterInfo.Attaches = attaches.ToArray();
-        
-        return characterInfo;
-    }
-    
-    
-    
-    public unsafe ParsedCharacterInfo? HandleDrawObject(DrawObject* drawObject)
-    {
-        if (drawObject == null)
-        {
-            return null;
-        }
-
-        var objectType = drawObject->Object.GetObjectType();
-        if (objectType != ObjectType.CharacterBase)
-        {
-            return null;
-        }
-
-        var characterBase = (CharacterBase*)drawObject;
-        var colorTableTextures = parseService.ParseColorTableTextures(characterBase);
-        var models = new List<ParsedModelInfo>();
-        foreach (var modelPtr in characterBase->ModelsSpan)
-        {
-            var modelInfo = HandleModel(characterBase, modelPtr, colorTableTextures);
-            if (modelInfo != null)
-                models.Add(modelInfo);
-        }
-
-        var skeleton = StructExtensions.GetParsedSkeleton(characterBase);
-        var (customizeParams, customizeData, genderRace) = ParseHuman(characterBase);
-
-        return new ParsedCharacterInfo(models, skeleton, StructExtensions.GetParsedAttach(characterBase), customizeData, customizeParams, genderRace);
-    }
-
-    public unsafe (Meddle.Utils.Export.CustomizeParameter, CustomizeData, GenderRace) ParseHuman(CharacterBase* characterBase)
-    {
-        var modelType = characterBase->GetModelType();
-        if (modelType != CharacterBase.ModelType.Human)
-        {
-            return (new Meddle.Utils.Export.CustomizeParameter(), new CustomizeData(), GenderRace.Unknown);
-        }
-        
-        var human = (Human*)characterBase;
-        var customizeCBuf = human->CustomizeParameterCBuffer->TryGetBuffer<CustomizeParameter>()[0];
-        var customizeParams = new Meddle.Utils.Export.CustomizeParameter
-        {
-            SkinColor = customizeCBuf.SkinColor,
-            MuscleTone = customizeCBuf.MuscleTone,
-            SkinFresnelValue0 = customizeCBuf.SkinFresnelValue0,
-            LipColor = customizeCBuf.LipColor,
-            MainColor = customizeCBuf.MainColor,
-            FacePaintUVMultiplier = customizeCBuf.FacePaintUVMultiplier,
-            HairFresnelValue0 = customizeCBuf.HairFresnelValue0,
-            MeshColor = customizeCBuf.MeshColor,
-            FacePaintUVOffset = customizeCBuf.FacePaintUVOffset,
-            LeftColor = customizeCBuf.LeftColor,
-            RightColor = customizeCBuf.RightColor,
-            OptionColor = customizeCBuf.OptionColor
-        };
-        var customizeData = new CustomizeData
-        {
-            LipStick = human->Customize.Lipstick,
-            Highlights = human->Customize.Highlights
-        };
-        var genderRace = (GenderRace)human->RaceSexId;
-        
-        return (customizeParams, customizeData, genderRace);
-    }
-
-    private unsafe Furniture[] ParseTerritory(HousingTerritory* territory)
+    private unsafe Furniture[] ParseTerritoryFurniture(HousingTerritory* territory)
     {
         if (territory == null)
             return [];
@@ -597,19 +365,19 @@ public class LayoutService : IService
         if (furniture == null || objectManager == null)
             return [];
 
+        using var activity = ActivitySource.StartActivity();
         var items = new List<Furniture>();
-        for (var i = 0; i < furniture.Length; i++)
+        foreach (var item in furniture)
         {
-            var item = furniture[i];
             var index = item.Index;
             if (item.Index == -1) continue;
             var objectPtr = objectManager->Objects[index];
-            if (objectPtr == null || objectPtr.Value == null || objectPtr.Value->LayoutInstance == null)
+            if (objectPtr == null || objectPtr.Value == null || objectPtr.Value->SharedGroupLayoutInstance == null)
             {
                 continue;
             }
 
-            var layoutInstance = objectPtr.Value->LayoutInstance;
+            var layoutInstance = objectPtr.Value->SharedGroupLayoutInstance;
             items.Add(new Furniture
             {
                 GameObject = objectPtr,
@@ -623,11 +391,11 @@ public class LayoutService : IService
         return items.ToArray();
     }
 
-    private class ParseCtx
+    public class ParseContext
     {
         public readonly Furniture[] HousingItems;
 
-        public ParseCtx(Furniture[] housingItems)
+        public ParseContext(Furniture[] housingItems)
         {
             HousingItems = housingItems;
         }
@@ -638,7 +406,12 @@ public class LayoutService : IService
         public GameObject* GameObject;
         public HousingFurniture HousingFurniture;
         public Item? Item;
-        public ILayoutInstance* LayoutInstance;
+        public SharedGroupLayoutInstance* LayoutInstance;
         public Stain? Stain;
+    }
+
+    public void Dispose()
+    {
+        framework.Update -= Update;
     }
 }

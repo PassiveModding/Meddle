@@ -6,6 +6,7 @@ using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Services;
 using Meddle.Utils.Export;
+using Meddle.Utils.Files;
 using Meddle.Utils.Files.Structs.Material;
 using CustomizeParameter = Meddle.Utils.Export.CustomizeParameter;
 
@@ -26,7 +27,7 @@ public enum ParsedInstanceType
 public interface IResolvableInstance
 {
     public bool IsResolved { get; }
-    public void Resolve(LayoutService layoutService);
+    public void Resolve(ResolverService resolver);
 }
 
 public interface IPathInstance
@@ -140,14 +141,36 @@ public class ParsedLightInstance : ParsedInstance
     }
 }
 
-public class ParsedTerrainInstance : ParsedInstance, IPathInstance
+public class ParsedTerrainInstance : ParsedInstance, IPathInstance, IResolvableInstance
 {
     public HandleString Path { get; }
+    public ParsedTerrainInstanceData? Data { get; set; }
 
     public ParsedTerrainInstance(nint id, Transform transform, string path) : base(id, ParsedInstanceType.Terrain, transform)
     {
         Path = path;
     }
+
+    public bool IsResolved { get; private set; }
+    public void Resolve(ResolverService resolver)
+    {
+        if (IsResolved) return;
+        if (IsResolved) return;
+        try
+        {
+            resolver.ResolveParsedTerrainInstance(this);
+        } 
+        finally
+        {
+            IsResolved = true;
+        }
+    }
+}
+
+public class ParsedTerrainInstanceData(TeraFile teraFile)
+{
+    public readonly TeraFile TeraFile = teraFile;
+    public readonly Dictionary<int, ParsedModelInfo?> ResolvedPlates = new();
 }
 
 public class ParsedInstanceSet
@@ -158,6 +181,7 @@ public class ParsedInstanceSet
 public class ParsedTextureInfo(string path, string pathFromMaterial, TextureResource resource) 
 {
     public HandleString Path { get; } = new() { FullPath = path, GamePath = pathFromMaterial };
+    
     public TextureResource Resource { get; } = resource;
 }
 
@@ -169,12 +193,11 @@ public class ParsedMaterialInfo(string path, string pathFromModel, string shpk, 
     public IList<ParsedTextureInfo> Textures { get; } = textures;
 }
 
-public class ParsedModelInfo(nint id, string path, string pathFromCharacter, DeformerCachedStruct? deformer, Model.ShapeAttributeGroup shapeAttributeGroup, IList<ParsedMaterialInfo> materials) 
+public class ParsedModelInfo(string path, string pathFromCharacter, DeformerCachedStruct? deformer, Model.ShapeAttributeGroup? shapeAttributeGroup, IList<ParsedMaterialInfo> materials) 
 {
-    public nint Id { get; }
     public HandleString Path { get; } = new() { FullPath = path, GamePath = pathFromCharacter };
     public DeformerCachedStruct? Deformer { get; } = deformer;
-    public Model.ShapeAttributeGroup ShapeAttributeGroup { get; } = shapeAttributeGroup;
+    public Model.ShapeAttributeGroup? ShapeAttributeGroup { get; } = shapeAttributeGroup;
     public IList<ParsedMaterialInfo> Materials { get; } = materials;
 }
 
@@ -229,11 +252,17 @@ public class ParsedCharacterInstance : ParsedInstance, IResolvableInstance, ICha
 
     public bool IsResolved { get; private set; }
 
-    public void Resolve(LayoutService layoutService)
+    public void Resolve(ResolverService resolver)
     {
         if (IsResolved) return;
-        layoutService.ResolveInstance(this);
-        IsResolved = true;
+        try
+        {
+            resolver.ResolveParsedCharacterInstance(this);
+        } 
+        finally
+        {
+            IsResolved = true;
+        }
     }
 
     public CustomizeData CustomizeData => CharacterInfo?.CustomizeData ?? new CustomizeData();

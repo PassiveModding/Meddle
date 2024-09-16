@@ -4,6 +4,7 @@ using Dalamud.Configuration;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Meddle.Plugin.Services;
+using Meddle.Plugin.UI.Layout;
 using Meddle.Utils.Files.SqPack;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -11,6 +12,7 @@ using Microsoft.Extensions.Logging;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using OtterTex;
 
 namespace Meddle.Plugin;
@@ -50,11 +52,15 @@ public sealed class Plugin : IDalamudPlugin
 #if DEBUG
                 services.AddOpenTelemetry()
                         .ConfigureResource(x => { x.AddService("Meddle"); })
-                        .WithTracing(x => { x.AddSource("Meddle.*"); })
+                        .WithTracing(x =>
+                        {
+                            x.AddSource("Meddle.*");
+                        })
                         .WithMetrics(x =>
                         {
                             x.AddProcessInstrumentation();
                             x.AddRuntimeInstrumentation();
+                            x.AddMeter("Meddle.*");
                         })
                         .WithLogging()
                         .UseOtlpExporter();
@@ -103,6 +109,8 @@ public class Configuration : IPluginConfiguration
     public string PlayerNameOverride { get; set; } = string.Empty;
 
     public int Version { get; set; } = 1;
+    
+    public LayoutWindow.LayoutConfig LayoutConfig { get; set; } = new();
 
     public event Action? OnConfigurationSaved;
 

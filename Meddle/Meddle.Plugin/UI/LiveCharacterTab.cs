@@ -36,7 +36,6 @@ public unsafe class LiveCharacterTab : ITab
 {
     private readonly CommonUi commonUi;
     private readonly ExportService exportService;
-    private readonly LayoutService layoutService;
     public MenuType MenuType => MenuType.Default;
 
     private readonly FileDialogManager fileDialog = new()
@@ -50,6 +49,7 @@ public unsafe class LiveCharacterTab : ITab
     private readonly PbdHooks pbd;
     private readonly Dictionary<nint, bool> selectedModels = new();
     private readonly TextureCache textureCache;
+    private readonly ResolverService resolverService;
     private readonly ITextureProvider textureProvider;
     private bool cacheHumanCustomizeData;
 
@@ -59,20 +59,20 @@ public unsafe class LiveCharacterTab : ITab
     public LiveCharacterTab(
         ILogger<LiveCharacterTab> log,
         ExportService exportService,
-        LayoutService layoutService,
         ITextureProvider textureProvider,
         ParseService parseService,
         TextureCache textureCache,
+        ResolverService resolverService,
         SqPack pack,
         PbdHooks pbd,
         CommonUi commonUi)
     {
         this.log = log;
         this.exportService = exportService;
-        this.layoutService = layoutService;
         this.textureProvider = textureProvider;
         this.parseService = parseService;
         this.textureCache = textureCache;
+        this.resolverService = resolverService;
         this.pack = pack;
         this.pbd = pbd;
         this.commonUi = commonUi;
@@ -177,7 +177,7 @@ public unsafe class LiveCharacterTab : ITab
             DrawHumanCharacter((CSHuman*)cBase, out customizeData, out customizeParams, out genderRace);
             if (ImGui.Button("Export All Models With Attaches"))
             {
-                ExportAllModelsWithAttaches(character, customizeParams, customizeData, genderRace);
+                ExportAllModelsWithAttaches(character, customizeParams, customizeData);
             }
         }
         else
@@ -238,7 +238,7 @@ public unsafe class LiveCharacterTab : ITab
         var cBase = (CSCharacterBase*)drawObject;
         if (ImGui.Button("Export All Models"))
         {
-            ExportAllModels(cBase, customizeParams, customizeData, genderRace);
+            ExportAllModels(cBase, customizeParams, customizeData);
         }
 
         ImGui.SameLine();
@@ -258,7 +258,7 @@ public unsafe class LiveCharacterTab : ITab
                 var skeleton = StructExtensions.GetParsedSkeleton(cBase);
                 foreach (var currentSelectedModel in currentSelectedModels)
                 {
-                    var modelInfo = layoutService.HandleModel(cBase, currentSelectedModel.Value, colorTableTextures);
+                    var modelInfo = resolverService.ParseModel(cBase, currentSelectedModel.Value, colorTableTextures);
                     if (modelInfo != null)
                     {
                         models.Add(modelInfo);
@@ -302,13 +302,13 @@ public unsafe class LiveCharacterTab : ITab
                 continue;
             }
 
-            DrawModel(cBase, modelPtr.Value, customizeParams, customizeData, genderRace);
+            DrawModel(cBase, modelPtr.Value, customizeParams, customizeData);
         }
     }
 
-    private void ExportAllModelsWithAttaches(CSCharacter* character, CustomizeParameter? customizeParams, CustomizeData? customizeData, GenderRace genderRace)
+    private void ExportAllModelsWithAttaches(CSCharacter* character, CustomizeParameter? customizeParams, CustomizeData? customizeData)
     {
-        var info = layoutService.HandleCharacter(character);
+        var info = resolverService.ParseCharacter(character);
         if (info == null)
         {
             log.LogError("Failed to get character info from draw object");
@@ -348,9 +348,9 @@ public unsafe class LiveCharacterTab : ITab
                                     }, Plugin.TempDirectory);
     }
     
-    private void ExportAllModels(CSCharacterBase* cBase, CustomizeParameter? customizeParams, CustomizeData? customizeData, GenderRace genderRace)
+    private void ExportAllModels(CSCharacterBase* cBase, CustomizeParameter? customizeParams, CustomizeData? customizeData)
     {
-        var info = layoutService.HandleDrawObject((DrawObject*)cBase);
+        var info = resolverService.ParseDrawObject((DrawObject*)cBase);
         if (info == null)
         {
             log.LogError("Failed to get character info from draw object");
@@ -390,9 +390,8 @@ public unsafe class LiveCharacterTab : ITab
                                     }, Plugin.TempDirectory);
     }
 
-    private void DrawModel(
-        Pointer<CharacterBase> cPtr, Pointer<CSModel> mPtr, CustomizeParameter? customizeParams,
-        CustomizeData? customizeData, GenderRace genderRace)
+    private void DrawModel(Pointer<CharacterBase> cPtr, Pointer<CSModel> mPtr, CustomizeParameter? customizeParams,
+                           CustomizeData? customizeData)
     {
         if (cPtr == null || cPtr.Value == null)
         {
@@ -460,7 +459,7 @@ public unsafe class LiveCharacterTab : ITab
             if (ImGui.MenuItem("Export as glTF"))
             {
                 var folderName = Path.GetFileNameWithoutExtension(fileName);
-                var characterInfo = layoutService.HandleDrawObject((DrawObject*)cBase);
+                var characterInfo = resolverService.ParseDrawObject((DrawObject*)cBase);
                 if (characterInfo == null)
                 {
                     log.LogError("Failed to get character info from draw object");
@@ -468,13 +467,22 @@ public unsafe class LiveCharacterTab : ITab
                 }
                 
                 var colorTableTextures = parseService.ParseColorTableTextures(cBase);
+                if (customizeParams != null)
+                {
+                    characterInfo.CustomizeParameter = customizeParams;
+                }
+                
+                if (customizeData != null)
+                {
+                    characterInfo.CustomizeData = customizeData;
+                }
                 
                 fileDialog.SaveFolderDialog("Save Model", folderName,
                             (result, path) =>
                             {
                                 if (!result) return;
                                 
-                                var modelData = layoutService.HandleModel(cBase, model, colorTableTextures);
+                                var modelData = resolverService.ParseModel(cBase, model, colorTableTextures);
                                 if (modelData == null)
                                 {
                                     log.LogError("Failed to get model data for {FileName}", fileName);
@@ -640,7 +648,7 @@ public unsafe class LiveCharacterTab : ITab
                                        .Skip(materialParam.ByteOffset / 4)
                                        .Take(materialParam.ByteSize / 4).ToArray();
                 
-                var cbuf = materialParams.Slice(materialParam.ByteOffset / 4,
+                var constantBuffer = materialParams.Slice(materialParam.ByteOffset / 4,
                     materialParam.ByteSize / 4);
 
                 var nameLookup = $"0x{materialParam.Id:X8}";
@@ -662,8 +670,8 @@ public unsafe class LiveCharacterTab : ITab
                 var shpkDefaultString = string.Join(", ", shpkDefaults.Select(x => x.ToString("F2")));
                 ImGui.Text(shpkDefaultString);
                 ImGui.TableSetColumnIndex(5);
-                var mtrlCbufString = string.Join(", ", cbuf.ToArray().Select(x => x.ToString("F2")));
-                ImGui.Text(mtrlCbufString);
+                var mtrlConstantBufferString = string.Join(", ", constantBuffer.ToArray().Select(x => x.ToString("F2")));
+                ImGui.Text(mtrlConstantBufferString);
             }
 
             ImGui.EndTable();
@@ -884,8 +892,8 @@ public unsafe class LiveCharacterTab : ITab
             ImGui.Text($"Id: {textureEntry.Id}");
 
             var availableWidth = ImGui.GetContentRegionAvail().X;
-            float displayWidth = textureEntry.Texture->Texture->Width;
-            float displayHeight = textureEntry.Texture->Texture->Height;
+            float displayWidth = textureEntry.Texture->Texture->ActualWidth;
+            float displayHeight = textureEntry.Texture->Texture->ActualHeight;
             if (displayWidth > availableWidth)
             {
                 var ratio = availableWidth / displayWidth;

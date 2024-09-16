@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
+using System.Reflection;
 using Dalamud.Interface.Utility.Raii;
 using ImGuiNET;
 using Meddle.Plugin.Models;
@@ -16,6 +17,9 @@ public class AboutTab : ITab
 
     public void Draw()
     {
+        var assemblyVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString(); 
+        ImGui.Text($"Version: {assemblyVersion}");
+        
         ImGui.TextWrapped("Meddle is a tool that allows you to export models and animations directly from the game.");
         ImGui.TextWrapped("It is still in development and may not work as expected.");
         ImGui.TextWrapped("Please report any issues on the GitHub repository.");
@@ -61,7 +65,7 @@ public class AboutTab : ITab
         ImGui.Text("Credits");
         const int nameWidth = 130;
         Vector2 buttonSize = new(130, 0);
-        using (var creditTable = ImRaii.Table("Credits", 2, ImGuiTableFlags.Borders))
+        using (ImRaii.Table("Credits", 2, ImGuiTableFlags.Borders))
         {
             ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthFixed, nameWidth);
             ImGui.TableSetupColumn("Contribution", ImGuiTableColumnFlags.None);
@@ -82,7 +86,7 @@ public class AboutTab : ITab
         }
 
         ImGui.TextWrapped("Special Thanks to the following projects and their respective developers:");
-        using (var projectTable = ImRaii.Table("Project Credits", 2, ImGuiTableFlags.Borders))
+        using (ImRaii.Table("Project Credits", 2, ImGuiTableFlags.Borders))
         {
             ImGui.TableSetupColumn("Project", ImGuiTableColumnFlags.WidthFixed, nameWidth);
             ImGui.TableSetupColumn("Usage", ImGuiTableColumnFlags.None);
