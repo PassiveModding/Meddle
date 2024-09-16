@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using System.Runtime.InteropServices;
+using System.Text.Json.Serialization;
 
 namespace Meddle.Utils.Files;
 
@@ -25,9 +26,14 @@ public struct TeraFile
     
     public TeraFileHeader Header;
     public PlatePos[] Positions;
+    
+    [JsonIgnore]
     public byte[] RawData;
     private readonly int remainingPos;
+    
+    [JsonIgnore]
     public ReadOnlySpan<byte> Data => RawData.AsSpan();
+    [JsonIgnore]
     public ReadOnlySpan<byte> RemainingData => Data[^remainingPos..];
     
     public TeraFile(byte[] data) : this(new ReadOnlySpan<byte>(data))

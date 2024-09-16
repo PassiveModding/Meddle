@@ -6,7 +6,6 @@ using FFXIVClientStructs.Interop;
 using ImGuiNET;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Skeletons;
-using Meddle.Utils.Files;
 using Meddle.Utils.Files.Structs.Material;
 using SharpGLTF.Transforms;
 using CustomizeData = Meddle.Utils.Export.CustomizeData;

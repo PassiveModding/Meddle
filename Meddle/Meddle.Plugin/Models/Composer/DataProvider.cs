@@ -1,5 +1,4 @@
 ﻿using System.Collections.Concurrent;
-using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Files;
@@ -32,7 +31,7 @@ public class DataProvider
     
     public MaterialBuilder GetMaterialBuilder(MaterialSet material, string path, string shpkName)
     {
-        return mtrlCache.GetOrAdd(material.Uid(), key =>
+        return mtrlCache.GetOrAdd(material.Uid(), _ =>
         {
             cancellationToken.ThrowIfCancellationRequested();
             return new Lazy<MaterialBuilder>(() =>

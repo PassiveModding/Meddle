@@ -7,7 +7,6 @@ using FFXIVClientStructs.FFXIV.Client.Graphics.Render;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using ImGuiNET;
 using Meddle.Plugin.Models;
-using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.Services.UI;
 using Meddle.Plugin.Utils;
@@ -29,7 +28,7 @@ public class DebugTab : ITab
     private ICharacter? selectedCharacter;
 
     public DebugTab(Configuration config, SigUtil sigUtil, CommonUi commonUi, 
-                    IGameGui gui, IClientState clientState, IObjectTable objectTable, 
+                    IGameGui gui, IClientState clientState, 
                     LayoutService layoutService,
                     ParseService parseService, PbdHooks pbdHooks)
     {

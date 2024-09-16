@@ -29,7 +29,7 @@ public enum BgTextureMode : uint
 public enum BgVertexPaint : uint
 {
     Off = 0x7C6FA05B, // Default off
-    On = 0xBD94649A // Doesn't actually seem to mean use vertex color, from what I can tell, just use color0 texture and ignore rest
+    On = 0xBD94649A // R/G faux wind influence/multiplier
 }
 
 public enum DiffuseAlpha : uint

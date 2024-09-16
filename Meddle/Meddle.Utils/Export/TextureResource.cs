@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using System.Text.Json.Serialization;
 using OtterTex;
 
 namespace Meddle.Utils.Export;
@@ -14,5 +15,7 @@ public readonly struct TextureResource(DXGIFormat format, int width, int height,
     public int ArraySize { get; init; } = arraySize;
     public TexDimension Dimension { get; init; } = dimension;
     public D3DResourceMiscFlags MiscFlags { get; init; } = miscFlags;
+    
+    [JsonIgnore]
     public byte[] Data { get; init; } = data;
 }
