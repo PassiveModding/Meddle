@@ -130,7 +130,7 @@ public partial class LayoutWindow
         if (terrain.Data == null) return;
         var file = terrain.Data.TeraFile;
         ImGui.Text($"Plate Count: {file.Header.PlateCount}");
-        ImGui.Text($"Plate Count: {file.Header.PlateSize}");
+        ImGui.Text($"Plate Size: {file.Header.PlateSize}");
         ImGui.Text($"Clip Distance: {file.Header.ClipDistance}");
 
         using var treeNode = ImRaii.TreeNode("Plates");
