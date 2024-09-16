@@ -46,7 +46,7 @@ public class PluginLogger : ILogger
         this.log = log;
         this.notificationManager = notificationManager;
         this.config = config;
-        this.categoryName = categoryName;
+        this.categoryName = categoryName.Split('.').Last();
     }
 
     public bool IsEnabled(LogLevel logLevel)
