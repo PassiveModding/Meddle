@@ -1,12 +1,9 @@
-﻿using System.Collections.Concurrent;
-using System.Numerics;
+﻿using System.Numerics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Text.Json.Serialization;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Models.Structs;
-using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
@@ -342,7 +339,7 @@ public class InstanceComposer : IDisposable
             var model = new Model(mdlPath, mdlFile, null);
             var meshes = ModelBuilder.BuildMeshes(model, materialBuilders, [], null);
 
-            var plateRoot = new NodeBuilder($"Plate{i:D4}");
+            var plateRoot = new NodeBuilder(mdlPath);
             foreach (var mesh in meshes)
             {
                 scene.AddRigidMesh(mesh.Mesh, plateRoot, plateTransform.AffineTransform);
