@@ -1,6 +1,4 @@
 ﻿using System.Numerics;
-using System.Text.Json;
-using System.Text.Json.Nodes;
 using Meddle.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
@@ -140,7 +138,6 @@ public class BgMaterialBuilder : MeddleMaterialBuilder, IVertexPaintMaterialBuil
         {
             var alphaThreshold = set.GetConstantOrThrow<float>(MaterialConstant.g_AlphaThreshold);
             WithAlpha(AlphaMode.MASK, alphaThreshold); // TODO: which mode?
-            extras.Add(("AlphaThreshold", alphaThreshold));
         }
         
         if (bgParams is BgColorChangeParams bgColorChangeParams && GetDiffuseColor(out var bgColorChangeDiffuseColor))
@@ -159,16 +156,7 @@ public class BgMaterialBuilder : MeddleMaterialBuilder, IVertexPaintMaterialBuil
         }
 
         var vertexPaintValue = set.GetShaderKeyOrDefault(ShaderCategory.CategoryBgVertexPaint, BgVertexPaint.Off);
-        if (vertexPaintValue == BgVertexPaint.On)
-        {
-            VertexPaint = true;
-            extras.Add(("VertexPaint", true));
-        }
-        else
-        {
-            VertexPaint = false;
-            extras.Add(("VertexPaint", false));
-        }
+        VertexPaint = vertexPaintValue == BgVertexPaint.On;
         
         WithNormal(normalMap0Texture);
         WithBaseColor(colorMap0Texture);
