@@ -372,12 +372,12 @@ public class LayoutService : IService, IDisposable
             var index = item.Index;
             if (item.Index == -1) continue;
             var objectPtr = objectManager->Objects[index];
-            if (objectPtr == null || objectPtr.Value == null || objectPtr.Value->SharedGroupLayoutInstance == null)
+            if (objectPtr == null || objectPtr.Value == null || objectPtr.Value->LayoutInstance == null)
             {
                 continue;
             }
 
-            var layoutInstance = objectPtr.Value->SharedGroupLayoutInstance;
+            var layoutInstance = objectPtr.Value->LayoutInstance;
             items.Add(new Furniture
             {
                 GameObject = objectPtr,
@@ -406,7 +406,7 @@ public class LayoutService : IService, IDisposable
         public GameObject* GameObject;
         public HousingFurniture HousingFurniture;
         public Item? Item;
-        public SharedGroupLayoutInstance* LayoutInstance;
+        public ILayoutInstance* LayoutInstance;
         public Stain? Stain;
     }
 

@@ -892,8 +892,8 @@ public unsafe class LiveCharacterTab : ITab
             ImGui.Text($"Id: {textureEntry.Id}");
 
             var availableWidth = ImGui.GetContentRegionAvail().X;
-            float displayWidth = textureEntry.Texture->Texture->ActualWidth;
-            float displayHeight = textureEntry.Texture->Texture->ActualHeight;
+            float displayWidth = textureEntry.Texture->Texture->Width;
+            float displayHeight = textureEntry.Texture->Texture->Height;
             if (displayWidth > availableWidth)
             {
                 var ratio = availableWidth / displayWidth;
