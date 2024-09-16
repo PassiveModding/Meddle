@@ -470,6 +470,7 @@ public class MaterialSet
         AddShaderKeys();
         AddCustomizeParameters();
         AddCustomizeData();
+        AddStainColor();
         AddColorTable();
 
         return extrasDict;
@@ -484,6 +485,12 @@ public class MaterialSet
         {
             if (colorTable == null) return;
             extrasDict["ColorTable"] = JsonNode.Parse(JsonSerializer.Serialize(colorTable, JsonOptions))!;
+        }
+        
+        void AddStainColor()
+        {
+            if (stainColor == null) return;
+            extrasDict["StainColor"] = stainColor.Value.AsFloatArray();
         }
         
         void AddCustomizeData()
