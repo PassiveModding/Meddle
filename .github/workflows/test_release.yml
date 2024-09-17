@@ -1,4 +1,4 @@
-name: Release
+name: Test Release
 
 # Add a concurrency group incase a tag is created, deleted, and then recreated while a release is in progress.
 concurrency:
@@ -16,7 +16,7 @@ permissions:
     contents: write
 
 jobs:
-    Release:
+    TestRelease:
         if: github.event.pull_request.draft == false # Ignore draft PRs
         runs-on: ubuntu-latest
         defaults:

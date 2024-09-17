@@ -10,8 +10,6 @@ on:
     push:
         tags:
             - "v*"
-        tags-ignore:
-            - "testing_*"
 
 # So we can use the GitHub API to create releases with the run token.
 permissions:
