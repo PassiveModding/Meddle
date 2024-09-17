@@ -99,7 +99,7 @@ jobs:
                 .[0].DownloadLinkInstall = $repo_url |
                 .[0].DownloadLinkUpdate = $repo_url  |
                 .[0].DownloadLinkTesting = $repo_url' \
-                repo.json > repo.json.tmp' repo.json > repo.json.tmp
+                repo.json > tmp.json && mv tmp.json repo.json
 
                 cat repo.json
 
@@ -108,4 +108,4 @@ jobs:
                 git config --local user.email "github-actions@users.noreply.github.com"
                 git commit -m "Update repo.json for ${{ github.ref_name }}"
                 
-                #git push origin HEAD:main
+                git push origin HEAD:main
