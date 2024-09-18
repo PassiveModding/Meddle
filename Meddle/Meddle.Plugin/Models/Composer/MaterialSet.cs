@@ -391,8 +391,15 @@ public class MaterialSet
         foreach (var sampler in file.Samplers)
         {
             if (sampler.TextureIndex == byte.MaxValue) continue;
+            if (file.TextureOffsets.Length <= sampler.TextureIndex)
+            {
+                throw new Exception($"Texture index {sampler.TextureIndex} out of bounds for {mtrlPath}");
+            }
             var textureInfo = file.TextureOffsets[sampler.TextureIndex];
-            var gamePath = texturePaths[textureInfo.Offset];
+            if (!texturePaths.TryGetValue(textureInfo.Offset, out var gamePath))
+            {
+                throw new Exception($"Texture offset {textureInfo.Offset} not found in {mtrlPath}");
+            }
             if (!package.TextureLookup.TryGetValue(sampler.SamplerId, out var usage))
             {
                 continue;
