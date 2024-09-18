@@ -185,20 +185,20 @@ public class ParsedTextureInfo(string path, string pathFromMaterial, TextureReso
     public TextureResource Resource { get; } = resource;
 }
 
-public class ParsedMaterialInfo(string path, string pathFromModel, string shpk, IColorTableSet? colorTable, IList<ParsedTextureInfo> textures) 
+public class ParsedMaterialInfo(string path, string pathFromModel, string shpk, IColorTableSet? colorTable, ParsedTextureInfo[] textures) 
 {
     public HandleString Path { get; } = new() { FullPath = path, GamePath = pathFromModel };
     public string Shpk { get; } = shpk;
     public IColorTableSet? ColorTable { get; } = colorTable;
-    public IList<ParsedTextureInfo> Textures { get; } = textures;
+    public ParsedTextureInfo[] Textures { get; } = textures;
 }
 
-public class ParsedModelInfo(string path, string pathFromCharacter, DeformerCachedStruct? deformer, Model.ShapeAttributeGroup? shapeAttributeGroup, IList<ParsedMaterialInfo> materials) 
+public class ParsedModelInfo(string path, string pathFromCharacter, DeformerCachedStruct? deformer, Model.ShapeAttributeGroup? shapeAttributeGroup, ParsedMaterialInfo[] materials) 
 {
     public HandleString Path { get; } = new() { FullPath = path, GamePath = pathFromCharacter };
     public DeformerCachedStruct? Deformer { get; } = deformer;
     public Model.ShapeAttributeGroup? ShapeAttributeGroup { get; } = shapeAttributeGroup;
-    public IList<ParsedMaterialInfo> Materials { get; } = materials;
+    public ParsedMaterialInfo[] Materials { get; } = materials;
 }
 
 public interface ICharacterInstance
@@ -217,7 +217,7 @@ public struct HandleString
 
 public class ParsedCharacterInfo
 {
-    public readonly IList<ParsedModelInfo> Models;
+    public readonly ParsedModelInfo[] Models;
     public readonly ParsedSkeleton Skeleton;
     public CustomizeData CustomizeData;
     public CustomizeParameter CustomizeParameter;
@@ -225,7 +225,7 @@ public class ParsedCharacterInfo
     public readonly ParsedAttach Attach;
     public ParsedCharacterInfo[] Attaches = [];
 
-    public ParsedCharacterInfo(IList<ParsedModelInfo> models, ParsedSkeleton skeleton, ParsedAttach attach, CustomizeData customizeData, CustomizeParameter customizeParameter, GenderRace genderRace)
+    public ParsedCharacterInfo(ParsedModelInfo[] models, ParsedSkeleton skeleton, ParsedAttach attach, CustomizeData customizeData, CustomizeParameter customizeParameter, GenderRace genderRace)
     {
         Models = models;
         Skeleton = skeleton;

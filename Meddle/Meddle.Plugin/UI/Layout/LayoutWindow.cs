@@ -25,6 +25,7 @@ public partial class LayoutWindow : Window, IDisposable
     private readonly TextureCache textureCache;
     private readonly ITextureProvider textureProvider;
     private readonly ResolverService resolverService;
+    private readonly ComposerFactory composerFactory;
     private readonly SqPack dataManager;
 
     private ProgressEvent? progress;
@@ -49,6 +50,7 @@ public partial class LayoutWindow : Window, IDisposable
         TextureCache textureCache,
         ITextureProvider textureProvider,
         ResolverService resolverService,
+        ComposerFactory composerFactory,
         SqPack dataManager) : base("Layout")
     {
         this.layoutService = layoutService;
@@ -58,6 +60,7 @@ public partial class LayoutWindow : Window, IDisposable
         this.textureCache = textureCache;
         this.textureProvider = textureProvider;
         this.resolverService = resolverService;
+        this.composerFactory = composerFactory;
         this.dataManager = dataManager;
     }
 
@@ -295,14 +298,11 @@ public partial class LayoutWindow : Window, IDisposable
                                         if (!result) return;
                                         exportTask = Task.Run(() =>
                                         {
-                                            Directory.CreateDirectory(path);
-                                            var cacheDir = Path.Combine(path, "cache");
-                                            Directory.CreateDirectory(cacheDir);
-                                            var instanceSet =
-                                                new InstanceComposer(log, dataManager, config, instances, cacheDir,
-                                                                x => progress = x, cancelToken.Token);
+                                            var composer = composerFactory.CreateComposer(instances, 
+                                                Path.Combine(path, "cache"),
+                                                x => progress = x, cancelToken.Token);
                                             var scene = new SceneBuilder();
-                                            instanceSet.Compose(scene);
+                                            composer.Compose(scene);
                                             var gltf = scene.ToGltf2();
                                             if (currentExportType.HasFlag(ExportType.GLB))
                                             {

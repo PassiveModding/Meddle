@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using System.Text.Json;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Utils;
@@ -14,16 +15,18 @@ namespace Meddle.Plugin.Models.Composer;
 
 public class CharacterComposer
 {
-    private readonly ILogger log;
+    private readonly ILogger<CharacterComposer> log;
     private readonly DataProvider dataProvider;
+    private readonly Action<ProgressEvent>? progress;
     private static TexFile? CubeMapTex;
     private static PbdFile? PbdFile;
     private static readonly object StaticFileLock = new();
     
-    public CharacterComposer(ILogger log, DataProvider dataProvider)
+    public CharacterComposer(ILogger<CharacterComposer> log, DataProvider dataProvider, Action<ProgressEvent>? progress = null) 
     {
         this.log = log;
         this.dataProvider = dataProvider;
+        this.progress = progress;
 
         lock (StaticFileLock)
         {
@@ -63,46 +66,55 @@ public class CharacterComposer
         log.LogInformation("Loaded model {modelPath}", modelInfo.Path.FullPath);
         var mdlFile = new MdlFile(mdlData);
         //var materialBuilders = new List<MaterialBuilder>();
-        var materialBuilders = new MaterialBuilder[modelInfo.Materials.Count];
+        var materialBuilders = new MaterialBuilder[modelInfo.Materials.Length];
         //for (int i = 0; i < modelInfo.Materials.Count; i++)
-        Parallel.For(0, modelInfo.Materials.Count, i =>
+        Parallel.For(0, modelInfo.Materials.Length, i =>
         {
-            var materialInfo = modelInfo.Materials[i];
-            var mtrlData = dataProvider.LookupData(materialInfo.Path.FullPath);
-            if (mtrlData == null)
+            try
             {
-                log.LogWarning("Failed to load material file: {mtrlPath}", materialInfo.Path.FullPath);
-                throw new Exception($"Failed to load material file: {materialInfo.Path.FullPath}");
-            }
+                var materialInfo = modelInfo.Materials[i];
+                var mtrlData = dataProvider.LookupData(materialInfo.Path.FullPath);
+                if (mtrlData == null)
+                {
+                    log.LogWarning("Failed to load material file: {mtrlPath}", materialInfo.Path.FullPath);
+                    throw new Exception($"Failed to load material file: {materialInfo.Path.FullPath}");
+                }
 
-            log.LogInformation("Loaded material {mtrlPath}", materialInfo.Path.FullPath);
-            var mtrlFile = new MtrlFile(mtrlData);
-            var shpkName = mtrlFile.GetShaderPackageName();
-            var shpkPath = $"shader/sm5/shpk/{shpkName}";
-            var shpkData = dataProvider.LookupData(shpkPath);
-            if (shpkData == null) throw new Exception($"Failed to load shader package file: {shpkPath}");
-            var shpkFile = new ShpkFile(shpkData);
-            var material = new MaterialSet(mtrlFile, materialInfo.Path.GamePath,
-                                           shpkFile,
-                                           shpkName,
-                                           materialInfo.Textures
-                                                       .Select(x => x.Path)
-                                                       .ToArray(),
-                                           handleString =>
-                                           {
-                                               var match = materialInfo.Textures.FirstOrDefault(x =>
-                                                       x.Path.GamePath == handleString.GamePath &&
-                                                       x.Path.FullPath == handleString.FullPath);
-                                               return match?.Resource;
-                                           });
-            if (materialInfo.ColorTable != null)
+                log.LogInformation("Loaded material {mtrlPath}", materialInfo.Path.FullPath);
+                var mtrlFile = new MtrlFile(mtrlData);
+                var shpkName = mtrlFile.GetShaderPackageName();
+                var shpkPath = $"shader/sm5/shpk/{shpkName}";
+                var shpkData = dataProvider.LookupData(shpkPath);
+                if (shpkData == null) throw new Exception($"Failed to load shader package file: {shpkPath}");
+                var shpkFile = new ShpkFile(shpkData);
+                var material = new MaterialSet(mtrlFile, materialInfo.Path.GamePath,
+                                               shpkFile,
+                                               shpkName,
+                                               materialInfo.Textures
+                                                           .Select(x => x.Path)
+                                                           .ToArray(),
+                                               handleString =>
+                                               {
+                                                   var match = materialInfo.Textures.FirstOrDefault(x =>
+                                                           x.Path.GamePath == handleString.GamePath &&
+                                                           x.Path.FullPath == handleString.FullPath);
+                                                   return match?.Resource;
+                                               });
+                if (materialInfo.ColorTable != null)
+                {
+                    material.SetColorTable(materialInfo.ColorTable);
+                }
+
+                material.SetCustomizeParameters(customizeParameter);
+                material.SetCustomizeData(customizeData);
+
+                materialBuilders[i] = material.Compose(dataProvider);
+            }
+            catch (Exception e)
             {
-                material.SetColorTable(materialInfo.ColorTable);
+                log.LogError(e, "Failed to load material {MaterialInfo}", JsonSerializer.Serialize(modelInfo.Materials[i], jsonOptions));
+                materialBuilders[i] = new MaterialBuilder("error");
             }
-            material.SetCustomizeParameters(customizeParameter);
-            material.SetCustomizeData(customizeData);
-
-            materialBuilders[i] = material.Compose(dataProvider);
         });
 
         var model = new Model(modelInfo.Path.GamePath, mdlFile, modelInfo.ShapeAttributeGroup);
@@ -167,121 +179,180 @@ public class CharacterComposer
     
     private int attachSuffix;
     private readonly object attachLock = new();
+
+    private bool HandleAttach((ParsedCharacterInfo Owner, List<BoneNodeBuilder> OwnerBones, ParsedAttach Attach) attachData, SceneBuilder scene, BoneNodeBuilder rootBone, ref Matrix4x4 transform)
+    {
+        bool rootParented;
+        var attach = attachData.Attach;
+        if (rootBone == null) throw new InvalidOperationException("Root bone not found");
+        var attachName = attachData.Owner.Skeleton.PartialSkeletons[attach.PartialSkeletonIdx]
+                                   .HkSkeleton!.BoneNames[(int)attach.BoneIdx];
+        log.LogInformation("Attaching {AttachName} to {RootBone}", attachName, rootBone.BoneName);
+        lock (attachLock)
+        {
+            Interlocked.Increment(ref attachSuffix);
+            rootBone.SetSuffixRecursively(attachSuffix);
+        }
+
+        if (attach.OffsetTransform is { } ct)
+        {
+            rootBone.WithLocalScale(ct.Scale);
+            rootBone.WithLocalRotation(ct.Rotation);
+            rootBone.WithLocalTranslation(ct.Translation);
+            if (rootBone.AnimationTracksNames.Contains("pose"))
+            {
+                rootBone.UseScale().UseTrackBuilder("pose").WithPoint(0, ct.Scale);
+                rootBone.UseRotation().UseTrackBuilder("pose").WithPoint(0, ct.Rotation);
+                rootBone.UseTranslation().UseTrackBuilder("pose").WithPoint(0, ct.Translation);
+            }
+        }
+
+        var attachPointBone = attachData.OwnerBones.FirstOrDefault(
+                x => x.BoneName.Equals(attachName, StringComparison.Ordinal));
+        if (attachPointBone == null)
+        {
+            scene.AddNode(rootBone);
+            rootParented = true;
+        }
+        else
+        {
+            attachPointBone.AddNode(rootBone);
+            rootParented = true;
+        }
+
+        NodeBuilder? c = rootBone;
+        while (c != null)
+        {
+            transform *= c.LocalMatrix;
+            c = c.Parent;
+        }
+        
+        return rootParented;
+    }
+
+    private bool HandleRootAttach(ParsedCharacterInfo characterInfo, SceneBuilder scene, NodeBuilder root, ref BoneNodeBuilder rootBone, ref Matrix4x4 transform)
+    {
+        bool rootParented = false;
+        var rootAttach = characterInfo.Attaches.FirstOrDefault(x => x.Attach.ExecuteType == 0);
+        if (rootAttach == null)
+        {
+            log.LogWarning("Root attach not found");
+        }
+        else
+        {
+            log.LogWarning("Root attach found");
+            // handle root first, then attach this to the root
+            var rootAttachData = ComposeCharacterInfo(rootAttach, null, scene, root);
+            if (rootAttachData != null)
+            {
+                var attachName = rootAttach.Skeleton.PartialSkeletons[characterInfo.Attach.PartialSkeletonIdx]
+                                           .HkSkeleton!
+                                           .BoneNames[(int)characterInfo.Attach.BoneIdx];
+                if (rootBone == null) throw new InvalidOperationException("Root bone not found");
+                var attachRoot = rootAttachData.Value.root;
+                lock (attachLock)
+                {
+                    Interlocked.Increment(ref attachSuffix);
+                    attachRoot.SetSuffixRecursively(attachSuffix);
+                }
+
+                if (rootAttach.Attach.OffsetTransform is { } ct)
+                {
+                    attachRoot.WithLocalScale(ct.Scale);
+                    attachRoot.WithLocalRotation(ct.Rotation);
+                    attachRoot.WithLocalTranslation(ct.Translation);
+                    if (attachRoot.AnimationTracksNames.Contains("pose"))
+                    {
+                        attachRoot.UseScale().UseTrackBuilder("pose").WithPoint(0, ct.Scale);
+                        attachRoot.UseRotation().UseTrackBuilder("pose").WithPoint(0, ct.Rotation);
+                        attachRoot.UseTranslation().UseTrackBuilder("pose").WithPoint(0, ct.Translation);
+                    }
+                }
+
+                var attachPointBone =
+                    rootAttachData.Value.bones.FirstOrDefault(
+                        x => x.BoneName.Equals(attachName, StringComparison.Ordinal));
+                if (attachPointBone == null)
+                {
+                    scene.AddNode(rootBone);
+                    rootParented = true;
+                }
+                else
+                {
+                    attachPointBone.AddNode(rootBone);
+                    rootParented = true;
+                }
+
+                NodeBuilder? c = rootBone;
+                while (c != null)
+                {
+                    transform *= c.LocalMatrix;
+                    c = c.Parent;
+                }
+
+                rootBone = attachRoot;
+            }
+        }
+        
+        return rootParented;
+    }
+    
+    private static JsonSerializerOptions jsonOptions = new()
+    {
+        IncludeFields = true
+    };
     
     public (List<BoneNodeBuilder> bones, BoneNodeBuilder root)? ComposeCharacterInfo(ParsedCharacterInfo characterInfo, (ParsedCharacterInfo Owner, List<BoneNodeBuilder> OwnerBones, ParsedAttach Attach)? attachData, SceneBuilder scene, NodeBuilder root)
     {
-        var bones = SkeletonUtils.GetBoneMap(characterInfo.Skeleton, true, out var rootBone);
-        if (rootBone == null)
+        List<BoneNodeBuilder> bones;
+        BoneNodeBuilder? rootBone;
+        try
         {
-            log.LogWarning("Root bone not found");
+            bones = SkeletonUtils.GetBoneMap(characterInfo.Skeleton, true, out rootBone);
+            if (rootBone == null)
+            {
+                log.LogWarning("Root bone not found");
+                return null;
+            }
+        }
+        catch (Exception e)
+        {
+            log.LogError(e, "Failed to get bone map");
             return null;
         }
+
         bool rootParented = false;
-        
         Matrix4x4 transform = Matrix4x4.Identity;
         if (attachData != null)
         {
-            var attach = attachData.Value.Attach;
-            if (rootBone == null) throw new InvalidOperationException("Root bone not found");
-            var attachName = attachData.Value.Owner.Skeleton.PartialSkeletons[attach.PartialSkeletonIdx]
-                                           .HkSkeleton!.BoneNames[(int)attach.BoneIdx];
-            log.LogInformation("Attaching {AttachName} to {RootBone}", attachName, rootBone.BoneName);
-            lock (attachLock)
+            try
             {
-                Interlocked.Increment(ref attachSuffix);
-                rootBone.SetSuffixRecursively(attachSuffix);
-            }
-
-            if (attach.OffsetTransform is { } ct)
-            {
-                rootBone.WithLocalScale(ct.Scale);
-                rootBone.WithLocalRotation(ct.Rotation);
-                rootBone.WithLocalTranslation(ct.Translation);
-                if (rootBone.AnimationTracksNames.Contains("pose"))
+                if (HandleAttach(attachData.Value, scene, rootBone, ref transform))
                 {
-                    rootBone.UseScale().UseTrackBuilder("pose").WithPoint(0, ct.Scale);
-                    rootBone.UseRotation().UseTrackBuilder("pose").WithPoint(0, ct.Rotation);
-                    rootBone.UseTranslation().UseTrackBuilder("pose").WithPoint(0, ct.Translation);
+                    rootParented = true;
                 }
             }
-            
-            var attachPointBone = attachData.Value.OwnerBones.FirstOrDefault(x => x.BoneName.Equals(attachName, StringComparison.Ordinal));
-            if (attachPointBone == null)
+            catch (Exception e)
             {
-                scene.AddNode(rootBone);
-                rootParented = true;
-            }
-            else
-            {
-                attachPointBone.AddNode(rootBone);
-                rootParented = true;
-            }
-            
-            NodeBuilder? c = rootBone;
-            while (c != null)
-            {
-                transform *= c.LocalMatrix;
-                c = c.Parent;
+                log.LogError(e, "Failed to handle attach {AttachData}", JsonSerializer.Serialize(new
+                {
+                    AttachData = attachData.Value.Attach,
+                    Owner = attachData.Value.Owner
+                }, jsonOptions));
             }
         }
         else if (characterInfo.Attach.ExecuteType != 0)
         {
-            var rootAttach = characterInfo.Attaches.FirstOrDefault(x => x.Attach.ExecuteType == 0);
-            if (rootAttach == null)
+            try
             {
-                log.LogWarning("Root attach not found");
-            }
-            else
-            {
-                log.LogWarning("Root attach found");
-                // handle root first, then attach this to the root
-                var rootAttachData = ComposeCharacterInfo(rootAttach, null, scene, root);
-                if (rootAttachData != null)
+                if (HandleRootAttach(characterInfo, scene, root, ref rootBone, ref transform))
                 {
-                    var attachName = rootAttach.Skeleton.PartialSkeletons[characterInfo.Attach.PartialSkeletonIdx].HkSkeleton!
-                                               .BoneNames[(int)characterInfo.Attach.BoneIdx];
-                    if (rootBone == null) throw new InvalidOperationException("Root bone not found");
-                    var attachRoot = rootAttachData.Value.root;
-                    lock (attachLock)
-                    {
-                        Interlocked.Increment(ref attachSuffix);
-                        attachRoot.SetSuffixRecursively(attachSuffix);
-                    }
-
-                    if (rootAttach.Attach.OffsetTransform is { } ct)
-                    {
-                        attachRoot.WithLocalScale(ct.Scale);
-                        attachRoot.WithLocalRotation(ct.Rotation);
-                        attachRoot.WithLocalTranslation(ct.Translation);
-                        if (attachRoot.AnimationTracksNames.Contains("pose"))
-                        {
-                            attachRoot.UseScale().UseTrackBuilder("pose").WithPoint(0, ct.Scale);
-                            attachRoot.UseRotation().UseTrackBuilder("pose").WithPoint(0, ct.Rotation);
-                            attachRoot.UseTranslation().UseTrackBuilder("pose").WithPoint(0, ct.Translation);
-                        }
-                    }
-
-                    var attachPointBone = rootAttachData.Value.bones.FirstOrDefault(x => x.BoneName.Equals(attachName, StringComparison.Ordinal));
-                    if (attachPointBone == null)
-                    {
-                        scene.AddNode(rootBone);
-                        rootParented = true;
-                    }
-                    else
-                    {
-                        attachPointBone.AddNode(rootBone);
-                        rootParented = true;
-                    }
-                    
-                    NodeBuilder? c = rootBone;
-                    while (c != null)
-                    {
-                        transform *= c.LocalMatrix;
-                        c = c.Parent;
-                    }
-                    
-                    rootBone = attachRoot;
+                    rootParented = true;
                 }
+            }
+            catch (Exception e)
+            {
+                log.LogError(e, "Failed to handle root attach {CharacterInfo}", JsonSerializer.Serialize(characterInfo, jsonOptions));
             }
         }
 
@@ -292,31 +363,69 @@ public class CharacterComposer
 
         foreach (var t in characterInfo.Models)
         {
-            HandleModel(characterInfo.GenderRace, characterInfo.CustomizeParameter, characterInfo.CustomizeData, t, scene, bones, rootBone, transform);
+            try
+            {
+                HandleModel(characterInfo.GenderRace, characterInfo.CustomizeParameter, characterInfo.CustomizeData,
+                            t, scene, bones, rootBone, transform);
+            }
+            catch (Exception e)
+            {
+                log.LogError(e, "Failed to handle model {ModelInfo}", JsonSerializer.Serialize(t, new JsonSerializerOptions
+                {
+                    IncludeFields = true
+                }));
+            }
         }
 
         for (var i = 0; i < characterInfo.Attaches.Length; i++)
         {
-            var attach = characterInfo.Attaches[i];
-            if (attach.Attach.ExecuteType == 0) continue;
-            ComposeCharacterInfo(attach, (characterInfo, bones, attach.Attach), scene, root);
+            try
+            {
+                throw new NotImplementedException();
+                var attach = characterInfo.Attaches[i];
+                if (attach.Attach.ExecuteType == 0) continue;
+                ComposeCharacterInfo(attach, (characterInfo, bones, attach.Attach), scene, root);
+            }
+            catch (Exception e)
+            {
+                log.LogError(e, "Failed to handle attach {Attach}", JsonSerializer.Serialize(characterInfo.Attaches[i], jsonOptions));
+            }
         }
-        
+
         return (bones, rootBone);
     }
 
     public void ComposeModels(ParsedModelInfo[] models, GenderRace genderRace, CustomizeParameter customizeParameter, 
                               CustomizeData customizeData, ParsedSkeleton skeleton, SceneBuilder scene, NodeBuilder root)
-    {
-        var bones = SkeletonUtils.GetBoneMap(skeleton, true, out var rootBone);
-        if (rootBone != null)
+    { 
+        List<BoneNodeBuilder> bones;
+        BoneNodeBuilder? rootBone;
+        try
         {
-            root.AddNode(rootBone);
+            bones = SkeletonUtils.GetBoneMap(skeleton, true, out rootBone);
+            if (rootBone == null)
+            {
+                log.LogWarning("Root bone not found");
+                return;
+            }
+        }
+        catch (Exception e)
+        {
+            log.LogError(e, "Failed to get bone map");
+            return;
         }
 
         foreach (var t in models)
         {
-            HandleModel(genderRace, customizeParameter, customizeData, t, scene, bones, rootBone, Matrix4x4.Identity);
+            try
+            {
+                HandleModel(genderRace, customizeParameter, customizeData, t, scene, bones, rootBone,
+                            Matrix4x4.Identity);
+            }
+            catch (Exception e)
+            {
+                log.LogError(e, "Failed to handle model {ModelInfo}", JsonSerializer.Serialize(t, jsonOptions));
+            }
         }
     }
     
@@ -343,7 +452,6 @@ public class CharacterComposer
                     if (root == null) throw new InvalidOperationException("Root bone not found");
                     root.AddNode(bone);
                     log.LogInformation("Added bone {BoneName} to {ParentBone}", boneName, root.BoneName);
-
                     bones.Add(bone);
                 }
             }

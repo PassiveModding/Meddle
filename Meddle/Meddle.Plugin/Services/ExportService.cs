@@ -26,8 +26,8 @@ public class ExportService : IDisposable, IService
 {
     private static readonly ActivitySource ActivitySource = new("Meddle.Plugin.Utils.ExportUtil");
     private readonly TexFile catchlightTex;
-    private readonly EventLogger<ExportService> logger;
     private readonly SqPack pack;
+    private readonly ILogger<ExportService> logger;
     private readonly ParseService parseService;
     private readonly PbdFile pbdFile;
     private readonly TexFile tileNormTex;
@@ -36,9 +36,8 @@ public class ExportService : IDisposable, IService
     public ExportService(SqPack pack, ILogger<ExportService> logger, ParseService parseService)
     {
         this.pack = pack;
+        this.logger = logger;
         this.parseService = parseService;
-        this.logger = new EventLogger<ExportService>(logger);
-        this.logger.OnLogEvent += OnLog;
 
         // chara/xls/boneDeformer/human.pbd
         var pbdData = pack.GetFile("chara/xls/boneDeformer/human.pbd");
@@ -61,14 +60,6 @@ public class ExportService : IDisposable, IService
     public void Dispose()
     {
         logger.LogDebug("Disposing ExportUtil");
-        OnLogEvent -= OnLog;
-    }
-
-    public event Action<LogLevel, string>? OnLogEvent;
-
-    private void OnLog(LogLevel logLevel, string message)
-    {
-        OnLogEvent?.Invoke(logLevel, message);
     }
 
     private static string GetPathForOutput()

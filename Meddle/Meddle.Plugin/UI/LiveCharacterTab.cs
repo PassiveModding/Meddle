@@ -35,6 +35,7 @@ namespace Meddle.Plugin.UI;
 public unsafe class LiveCharacterTab : ITab
 {
     private readonly CommonUi commonUi;
+    private readonly ComposerFactory composerFactory;
     private readonly ExportService exportService;
     public MenuType MenuType => MenuType.Default;
 
@@ -65,7 +66,8 @@ public unsafe class LiveCharacterTab : ITab
         ResolverService resolverService,
         SqPack pack,
         PbdHooks pbd,
-        CommonUi commonUi)
+        CommonUi commonUi,
+        ComposerFactory composerFactory)
     {
         this.log = log;
         this.exportService = exportService;
@@ -76,16 +78,8 @@ public unsafe class LiveCharacterTab : ITab
         this.pack = pack;
         this.pbd = pbd;
         this.commonUi = commonUi;
-        this.exportService.OnLogEvent += ExportServiceOnOnLogEvent;
+        this.composerFactory = composerFactory;
     }
-
-    private (LogLevel level, string message)? LogEvent { get; set; }
-    
-    private void ExportServiceOnOnLogEvent(LogLevel level, string message)
-    {
-        LogEvent = (level, message);
-    }
-
 
     private bool IsDisposed { get; set; }
 
@@ -100,19 +94,6 @@ public unsafe class LiveCharacterTab : ITab
 
         commonUi.DrawCharacterSelect(ref selectedCharacter);
         
-        if (LogEvent != null)
-        {
-            var (level, message) = LogEvent.Value;
-            using var col = ImRaii.PushColor(ImGuiCol.Text, level switch
-            {
-                LogLevel.Information => new Vector4(1, 1, 1, 1),
-                LogLevel.Warning => new Vector4(1, 1, 0, 1),
-                LogLevel.Error => new Vector4(1, 0, 0, 1),
-                _ => new Vector4(1, 1, 1, 1)
-            });
-            ImGui.TextWrapped(message);
-        }
-        
         DrawSelectedCharacter();
         fileDialog.Draw();
     }
@@ -124,7 +105,6 @@ public unsafe class LiveCharacterTab : ITab
             log.LogDebug("Disposing CharacterTabAlt");
             selectedModels.Clear();
             humanCustomizeData.Clear();
-            exportService.OnLogEvent -= ExportServiceOnOnLogEvent;
             IsDisposed = true;
         }
     }
@@ -273,11 +253,7 @@ public unsafe class LiveCharacterTab : ITab
                                                 
                                                 Task.Run(() =>
                                                 {
-                                                    var cacheDir = Path.Combine(path, "cache");
-                                                    Directory.CreateDirectory(cacheDir);
-                                                    var composer = new CharacterComposer(
-                                                        log,
-                                                        new DataProvider(cacheDir, pack, log, CancellationToken.None));
+                                                    var composer = composerFactory.CreateCharacterComposer(Path.Combine(path, "cache"), CancellationToken.None);
                                                     var scene = new SceneBuilder();
                                                     var root = new NodeBuilder();
                                                     composer.ComposeModels(models.ToArray(), genderRace, customizeParams, 
@@ -333,11 +309,7 @@ public unsafe class LiveCharacterTab : ITab
 
                                         Task.Run(() =>
                                         {
-                                            var cacheDir = Path.Combine(path, "cache");
-                                            Directory.CreateDirectory(cacheDir);
-                                            var composer = new CharacterComposer(
-                                                log,
-                                                new DataProvider(cacheDir, pack, log, CancellationToken.None));
+                                            var composer = composerFactory.CreateCharacterComposer(Path.Combine(path, "cache"), CancellationToken.None);
                                             var scene = new SceneBuilder();
                                             var root = new NodeBuilder();
                                             composer.ComposeCharacterInfo(info, null, scene, root);
@@ -375,11 +347,7 @@ public unsafe class LiveCharacterTab : ITab
 
                                         Task.Run(() =>
                                         {
-                                            var cacheDir = Path.Combine(path, "cache");
-                                            Directory.CreateDirectory(cacheDir);
-                                            var composer = new CharacterComposer(
-                                                log,
-                                                new DataProvider(cacheDir, pack, log, CancellationToken.None));
+                                            var composer = composerFactory.CreateCharacterComposer(Path.Combine(path, "cache"), CancellationToken.None);
                                             var scene = new SceneBuilder();
                                             var root = new NodeBuilder();
                                             composer.ComposeCharacterInfo(info, null, scene, root);
@@ -491,11 +459,7 @@ public unsafe class LiveCharacterTab : ITab
             
                                 Task.Run(() =>
                                 {
-                                    var cacheDir = Path.Combine(path, "cache");
-                                    Directory.CreateDirectory(cacheDir);
-                                    var composer = new CharacterComposer(
-                                        log,
-                                        new DataProvider(cacheDir, pack, log, CancellationToken.None));
+                                    var composer = composerFactory.CreateCharacterComposer(Path.Combine(path, "cache"), CancellationToken.None);
                                     var scene = new SceneBuilder();
                                     var root = new NodeBuilder();
                                     composer.ComposeModels([modelData], characterInfo.GenderRace, characterInfo.CustomizeParameter, 

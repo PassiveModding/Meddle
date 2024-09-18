@@ -7,7 +7,6 @@ using Meddle.Plugin.Models.Structs;
 using Meddle.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
-using Meddle.Utils.Files.SqPack;
 using Meddle.Utils.Helpers;
 using Microsoft.Extensions.Logging;
 using SharpGLTF.Materials;
@@ -18,36 +17,33 @@ namespace Meddle.Plugin.Models.Composer;
 public class InstanceComposer : IDisposable
 {
     private readonly CancellationToken cancellationToken;
+    private readonly CharacterComposer characterComposer;
     private readonly Configuration config;
     private readonly int count;
-    private readonly SqPack dataManager;
     private readonly ParsedInstance[] instances;
     private readonly ILogger log;
     private readonly Action<ProgressEvent>? progress;
-    private int countProgress;
     private readonly DataProvider dataProvider;
+    private int countProgress;
 
     public InstanceComposer(
-        ILogger log, SqPack manager,
+        ILogger log, 
         Configuration config,
         ParsedInstance[] instances,
-        string? cacheDir = null,
-        Action<ProgressEvent>? progress = null,
-        CancellationToken cancellationToken = default)
+        Action<ProgressEvent>? progress,
+        CancellationToken cancellationToken,
+        CharacterComposer characterComposer,
+        DataProvider dataProvider)
     {
-        CacheDir = cacheDir ?? Path.GetTempPath();
-        Directory.CreateDirectory(CacheDir);
         this.instances = instances;
         this.log = log;
-        dataManager = manager;
         this.config = config;
         this.progress = progress;
         this.cancellationToken = cancellationToken;
-        count = instances.Length;
-        dataProvider = new DataProvider(CacheDir, dataManager, log, cancellationToken);
+        this.characterComposer = characterComposer;
+        this.count = instances.Length;
+        this.dataProvider = dataProvider;
     }
-
-    public string CacheDir { get; }
 
     public void Dispose()
     {
@@ -134,7 +130,6 @@ public class InstanceComposer : IDisposable
                 root.Name = $"{characterInstance.Type}_{characterInstance.Kind}_{characterInstance.Name}";
             }
 
-            var characterComposer = new CharacterComposer(log, dataProvider);
             characterComposer.ComposeCharacterInstance(characterInstance, scene, root);
             wasAdded = true;
         }

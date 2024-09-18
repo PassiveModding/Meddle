@@ -165,7 +165,7 @@ public partial class LayoutWindow
                     UiUtil.Text($"Material Path: {material.Path.FullPath}", material.Path.FullPath);
                     UiUtil.Text($"Game Path: {material.Path.GamePath}", material.Path.GamePath);
                     UiUtil.Text($"Shader Path: {material.Shpk}", material.Shpk);
-                    ImGui.Text($"Texture Count: {material.Textures.Count}");
+                    ImGui.Text($"Texture Count: {material.Textures.Length}");
                     foreach (var texture in material.Textures)
                     {
                         using var textureNode = ImRaii.TreeNode($"Texture: {texture.Path.GamePath}");
@@ -207,7 +207,7 @@ public partial class LayoutWindow
                         UiUtil.Text($"Material Path: {materialInfo.Path.FullPath}", materialInfo.Path.FullPath);
                         UiUtil.Text($"Game Path: {materialInfo.Path.GamePath}", materialInfo.Path.GamePath);
                         UiUtil.Text($"Shader Path: {materialInfo.Shpk}", materialInfo.Shpk);
-                        ImGui.Text($"Texture Count: {materialInfo.Textures.Count}");
+                        ImGui.Text($"Texture Count: {materialInfo.Textures.Length}");
                         foreach (var textureInfo in materialInfo.Textures)
                         {
                             using var textureNode = ImRaii.TreeNode($"Texture: {textureInfo.Path.GamePath}");

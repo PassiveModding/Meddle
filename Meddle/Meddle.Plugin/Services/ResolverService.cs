@@ -176,12 +176,12 @@ public class ResolverService : IService
                 textures.Add(texInfo);
             }
             
-            var materialInfo = new ParsedMaterialInfo(mtrlName, mtrlName, shaderName, colorTable, textures);
+            var materialInfo = new ParsedMaterialInfo(mtrlName, mtrlName, shaderName, colorTable, textures.ToArray());
             
             materials.Add(materialInfo);
         }
         
-        var modelInfo = new ParsedModelInfo(path, path, null, null, materials);
+        var modelInfo = new ParsedModelInfo(path, path, null, null, materials.ToArray());
         return modelInfo;
     }
     
@@ -247,13 +247,13 @@ public class ResolverService : IService
             }
 
             var materialInfo =
-                new ParsedMaterialInfo(materialPath, materialPathFromModel, shaderName, colorTable, textures);
+                new ParsedMaterialInfo(materialPath, materialPathFromModel, shaderName, colorTable, textures.ToArray());
             materials.Add(materialInfo);
         }
 
         var deform = pbdHooks.TryGetDeformer((nint)characterBasePtr.Value, model->SlotIndex);
         var modelInfo =
-            new ParsedModelInfo(modelPath, modelPathFromCharacter, deform, shapeAttributeGroup, materials);
+            new ParsedModelInfo(modelPath, modelPathFromCharacter, deform, shapeAttributeGroup, materials.ToArray());
         
             return modelInfo;
     }
@@ -332,7 +332,7 @@ public class ResolverService : IService
         var skeleton = StructExtensions.GetParsedSkeleton(characterBase);
         var (customizeParams, customizeData, genderRace) = ParseHuman(characterBase);
 
-        return new ParsedCharacterInfo(models, skeleton, StructExtensions.GetParsedAttach(characterBase), customizeData, customizeParams, genderRace);
+        return new ParsedCharacterInfo(models.ToArray(), skeleton, StructExtensions.GetParsedAttach(characterBase), customizeData, customizeParams, genderRace);
     }
 
     public unsafe (Meddle.Utils.Export.CustomizeParameter, CustomizeData, GenderRace) ParseHuman(CharacterBase* characterBase)
