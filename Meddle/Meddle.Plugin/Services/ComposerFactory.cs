@@ -40,13 +40,13 @@ public class ComposerFactory : IService
                                     dataProvider);
     }
     
-    public CharacterComposer CreateCharacterComposer(string? cacheDir = null, CancellationToken cancellationToken = default)
+    public CharacterComposer CreateCharacterComposer(string? cacheDir = null, Action<ProgressEvent>? progress = null, CancellationToken cancellationToken = default)
     {
         cacheDir ??= Path.Combine(Path.GetTempPath(), "Meddle", "Cache");
         Directory.CreateDirectory(cacheDir);
         
         var dataProvider = CreateDataProvider(cacheDir, cancellationToken);
-        return new CharacterComposer(loggerProvider.CreateLogger<CharacterComposer>(), dataProvider);
+        return new CharacterComposer(loggerProvider.CreateLogger<CharacterComposer>(), dataProvider, progress);
     }
     
     public CharacterComposer CreateCharacterComposer(DataProvider dataProvider)

@@ -71,7 +71,7 @@ public class InstanceComposer : IDisposable
 
     public void Compose(SceneBuilder scene)
     {
-        progress?.Invoke(new ProgressEvent("Export", 0, count));
+        progress?.Invoke(new ProgressEvent(scene.GetHashCode(), "Export", 0, count));
         Iterate(instance =>
         {
             try
@@ -89,7 +89,7 @@ public class InstanceComposer : IDisposable
 
             //countProgress++;
             Interlocked.Increment(ref countProgress);
-            progress?.Invoke(new ProgressEvent("Export", countProgress, count));
+            progress?.Invoke(new ProgressEvent(scene.GetHashCode(), "Export", countProgress, count));
         }, false);
     }
 
@@ -239,17 +239,16 @@ public class InstanceComposer : IDisposable
         if (parsedInstance is ParsedSharedInstance sharedInstance)
         {
             for (var i = 0; i < sharedInstance.Children.Count; i++)
-            {
-                var child = sharedInstance.Children[i];
+            {          
+                var child = sharedInstance.Children[i];      
+                progress?.Invoke(new ProgressEvent(parsedInstance.GetHashCode(), "Shared Instance", countProgress, count, 
+                                                   new ProgressEvent(child.GetHashCode(), root.Name, i, sharedInstance.Children.Count)));
                 var childNode = ComposeInstance(scene, child);
                 if (childNode != null)
                 {
                     root.AddNode(childNode);
                     wasAdded = true;
                 }
-
-                progress?.Invoke(new ProgressEvent("Shared Instance", countProgress, count,
-                                                   new ProgressEvent(root.Name, i, sharedInstance.Children.Count)));
             }
         }
 
@@ -271,16 +270,14 @@ public class InstanceComposer : IDisposable
         {
             throw new Exception("Inner cone angle must be less than or equal to outer cone angle");
         }
-                    
+        
         if (MathF.Abs(outerConeAngle - (MathF.PI / 4f)) < 0.0001f)
         {
             outerConeAngle = (MathF.PI / 4f) - 0.0001f;
         }
-                    
-        if (innerConeAngle > outerConeAngle)
-        {
-            innerConeAngle = outerConeAngle;
-        }
+        
+        outerConeAngle = Math.Clamp(outerConeAngle, 0.0002f, (MathF.PI / 2f) - 0.0001f);
+        innerConeAngle = Math.Clamp(innerConeAngle, 0.0001f, outerConeAngle  - 0.0001f);
         
         return (outerConeAngle, innerConeAngle);
     }
@@ -342,7 +339,7 @@ public class InstanceComposer : IDisposable
 
             root.AddNode(plateRoot);
             Interlocked.Increment(ref processed);
-            progress?.Invoke(new ProgressEvent("Terrain Instance", countProgress, count, new ProgressEvent(root.Name, processed, (int)teraFile.Header.PlateCount)));
+            progress?.Invoke(new ProgressEvent(terrainInstance.GetHashCode(), "Terrain Instance", countProgress, count, new ProgressEvent(root.GetHashCode(), root.Name, processed, (int)teraFile.Header.PlateCount)));
         }
     }
 

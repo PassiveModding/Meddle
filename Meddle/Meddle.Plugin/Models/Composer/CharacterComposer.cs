@@ -67,12 +67,12 @@ public class CharacterComposer
         var mdlFile = new MdlFile(mdlData);
         //var materialBuilders = new List<MaterialBuilder>();
         var materialBuilders = new MaterialBuilder[modelInfo.Materials.Length];
-        //for (int i = 0; i < modelInfo.Materials.Count; i++)
-        Parallel.For(0, modelInfo.Materials.Length, i =>
+        for (int i = 0; i < modelInfo.Materials.Length; i++)
         {
             try
             {
                 var materialInfo = modelInfo.Materials[i];
+                progress?.Invoke(new ProgressEvent(modelInfo.GetHashCode(), $"{materialInfo.Path.GamePath}", i + 1, modelInfo.Materials.Length));
                 var mtrlData = dataProvider.LookupData(materialInfo.Path.FullPath);
                 if (mtrlData == null)
                 {
@@ -115,7 +115,7 @@ public class CharacterComposer
                 log.LogError(e, "Failed to load material {MaterialInfo}", JsonSerializer.Serialize(modelInfo.Materials[i], jsonOptions));
                 materialBuilders[i] = new MaterialBuilder("error");
             }
-        });
+        }
 
         var model = new Model(modelInfo.Path.GamePath, mdlFile, modelInfo.ShapeAttributeGroup);
         EnsureBonesExist(model, bones, rootBone);
@@ -361,8 +361,10 @@ public class CharacterComposer
             root.AddNode(rootBone);
         }
 
-        foreach (var t in characterInfo.Models)
+        for (var i = 0; i < characterInfo.Models.Length; i++)
         {
+            var t = characterInfo.Models[i];
+            progress?.Invoke(new ProgressEvent(characterInfo.GetHashCode(), $"{t.Path.GamePath}", i + 1, characterInfo.Models.Length));
             try
             {
                 HandleModel(characterInfo.GenderRace, characterInfo.CustomizeParameter, characterInfo.CustomizeData,
@@ -370,10 +372,11 @@ public class CharacterComposer
             }
             catch (Exception e)
             {
-                log.LogError(e, "Failed to handle model {ModelInfo}", JsonSerializer.Serialize(t, new JsonSerializerOptions
-                {
-                    IncludeFields = true
-                }));
+                log.LogError(e, "Failed to handle model {ModelInfo}", JsonSerializer.Serialize(
+                                 t, new JsonSerializerOptions
+                                 {
+                                     IncludeFields = true
+                                 }));
             }
         }
 
@@ -381,7 +384,6 @@ public class CharacterComposer
         {
             try
             {
-                throw new NotImplementedException();
                 var attach = characterInfo.Attaches[i];
                 if (attach.Attach.ExecuteType == 0) continue;
                 ComposeCharacterInfo(attach, (characterInfo, bones, attach.Attach), scene, root);

@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Reflection.Metadata;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface;
 using Dalamud.Interface.ImGuiFileDialog;
@@ -36,7 +37,6 @@ public unsafe class LiveCharacterTab : ITab
 {
     private readonly CommonUi commonUi;
     private readonly ComposerFactory composerFactory;
-    private readonly ExportService exportService;
     public MenuType MenuType => MenuType.Default;
 
     private readonly FileDialogManager fileDialog = new()
@@ -52,6 +52,8 @@ public unsafe class LiveCharacterTab : ITab
     private readonly TextureCache textureCache;
     private readonly ResolverService resolverService;
     private readonly ITextureProvider textureProvider;
+    private Task exportTask = Task.CompletedTask;
+    private CancellationTokenSource exportCancelTokenSource = new();
     private bool cacheHumanCustomizeData;
 
     private readonly Dictionary<Pointer<CSHuman>, (CustomizeData, CustomizeParameter)> humanCustomizeData = new();
@@ -59,7 +61,6 @@ public unsafe class LiveCharacterTab : ITab
 
     public LiveCharacterTab(
         ILogger<LiveCharacterTab> log,
-        ExportService exportService,
         ITextureProvider textureProvider,
         ParseService parseService,
         TextureCache textureCache,
@@ -70,7 +71,6 @@ public unsafe class LiveCharacterTab : ITab
         ComposerFactory composerFactory)
     {
         this.log = log;
-        this.exportService = exportService;
         this.textureProvider = textureProvider;
         this.parseService = parseService;
         this.textureCache = textureCache;
@@ -81,6 +81,20 @@ public unsafe class LiveCharacterTab : ITab
         this.composerFactory = composerFactory;
     }
 
+
+    private readonly Dictionary<int, ProgressEvent> progressEvents = new();
+    private void HandleProgressEvent(ProgressEvent progressEvent)
+    {
+        if (progressEvent.Progress == progressEvent.Total)
+        {
+            progressEvents.Remove(progressEvent.ContextHash);
+        }
+        else
+        {
+            progressEvents[progressEvent.ContextHash] = progressEvent;
+        }
+    }
+    
     private bool IsDisposed { get; set; }
 
     public string Name => "Character";
@@ -92,6 +106,28 @@ public unsafe class LiveCharacterTab : ITab
         ImGui.TextWrapped("NOTE: Exported models use a rudimentary approximation of the games pixel shaders, " +
                           "they will likely not match 1:1 to the in-game appearance.");
 
+        if (!exportTask.IsCompleted)
+        {
+            ImGui.Text("Exporting...");
+            if (ImGui.Button("Cancel Export"))
+            {
+                exportCancelTokenSource.Cancel();
+            }
+
+            foreach (var progressEvent in progressEvents)
+            {
+                if (progressEvent.Value.Progress != progressEvent.Value.Total)
+                {
+                    ImGui.Text(progressEvent.Value.Name);
+                    ImGui.ProgressBar(progressEvent.Value.Progress / (float)progressEvent.Value.Total, new Vector2(-1, 0), $"{progressEvent.Value.Progress}/{progressEvent.Value.Total}");
+                }
+            }
+        }
+        else
+        {
+            progressEvents.Clear();
+        }
+        
         commonUi.DrawCharacterSelect(ref selectedCharacter);
         
         DrawSelectedCharacter();
@@ -119,6 +155,11 @@ public unsafe class LiveCharacterTab : ITab
 
         var charPtr = (CSCharacter*)selectedCharacter.Address;
         DrawCharacter(charPtr, "Character");
+    }
+
+    private bool CanExport()
+    {
+        return exportTask.IsCompleted;
     }
 
     private void DrawCharacter(CSCharacter* character, string name, int depth = 0)
@@ -155,9 +196,12 @@ public unsafe class LiveCharacterTab : ITab
         if (modelType == CSCharacterBase.ModelType.Human)
         {
             DrawHumanCharacter((CSHuman*)cBase, out customizeData, out customizeParams, out genderRace);
-            if (ImGui.Button("Export All Models With Attaches"))
+            using (ImRaii.Disabled(!CanExport()))
             {
-                ExportAllModelsWithAttaches(character, customizeParams, customizeData);
+                if (ImGui.Button("Export All Models With Attaches"))
+                {
+                    ExportAllModelsWithAttaches(character, customizeParams, customizeData);
+                }
             }
         }
         else
@@ -216,9 +260,12 @@ public unsafe class LiveCharacterTab : ITab
 
         using var drawObjectId = ImRaii.PushId($"{(nint)drawObject}");
         var cBase = (CSCharacterBase*)drawObject;
-        if (ImGui.Button("Export All Models"))
+        using (ImRaii.Disabled(!CanExport()))
         {
-            ExportAllModels(cBase, customizeParams, customizeData);
+            if (ImGui.Button("Export All Models"))
+            {
+                ExportAllModels(cBase, customizeParams, customizeData);
+            }
         }
 
         ImGui.SameLine();
@@ -227,7 +274,7 @@ public unsafe class LiveCharacterTab : ITab
             if (modelPtr == null) return false;
             return selectedModels.ContainsKey((nint)modelPtr.Value) && selectedModels[(nint)modelPtr.Value];
         }).ToArray();
-        using (ImRaii.Disabled(currentSelectedModels.Length == 0))
+        using (ImRaii.Disabled(currentSelectedModels.Length == 0 || !CanExport()))
         {
             if (ImGui.Button($"Export Selected Models ({currentSelectedModels.Length})") && currentSelectedModels.Length > 0)
             {
@@ -250,10 +297,11 @@ public unsafe class LiveCharacterTab : ITab
                                             (result, path) =>
                                             {
                                                 if (!result) return;
-                                                
-                                                Task.Run(() =>
+                                                if (!CanExport()) return;
+                                                exportCancelTokenSource = new CancellationTokenSource();
+                                                exportTask = Task.Run(() =>
                                                 {
-                                                    var composer = composerFactory.CreateCharacterComposer(Path.Combine(path, "cache"), CancellationToken.None);
+                                                    var composer = composerFactory.CreateCharacterComposer(Path.Combine(path, "cache"), HandleProgressEvent, exportCancelTokenSource.Token);
                                                     var scene = new SceneBuilder();
                                                     var root = new NodeBuilder();
                                                     composer.ComposeModels(models.ToArray(), genderRace, customizeParams, 
@@ -261,7 +309,7 @@ public unsafe class LiveCharacterTab : ITab
                                                     scene.AddNode(root);
                                                     scene.ToGltf2().SaveGLTF(Path.Combine(path, "character.gltf"));
                                                     Process.Start("explorer.exe", path);
-                                                });
+                                                }, exportCancelTokenSource.Token);
                                             }, Plugin.TempDirectory);
             }
         }
@@ -306,17 +354,18 @@ public unsafe class LiveCharacterTab : ITab
                                     (result, path) =>
                                     {
                                         if (!result) return;
-
-                                        Task.Run(() =>
+                                        if (!CanExport()) return;
+                                        exportCancelTokenSource = new CancellationTokenSource();
+                                        exportTask = Task.Run(() =>
                                         {
-                                            var composer = composerFactory.CreateCharacterComposer(Path.Combine(path, "cache"), CancellationToken.None);
+                                            var composer = composerFactory.CreateCharacterComposer(Path.Combine(path, "cache"), HandleProgressEvent, exportCancelTokenSource.Token);
                                             var scene = new SceneBuilder();
                                             var root = new NodeBuilder();
                                             composer.ComposeCharacterInfo(info, null, scene, root);
                                             scene.AddNode(root);
                                             scene.ToGltf2().SaveGLTF(Path.Combine(path, "character.gltf"));
                                             Process.Start("explorer.exe", path);
-                                        });
+                                        }, exportCancelTokenSource.Token);
                                     }, Plugin.TempDirectory);
     }
     
@@ -344,17 +393,18 @@ public unsafe class LiveCharacterTab : ITab
                                     (result, path) =>
                                     {
                                         if (!result) return;
-
-                                        Task.Run(() =>
+                                        if (!CanExport()) return;
+                                        exportCancelTokenSource = new CancellationTokenSource();
+                                        exportTask = Task.Run(() =>
                                         {
-                                            var composer = composerFactory.CreateCharacterComposer(Path.Combine(path, "cache"), CancellationToken.None);
+                                            var composer = composerFactory.CreateCharacterComposer(Path.Combine(path, "cache"), HandleProgressEvent, exportCancelTokenSource.Token);
                                             var scene = new SceneBuilder();
                                             var root = new NodeBuilder();
                                             composer.ComposeCharacterInfo(info, null, scene, root);
                                             scene.AddNode(root);
                                             scene.ToGltf2().SaveGLTF(Path.Combine(path, "character.gltf"));
                                             Process.Start("explorer.exe", path);
-                                        });
+                                        }, exportCancelTokenSource.Token);
                                     }, Plugin.TempDirectory);
     }
 
@@ -424,51 +474,61 @@ public unsafe class LiveCharacterTab : ITab
                                           });
             }
 
-            if (ImGui.MenuItem("Export as glTF"))
+            using (ImRaii.Disabled(!CanExport()))
             {
-                var folderName = Path.GetFileNameWithoutExtension(fileName);
-                var characterInfo = resolverService.ParseDrawObject((DrawObject*)cBase);
-                if (characterInfo == null)
+                if (ImGui.MenuItem("Export as glTF"))
                 {
-                    log.LogError("Failed to get character info from draw object");
-                    return;
+                    var folderName = Path.GetFileNameWithoutExtension(fileName);
+                    var characterInfo = resolverService.ParseDrawObject((DrawObject*)cBase);
+                    if (characterInfo == null)
+                    {
+                        log.LogError("Failed to get character info from draw object");
+                        return;
+                    }
+
+                    var colorTableTextures = parseService.ParseColorTableTextures(cBase);
+                    if (customizeParams != null)
+                    {
+                        characterInfo.CustomizeParameter = customizeParams;
+                    }
+
+                    if (customizeData != null)
+                    {
+                        characterInfo.CustomizeData = customizeData;
+                    }
+
+                    var modelData = resolverService.ParseModel(cBase, model, colorTableTextures);
+                    if (modelData == null)
+                    {
+                        log.LogError("Failed to get model data for {FileName}", fileName);
+                        return;
+                    }
+
+                    fileDialog.SaveFolderDialog("Save Model", folderName,
+                                                (result, path) =>
+                                                {
+                                                    if (!result) return;
+                                                    if (!CanExport()) return;
+                                                    exportCancelTokenSource = new CancellationTokenSource();
+                                                    exportTask = Task.Run(() =>
+                                                    {
+                                                        var composer =
+                                                            composerFactory.CreateCharacterComposer(
+                                                                Path.Combine(path, "cache"), HandleProgressEvent,
+                                                                exportCancelTokenSource.Token);
+                                                        var scene = new SceneBuilder();
+                                                        var root = new NodeBuilder();
+                                                        composer.ComposeModels(
+                                                            [modelData], characterInfo.GenderRace,
+                                                            characterInfo.CustomizeParameter,
+                                                            characterInfo.CustomizeData, characterInfo.Skeleton, scene,
+                                                            root);
+                                                        scene.AddNode(root);
+                                                        scene.ToGltf2().SaveGLTF(Path.Combine(path, "model.gltf"));
+                                                        Process.Start("explorer.exe", path);
+                                                    }, exportCancelTokenSource.Token);
+                                                }, Plugin.TempDirectory);
                 }
-                
-                var colorTableTextures = parseService.ParseColorTableTextures(cBase);
-                if (customizeParams != null)
-                {
-                    characterInfo.CustomizeParameter = customizeParams;
-                }
-                
-                if (customizeData != null)
-                {
-                    characterInfo.CustomizeData = customizeData;
-                }
-                
-                fileDialog.SaveFolderDialog("Save Model", folderName,
-                            (result, path) =>
-                            {
-                                if (!result) return;
-                                
-                                var modelData = resolverService.ParseModel(cBase, model, colorTableTextures);
-                                if (modelData == null)
-                                {
-                                    log.LogError("Failed to get model data for {FileName}", fileName);
-                                    return;
-                                }
-            
-                                Task.Run(() =>
-                                {
-                                    var composer = composerFactory.CreateCharacterComposer(Path.Combine(path, "cache"), CancellationToken.None);
-                                    var scene = new SceneBuilder();
-                                    var root = new NodeBuilder();
-                                    composer.ComposeModels([modelData], characterInfo.GenderRace, characterInfo.CustomizeParameter, 
-                                                           characterInfo.CustomizeData, characterInfo.Skeleton, scene, root);
-                                    scene.AddNode(root);
-                                    scene.ToGltf2().SaveGLTF(Path.Combine(path, "model.gltf"));
-                                    Process.Start("explorer.exe", path);
-                                });
-                            }, Plugin.TempDirectory);
             }
 
             ImGui.EndPopup();
