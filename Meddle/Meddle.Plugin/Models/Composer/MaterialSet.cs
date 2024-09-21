@@ -355,13 +355,12 @@ public class MaterialSet
             var index = constant.ValueOffset / 4;
             var count = constant.ValueSize / 4;
             var buf = new List<uint>(128);
+            bool logOutOfBounds = false;
             for (var j = 0; j < count; j++)
             {
                 if (file.ShaderValues.Length <= index + j)
                 {
-                    Plugin.Logger?.LogWarning("Material {mtrlPath} has invalid constant {id} at index {index} " +
-                                              "(max {file.ShaderValues.Length}, count {count}, j {j})", 
-                                              mtrlPath, id, index, file.ShaderValues.Length, count, j);
+                    logOutOfBounds = true;
                     break;
                 }
                 
@@ -371,6 +370,11 @@ public class MaterialSet
 
             // even if duplicate, last probably takes precedence
             Constants[id] = MemoryMarshal.Cast<uint, float>(buf.ToArray()).ToArray();
+            if (logOutOfBounds)
+            {
+                Plugin.Logger?.LogWarning("Material constant {id} out of bounds for {mtrlPath}, {indexAndCount} greater than {shaderValuesLength}, [{values}]", 
+                                          id, mtrlPath, (index, count), file.ShaderValues.Length, string.Join(", ", buf));
+            }
         }
 
         TextureUsageDict = new Dictionary<TextureUsage, HandleString>();
