@@ -11,6 +11,7 @@ using Meddle.Utils.Files;
 using Meddle.Utils.Files.Structs.Material;
 using Meddle.Utils.Helpers;
 using Meddle.Utils.Materials;
+using Microsoft.Extensions.Logging;
 using SharpGLTF.Materials;
 using ShaderPackage = Meddle.Utils.Export.ShaderPackage;
 
@@ -343,47 +344,32 @@ public class MaterialSet
         shaderFlagData = file.ShaderHeader.Flags;
         var package = new ShaderPackage(shpk, shpkName);
         colorTable = file.GetColorTable();
-        
-        ShaderKeys = new ShaderKey[file.ShaderKeys.Length];
-        for (var i = 0; i < file.ShaderKeys.Length; i++)
-        {
-            ShaderKeys[i] = new ShaderKey
-            {
-                Category = file.ShaderKeys[i].Category,
-                Value = file.ShaderKeys[i].Value
-            };
-        }
-
-        Constants = new Dictionary<MaterialConstant, float[]>();
-        // pre-fill with shader constants
-        foreach (var constant in package.MaterialConstants)
-        {
-            Constants[constant.Key] = constant.Value;
-        }
+        ShaderKeys = file.ShaderKeys;
+        Constants = package.MaterialConstants;
         
         // override with material constants
         foreach (var constant in file.Constants)
         {
+            var id = (MaterialConstant)constant.ConstantId;
             var index = constant.ValueOffset / 4;
             var count = constant.ValueSize / 4;
-            var buf = new List<byte>(128);
+            var buf = new List<uint>(128);
             for (var j = 0; j < count; j++)
             {
+                if (file.ShaderValues.Length <= index + j)
+                {
+                    Plugin.Logger?.LogWarning("Material {mtrlPath} has invalid constant {id} at index {index} " +
+                                              "(max {file.ShaderValues.Length}, count {count}, j {j})", 
+                                              mtrlPath, id, index, file.ShaderValues.Length, count, j);
+                    break;
+                }
+                
                 var value = file.ShaderValues[index + j];
-                var bytes = BitConverter.GetBytes(value);
-                buf.AddRange(bytes);
-            }
-
-            var floats = MemoryMarshal.Cast<byte, float>(buf.ToArray());
-            var values = new float[count];
-            for (var j = 0; j < count; j++)
-            {
-                values[j] = floats[j];
+                buf.Add(value);
             }
 
             // even if duplicate, last probably takes precedence
-            var id = (MaterialConstant)constant.ConstantId;
-            Constants[id] = values;
+            Constants[id] = MemoryMarshal.Cast<uint, float>(buf.ToArray()).ToArray();
         }
 
         TextureUsageDict = new Dictionary<TextureUsage, HandleString>();

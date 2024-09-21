@@ -15,16 +15,14 @@ namespace Meddle.Plugin.Models.Composer;
 
 public class CharacterComposer
 {
-    private readonly ILogger<CharacterComposer> log;
     private readonly DataProvider dataProvider;
     private readonly Action<ProgressEvent>? progress;
     private static TexFile? CubeMapTex;
     private static PbdFile? PbdFile;
     private static readonly object StaticFileLock = new();
     
-    public CharacterComposer(ILogger<CharacterComposer> log, DataProvider dataProvider, Action<ProgressEvent>? progress = null) 
+    public CharacterComposer(DataProvider dataProvider, Action<ProgressEvent>? progress = null) 
     {
-        this.log = log;
         this.dataProvider = dataProvider;
         this.progress = progress;
 
@@ -53,17 +51,17 @@ public class CharacterComposer
     {
         if (modelInfo.Path.GamePath.Contains("b0003_top"))
         {
-            log.LogDebug("Skipping model {ModelPath}", modelInfo.Path.GamePath);
+            Plugin.Logger?.LogDebug("Skipping model {ModelPath}", modelInfo.Path.GamePath);
             return;
         }
         var mdlData = dataProvider.LookupData(modelInfo.Path.FullPath);
         if (mdlData == null)
         {
-            log.LogWarning("Failed to load model file: {modelPath}", modelInfo.Path);
+            Plugin.Logger?.LogWarning("Failed to load model file: {modelPath}", modelInfo.Path);
             return;
         }
 
-        log.LogInformation("Loaded model {modelPath}", modelInfo.Path.FullPath);
+        Plugin.Logger?.LogInformation("Loaded model {modelPath}", modelInfo.Path.FullPath);
         var mdlFile = new MdlFile(mdlData);
         //var materialBuilders = new List<MaterialBuilder>();
         var materialBuilders = new MaterialBuilder[modelInfo.Materials.Length];
@@ -76,11 +74,11 @@ public class CharacterComposer
                 var mtrlData = dataProvider.LookupData(materialInfo.Path.FullPath);
                 if (mtrlData == null)
                 {
-                    log.LogWarning("Failed to load material file: {mtrlPath}", materialInfo.Path.FullPath);
+                    Plugin.Logger?.LogWarning("Failed to load material file: {mtrlPath}", materialInfo.Path.FullPath);
                     throw new Exception($"Failed to load material file: {materialInfo.Path.FullPath}");
                 }
 
-                log.LogInformation("Loaded material {mtrlPath}", materialInfo.Path.FullPath);
+                Plugin.Logger?.LogInformation("Loaded material {mtrlPath}", materialInfo.Path.FullPath);
                 var mtrlFile = new MtrlFile(mtrlData);
                 var shpkName = mtrlFile.GetShaderPackageName();
                 var shpkPath = $"shader/sm5/shpk/{shpkName}";
@@ -112,7 +110,7 @@ public class CharacterComposer
             }
             catch (Exception e)
             {
-                log.LogError(e, "Failed to load material {MaterialInfo}", JsonSerializer.Serialize(modelInfo.Materials[i], jsonOptions));
+                Plugin.Logger?.LogError(e, "Failed to load material {MaterialInfo}", JsonSerializer.Serialize(modelInfo.Materials[i], jsonOptions));
                 materialBuilders[i] = new MaterialBuilder("error");
             }
         }
@@ -126,7 +124,7 @@ public class CharacterComposer
             var pbdFileData = dataProvider.LookupData(modelInfo.Deformer.Value.PbdPath);
             if (pbdFileData == null) throw new InvalidOperationException($"Failed to get deformer pbd {modelInfo.Deformer.Value.PbdPath}");
             deform = ((GenderRace)modelInfo.Deformer.Value.DeformerId, (GenderRace)modelInfo.Deformer.Value.RaceSexId, new RaceDeformer(new PbdFile(pbdFileData), bones));
-            log.LogDebug("Using deformer pbd {Path}", modelInfo.Deformer.Value.PbdPath);
+            Plugin.Logger?.LogDebug("Using deformer pbd {Path}", modelInfo.Deformer.Value.PbdPath);
         }
         else
         {
@@ -187,7 +185,7 @@ public class CharacterComposer
         if (rootBone == null) throw new InvalidOperationException("Root bone not found");
         var attachName = attachData.Owner.Skeleton.PartialSkeletons[attach.PartialSkeletonIdx]
                                    .HkSkeleton!.BoneNames[(int)attach.BoneIdx];
-        log.LogInformation("Attaching {AttachName} to {RootBone}", attachName, rootBone.BoneName);
+        Plugin.Logger?.LogInformation("Attaching {AttachName} to {RootBone}", attachName, rootBone.BoneName);
         lock (attachLock)
         {
             Interlocked.Increment(ref attachSuffix);
@@ -236,11 +234,11 @@ public class CharacterComposer
         var rootAttach = characterInfo.Attaches.FirstOrDefault(x => x.Attach.ExecuteType == 0);
         if (rootAttach == null)
         {
-            log.LogWarning("Root attach not found");
+            Plugin.Logger?.LogWarning("Root attach not found");
         }
         else
         {
-            log.LogWarning("Root attach found");
+            Plugin.Logger?.LogWarning("Root attach found");
             // handle root first, then attach this to the root
             var rootAttachData = ComposeCharacterInfo(rootAttach, null, scene, root);
             if (rootAttachData != null)
@@ -311,13 +309,13 @@ public class CharacterComposer
             bones = SkeletonUtils.GetBoneMap(characterInfo.Skeleton, true, out rootBone);
             if (rootBone == null)
             {
-                log.LogWarning("Root bone not found");
+                Plugin.Logger?.LogWarning("Root bone not found");
                 return null;
             }
         }
         catch (Exception e)
         {
-            log.LogError(e, "Failed to get bone map");
+            Plugin.Logger?.LogError(e, "Failed to get bone map");
             return null;
         }
 
@@ -334,7 +332,7 @@ public class CharacterComposer
             }
             catch (Exception e)
             {
-                log.LogError(e, "Failed to handle attach {AttachData}", JsonSerializer.Serialize(new
+                Plugin.Logger?.LogError(e, "Failed to handle attach {AttachData}", JsonSerializer.Serialize(new
                 {
                     AttachData = attachData.Value.Attach,
                     Owner = attachData.Value.Owner
@@ -352,7 +350,7 @@ public class CharacterComposer
             }
             catch (Exception e)
             {
-                log.LogError(e, "Failed to handle root attach {CharacterInfo}", JsonSerializer.Serialize(characterInfo, jsonOptions));
+                Plugin.Logger?.LogError(e, "Failed to handle root attach {CharacterInfo}", JsonSerializer.Serialize(characterInfo, jsonOptions));
             }
         }
 
@@ -372,11 +370,11 @@ public class CharacterComposer
             }
             catch (Exception e)
             {
-                log.LogError(e, "Failed to handle model {ModelInfo}", JsonSerializer.Serialize(
-                                 t, new JsonSerializerOptions
-                                 {
-                                     IncludeFields = true
-                                 }));
+                Plugin.Logger?.LogError(e, "Failed to handle model {ModelInfo}", JsonSerializer.Serialize(
+                                            t, new JsonSerializerOptions
+                                            {
+                                                IncludeFields = true
+                                            }));
             }
         }
 
@@ -390,7 +388,7 @@ public class CharacterComposer
             }
             catch (Exception e)
             {
-                log.LogError(e, "Failed to handle attach {Attach}", JsonSerializer.Serialize(characterInfo.Attaches[i], jsonOptions));
+                Plugin.Logger?.LogError(e, "Failed to handle attach {Attach}", JsonSerializer.Serialize(characterInfo.Attaches[i], jsonOptions));
             }
         }
 
@@ -407,13 +405,13 @@ public class CharacterComposer
             bones = SkeletonUtils.GetBoneMap(skeleton, true, out rootBone);
             if (rootBone == null)
             {
-                log.LogWarning("Root bone not found");
+                Plugin.Logger?.LogWarning("Root bone not found");
                 return;
             }
         }
         catch (Exception e)
         {
-            log.LogError(e, "Failed to get bone map");
+            Plugin.Logger?.LogError(e, "Failed to get bone map");
             return;
         }
 
@@ -426,7 +424,7 @@ public class CharacterComposer
             }
             catch (Exception e)
             {
-                log.LogError(e, "Failed to handle model {ModelInfo}", JsonSerializer.Serialize(t, jsonOptions));
+                Plugin.Logger?.LogError(e, "Failed to handle model {ModelInfo}", JsonSerializer.Serialize(t, jsonOptions));
             }
         }
     }
@@ -448,12 +446,12 @@ public class CharacterComposer
             {
                 if (bones.All(b => !b.BoneName.Equals(boneName, StringComparison.Ordinal)))
                 {
-                    log.LogInformation("Adding bone {BoneName} from mesh {MeshPath}", boneName,
-                                       model.Path);
+                    Plugin.Logger?.LogInformation("Adding bone {BoneName} from mesh {MeshPath}", boneName,
+                                                  model.Path);
                     var bone = new BoneNodeBuilder(boneName);
                     if (root == null) throw new InvalidOperationException("Root bone not found");
                     root.AddNode(bone);
-                    log.LogInformation("Added bone {BoneName} to {ParentBone}", boneName, root.BoneName);
+                    Plugin.Logger?.LogInformation("Added bone {BoneName} to {ParentBone}", boneName, root.BoneName);
                     bones.Add(bone);
                 }
             }

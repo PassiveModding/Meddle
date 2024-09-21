@@ -21,13 +21,11 @@ public class InstanceComposer : IDisposable
     private readonly Configuration config;
     private readonly int count;
     private readonly ParsedInstance[] instances;
-    private readonly ILogger log;
     private readonly Action<ProgressEvent>? progress;
     private readonly DataProvider dataProvider;
     private int countProgress;
 
     public InstanceComposer(
-        ILogger log, 
         Configuration config,
         ParsedInstance[] instances,
         Action<ProgressEvent>? progress,
@@ -36,7 +34,6 @@ public class InstanceComposer : IDisposable
         DataProvider dataProvider)
     {
         this.instances = instances;
-        this.log = log;
         this.config = config;
         this.progress = progress;
         this.cancellationToken = cancellationToken;
@@ -84,7 +81,7 @@ public class InstanceComposer : IDisposable
             }
             catch (Exception ex)
             {
-                log.LogError(ex, "Failed to compose instance {instanceId} {instanceType}", instance.Id, instance.Type);
+                Plugin.Logger?.LogError(ex, "Failed to compose instance {instanceId} {instanceType}", instance.Id, instance.Type);
             }
 
             //countProgress++;
@@ -138,7 +135,7 @@ public class InstanceComposer : IDisposable
         {
             if (lightInstance.Light.Range <= 0)
             {
-                log.LogWarning("Light {LightId} has a range of 0 or less ({Range})", lightInstance.Id, lightInstance.Light.Range);
+                Plugin.Logger?.LogWarning("Light {LightId} has a range of 0 or less ({Range})", lightInstance.Id, lightInstance.Light.Range);
                 return null;
             }
             
@@ -190,7 +187,7 @@ public class InstanceComposer : IDisposable
                     };
                     break;
                 default:
-                    log.LogWarning("Unsupported light type: {LightType}", light.LightType);
+                    Plugin.Logger?.LogWarning("Unsupported light type: {LightType}", light.LightType);
                     break;
             }
 
@@ -311,13 +308,13 @@ public class InstanceComposer : IDisposable
         for (var i = 0; i < teraFile.Header.PlateCount; i++)
         {
             if (cancellationToken.IsCancellationRequested) return;
-            log.LogInformation("Parsing plate {i}", i);
+            Plugin.Logger?.LogInformation("Parsing plate {i}", i);
             var platePos = teraFile.GetPlatePosition((int)i);
             var plateTransform = new Transform(new Vector3(platePos.X, 0, platePos.Y), Quaternion.Identity, Vector3.One);
             var mdlPath = $"{terrainInstance.Path.GamePath}/bgplate/{i:D4}.mdl";
             var mdlData = dataProvider.LookupData(mdlPath);
             if (mdlData == null) throw new Exception($"Failed to load model file: {mdlPath}");
-            log.LogInformation("Loaded model {mdlPath}", mdlPath);
+            Plugin.Logger?.LogInformation("Loaded model {mdlPath}", mdlPath);
             var mdlFile = new MdlFile(mdlData);
 
             var materials = mdlFile.GetMaterialNames().Select(x => x.Value).ToArray();
@@ -348,7 +345,7 @@ public class InstanceComposer : IDisposable
         var mdlData = dataProvider.LookupData(bgPartsInstance.Path.FullPath);
         if (mdlData == null)
         {
-            log.LogWarning("Failed to load model file: {Path}", bgPartsInstance.Path.FullPath);
+            Plugin.Logger?.LogWarning("Failed to load model file: {Path}", bgPartsInstance.Path.FullPath);
             return [];
         }
 

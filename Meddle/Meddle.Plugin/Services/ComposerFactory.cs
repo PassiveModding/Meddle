@@ -31,8 +31,7 @@ public class ComposerFactory : IService
         Directory.CreateDirectory(cacheDir);
         
         var dataProvider = CreateDataProvider(cacheDir, cancellationToken);
-        return new InstanceComposer(loggerProvider.CreateLogger<InstanceComposer>(),
-                                    configuration,
+        return new InstanceComposer(configuration,
                                     instances,
                                     progressEvent,
                                     cancellationToken,
@@ -46,11 +45,11 @@ public class ComposerFactory : IService
         Directory.CreateDirectory(cacheDir);
         
         var dataProvider = CreateDataProvider(cacheDir, cancellationToken);
-        return new CharacterComposer(loggerProvider.CreateLogger<CharacterComposer>(), dataProvider, progress);
+        return new CharacterComposer(dataProvider, progress);
     }
     
     public CharacterComposer CreateCharacterComposer(DataProvider dataProvider)
     {
-        return new CharacterComposer(loggerProvider.CreateLogger<CharacterComposer>(), dataProvider);
+        return new CharacterComposer(dataProvider);
     }
 }

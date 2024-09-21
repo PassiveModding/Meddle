@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 using Dalamud.Configuration;
 using Dalamud.IoC;
@@ -22,6 +23,7 @@ public sealed class Plugin : IDalamudPlugin
     public static readonly string TempDirectory = Path.Combine(Path.GetTempPath(), "Meddle.Export");
     private readonly IHost? app;
     private readonly ILogger<Plugin>? log;
+    public static ILogger<Plugin>? Logger;
 
     public Plugin(IDalamudPluginInterface pluginInterface)
     {
@@ -69,6 +71,7 @@ public sealed class Plugin : IDalamudPlugin
 
             app = host.Build();
             log = app.Services.GetRequiredService<ILogger<Plugin>>();
+            Logger = log;
             NativeDll.Initialize(app.Services.GetRequiredService<IDalamudPluginInterface>().AssemblyLocation
                                     .DirectoryName);
 
