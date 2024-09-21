@@ -197,8 +197,6 @@ class MEDDLE_OT_stain_housing(Operator):
         separate_rgb.location = (normal_map.location.x + 300, normal_map.location.y)
         normal_map_node.location = (normal_map.location.x + 600, normal_map.location.y)
 
-
-
     def getBsdfPrincipled(self, mat):
         # Look for the Principled BSDF node
         principled_bsdf = None
@@ -440,6 +438,7 @@ class MEDDLE_OT_fix_bg(Operator):
 
         # ensure colormap1 doesn't contain the word dummy
         if g_SamplerColorMap1 is not None and g_SamplerColorMap0Node is not None and vertex_color_node is not None and "dummy" not in g_SamplerColorMap1:
+            mix_color = None
             for node in mat.node_tree.nodes:
                 if node.label == "MIX COLOR":
                     mix_color = node
