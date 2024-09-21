@@ -329,11 +329,14 @@ public class InstanceComposer : IDisposable
             var meshes = ModelBuilder.BuildMeshes(model, materialBuilders, [], null);
 
             var plateRoot = new NodeBuilder(mdlPath);
-            foreach (var mesh in meshes)
+            for (var meshIdx = 0; meshIdx < meshes.Count; meshIdx++)
             {
-                scene.AddRigidMesh(mesh.Mesh, plateRoot, plateTransform.AffineTransform);
+                var mesh = meshes[meshIdx];
+                mesh.Mesh.Name = $"{mdlPath}_{meshIdx}";
+                scene.AddRigidMesh(mesh.Mesh, plateRoot);
             }
 
+            plateRoot.SetLocalTransform(plateTransform.AffineTransform, true);
             root.AddNode(plateRoot);
             Interlocked.Increment(ref processed);
             progress?.Invoke(new ProgressEvent(terrainInstance.GetHashCode(), "Terrain Instance", countProgress, count, new ProgressEvent(root.GetHashCode(), root.Name, processed, (int)teraFile.Header.PlateCount)));
