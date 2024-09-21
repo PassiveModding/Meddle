@@ -1,11 +1,10 @@
 ﻿using System.Numerics;
 using Meddle.Utils;
 using Meddle.Utils.Export;
-using Meddle.Utils.Files;
 using Meddle.Utils.Materials;
 using SharpGLTF.Materials;
 
-namespace Meddle.Plugin.Models.Composer;
+namespace Meddle.Plugin.Models.Composer.Materials;
 
 public class CharacterTattooMaterialBuilder : MeddleMaterialBuilder
 {

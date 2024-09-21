@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Meddle.Plugin.Models.Composer.Materials;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Utils;
 using Meddle.Utils.Export;

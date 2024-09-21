@@ -2,7 +2,7 @@
 using Meddle.Utils.Export;
 using SharpGLTF.Materials;
 
-namespace Meddle.Plugin.Models.Composer;
+namespace Meddle.Plugin.Models.Composer.Materials;
 
 public class CharacterOcclusionMaterialBuilder : GenericMaterialBuilder
 {

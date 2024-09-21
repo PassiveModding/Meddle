@@ -5,7 +5,7 @@ using Meddle.Utils.Files.Structs.Material;
 using Meddle.Utils.Materials;
 using SharpGLTF.Materials;
 
-namespace Meddle.Plugin.Models.Composer;
+namespace Meddle.Plugin.Models.Composer.Materials;
 
 public class CharacterMaterialBuilder : MeddleMaterialBuilder
 {

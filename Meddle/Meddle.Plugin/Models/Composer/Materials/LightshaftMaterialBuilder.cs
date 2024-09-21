@@ -1,7 +1,7 @@
 ﻿using System.Numerics;
 using SharpGLTF.Materials;
 
-namespace Meddle.Plugin.Models.Composer;
+namespace Meddle.Plugin.Models.Composer.Materials;
 
 public class LightshaftMaterialBuilder : GenericMaterialBuilder
 {

@@ -1,6 +1,6 @@
 ﻿using SharpGLTF.Materials;
 
-namespace Meddle.Plugin.Models.Composer;
+namespace Meddle.Plugin.Models.Composer.Materials;
 
 public abstract class MeddleMaterialBuilder : MaterialBuilder
 {

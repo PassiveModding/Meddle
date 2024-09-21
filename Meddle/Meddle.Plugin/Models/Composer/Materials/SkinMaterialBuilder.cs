@@ -4,7 +4,7 @@ using Meddle.Utils.Export;
 using Meddle.Utils.Materials;
 using AlphaMode = SharpGLTF.Materials.AlphaMode;
 
-namespace Meddle.Plugin.Models.Composer;
+namespace Meddle.Plugin.Models.Composer.Materials;
 
 public class SkinMaterialBuilder : MeddleMaterialBuilder
 {
