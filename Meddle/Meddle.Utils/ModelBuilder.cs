@@ -1,5 +1,6 @@
-﻿using Meddle.Utils.Export;
-using Meddle.Utils.Materials;
+﻿using System.Text.Json;
+using Meddle.Utils.Export;
+using Microsoft.Extensions.Logging;
 using SharpGLTF.Geometry;
 using SharpGLTF.Materials;
 
@@ -7,6 +8,11 @@ namespace Meddle.Utils;
 
 public static class ModelBuilder
 {
+    private static JsonSerializerOptions SerializerOptions => new()
+    {
+        IncludeFields = true,
+    };
+    
     public static IReadOnlyList<MeshExport> BuildMeshes(
         Model model,
         IReadOnlyList<MaterialBuilder> materials,
@@ -40,6 +46,18 @@ public static class ModelBuilder
                 meshBuilder = new MeshBuilder(mesh, null, material, raceDeformer);
             }
 
+            Global.Logger.LogDebug("[{Path}] Building mesh {MeshIdx}\n{Mesh}",
+                                   model.Path,
+                                   mesh.MeshIdx,
+                                   JsonSerializer.Serialize(new
+                                   {
+                                       Material = material.Name,
+                                       GeometryType = meshBuilder.GeometryT.Name,
+                                       MaterialType = meshBuilder.MaterialT.Name,
+                                       SkinningType = meshBuilder.SkinningT.Name,
+                                       Vertex = (Vertex?)(mesh.Vertices.Count == 0 ? null : mesh.Vertices[0]),
+                                   }, SerializerOptions));
+            
             var modelPathName = Path.GetFileNameWithoutExtension(model.Path);
 
             if (mesh.SubMeshes.Count == 0)

@@ -4,6 +4,8 @@ using System.Text.Json.Nodes;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Materials;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using SharpGLTF.Geometry;
 using SharpGLTF.Geometry.VertexTypes;
 using SharpGLTF.Materials;
@@ -17,11 +19,11 @@ public class MeshBuilder
     private int[]? JointLut { get; }
     private MaterialBuilder MaterialBuilder { get; }
     private RaceDeformer? RaceDeformer { get; }
-    private Type GeometryT { get; }
-    private Type MaterialT { get; }
-    private Type SkinningT { get; }
-    private Type VertexBuilderT { get; }
-    private Type MeshBuilderT { get; }
+    public Type GeometryT { get; }
+    public Type MaterialT { get; }
+    public Type SkinningT { get; }
+    public Type VertexBuilderT { get; }
+    public Type MeshBuilderT { get; }
 
     private IReadOnlyList<PbdFile.Deformer> Deformers { get; }
 
@@ -37,7 +39,7 @@ public class MeshBuilder
         Mesh = mesh;
         JointLut = jointLut;
         MaterialBuilder = materialBuilder;
-
+        
         GeometryT = GetVertexGeometryType(Mesh.Vertices);
         MaterialT = GetVertexMaterialType(Mesh.Vertices);
         SkinningT = GetVertexSkinningType(Mesh.Vertices, JointLut != null);
@@ -59,7 +61,7 @@ public class MeshBuilder
         Vertices = BuildVertices();
     }
 
-    public IReadOnlyList<IVertexBuilder> BuildVertices()
+    private IReadOnlyList<IVertexBuilder> BuildVertices()
     {
         return Mesh.Vertices.Select(BuildVertex).ToList();
         // Parallel impl keep index
@@ -178,13 +180,8 @@ public class MeshBuilder
         {
             return typeof(VertexPosition);
         }
-        
-        // if (vertex[0].Tangent2 != null && vertex[0].Tangent1 != null)
-        // {
-        //     return typeof(VertexPositionNormalTangent2);
-        // }
 
-        if (vertex[0].Tangent1 != null)
+        if (vertex[0].Binormal != null)
         {
             return typeof(VertexPositionNormalTangent);
         }
@@ -231,13 +228,13 @@ public class MeshBuilder
                 // Tangent W should be 1 or -1, but sometimes XIV has their -1 as 0?
                 return new VertexPositionNormalTangent(currentPos, 
                                                        vertex.Normal!.Value.SanitizeNormal(), 
-                                                       (vertex.Tangent1!.Value with { W = vertex.Tangent1.Value.W == 1 ? 1 : -1 }).SanitizeTangent());
-            // case not null when type == typeof(VertexPositionNormalTangent2):
-            //     return new VertexPositionNormalTangent2(vertex.Position!.Value, 
-            //         vertex.Normal!.Value, 
-            //         vertex.Tangent1!.Value with { W = vertex.Tangent1.Value.W == 1 ? 1 : -1 },
-            //         vertex.Tangent2!.Value with { W = vertex.Tangent2.Value.W == 1 ? 1 : -1 });
+                                                       (vertex.Binormal!.Value with { W = vertex.Binormal.Value.W == 1 ? 1 : -1 }).SanitizeTangent()); 
             default:
+                Global.Logger.LogWarning("Unknown vertex type, defaulting to VertexPosition {Vertex}", JsonSerializer.Serialize(vertex, new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    IncludeFields = true
+                }));
                 return new VertexPosition(vertex.Position!.Value);
         }
         // ReSharper restore CompareOfFloatsByEqualityOperator
@@ -251,24 +248,16 @@ public class MeshBuilder
             return typeof(VertexColor1);
         }
 
-        var hasColor = vertex[0].Color != null;
-        var hasUv = vertex[0].UV != null;
-        if (hasColor && hasUv)
+        var firstVertex = vertex[0];
+        // (UsageIndex +) 8 => TEXCOORD_0
+        // (UsageIndex +) 3 => COLOR0
+        return (firstVertex.Color, UV: firstVertex.TexCoord) switch
         {
-            return typeof(VertexColor1Texture2);
-        }
-        
-        if (hasColor)
-        {
-            return typeof(VertexColor1);
-        }
-        
-        if (hasUv)
-        {
-            return typeof(VertexTexture2);
-        }
-        
-        return typeof(VertexColor1);
+            (not null, not null) => typeof(VertexColor1Texture2),
+            (not null, null) => typeof(VertexColor1),
+            (null, not null) => typeof(VertexTexture2),
+            _ => typeof(VertexColor1)
+        };
     }
     
     private static Vector4 GetColor(Vertex vertex, MaterialBuilder materialBuilder)
@@ -296,12 +285,12 @@ public class MeshBuilder
             }
             case not null when type == typeof(VertexTexture2):
             {
-                var (xy, zw) = ToVec2(vertex.UV!.Value);
+                var (xy, zw) = ToVec2(vertex.TexCoord!.Value);
                 return new VertexTexture2(xy, zw);
             }
             case not null when type == typeof(VertexColor1Texture2):
             {
-                var (xy, zw) = ToVec2(vertex.UV!.Value);
+                var (xy, zw) = ToVec2(vertex.TexCoord!.Value);
                 return new VertexColor1Texture2(GetColor(vertex, materialBuilder), xy, zw);
             }
             default:

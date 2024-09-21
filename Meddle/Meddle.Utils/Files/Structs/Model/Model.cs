@@ -205,7 +205,7 @@ public unsafe partial struct BoundingBox {
 [StructLayout(LayoutKind.Sequential, Size = 8)]
 public struct VertexElement {
     public byte Stream;
-    public byte Offset;
+    public byte Offset; 
     public byte Type;
     public byte Usage;
     public byte UsageIndex;

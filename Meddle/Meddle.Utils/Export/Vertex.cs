@@ -16,7 +16,7 @@ public unsafe struct Vertex
         ByteFloat4 = 8,
         Half2 = 13,
         Half4 = 14,
-        UByte8 = 17 // 8 byte array for bone weights/bone indexes; 0,4,1,5,2,6,3,7
+        UByte8 = 17
     }
 
     public enum VertexUsage : byte
@@ -25,9 +25,9 @@ public unsafe struct Vertex
         BlendWeights = 1, // => 1 => BLENDWEIGHT0
         BlendIndices = 2, // => 7 => BLENDINDICES0
         Normal = 3,       // => 2 => NORMAL0
-        UV = 4,           // => (UsageIndex +) 8 => TEXCOORD0
-        Tangent2 = 5,     // => 14 => TANGENT0
-        Tangent1 = 6,     // => 15 => BINORMAL0
+        TexCoord = 4,     // => (UsageIndex +) 8 => TEXCOORD0
+        Flow = 5,         // => 14 => TANGENT0
+        Binormal = 6,     // => 15 => BINORMAL0
         Color = 7,        // (UsageIndex +) 3 => COLOR0
     }
 
@@ -35,10 +35,12 @@ public unsafe struct Vertex
     public float[]? BlendWeights;
     public byte[]? BlendIndices;
     public Vector3? Normal;
-    public Vector4? UV;
+    public Vector4? TexCoord;
+    public Vector4? TexCoord2; // only using X/Y afaik
     public Vector4? Color;
-    public Vector4? Tangent2;
-    public Vector4? Tangent1;
+    public Vector4? Color2;
+    public Vector4? Flow;
+    public Vector4? Binormal;
 
     private static class VertexItem
     {
@@ -180,17 +182,23 @@ public unsafe struct Vertex
             case VertexUsage.Normal:
                 vertex.Normal = ReadVector3(buf, (VertexType)element.Type);
                 break;
-            case VertexUsage.UV:
-                vertex.UV = ReadVector4(buf, (VertexType)element.Type);
+            case VertexUsage.TexCoord when element.UsageIndex == 0:
+                vertex.TexCoord = ReadVector4(buf, (VertexType)element.Type);
                 break;
-            case VertexUsage.Color:
+            case VertexUsage.TexCoord when element.UsageIndex != 0:
+                vertex.TexCoord2 = ReadVector4(buf, (VertexType)element.Type);
+                break;
+            case VertexUsage.Color when element.UsageIndex == 0:
                 vertex.Color = ReadVector4(buf, (VertexType)element.Type);
                 break;
-            case VertexUsage.Tangent2:
-                vertex.Tangent2 = ReadVector4(buf, (VertexType)element.Type);
+            case VertexUsage.Color when element.UsageIndex != 0:
+                vertex.Color2 = ReadVector4(buf, (VertexType)element.Type);
                 break;
-            case VertexUsage.Tangent1:
-                vertex.Tangent1 = ReadVector4(buf, (VertexType)element.Type);
+            case VertexUsage.Flow:
+                vertex.Flow = ReadVector4(buf, (VertexType)element.Type);
+                break;
+            case VertexUsage.Binormal:
+                vertex.Binormal = ReadVector4(buf, (VertexType)element.Type);
                 break;
             default:
                 throw new Exception($"Unsupported usage {element.Usage} [{element.Type}]");
