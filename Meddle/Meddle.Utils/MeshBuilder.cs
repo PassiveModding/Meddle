@@ -160,115 +160,13 @@ public class MeshBuilder
 
     private IVertexBuilder BuildVertex(Vertex vertex)
     {
-        var skinningParamCache = new List<(int, float)>();
-        var geometryParamCache = new List<object>();
-        var materialParamCache = new List<object>();
-
-        var skinningIsEmpty = SkinningT == typeof(VertexEmpty);
-        if (!skinningIsEmpty && JointLut != null)
-        {
-            if (vertex.BlendIndices == null)
-                throw new InvalidOperationException("Vertex has no blend indices data.");
-            for (var k = 0; k < vertex.BlendIndices.Length; k++)
-            {
-                var boneIndex = vertex.BlendIndices[k];
-                var boneWeight = vertex.BlendWeights != null ? vertex.BlendWeights[k] : 0;
-                if (boneIndex >= JointLut.Length)
-                {
-                    if (boneWeight == 0)
-                        continue;
-
-                    throw new InvalidOperationException($"Bone index {boneIndex} is out of bounds!");
-                }
-                var mappedBoneIndex = JointLut[boneIndex];
-
-                var binding = (mappedBoneIndex, boneWeight);
-                skinningParamCache.Add(binding);
-            }
-        }
-
-        var origPos = vertex.Position!.Value;
-        var currentPos = origPos;
-
-        if (Deformers.Count > 0 && RaceDeformer != null)
-        {
-            foreach (var deformer in Deformers)
-            {
-                var deformedPos = Vector3.Zero;
-
-                foreach (var (idx, weight) in skinningParamCache)
-                {
-                    if (weight == 0) continue;
-
-                    var deformPos = RaceDeformer.DeformVertex(deformer, idx, currentPos);
-                    if (deformPos != null) deformedPos += deformPos.Value * weight;
-                }
-
-                currentPos = deformedPos;
-            }
-        }
-        
-        geometryParamCache.Add(currentPos);
-
-        // Means it's either VertexPositionNormal or VertexPositionNormalTangent; both have Normal
-        if (GeometryT != typeof(VertexPosition)) geometryParamCache.Add(vertex.Normal!.Value);
-
-        // Tangent W should be 1 or -1, but sometimes XIV has their -1 as 0?
-        // ReSharper disable CompareOfFloatsByEqualityOperator
-        if (GeometryT == typeof(VertexPositionNormalTangent))
-        {
-            var tangent = vertex.Tangent1!.Value with {W = vertex.Tangent1.Value.W == 1 ? 1 : -1};
-            if (!tangent.IsValidTangent())
-            {
-                tangent = tangent.SanitizeTangent();
-            }
-            
-            geometryParamCache.Add(tangent);
-        }
-        // if (GeometryT == typeof(VertexPositionNormalTangent2))
-        // {
-        //     geometryParamCache.Add(vertex.Tangent1!.Value with { W = vertex.Tangent1.Value.W == 1 ? 1 : -1 });
-        //     geometryParamCache.Add(vertex.Tangent2!.Value with { W = vertex.Tangent2.Value.W == 1 ? 1 : -1 });
-        // }
-        // ReSharper restore CompareOfFloatsByEqualityOperator
-
-        // AKA: Has "Color1" component
-        // Some models have a color component, but it's packed data, so we don't use it as color
-        if (MaterialT != typeof(VertexTexture2))
-        {
-            Vector4 vertexColor = new Vector4(1, 1, 1, 1);
-            if (MaterialBuilder is IVertexPaintMaterialBuilder paintBuilder)
-            {
-                // Even if vertex paint is false, it's probably a good idea to keep the channels
-                // for bg.shpk, the alpha channel is used to mix between Map0 and Map1 textures
-                vertexColor = vertex.Color!.Value; /*paintBuilder.VertexPaint switch
-                {
-                    true => vertex.Color!.Value,
-                    false => new Vector4(1, 1, 1, 1)
-                };*/
-            }
-            
-            materialParamCache.Insert(0, vertexColor);
-        }
-
-        //if(MaterialT != typeof(VertexTexture2)) materialParamCache.Insert(0, vertex.Color!.Value);
-        //if(MaterialT != typeof(VertexTexture2)) materialParamCache.Insert(0, new Vector4(1, 1, 1, 1));
-
-        // AKA: Has "TextureN" component
-        if (MaterialT != typeof(VertexColor1))
-        {
-            var (xy, zw) = ToVec2(vertex.UV!.Value);
-            materialParamCache.Add(xy);
-            materialParamCache.Add(zw);
-        }
+        var skinning = CreateSkinningParamCache(vertex, JointLut, SkinningT, out var skinningWeights);
 
         var vertexBuilderParams = new object[]
         {
-            Activator.CreateInstance(GeometryT, geometryParamCache.ToArray())!,
-            Activator.CreateInstance(MaterialT, materialParamCache.ToArray())!,
-            skinningIsEmpty
-                ? Activator.CreateInstance(SkinningT)!
-                : Activator.CreateInstance(SkinningT, skinningParamCache.ToArray())!
+            CreateGeometryParamCache(vertex, GeometryT, skinningWeights),
+            CreateMaterialParamCache(vertex, MaterialT, MaterialBuilder),
+            skinning
         };
         return (IVertexBuilder)Activator.CreateInstance(VertexBuilderT, vertexBuilderParams)!;
     }
@@ -299,20 +197,41 @@ public class MeshBuilder
         return typeof(VertexPosition);
     }
     
-    private static IVertexGeometry CreateGeometryParamCache(Vertex vertex, Type type)
+    private IVertexGeometry CreateGeometryParamCache(Vertex vertex, Type type, IReadOnlyList<(int, float)> skinningWeights)
     {
+        var position = vertex.Position!.Value;
+        var currentPos = position;
+
+        if (Deformers.Count > 0 && RaceDeformer != null)
+        {
+            foreach (var deformer in Deformers)
+            {
+                var deformedPos = Vector3.Zero;
+
+                foreach (var (idx, weight) in skinningWeights)
+                {
+                    if (weight == 0) continue;
+
+                    var deformPos = RaceDeformer.DeformVertex(deformer, idx, currentPos);
+                    if (deformPos != null) deformedPos += deformPos.Value * weight;
+                }
+
+                currentPos = deformedPos;
+            }
+        }
+        
         // ReSharper disable CompareOfFloatsByEqualityOperator
         switch (type)
         {
             case not null when type == typeof(VertexPosition):
-                return new VertexPosition(vertex.Position!.Value);
+                return new VertexPosition(currentPos);
             case not null when type == typeof(VertexPositionNormal):
-                return new VertexPositionNormal(vertex.Position!.Value, vertex.Normal!.Value);
+                return new VertexPositionNormal(currentPos, vertex.Normal!.Value.SanitizeNormal());
             case not null when type == typeof(VertexPositionNormalTangent):
                 // Tangent W should be 1 or -1, but sometimes XIV has their -1 as 0?
-                return new VertexPositionNormalTangent(vertex.Position!.Value, 
-                       vertex.Normal!.Value, 
-                       vertex.Tangent1!.Value with { W = vertex.Tangent1.Value.W == 1 ? 1 : -1 });
+                return new VertexPositionNormalTangent(currentPos, 
+                                                       vertex.Normal!.Value.SanitizeNormal(), 
+                                                       (vertex.Tangent1!.Value with { W = vertex.Tangent1.Value.W == 1 ? 1 : -1 }).SanitizeTangent());
             // case not null when type == typeof(VertexPositionNormalTangent2):
             //     return new VertexPositionNormalTangent2(vertex.Position!.Value, 
             //         vertex.Normal!.Value, 
@@ -352,13 +271,28 @@ public class MeshBuilder
         return typeof(VertexColor1);
     }
     
-    private static IVertexMaterial CreateMaterialParamCache(Vertex vertex, Type type)
+    private static Vector4 GetColor(Vertex vertex, MaterialBuilder materialBuilder)
+    {
+        // Some models have a color component, but it's packed data, so we don't use it as color
+        if (materialBuilder is IVertexPaintMaterialBuilder paintBuilder)
+        {
+            return paintBuilder.VertexPaint switch
+            {
+                true => vertex.Color!.Value,
+                false => new Vector4(1, 1, 1, 1)
+            };
+        }
+
+        return new Vector4(1, 1, 1, 1);
+    }
+    
+    private static IVertexMaterial CreateMaterialParamCache(Vertex vertex, Type type, MaterialBuilder materialBuilder)
     {
         switch (type)
         {
             case not null when type == typeof(VertexColor1):
             {
-                return new VertexColor1(vertex.Color!.Value);
+                return new VertexColor1(GetColor(vertex, materialBuilder));
             }
             case not null when type == typeof(VertexTexture2):
             {
@@ -368,7 +302,7 @@ public class MeshBuilder
             case not null when type == typeof(VertexColor1Texture2):
             {
                 var (xy, zw) = ToVec2(vertex.UV!.Value);
-                return new VertexColor1Texture2(vertex.Color!.Value, xy, zw);
+                return new VertexColor1Texture2(GetColor(vertex, materialBuilder), xy, zw);
             }
             default:
                 return new VertexEmpty();
@@ -388,6 +322,41 @@ public class MeshBuilder
             4 => typeof(VertexJoints4),
             8 => typeof(VertexJoints8),
             _ => typeof(VertexEmpty)
+        };
+    }
+    
+    private static IVertexSkinning CreateSkinningParamCache(Vertex vertex, int[]? jointLut, Type type, out List<(int, float)> skinningWeights)
+    {
+        skinningWeights = new List<(int, float)>();
+        if (type == typeof(VertexEmpty) || jointLut == null)
+        {
+            return new VertexEmpty();
+        }
+        
+        if (vertex.BlendIndices == null)
+            throw new InvalidOperationException("Vertex has no blend indices data.");
+        for (var k = 0; k < vertex.BlendIndices.Length; k++)
+        {
+            var boneIndex = vertex.BlendIndices[k];
+            var boneWeight = vertex.BlendWeights != null ? vertex.BlendWeights[k] : 0;
+            if (boneIndex >= jointLut.Length)
+            {
+                if (boneWeight == 0)
+                    continue;
+
+                throw new InvalidOperationException($"Bone index {boneIndex} is out of bounds!");
+            }
+            var mappedBoneIndex = jointLut[boneIndex];
+
+            var binding = (mappedBoneIndex, boneWeight);
+            skinningWeights.Add(binding);
+        }
+        
+        return type switch
+        {
+            not null when type == typeof(VertexJoints4) => new VertexJoints4(skinningWeights.ToArray()),
+            not null when type == typeof(VertexJoints8) => new VertexJoints8(skinningWeights.ToArray()),
+            _ => new VertexEmpty()
         };
     }
 
