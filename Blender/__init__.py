@@ -1,4 +1,4 @@
-# This program is free software; you can redistribute it and/or modify
+﻿# This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 3 of the License, or
 # (at your option) any later version.
@@ -15,7 +15,7 @@ bl_info = {
     "name": "Meddle Tools",
     "author": "PassiveModding",
     "description": "",
-    "blender": (4, 0, 0),
+    "blender": (4, 2, 0),
     "version": (0, 0, 1),
     "location": "3D View > Meddle Utils",
     "warning": "",
@@ -438,8 +438,8 @@ class MEDDLE_OT_fix_bg(Operator):
                 bg_vertex_paint = True
             
 
-        if g_SamplerColorMap1 is not None and g_SamplerColorMap0Node is not None and vertex_color_node is not None and bg_vertex_paint is False:
-            mix_color = None
+        # ensure colormap1 doesn't contain the word dummy
+        if g_SamplerColorMap1 is not None and g_SamplerColorMap0Node is not None and vertex_color_node is not None and "dummy" not in g_SamplerColorMap1:
             for node in mat.node_tree.nodes:
                 if node.label == "MIX COLOR":
                     mix_color = node
