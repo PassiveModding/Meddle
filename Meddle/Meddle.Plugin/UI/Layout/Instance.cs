@@ -19,7 +19,9 @@ public partial class LayoutWindow
                                              ImGuiTableFlags.Reorderable);
         ImGui.TableSetupColumn("Data", ImGuiTableColumnFlags.WidthStretch);
         ImGui.TableSetupColumn("Options");
-        foreach (var instance in instances.Take(config.LayoutConfig.MaxItemCount))
+        
+        foreach (var instance in instances
+                     .Take(config.LayoutConfig.MaxItemCount))
         {
             DrawInstance(instance, [], additionalOptions);
         }

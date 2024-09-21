@@ -71,7 +71,7 @@ public partial class LayoutWindow : Window, IDisposable
     }
 
     private bool shouldUpdateState = true;
-    
+    private string search = "";
     public override void Draw()
     {
         try
@@ -143,6 +143,8 @@ public partial class LayoutWindow : Window, IDisposable
             if (ImGui.CollapsingHeader("All"))
             {
                 shouldUpdateState = true;
+                ImGui.InputText("Search", ref search, 100);
+                
                 using var id = ImRaii.PushId("layoutTable");
                 var set = currentLayout
                           .Where(x =>
@@ -162,7 +164,22 @@ public partial class LayoutWindow : Window, IDisposable
                     set = set.Where(x => x is not ParsedCharacterInstance {Visible: false});
                 }
 
+                
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    set = set.Where(x =>
+                    {
+                        if (x is ISearchableInstance si)
+                        {
+                            return si.Search(search);
+                        }
+
+                        return true;
+                    });
+                }
+                
                 var items = set.ToArray();
+                
 
                 var count = 0;
                 foreach (var item in items)

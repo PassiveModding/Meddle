@@ -35,6 +35,16 @@ public interface IPathInstance
     public HandleString Path { get; }
 }
 
+public interface IStainableInstance
+{
+    public Vector4? StainColor { get; set; }
+}
+
+public interface ISearchableInstance
+{
+    public bool Search(string query);
+}
+
 public abstract class ParsedInstance
 {
     public ParsedInstance(nint id, ParsedInstanceType type, Transform transform)
@@ -49,7 +59,7 @@ public abstract class ParsedInstance
     public Transform Transform { get; }
 }
 
-public class ParsedUnsupportedInstance : ParsedInstance
+public class ParsedUnsupportedInstance : ParsedInstance, ISearchableInstance
 {
     public string? Path { get; }
 
@@ -60,9 +70,15 @@ public class ParsedUnsupportedInstance : ParsedInstance
     }
     
     public InstanceType InstanceType { get; }
+    
+    public bool Search(string query)
+    {
+        return Path?.Contains(query, StringComparison.OrdinalIgnoreCase) == true || 
+               "unsupported".Contains(query, StringComparison.OrdinalIgnoreCase);
+    }
 }
 
-public class ParsedSharedInstance : ParsedInstance, IPathInstance
+public class ParsedSharedInstance : ParsedInstance, IPathInstance, ISearchableInstance
 {
     public HandleString Path { get; }
     public IReadOnlyList<ParsedInstance> Children { get; }
@@ -80,24 +96,75 @@ public class ParsedSharedInstance : ParsedInstance, IPathInstance
     
     public ParsedInstance[] Flatten()
     {
+        return FlattenInternal([]).ToArray();
+    }
+
+    private List<ParsedInstance> FlattenInternal(HashSet<ParsedInstance> visited)
+    {
+        if (!visited.Add(this))
+        {
+            return [];
+        }
+
         var list = new List<ParsedInstance> { this };
         foreach (var child in Children)
         {
             if (child is ParsedSharedInstance shared)
             {
-                list.AddRange(shared.Flatten());
+                list.AddRange(shared.FlattenInternal(visited));
             }
-            else
+            else if (!visited.Contains(child))
             {
                 list.Add(child);
+                visited.Add(child);
             }
         }
 
-        return list.ToArray();
+        return list;
+    }
+    
+    public bool Search(string query)
+    {
+        return SearchInternal(query, []);
+    }
+
+    private bool SearchInternal(string query, HashSet<ParsedInstance> visited)
+    {
+        if (!visited.Add(this))
+        {
+            return false;
+        }
+
+        if (Path.FullPath.Contains(query, StringComparison.OrdinalIgnoreCase) || 
+            Path.GamePath.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+            "shared".Contains(query, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        foreach (var child in Children)
+        {
+            if (child is ParsedSharedInstance shared)
+            {
+                if (shared.SearchInternal(query, visited))
+                {
+                    return true;
+                }
+            }
+            else if (visited.Add(child))
+            {
+                if (child is ISearchableInstance searchable && searchable.Search(query))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }
 
-public class ParsedHousingInstance : ParsedSharedInstance
+public class ParsedHousingInstance : ParsedSharedInstance, ISearchableInstance
 {
     public ParsedHousingInstance(nint id, Transform transform, string path, string name, 
                                  ObjectKind kind, Stain? stain, Item? item, IReadOnlyList<ParsedInstance> children) : base(id, ParsedInstanceType.Housing, transform, path, children)
@@ -112,9 +179,16 @@ public class ParsedHousingInstance : ParsedSharedInstance
     public Item? Item { get; }
     public string Name { get; }
     public ObjectKind Kind { get; }
+    
+    public new bool Search(string query)
+    {
+        return Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+            "housing".Contains(query, StringComparison.OrdinalIgnoreCase) ||
+            base.Search(query);
+    }
 }
 
-public class ParsedBgPartsInstance : ParsedInstance, IPathInstance, IStainableInstance
+public class ParsedBgPartsInstance : ParsedInstance, IPathInstance, IStainableInstance, ISearchableInstance
 {
     public HandleString Path { get; }
 
@@ -124,14 +198,15 @@ public class ParsedBgPartsInstance : ParsedInstance, IPathInstance, IStainableIn
     }
 
     public Vector4? StainColor { get; set; }
+    
+    public bool Search(string query)
+    {
+        return Path.FullPath.Contains(query, StringComparison.OrdinalIgnoreCase) || 
+               Path.GamePath.Contains(query, StringComparison.OrdinalIgnoreCase);
+    }
 }
 
-public interface IStainableInstance
-{
-    public Vector4? StainColor { get; set; }
-}
-
-public class ParsedLightInstance : ParsedInstance
+public class ParsedLightInstance : ParsedInstance, ISearchableInstance
 {
     public RenderLight Light { get; }
     
@@ -139,9 +214,14 @@ public class ParsedLightInstance : ParsedInstance
     {
         Light = *light;
     }
+    
+    public bool Search(string query)
+    {
+        return "light".Contains(query, StringComparison.OrdinalIgnoreCase);
+    }
 }
 
-public class ParsedTerrainInstance : ParsedInstance, IPathInstance, IResolvableInstance
+public class ParsedTerrainInstance : ParsedInstance, IPathInstance, IResolvableInstance, ISearchableInstance
 {
     public HandleString Path { get; }
     public ParsedTerrainInstanceData? Data { get; set; }
@@ -164,6 +244,31 @@ public class ParsedTerrainInstance : ParsedInstance, IPathInstance, IResolvableI
         {
             IsResolved = true;
         }
+    }
+    
+    public bool Search(string query)
+    {
+        if (Path.FullPath.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+            Path.GamePath.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+            "terrain".Contains(query, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+        
+        if (Data != null)
+        {
+            foreach (var plate in Data.ResolvedPlates.Values)
+            {
+                if (plate == null) continue;
+                if (plate.Path.FullPath.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                    plate.Path.GamePath.Contains(query, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+        
+        return false;
     }
 }
 
@@ -236,7 +341,7 @@ public class ParsedCharacterInfo
     }
 }
 
-public class ParsedCharacterInstance : ParsedInstance, IResolvableInstance, ICharacterInstance
+public class ParsedCharacterInstance : ParsedInstance, IResolvableInstance, ICharacterInstance, ISearchableInstance
 {
     public ParsedCharacterInfo? CharacterInfo;
     public string Name;
@@ -267,4 +372,45 @@ public class ParsedCharacterInstance : ParsedInstance, IResolvableInstance, ICha
 
     public CustomizeData CustomizeData => CharacterInfo?.CustomizeData ?? new CustomizeData();
     public CustomizeParameter CustomizeParameter => CharacterInfo?.CustomizeParameter ?? new CustomizeParameter();
+    
+    public bool Search(string query)
+    {
+        if (Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+            "character".Contains(query, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+        
+        if (CharacterInfo != null)
+        {
+            foreach (var model in CharacterInfo.Models)
+            {
+                if (model.Path.FullPath.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                    model.Path.GamePath.Contains(query, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+                
+                foreach (var material in model.Materials)
+                {
+                    if (material.Path.FullPath.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                        material.Path.GamePath.Contains(query, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                    
+                    foreach (var texture in material.Textures)
+                    {
+                        if (texture.Path.FullPath.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                            texture.Path.GamePath.Contains(query, StringComparison.OrdinalIgnoreCase))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        
+        return false;
+    }
 }

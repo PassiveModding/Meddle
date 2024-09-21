@@ -177,6 +177,12 @@ public partial class LayoutWindow
         if (obj is ParsedCharacterInstance {Visible: false})
             return InstanceSelectState.None;
 
+        if (obj is ISearchableInstance searchable)
+        {
+            if (!searchable.Search(search))
+                return InstanceSelectState.None;
+        }
+        
         if (obj is ParsedSharedInstance sharedInstance)
         {
             var flattened = sharedInstance.Flatten();
