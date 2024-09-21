@@ -9,6 +9,8 @@ public readonly struct TextureResource(DXGIFormat format, int width, int height,
     public DXGIFormat Format { get; init; } = format;
     public int Width { get; init; } = width;
     public int Height { get; init; } = height;
+    
+    [JsonIgnore]
     public Vector2 Size => new(Width, Height);
     
     public int MipLevels { get; init; } = mipLevels;
