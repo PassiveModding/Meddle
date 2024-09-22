@@ -6,6 +6,7 @@ using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
 using ImGuiNET;
+using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Services;
@@ -16,7 +17,7 @@ using SharpGLTF.Schema2;
 
 namespace Meddle.Plugin.UI.Layout;
 
-public partial class LayoutWindow : Window, IDisposable
+public partial class LayoutWindow : ITab
 {
     private readonly LayoutService layoutService;
     private readonly Configuration config;
@@ -28,6 +29,11 @@ public partial class LayoutWindow : Window, IDisposable
     private readonly ComposerFactory composerFactory;
     private readonly SqPack dataManager;
 
+    
+    public string Name => "Layout";
+    public int Order => (int) WindowOrder.Layout;
+    public MenuType MenuType => MenuType.Default;
+    
     private ProgressEvent? progress;
     private Task exportTask = Task.CompletedTask;
     private CancellationTokenSource cancelToken = new();
@@ -51,7 +57,7 @@ public partial class LayoutWindow : Window, IDisposable
         ITextureProvider textureProvider,
         ResolverService resolverService,
         ComposerFactory composerFactory,
-        SqPack dataManager) : base("Layout")
+        SqPack dataManager)// : base("Layout")
     {
         this.layoutService = layoutService;
         this.config = config;
@@ -72,7 +78,8 @@ public partial class LayoutWindow : Window, IDisposable
 
     private bool shouldUpdateState = true;
     private string search = "";
-    public override void Draw()
+
+    public void Draw()
     {
         try
         {

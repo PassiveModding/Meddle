@@ -18,7 +18,7 @@ public class OptionsTab : ITab
     public void Dispose() { }
 
     public string Name => "Options";
-    public int Order => 2;
+    public int Order => (int) WindowOrder.Options;
 
     public void Draw()
     {
@@ -41,12 +41,12 @@ public class OptionsTab : ITab
             config.Save();
         }
 
-        var test = config.OpenLayoutMenuOnLoad;
-        if (ImGui.Checkbox("Open Layout Window on Load", ref test))
-        {
-            config.OpenLayoutMenuOnLoad = test;
-            config.Save();
-        }
+        // var test = config.OpenLayoutMenuOnLoad;
+        // if (ImGui.Checkbox("Open Layout Window on Load", ref test))
+        // {
+        //     config.OpenLayoutMenuOnLoad = test;
+        //     config.Save();
+        // }
 
         var minimumNotificationLogLevel = config.MinimumNotificationLogLevel;
         if (ImGui.BeginCombo("Minimum Notification Log Level", minimumNotificationLogLevel.ToString()))

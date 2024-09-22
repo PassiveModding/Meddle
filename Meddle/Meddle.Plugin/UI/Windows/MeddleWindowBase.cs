@@ -29,7 +29,7 @@ public abstract class MeddleWindowBase : Window
     public override void Draw()
     {
         BeforeDraw();
-        using var tabBar = ImRaii.TabBar($"##{WindowName}tabs");
+        using var tabBar = ImRaii.TabBar($"##{WindowName}tabs", ImGuiTabBarFlags.Reorderable);
         foreach (var tab in GetTabs())
         {
             using var tabItem = ImRaii.TabItem(tab.Name);

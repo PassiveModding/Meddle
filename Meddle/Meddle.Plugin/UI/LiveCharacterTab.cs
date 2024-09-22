@@ -98,7 +98,7 @@ public unsafe class LiveCharacterTab : ITab
     private bool IsDisposed { get; set; }
 
     public string Name => "Character";
-    public int Order => 1;
+    public int Order => (int) WindowOrder.Character;
 
     public void Draw()
     {

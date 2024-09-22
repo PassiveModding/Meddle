@@ -13,7 +13,7 @@ public class AboutTab : ITab
 
     public string Name => "About";
     public MenuType MenuType => MenuType.Default;
-    public int Order => int.MaxValue;
+    public int Order => (int) WindowOrder.About;
 
     public void Draw()
     {
@@ -50,6 +50,18 @@ public class AboutTab : ITab
             if (ImGui.IsItemHovered())
             {
                 ImGui.SetTooltip("Please be sure to include any relevant logs from /xllog in your report.");
+            }
+        }
+        
+        ImGui.SameLine();
+        using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.95f, 0.54f, 0.15f, 1)))
+        {
+            if (ImGui.Button("Blender Addon", mainButtonSize))
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "https://github.com/PassiveModding/MeddleTools/", UseShellExecute = true
+                });
             }
         }
 

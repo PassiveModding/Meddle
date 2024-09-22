@@ -43,7 +43,7 @@ public class AnimationTab : ITab
     }
 
     public string Name => "Animation";
-    public int Order => 2;
+    public int Order => (int) WindowOrder.Animation;
 
     public void Draw()
     {

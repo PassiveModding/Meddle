@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Numerics;
 using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
@@ -49,8 +50,18 @@ public sealed class MainWindow : MeddleWindowBase
     {
         if (ImGui.BeginMenuBar())
         {
-            DrawMenuFont(FontAwesomeIcon.ProjectDiagram, "Layout Window", () => layoutWindow.IsOpen = true);
-            DrawMenuFont(FontAwesomeIcon.Bug, "Debug", () => debugWindow.IsOpen = true);
+            if (ImGui.MenuItem("Debug"))
+            {
+                debugWindow.IsOpen = true;
+            }
+            
+            if (ImGui.MenuItem("Blender Addon"))
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "https://github.com/PassiveModding/MeddleTools/", UseShellExecute = true
+                });
+            }
             ImGui.EndMenuBar();
         }
     }

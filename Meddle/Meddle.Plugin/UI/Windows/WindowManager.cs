@@ -64,7 +64,7 @@ public class WindowManager : IHostedService, IDisposable
     {
         windowSystem.AddWindow(mainWindow);
         windowSystem.AddWindow(debugWindow);
-        windowSystem.AddWindow(layoutWindow);
+        //windowSystem.AddWindow(layoutWindow);
 
         config.OnConfigurationSaved += OnSave;
         pluginInterface.UiBuilder.Draw += windowSystem.Draw;
@@ -86,10 +86,10 @@ public class WindowManager : IHostedService, IDisposable
             OpenDebugUi();
         }
         
-        if (config.OpenLayoutMenuOnLoad)
-        {
-            OpenLayoutUi();
-        }
+        // if (config.OpenLayoutMenuOnLoad)
+        // {
+        //     OpenLayoutUi();
+        // }
 
         commandManager.AddHandler(Command, new CommandInfo(OnCommand)
         {
@@ -125,11 +125,11 @@ public class WindowManager : IHostedService, IDisposable
         debugWindow.BringToFront();
     }
     
-    public void OpenLayoutUi()
-    {
-        layoutWindow.IsOpen = true;
-        layoutWindow.BringToFront();
-    }
+    // public void OpenLayoutUi()
+    // {
+    //     layoutWindow.IsOpen = true;
+    //     layoutWindow.BringToFront();
+    // }
     
     private void OnCommand(string command, string args)
     {
@@ -142,11 +142,11 @@ public class WindowManager : IHostedService, IDisposable
                 return;
             }
             
-            if (args.Equals("layout", StringComparison.OrdinalIgnoreCase))
-            {
-                OpenLayoutUi();
-                return;
-            }
+            // if (args.Equals("layout", StringComparison.OrdinalIgnoreCase))
+            // {
+            //     OpenLayoutUi();
+            //     return;
+            // }
         }
         
         OpenMainUi();
