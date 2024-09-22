@@ -7,6 +7,10 @@ This project is a Dalamud plugin which provides a GUI for exporting player model
 
 For single model export, use Penumbra. This plugin is intended for exporting multiple meshes at once, such as for a full character model.
 
+- [Installation](#installation)
+- [Releases](https://github.com/PassiveModding/Meddle/releases)
+- [Blender Addon](https://github.com/PassiveModding/MeddleTools)
+
 ## Attributions
 Much of this code is from or based on the following projects and wouldn't have been possible without them:
 - [Xande](https://github.com/xivdev/Xande) [[GNU AGPL v3](https://github.com/xivdev/Xande/blob/main/LICENSE)]
