@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
@@ -77,8 +78,11 @@ public class CommonUi : IDisposable, IService
 
                 if (clientState.IsGPosing)
                 {
-                    ImGui.SameLine();
-                    ImGui.TextDisabled("?");
+                    ImGui.SameLine();        
+                    using (ImRaii.PushFont(UiBuilder.IconFont))
+                    {
+                        ImGui.Text(FontAwesomeIcon.QuestionCircle.ToIconString());
+                    }
                     if (ImGui.IsItemHovered())
                     {
                         ImGui.BeginTooltip();

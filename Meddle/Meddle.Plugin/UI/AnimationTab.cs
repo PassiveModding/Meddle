@@ -16,7 +16,7 @@ namespace Meddle.Plugin.UI;
 
 public class AnimationTab : ITab
 {
-    private readonly ExportService exportService;
+    private readonly AnimationExportService animationExportService;
     private readonly CommonUi commonUi;
     private readonly List<(DateTime Time, AttachSet[])> frames = [];
     private readonly IFramework framework;
@@ -32,12 +32,12 @@ public class AnimationTab : ITab
     
     public AnimationTab(
         IFramework framework, ILogger<AnimationTab> logger,
-        ExportService exportService,
+        AnimationExportService animationExportService,
         CommonUi commonUi)
     {
         this.framework = framework;
         this.logger = logger;
-        this.exportService = exportService;
+        this.animationExportService = animationExportService;
         this.commonUi = commonUi;
         this.framework.Update += OnFrameworkUpdate;
     }
@@ -83,7 +83,7 @@ public class AnimationTab : ITab
             fileDialog.SaveFolderDialog("Save Animation", folderName, (result, path) =>
             {
                 if (!result) return;
-                exportService.ExportAnimation(frames, includePositionalData, path);
+                animationExportService.ExportAnimation(frames, includePositionalData, path);
             }, Plugin.TempDirectory);   
             
             

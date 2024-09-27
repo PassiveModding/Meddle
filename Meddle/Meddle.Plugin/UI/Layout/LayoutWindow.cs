@@ -314,7 +314,7 @@ public partial class LayoutWindow : ITab
         resolverService.ResolveInstances(instances);
 
         var defaultName = $"InstanceExport-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
-        var currentExportType = config.LayoutConfig.ExportType;
+        var currentExportType = config.ExportType;
         cancelToken = new CancellationTokenSource();
         fileDialog.SaveFolderDialog("Save Instances", defaultName,
                                     (result, path) =>

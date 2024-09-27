@@ -45,11 +45,11 @@ public class ComposerFactory : IService
         Directory.CreateDirectory(cacheDir);
         
         var dataProvider = CreateDataProvider(cacheDir, cancellationToken);
-        return new CharacterComposer(dataProvider, progress);
+        return new CharacterComposer(dataProvider, configuration, progress);
     }
     
     public CharacterComposer CreateCharacterComposer(DataProvider dataProvider)
     {
-        return new CharacterComposer(dataProvider);
+        return new CharacterComposer(dataProvider, configuration);
     }
 }

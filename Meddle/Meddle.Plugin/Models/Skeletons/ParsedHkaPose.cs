@@ -10,23 +10,32 @@ public class ParsedHkaPose
 
     public unsafe ParsedHkaPose(hkaPose* pose)
     {
+        var boneCount = pose->Skeleton->Bones.Length;
+        
         var transforms = new List<Transform>();
-
-        var boneCount = pose->LocalPose.Length;
+        var syncedLocalPose = pose->GetSyncedPoseLocalSpace()->Data;
         for (var i = 0; i < boneCount; ++i)
         {
-            var localSpace = pose->AccessBoneLocalSpace(i);
-            if (localSpace == null)
-            {
-                throw new Exception("Failed to access bone local space");
-            }
-
-            transforms.Add(new Transform(*localSpace));
+            var localSpace = syncedLocalPose[i];
+            transforms.Add(new Transform(localSpace));
         }
 
+        var modelTransforms = new List<Transform>();
+        var modelSpace = pose->GetSyncedPoseModelSpace()->Data;
+        for (var i = 0; i < boneCount; ++i)
+        {
+            var model = modelSpace[i];
+            modelTransforms.Add(new Transform(model));
+        }
+        
+
         Pose = transforms;
+        ModelPose = modelTransforms;
     }
 
     [JsonIgnore]
     public IReadOnlyList<Transform> Pose { get; }
+    
+    [JsonIgnore]
+    public IReadOnlyList<Transform> ModelPose { get; }
 }

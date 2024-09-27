@@ -1,6 +1,9 @@
 ﻿using System.Diagnostics;
+using Dalamud.Interface;
+using Dalamud.Interface.Utility.Raii;
 using ImGuiNET;
 using Meddle.Plugin.Models;
+using Meddle.Plugin.Utils;
 using Microsoft.Extensions.Logging;
 
 namespace Meddle.Plugin.UI;
@@ -47,7 +50,44 @@ public class OptionsTab : ITab
         //     config.OpenLayoutMenuOnLoad = test;
         //     config.Save();
         // }
+        
+        ImGui.Separator();
 
+        DrawExportType();
+
+        var includePose = config.IncludePose;
+        if (ImGui.Checkbox("Include Pose", ref includePose))
+        {
+            config.IncludePose = includePose;
+            config.Save();
+        }
+        
+        ImGui.SameLine();
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+        {
+            ImGui.Text(FontAwesomeIcon.QuestionCircle.ToIconString());
+        }
+        
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.BeginTooltip();
+            ImGui.Text("Includes pose as a track on exported models with frame 0 as the currently applied pose.");
+            ImGui.EndTooltip();
+        }
+        
+        DrawPoseMode();
+        
+        ImGui.Separator();
+        
+        var playerNameOverride = config.PlayerNameOverride;
+        if (ImGui.InputText("Player Name Override", ref playerNameOverride, 64))
+        {
+            config.PlayerNameOverride = playerNameOverride;
+            config.Save();
+        }
+        
+        ImGui.Separator();
+        
         var minimumNotificationLogLevel = config.MinimumNotificationLogLevel;
         if (ImGui.BeginCombo("Minimum Notification Log Level", minimumNotificationLogLevel.ToString()))
         {
@@ -90,11 +130,65 @@ public class OptionsTab : ITab
             config.DisableGposeUiHide = disableGposeUiHide;
             config.Save();
         }
+    }
 
-        var playerNameOverride = config.PlayerNameOverride;
-        if (ImGui.InputText("Player Name Override", ref playerNameOverride, 64))
+    private void DrawPoseMode()
+    {
+        var poseMode = config.PoseMode;
+        if (ImGui.BeginCombo("Pose Mode", poseMode.ToString()))
         {
-            config.PlayerNameOverride = playerNameOverride;
+            foreach (var mode in Enum.GetValues<SkeletonUtils.PoseMode>())
+            {
+                if (ImGui.Selectable(mode.ToString(), mode == poseMode))
+                {
+                    config.PoseMode = mode;
+                    config.Save();
+                }
+            }
+
+            ImGui.EndCombo();
+        }
+        
+        if (!Enum.IsDefined(typeof(SkeletonUtils.PoseMode), config.PoseMode))
+        {
+            config.PoseMode = Configuration.DefaultPoseMode;
+            config.Save();
+        }
+    }
+    
+    private void DrawExportType()
+    {
+        var exportType = config.ExportType;
+        if (ImGui.BeginCombo("Export Type", exportType.ToString()))
+        {
+            foreach (var type in Enum.GetValues<ExportType>())
+            {
+                var selected = exportType.HasFlag(type);
+                using var style = ImRaii.PushStyle(ImGuiStyleVar.Alpha, selected ? 1 : 0.5f);
+                if (ImGui.Selectable(type.ToString(), selected, ImGuiSelectableFlags.DontClosePopups))
+                {
+                    if (selected)
+                    {
+                        exportType &= ~type;
+                    }
+                    else
+                    {
+                        exportType |= type;
+                    }
+                }
+            }
+
+            ImGui.EndCombo();
+        }
+        
+        if (exportType == 0)
+        {
+            exportType = Configuration.DefaultExportType;
+        }
+        
+        if (exportType != config.ExportType)
+        {
+            config.ExportType = exportType;
             config.Save();
         }
     }

@@ -151,7 +151,6 @@ public partial class LayoutWindow
                     terrain.Data.ResolvedPlates[i] = plate;
                 }
                 
-                // TODO: Draw plate
                 if (plate == null)
                 {
                     ImGui.Text("No plate data");

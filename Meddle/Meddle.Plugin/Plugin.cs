@@ -4,8 +4,10 @@ using System.Text.Json.Serialization;
 using Dalamud.Configuration;
 using Dalamud.IoC;
 using Dalamud.Plugin;
+using Meddle.Plugin.Models;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.UI.Layout;
+using Meddle.Plugin.Utils;
 using Meddle.Utils.Files.SqPack;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -96,6 +98,9 @@ public sealed class Plugin : IDalamudPlugin
 
 public class Configuration : IPluginConfiguration
 {
+    public const ExportType DefaultExportType = ExportType.GLTF;
+    public const SkeletonUtils.PoseMode DefaultPoseMode = SkeletonUtils.PoseMode.Model;
+    
     [PluginService]
     [JsonIgnore]
     private IDalamudPluginInterface PluginInterface { get; set; } = null!;
@@ -106,12 +111,33 @@ public class Configuration : IPluginConfiguration
     public bool OpenOnLoad { get; set; }
     public bool DisableUserUiHide { get; set; }
     public bool DisableAutomaticUiHide { get; set; }
-    public bool DisableCutsceneUiHide { get; set; }
-    public bool DisableGposeUiHide { get; set; }
+    public bool DisableCutsceneUiHide { get; set; } = true;
+    public bool DisableGposeUiHide { get; set; } = true;
     public float WorldCutoffDistance { get; set; } = 100;
     public Vector4 WorldDotColor { get; set; } = new(1f, 1f, 1f, 0.5f);
+    
+    /// <summary>
+    /// Used to hide names in the UI
+    /// </summary>
     public string PlayerNameOverride { get; set; } = string.Empty;
-
+    
+    /// <summary>
+    /// If enabled, pose will be included at 0 on the timeline under the 'pose' track.
+    /// </summary>
+    public bool IncludePose { get; set; } = true;
+    
+    /// <summary>
+    /// Indicates whether scaling should be taken from the model pose rather than the local pose.
+    /// </summary>
+    public SkeletonUtils.PoseMode PoseMode { get; set; } = DefaultPoseMode;
+    
+    /// <summary>
+    /// GLTF = GLTF JSON
+    /// GLB = GLTF Binary
+    /// OBJ = Wavefront OBJ
+    /// </summary>
+    public ExportType ExportType { get; set; } = DefaultExportType;
+    
     public int Version { get; set; } = 1;
     
     public LayoutWindow.LayoutConfig LayoutConfig { get; set; } = new();

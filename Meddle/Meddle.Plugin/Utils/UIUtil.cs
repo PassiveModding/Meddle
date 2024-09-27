@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
@@ -42,12 +43,15 @@ public static class UiUtil
         //ImGui.ColorEdit4("Skin Fresnel Value", ref customize.SkinFresnelValue0);
         ImGui.EndDisabled();
         ImGui.SameLine();
-        ImGui.TextDisabled("?");
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+        {
+            ImGui.Text(FontAwesomeIcon.QuestionCircle.ToIconString());
+        }
         if (ImGui.IsItemHovered())
         {
             ImGui.BeginTooltip();
-            ImGui.Text(
-                "Right Eye Color will not apply to computed textures as it is selected using the vertex shaders");
+            ImGui.Text("Right Eye Color will not apply to computed textures as it is " +
+                       "selected using the vertex shaders");
             ImGui.EndTooltip();
         }
 

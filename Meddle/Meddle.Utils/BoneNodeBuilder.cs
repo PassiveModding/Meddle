@@ -1,4 +1,6 @@
 ﻿using SharpGLTF.Scenes;
+using SharpGLTF.Transforms;
+
 
 namespace Meddle.Utils;
 
@@ -8,7 +10,9 @@ public class BoneNodeBuilder(string name) : NodeBuilder(name)
     public string PartialSkeletonHandle { get; set; }
     public int BoneIndex { get; set; }
     public int PartialSkeletonIndex { get; set; }
-
+    public AffineTransform? MeddleLocalTransform { get; set; }
+    public AffineTransform? MeddleModelTransform { get; set; }
+    
     /// <summary>
     /// Sets the suffix of this bone and all its children.
     /// If the suffix is null, the bone name will be reset to the original bone name.

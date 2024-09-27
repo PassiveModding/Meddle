@@ -6,28 +6,16 @@ namespace Meddle.Plugin.UI.Layout;
 
 public partial class LayoutWindow
 {
-    [Flags]
-    public enum ExportType
-    {
-        // ReSharper disable InconsistentNaming
-        GLTF = 1,
-        GLB = 2,
-        OBJ = 4
-        // ReSharper restore InconsistentNaming
-    }
-
-    private const ParsedInstanceType DefaultDrawTypes = ParsedInstanceType.Character | 
-                                                        ParsedInstanceType.Housing | 
-                                                        ParsedInstanceType.Terrain | 
-                                                        ParsedInstanceType.BgPart | 
+    private const ParsedInstanceType DefaultDrawTypes = ParsedInstanceType.Character |
+                                                        ParsedInstanceType.Housing |
+                                                        ParsedInstanceType.Terrain |
+                                                        ParsedInstanceType.BgPart |
                                                         ParsedInstanceType.Light |
                                                         ParsedInstanceType.SharedGroup;
-    private const ExportType DefaultExportType = ExportType.GLTF;
 
     public class LayoutConfig
     {
         public ParsedInstanceType DrawTypes { get; set; } = DefaultDrawTypes;
-        public ExportType ExportType { get; set; } = DefaultExportType;
         public bool DrawOverlay { get; set; } = true;
         public bool DrawChildren { get; set; }
         public bool TraceToParent { get; set; } = true;
@@ -132,43 +120,9 @@ public partial class LayoutWindow
             drawTypes = DefaultDrawTypes;
         }
         
-        var exportType = config.LayoutConfig.ExportType;
-        if (ImGui.BeginCombo("Export Type", exportType.ToString()))
-        {
-            foreach (var type in Enum.GetValues<ExportType>())
-            {
-                var selected = exportType.HasFlag(type);
-                using var style = ImRaii.PushStyle(ImGuiStyleVar.Alpha, selected ? 1 : 0.5f);
-                if (ImGui.Selectable(type.ToString(), selected, ImGuiSelectableFlags.DontClosePopups))
-                {
-                    if (selected)
-                    {
-                        exportType &= ~type;
-                    }
-                    else
-                    {
-                        exportType |= type;
-                    }
-                }
-            }
-
-            ImGui.EndCombo();
-        }
-        
-        if (exportType == 0)
-        {
-            exportType = DefaultExportType;
-        }
-        
         if (drawTypes != config.LayoutConfig.DrawTypes)
         {
             config.LayoutConfig.DrawTypes = drawTypes;
-            config.Save();
-        }
-        
-        if (exportType != config.LayoutConfig.ExportType)
-        {
-            config.LayoutConfig.ExportType = exportType;
             config.Save();
         }
     }

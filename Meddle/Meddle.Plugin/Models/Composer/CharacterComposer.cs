@@ -20,11 +20,15 @@ public class CharacterComposer
     private static TexFile? CubeMapTex;
     private static PbdFile? PbdFile;
     private static readonly object StaticFileLock = new();
+    private readonly SkeletonUtils.PoseMode poseMode;
+    private readonly bool includePose;
     
-    public CharacterComposer(DataProvider dataProvider, Action<ProgressEvent>? progress = null) 
+    public CharacterComposer(DataProvider dataProvider, Configuration config, Action<ProgressEvent>? progress = null) 
     {
         this.dataProvider = dataProvider;
         this.progress = progress;
+        includePose = config.IncludePose;
+        poseMode = config.PoseMode;
 
         lock (StaticFileLock)
         {
@@ -306,7 +310,7 @@ public class CharacterComposer
         BoneNodeBuilder? rootBone;
         try
         {
-            bones = SkeletonUtils.GetBoneMap(characterInfo.Skeleton, true, out rootBone);
+            bones = SkeletonUtils.GetBoneMap(characterInfo.Skeleton, includePose ? poseMode : null, out rootBone);
             if (rootBone == null)
             {
                 Plugin.Logger?.LogWarning("Root bone not found");
@@ -402,7 +406,7 @@ public class CharacterComposer
         BoneNodeBuilder? rootBone;
         try
         {
-            bones = SkeletonUtils.GetBoneMap(skeleton, true, out rootBone);
+            bones = SkeletonUtils.GetBoneMap(skeleton, includePose ? poseMode : null, out rootBone);
             if (rootBone == null)
             {
                 Plugin.Logger?.LogWarning("Root bone not found");

@@ -5,6 +5,7 @@ using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Render;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
+using FFXIVClientStructs.Havok.Animation.Rig;
 using ImGuiNET;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Services;
@@ -24,9 +25,18 @@ public class DebugTab : ITab
     private readonly LayoutService layoutService;
     private readonly ParseService parseService;
     private readonly PbdHooks pbdHooks;
+    private string boneSearch = "";
 
     private ICharacter? selectedCharacter;
-    private bool showLocalTransforms = false;
+    private enum BoneMode
+    {
+        Local,
+        ModelPropagate,
+        ModelNoPropagate,
+        ModelRaw
+    }
+    
+    private BoneMode boneMode = BoneMode.ModelPropagate;
 
     public DebugTab(Configuration config, SigUtil sigUtil, CommonUi commonUi, 
                     IGameGui gui, IClientState clientState, 
@@ -344,7 +354,28 @@ public class DebugTab : ITab
             ImGui.Text($"Partial Skeleton Count: {cBase->Skeleton->PartialSkeletonCount}");
             if (ImGui.CollapsingHeader("Draw Bones"))
             {
-                ImGui.Checkbox("Show Local Transforms", ref showLocalTransforms);
+                // boneMode
+                ImGui.Text("Bone Mode");
+                ImGui.SameLine();
+                ImGui.SetNextItemWidth(200);
+                using (var combo = ImRaii.Combo("##BoneMode", boneMode.ToString()))
+                {
+                    if (combo.Success)
+                    {
+                        foreach (BoneMode mode in Enum.GetValues(typeof(BoneMode)))
+                        {
+                            if (ImGui.Selectable(mode.ToString(), mode == boneMode))
+                            {
+                                boneMode = mode;
+                            }
+                        }
+                    }
+                }
+                
+                ImGui.Text("Bone Search");
+                ImGui.SameLine();
+                ImGui.SetNextItemWidth(200);
+                ImGui.InputText("##BoneSearch", ref boneSearch, 100);
                 
                 // imgui select partial skeleton by index
                 for (int i = 0; i < skeleton->PartialSkeletonCount; i++)
@@ -364,14 +395,14 @@ public class DebugTab : ITab
                         ImGui.TableSetupColumn("Rotation", ImGuiTableColumnFlags.WidthStretch);
                         ImGui.TableSetupColumn("Scale", ImGuiTableColumnFlags.WidthStretch);
                         ImGui.TableHeadersRow();
-                        DrawBoneTransformsOnScreen(partialSkeleton, showLocalTransforms);
+                        DrawBoneTransformsOnScreen(partialSkeleton, boneMode);
                     }
                 }
             }
         }
     }
     
-    private unsafe void DrawBoneTransformsOnScreen(PartialSkeleton partialSkeleton, bool displayLocal = false)
+    private unsafe void DrawBoneTransformsOnScreen(PartialSkeleton partialSkeleton, BoneMode boneMode)
     {
         var rootPos = partialSkeleton.Skeleton->Transform;
         var rootTransform = new Transform(rootPos);
@@ -380,7 +411,11 @@ public class DebugTab : ITab
         for (var i = 0; i < boneCount; i++)
         {
             var bone = pose->Skeleton->Bones[i];
-            var localTransform = new Transform(pose->LocalPose[i]);
+            if (!string.IsNullOrEmpty(boneSearch) && bone.Name.String != null && !bone.Name.String.Contains(boneSearch))
+            {
+                continue;
+            }
+            
             var modelTransform = new Transform(pose->ModelPose[i]);
             var worldMatrix = modelTransform.AffineTransform.Matrix * rootTransform.AffineTransform.Matrix;
             ImGui.TableNextRow();
@@ -392,7 +427,14 @@ public class DebugTab : ITab
                 dotColorRgb = new Vector4(1, 0, 0, 0.5f);
             }
             
-            var t = displayLocal ? localTransform : modelTransform;
+            var t = boneMode switch
+            {
+                BoneMode.Local => new Transform(pose->LocalPose[i]),
+                BoneMode.ModelPropagate => new Transform(*pose->AccessBoneModelSpace(i, hkaPose.PropagateOrNot.Propagate)),
+                BoneMode.ModelNoPropagate => new Transform(*pose->AccessBoneModelSpace(i, hkaPose.PropagateOrNot.DontPropagate)),
+                BoneMode.ModelRaw => new Transform(pose->ModelPose[i]),
+                _ => new Transform(pose->ModelPose[i])
+            };
             
             ImGui.TableSetColumnIndex(1);
             var parentIndex = pose->Skeleton->ParentIndices[i];

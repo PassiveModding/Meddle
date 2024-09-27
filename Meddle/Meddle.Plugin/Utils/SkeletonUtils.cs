@@ -1,13 +1,21 @@
-﻿using Meddle.Plugin.Models;
+﻿using System.Numerics;
+using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Skeletons;
 using Meddle.Utils;
 using SharpGLTF.Scenes;
+using SharpGLTF.Transforms;
 
 namespace Meddle.Plugin.Utils;
 
 public static class SkeletonUtils
 {
-    public static (List<BoneNodeBuilder> List, BoneNodeBuilder Root)[] GetBoneMaps(IReadOnlyList<ParsedPartialSkeleton> partialSkeletons, bool includePose)
+    public enum PoseMode
+    {
+        Local,
+        Model
+    }
+    
+    public static (List<BoneNodeBuilder> List, BoneNodeBuilder Root)[] GetBoneMaps(IReadOnlyList<ParsedPartialSkeleton> partialSkeletons, PoseMode? poseMode)
     {
         List<BoneNodeBuilder> boneMap = new();
         List<BoneNodeBuilder> rootList = new();
@@ -18,8 +26,6 @@ public static class SkeletonUtils
             var hkSkeleton = partial.HkSkeleton;
             if (hkSkeleton == null)
                 continue;
-
-            var pose = partial.Poses.FirstOrDefault();
 
             var skeleBones = new BoneNodeBuilder[hkSkeleton.BoneNames.Count];
             for (var i = 0; i < hkSkeleton.BoneNames.Count; i++)
@@ -47,16 +53,9 @@ public static class SkeletonUtils
                     PartialSkeletonHandle = partial.HandlePath ??
                                             throw new InvalidOperationException(
                                                 $"No handle path for {name} [{partialIdx},{i}]"),
-                    PartialSkeletonIndex = partialIdx
+                    PartialSkeletonIndex = partialIdx,
                 };
-                if (pose != null && includePose)
-                {
-                    var transform = pose.Pose[i];
-                    bone.UseScale().UseTrackBuilder("pose").WithPoint(0, transform.Scale);
-                    bone.UseRotation().UseTrackBuilder("pose").WithPoint(0, transform.Rotation);
-                    bone.UseTranslation().UseTrackBuilder("pose").WithPoint(0, transform.Translation);
-                }
-
+                
                 bone.SetLocalTransform(hkSkeleton.ReferencePose[i].AffineTransform, false);
 
                 var parentIdx = hkSkeleton.BoneParents[i];
@@ -73,7 +72,7 @@ public static class SkeletonUtils
         }
 
         // create separate lists based on each root
-        var boneMapList = new List<(List<BoneNodeBuilder> List, BoneNodeBuilder root)>();
+        var boneMapList = new List<(List<BoneNodeBuilder> List, BoneNodeBuilder Root)>();
         foreach (var root in rootList)
         {
             var bones = NodeBuilder.Flatten(root).Cast<BoneNodeBuilder>().ToList();
@@ -85,12 +84,71 @@ public static class SkeletonUtils
             boneMapList.Add((bones, root));
         }
 
-        return boneMapList.ToArray();
+        var boneMaps = boneMapList.ToArray();
+
+        // set pose scaling
+        if (poseMode != null)
+        {
+            foreach (var map in boneMaps)
+            {
+                foreach (var bone in map.List)
+                {
+                    ApplyPose(bone, partialSkeletons, poseMode.Value, 0);
+                }
+            }
+        }
+        
+        return boneMaps;
     }
 
-    public static List<BoneNodeBuilder> GetBoneMap(ParsedSkeleton skeleton, bool includePose, out BoneNodeBuilder? root)
+    private static void ApplyPose(
+        BoneNodeBuilder bone, IReadOnlyList<ParsedPartialSkeleton> partialSkeletons, PoseMode poseMode, float time)
     {
-        var maps = GetBoneMaps(skeleton.PartialSkeletons, includePose);
+        var partial = partialSkeletons[bone.PartialSkeletonIndex];
+        if (partial.Poses.FirstOrDefault() is not { } pose)
+            return;
+
+        switch (poseMode)
+        {
+            case PoseMode.Model when bone.Parent is BoneNodeBuilder parent:
+            {
+                var boneTransform = pose.ModelPose[bone.BoneIndex].AffineTransform;
+                var parentPose = partialSkeletons[parent.PartialSkeletonIndex].Poses.FirstOrDefault();
+                if (parentPose == null)
+                    return;
+
+                var parentMatrix = parentPose.ModelPose[parent.BoneIndex].AffineTransform.Matrix;
+                var matrix = boneTransform.Matrix * AffineInverse(parentMatrix);
+                var affine = new AffineTransform(matrix).GetDecomposed();
+                bone.UseScale().UseTrackBuilder("pose").WithPoint(time, affine.Scale);
+                bone.UseRotation().UseTrackBuilder("pose").WithPoint(time, affine.Rotation);
+                bone.UseTranslation().UseTrackBuilder("pose").WithPoint(time, affine.Translation);
+                break;
+            }
+            case PoseMode.Model:
+            {
+                var boneTransform = pose.ModelPose[bone.BoneIndex].AffineTransform;
+                bone.UseScale().UseTrackBuilder("pose").WithPoint(time, boneTransform.Scale);
+                bone.UseRotation().UseTrackBuilder("pose").WithPoint(time, boneTransform.Rotation);
+                bone.UseTranslation().UseTrackBuilder("pose").WithPoint(time, boneTransform.Translation);
+                break;
+            }
+            case PoseMode.Local:
+            {
+                var boneTransform = pose.Pose[bone.BoneIndex].AffineTransform;
+                bone.UseScale().UseTrackBuilder("pose").WithPoint(time, boneTransform.Scale);
+                bone.UseRotation().UseTrackBuilder("pose").WithPoint(time, boneTransform.Rotation);
+                bone.UseTranslation().UseTrackBuilder("pose").WithPoint(time, boneTransform.Translation);
+                break;
+            }
+            default:
+                throw new InvalidOperationException("Pose mode must be set to Local or Model");
+        }
+    }
+    
+    public static List<BoneNodeBuilder> GetBoneMap(ParsedSkeleton skeleton, PoseMode? poseMode, out BoneNodeBuilder? root)
+    {
+        var maps = GetBoneMaps(skeleton.PartialSkeletons, poseMode);
         if (maps.Length == 0)
         {
             throw new InvalidOperationException("No roots were found");
@@ -111,7 +169,7 @@ public static class SkeletonUtils
     }
 
     public record AttachGrouping(List<BoneNodeBuilder> Bones, BoneNodeBuilder? Root, List<(DateTime Time, AttachSet Attach)> Timeline);
-    public static Dictionary<string, AttachGrouping> GetAnimatedBoneMap((DateTime Time, AttachSet[] Attaches)[] frames)
+    public static Dictionary<string, AttachGrouping> GetAnimatedBoneMap((DateTime Time, AttachSet[] Attaches)[] frames, PoseMode poseMode)
     {
         var attachDict = new Dictionary<string, AttachGrouping>();
         var attachTimelines = new Dictionary<string, List<(DateTime Time, AttachSet Attach)>>();
@@ -147,7 +205,7 @@ public static class SkeletonUtils
                 var frameTime = TotalSeconds(time, startTime);
                 if (frame == default) continue;
 
-                var boneMap = GetBoneMap(frame.Attach.Skeleton, false, out var attachRoot);
+                var boneMap = GetBoneMap(frame.Attach.Skeleton, null, out var attachRoot);
                 if (attachRoot == null)
                     continue;
 
@@ -155,8 +213,6 @@ public static class SkeletonUtils
                 {
                     attachBoneMap = attachBoneMap with { Root = attachRoot };
                 }
-
-                var trackName = frame.Attach.AttachBoneName ?? "pose";
 
                 foreach (var attachBone in boneMap)
                 {
@@ -168,39 +224,30 @@ public static class SkeletonUtils
                         bone = attachBone;
                     }
 
-                    var partial = frame.Attach.Skeleton.PartialSkeletons[attachBone.PartialSkeletonIndex];
-                    if (partial.Poses.Count == 0)
-                        continue;
-
-                    var transform = partial.Poses[0].Pose[bone.BoneIndex];
-                    bone.UseScale().UseTrackBuilder(trackName).WithPoint(frameTime, transform.Scale);
-                    bone.UseRotation().UseTrackBuilder(trackName).WithPoint(frameTime, transform.Rotation);
-                    bone.UseTranslation().UseTrackBuilder(trackName).WithPoint(frameTime, transform.Translation);
+                    ApplyPose(bone, frame.Attach.Skeleton.PartialSkeletons, poseMode, frameTime);
                 }
 
                 var firstTranslation = firstAttach.Transform.Translation;
                 attachRoot.UseScale().UseTrackBuilder("root").WithPoint(frameTime, frame.Attach.Transform.Scale);
                 attachRoot.UseRotation().UseTrackBuilder("root").WithPoint(frameTime, frame.Attach.Transform.Rotation);
                 attachRoot.UseTranslation().UseTrackBuilder("root").WithPoint(frameTime, frame.Attach.Transform.Translation - firstTranslation);
-
                 attachDict[attachId] = attachBoneMap;
             }
-
-            /*
-            foreach (var time in allTimes)
-            {
-                var frame = timeline.FirstOrDefault(x => x.Time == time);
-                if (frame != default) continue;
-                // set scaling to 0 when not present
-                foreach (var bone in attachBoneMap.Bones)
-                {
-                    bone.UseScale().UseTrackBuilder("pose").WithPoint(TotalSeconds(time, startTime), Vector3.Zero);
-                }
-            }
-            */
         }
 
         return attachDict;
+    }
+    
+    public static Matrix4x4 AffineInverse(Matrix4x4 matrix)
+    {
+        if (!Matrix4x4.Invert(matrix, out var invMatrix))
+            throw new InvalidOperationException("Failed to invert matrix");
+        
+        // ReSharper disable once CompareOfFloatsByEqualityOperator
+        if (matrix.M44 == 1.0)
+            invMatrix.M44 = 1f;
+        
+        return invMatrix;
     }
 
     public static float TotalSeconds(DateTime time, DateTime startTime)
