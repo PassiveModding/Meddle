@@ -26,6 +26,7 @@ public class DebugTab : ITab
     private readonly PbdHooks pbdHooks;
 
     private ICharacter? selectedCharacter;
+    private bool showLocalTransforms = false;
 
     public DebugTab(Configuration config, SigUtil sigUtil, CommonUi commonUi, 
                     IGameGui gui, IClientState clientState, 
@@ -343,6 +344,8 @@ public class DebugTab : ITab
             ImGui.Text($"Partial Skeleton Count: {cBase->Skeleton->PartialSkeletonCount}");
             if (ImGui.CollapsingHeader("Draw Bones"))
             {
+                ImGui.Checkbox("Show Local Transforms", ref showLocalTransforms);
+                
                 // imgui select partial skeleton by index
                 for (int i = 0; i < skeleton->PartialSkeletonCount; i++)
                 {
@@ -361,14 +364,14 @@ public class DebugTab : ITab
                         ImGui.TableSetupColumn("Rotation", ImGuiTableColumnFlags.WidthStretch);
                         ImGui.TableSetupColumn("Scale", ImGuiTableColumnFlags.WidthStretch);
                         ImGui.TableHeadersRow();
-                        DrawBoneTransformsOnScreen(partialSkeleton);
+                        DrawBoneTransformsOnScreen(partialSkeleton, showLocalTransforms);
                     }
                 }
             }
         }
     }
     
-    private unsafe void DrawBoneTransformsOnScreen(PartialSkeleton partialSkeleton)
+    private unsafe void DrawBoneTransformsOnScreen(PartialSkeleton partialSkeleton, bool displayLocal = false)
     {
         var rootPos = partialSkeleton.Skeleton->Transform;
         var rootTransform = new Transform(rootPos);
@@ -377,6 +380,7 @@ public class DebugTab : ITab
         for (var i = 0; i < boneCount; i++)
         {
             var bone = pose->Skeleton->Bones[i];
+            var localTransform = new Transform(pose->LocalPose[i]);
             var modelTransform = new Transform(pose->ModelPose[i]);
             var worldMatrix = modelTransform.AffineTransform.Matrix * rootTransform.AffineTransform.Matrix;
             ImGui.TableNextRow();
@@ -388,16 +392,18 @@ public class DebugTab : ITab
                 dotColorRgb = new Vector4(1, 0, 0, 0.5f);
             }
             
+            var t = displayLocal ? localTransform : modelTransform;
+            
             ImGui.TableSetColumnIndex(1);
             var parentIndex = pose->Skeleton->ParentIndices[i];
             ImGui.Text(parentIndex.ToString());
             ImGui.TableSetColumnIndex(2);
-            ImGui.Text($"{modelTransform.Translation:F3}");
+            ImGui.Text($"{t.Translation:F3}");
             ImGui.TableSetColumnIndex(3);
-            ImGui.Text($"X:{modelTransform.Rotation.X:F2} Y:{modelTransform.Rotation.Y:F2} " +
-                       $"Z:{modelTransform.Rotation.Z:F2} W:{modelTransform.Rotation.W:F2}");
+            ImGui.Text($"X:{t.Rotation.X:F2} Y:{t.Rotation.Y:F2} " +
+                       $"Z:{t.Rotation.Z:F2} W:{t.Rotation.W:F2}");
             ImGui.TableSetColumnIndex(4);
-            ImGui.Text($"{modelTransform.Scale:F3}");
+            ImGui.Text($"{t.Scale:F3}");
             
             if (gui.WorldToScreen(worldMatrix.Translation, out var screenPos))
             {
