@@ -16,7 +16,7 @@ namespace Meddle.Utils;
 public class MeshBuilder
 {
     private Mesh Mesh { get; }
-    private int[]? JointLut { get; }
+    private IReadOnlyList<BoneNodeBuilder>? BoneMap { get; }
     private MaterialBuilder MaterialBuilder { get; }
     private RaceDeformer? RaceDeformer { get; }
     public Type GeometryT { get; }
@@ -31,23 +31,23 @@ public class MeshBuilder
 
     public MeshBuilder(
         Mesh mesh,
-        int[]? jointLut,
+        IReadOnlyList<BoneNodeBuilder>? boneMap,
         MaterialBuilder materialBuilder,
         (GenderRace fromDeform, GenderRace toDeform, RaceDeformer deformer)? raceDeformer
     )
     {
+        BoneMap = boneMap;
         Mesh = mesh;
-        JointLut = jointLut;
         MaterialBuilder = materialBuilder;
         
         GeometryT = GetVertexGeometryType(Mesh.Vertices);
         MaterialT = GetVertexMaterialType(Mesh.Vertices);
-        SkinningT = GetVertexSkinningType(Mesh.Vertices, JointLut != null);
+        SkinningT = GetVertexSkinningType(Mesh.Vertices, boneMap != null);
         VertexBuilderT = typeof(VertexBuilder<,,>).MakeGenericType(GeometryT, MaterialT, SkinningT);
         MeshBuilderT =
             typeof(MeshBuilder<,,,>).MakeGenericType(typeof(MaterialBuilder), GeometryT, MaterialT, SkinningT);
 
-        if (raceDeformer != null && jointLut != null)
+        if (raceDeformer != null && BoneMap != null)
         {
             var (from, to, deformer) = raceDeformer.Value;
             RaceDeformer = deformer;
@@ -162,7 +162,7 @@ public class MeshBuilder
 
     private IVertexBuilder BuildVertex(Vertex vertex)
     {
-        var skinning = CreateSkinningParamCache(vertex, JointLut, SkinningT, out var skinningWeights);
+        var skinning = CreateSkinningParamCache(vertex, BoneMap, SkinningT, out var skinningWeights);
 
         var vertexBuilderParams = new object[]
         {
@@ -410,10 +410,10 @@ public class MeshBuilder
         };
     }
     
-    private static IVertexSkinning CreateSkinningParamCache(Vertex vertex, int[]? jointLut, Type type, out List<(int, float)> skinningWeights)
+    private IVertexSkinning CreateSkinningParamCache(Vertex vertex, IReadOnlyList<BoneNodeBuilder>? boneMap, Type type, out List<(int, float)> skinningWeights)
     {
         skinningWeights = new List<(int, float)>();
-        if (type == typeof(VertexEmpty) || jointLut == null)
+        if (type == typeof(VertexEmpty) || boneMap == null)
         {
             return new VertexEmpty();
         }
@@ -424,17 +424,29 @@ public class MeshBuilder
         {
             var boneIndex = vertex.BlendIndices[k];
             var boneWeight = vertex.BlendWeights != null ? vertex.BlendWeights[k] : 0;
-            if (boneIndex >= jointLut.Length)
+            
+            if (Mesh.BoneTable == null) continue;
+            var boneName = Mesh.BoneTable[boneIndex];
+            var boneNode = boneMap.FirstOrDefault(x => x.BoneName.Equals(boneName, StringComparison.Ordinal));
+            if (boneNode == null)
             {
-                if (boneWeight == 0)
-                    continue;
-
-                throw new InvalidOperationException($"Bone index {boneIndex} is out of bounds!");
+                if (boneWeight == 0) continue;
+                Global.Logger.LogWarning("Bone {BoneName} not found in bone map for {Mesh} but has weight {Weight}", boneName, Mesh.MeshIdx, boneWeight);
+                continue;
             }
-            var mappedBoneIndex = jointLut[boneIndex];
-
-            var binding = (mappedBoneIndex, boneWeight);
-            skinningWeights.Add(binding);
+            
+            // map bone to index within boneMap
+            var mappedBoneIndex = 0;
+            for (var i = 0; i < boneMap.Count; i++)
+            {
+                if (boneMap[i].BoneName.Equals(boneName, StringComparison.Ordinal))
+                {
+                    mappedBoneIndex = i;
+                    break;
+                }
+            }
+            
+            skinningWeights.Add((mappedBoneIndex, boneWeight));
         }
         
         return type switch

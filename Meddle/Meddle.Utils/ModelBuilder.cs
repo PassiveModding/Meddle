@@ -27,19 +27,7 @@ public static class ModelBuilder
             var material = materials[mesh.MaterialIdx];
             if (mesh.BoneTable != null)
             {
-                var jointIdMapping = new List<int>();
-                var jointLut = boneMap
-                               .Select((joint, i) => (joint.BoneName, i))
-                               .ToArray();
-                foreach (var boneName in mesh.BoneTable!)
-                {
-                    var match = jointLut.FirstOrDefault(x => x.BoneName.Equals(boneName, StringComparison.Ordinal));
-                    if (match == default)
-                        throw new Exception($"Bone {boneName} on {model.HandlePath} not found in bone map.");
-                    jointIdMapping.Add(match.i);
-                }
-
-                meshBuilder = new MeshBuilder(mesh, jointIdMapping.ToArray(), material, raceDeformer);
+                meshBuilder = new MeshBuilder(mesh, boneMap, material, raceDeformer);
             }
             else
             {
@@ -77,7 +65,6 @@ public static class ModelBuilder
                 {
                     subMesh.Name += $";{string.Join(";", modelSubMesh.Attributes)}";
                 }
-
 
                 var subMeshStart = (int)modelSubMesh.IndexOffset;
                 var subMeshEnd = subMeshStart + (int)modelSubMesh.IndexCount;

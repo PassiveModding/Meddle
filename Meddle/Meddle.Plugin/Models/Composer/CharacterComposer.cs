@@ -116,7 +116,7 @@ public class CharacterComposer
         }
 
         var model = new Model(modelInfo.Path.GamePath, mdlFile, modelInfo.ShapeAttributeGroup);
-        EnsureBonesExist(model, bones, rootBone);
+        //EnsureBonesExist(model, bones, rootBone);
         (GenderRace from, GenderRace to, RaceDeformer deformer)? deform;
         if (modelInfo.Deformer != null)
         {
