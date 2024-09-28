@@ -77,6 +77,13 @@ public class OptionsTab : ITab
         
         DrawPoseMode();
         
+        var computeCharacterTextures = config.ComputeCharacterTextures;
+        if (ImGui.Checkbox("Compute Character Textures", ref computeCharacterTextures))
+        {
+            config.ComputeCharacterTextures = computeCharacterTextures;
+            config.Save();
+        }
+        
         ImGui.Separator();
         
         var playerNameOverride = config.PlayerNameOverride;

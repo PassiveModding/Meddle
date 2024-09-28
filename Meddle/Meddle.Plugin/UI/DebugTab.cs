@@ -416,7 +416,16 @@ public class DebugTab : ITab
                 continue;
             }
             
-            var modelTransform = new Transform(pose->ModelPose[i]);
+            var t = boneMode switch
+            {
+                BoneMode.Local => new Transform(pose->LocalPose[i]),
+                BoneMode.ModelPropagate => new Transform(*pose->AccessBoneModelSpace(i, hkaPose.PropagateOrNot.Propagate)),
+                BoneMode.ModelNoPropagate => new Transform(*pose->AccessBoneModelSpace(i, hkaPose.PropagateOrNot.DontPropagate)),
+                BoneMode.ModelRaw => new Transform(pose->ModelPose[i]),
+                _ => new Transform(pose->ModelPose[i])
+            };
+
+            var modelTransform = boneMode == BoneMode.Local ? new Transform(pose->ModelPose[i]) : t;
             var worldMatrix = modelTransform.AffineTransform.Matrix * rootTransform.AffineTransform.Matrix;
             ImGui.TableNextRow();
             ImGui.TableSetColumnIndex(0);
@@ -426,15 +435,6 @@ public class DebugTab : ITab
             {
                 dotColorRgb = new Vector4(1, 0, 0, 0.5f);
             }
-            
-            var t = boneMode switch
-            {
-                BoneMode.Local => new Transform(pose->LocalPose[i]),
-                BoneMode.ModelPropagate => new Transform(*pose->AccessBoneModelSpace(i, hkaPose.PropagateOrNot.Propagate)),
-                BoneMode.ModelNoPropagate => new Transform(*pose->AccessBoneModelSpace(i, hkaPose.PropagateOrNot.DontPropagate)),
-                BoneMode.ModelRaw => new Transform(pose->ModelPose[i]),
-                _ => new Transform(pose->ModelPose[i])
-            };
             
             ImGui.TableSetColumnIndex(1);
             var parentIndex = pose->Skeleton->ParentIndices[i];

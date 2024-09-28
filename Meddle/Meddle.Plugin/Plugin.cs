@@ -33,6 +33,7 @@ public sealed class Plugin : IDalamudPlugin
         {
             var config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
             pluginInterface.Inject(config);
+            Alloc.Init();
 
             var host = Host.CreateDefaultBuilder();
             host.ConfigureLogging(logging =>
@@ -93,6 +94,7 @@ public sealed class Plugin : IDalamudPlugin
         app?.WaitForShutdown();
         app?.Dispose();
         log?.LogDebug("Plugin disposed");
+        Alloc.Dispose();
     }
 }
 
@@ -130,6 +132,8 @@ public class Configuration : IPluginConfiguration
     /// Indicates whether scaling should be taken from the model pose rather than the local pose.
     /// </summary>
     public SkeletonUtils.PoseMode PoseMode { get; set; } = DefaultPoseMode;
+    
+    public bool ComputeCharacterTextures { get; set; } = true;
     
     /// <summary>
     /// GLTF = GLTF JSON

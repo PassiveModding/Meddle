@@ -33,6 +33,7 @@ Much of this code is from or based on the following projects and wouldn't have b
   - reference for world overlay logic
 - [Ktisis](https://github.com/ktisis-tools/Ktisis) [[GNU GPL v3](https://github.com/ktisis-tools/Ktisis/blob/main/LICENSE)]
   - lighting structs
+  - hkQsTransformf matrix handling
 
 Important contributors:
 - [WorkingRobot](https://github.com/WorkingRobot) 
