@@ -244,11 +244,12 @@ public static class ImageUtils
                 if (resource.Resource.Data.Length > span.Length)
                 {
                     // As far as I can tell this only happens when placeholder textures are used anyway
-                    Global.Logger.LogWarning("Data too large for scratch image. " +
-                                             "{Length} > {Length2} " +
-                                             "{Width}x{Height} {Format}",
-                                                resource.Resource.Data.Length, span.Length, resource.Meta.Width, 
-                                                resource.Meta.Height, resource.Meta.Format);
+                    Global.Logger.LogDebug("Data too large for scratch image. " +
+                                           "{Length} > {Length2} " +
+                                           "{Width}x{Height} {Format}\n{HandlePath}",
+                                           resource.Resource.Data.Length, span.Length, resource.Meta.Width, 
+                                           resource.Meta.Height, resource.Meta.Format,
+                                           resource.HandlePath);
                 }
                 else
                 {
@@ -292,11 +293,11 @@ public static class ImageUtils
                 if (resource.Data.Length > span.Length)
                 {
                     // As far as I can tell this only happens when placeholder textures are used anyways
-                    Global.Logger.LogWarning("Data too large for scratch image. " +
+                    Global.Logger.LogDebug("Data too large for scratch image. " +
                                              "{Length} > {Length2} " +
                                              "{Width}x{Height} {Format}",
-                                                resource.Data.Length, span.Length, resource.Width, 
-                                                resource.Height, resource.Format);
+                                             resource.Data.Length, span.Length, resource.Width, 
+                                             resource.Height, resource.Format);
                 }
                 else
                 {
