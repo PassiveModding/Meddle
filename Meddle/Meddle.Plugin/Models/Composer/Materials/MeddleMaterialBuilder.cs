@@ -22,7 +22,7 @@ public abstract class MeddleMaterialBuilder : MaterialBuilder, IVertexPaintMater
         {
             if (set.TryGetTexture(dataProvider, texture.Key, out var tex))
             {
-                var texName = $"{hashStr}/{set.ComputedTextureName(texture.Value.GamePath)}";
+                var texName = $"{Path.GetFileNameWithoutExtension(set.MtrlPath)}_{hashStr}/{texture.Value.GamePath}";
                 var builder = dataProvider.CacheTexture(tex.ToTexture(), texName);
                 var mapped = GenericMaterialBuilder.MapTextureUsageToChannel(texture.Key);
                 if (mapped != null)
