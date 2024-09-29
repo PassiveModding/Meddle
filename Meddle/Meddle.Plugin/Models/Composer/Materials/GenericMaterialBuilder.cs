@@ -23,7 +23,6 @@ public class GenericMaterialBuilder : MeddleMaterialBuilder
             WithAlpha(AlphaMode.MASK, alphaThreshold);
         
         var setTypes = new HashSet<TextureUsage>();
-        // TODO:
         foreach (var textureUsage in set.TextureUsageDict)
         {
             var texData = dataProvider.LookupData(textureUsage.Value.FullPath);

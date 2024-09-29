@@ -16,3 +16,9 @@ public enum ExportType
     OBJ = 4
     // ReSharper restore InconsistentNaming
 }
+
+public enum TextureMode
+{
+    Bake,
+    Raw
+}

@@ -420,17 +420,17 @@ public class MaterialSet
                 return new LightshaftMaterialBuilder(mtrlName, this, dataProvider);
             case "character.shpk":
             case "characterlegacy.shpk":
-                return new CharacterMaterialBuilder(mtrlName, this, dataProvider, colorTable);
+                return new CharacterMaterialBuilder(mtrlName, this, dataProvider, colorTable, textureMode);
             case "charactertattoo.shpk":
-                return new CharacterTattooMaterialBuilder(mtrlName, this, dataProvider, customizeParameters ?? new CustomizeParameter());
+                return new CharacterTattooMaterialBuilder(mtrlName, this, dataProvider, customizeParameters ?? new CustomizeParameter(), textureMode);
             case "characterocclusion.shpk":
                 return new CharacterOcclusionMaterialBuilder(mtrlName, this, dataProvider);
             case "skin.shpk":
-                return new SkinMaterialBuilder(mtrlName, this, dataProvider, customizeParameters ?? new CustomizeParameter(), customizeData ?? new CustomizeData());
+                return new SkinMaterialBuilder(mtrlName, this, dataProvider, customizeParameters ?? new CustomizeParameter(), customizeData ?? new CustomizeData(), textureMode);
             case "hair.shpk":
-                return new HairMaterialBuilder(mtrlName, this, dataProvider, customizeParameters ?? new CustomizeParameter());
+                return new HairMaterialBuilder(mtrlName, this, dataProvider, customizeParameters ?? new CustomizeParameter(), textureMode);
             case "iris.shpk":
-                return new IrisMaterialBuilder(mtrlName, this, dataProvider, customizeParameters ?? new CustomizeParameter());
+                return new IrisMaterialBuilder(mtrlName, this, dataProvider, customizeParameters ?? new CustomizeParameter(), textureMode);
             default:
                 return new GenericMaterialBuilder(mtrlName, this, dataProvider);
         }
@@ -461,7 +461,11 @@ public class MaterialSet
         var extrasDict = new Dictionary<string, object>
         {
             {"ShaderPackage", ShpkName},
-            {"Material", MtrlPath}
+            {"Material", MtrlPath},
+            {"HashStr", HashStr()},
+            {"RenderBackfaces", RenderBackfaces},
+            {"IsTransparent", IsTransparent},
+            {"CharacterTextureMode", textureMode}
         };
         AddConstants();
         AddSamplers();
@@ -476,6 +480,17 @@ public class MaterialSet
         void AddCustomizeParameters()
         {
             if (customizeParameters == null) return;
+            extrasDict["LeftIrisColor"] = customizeParameters.LeftColor.AsFloatArray();
+            extrasDict["RightIrisColor"] = customizeParameters.RightColor.AsFloatArray();
+            extrasDict["MainColor"] = customizeParameters.MainColor.AsFloatArray();
+            extrasDict["SkinColor"] = customizeParameters.SkinColor.AsFloatArray();
+            extrasDict["MeshColor"] = customizeParameters.MeshColor.AsFloatArray();
+            extrasDict["LipColor"] = customizeParameters.LipColor.AsFloatArray();
+            extrasDict["SkinColor"] = customizeParameters.SkinColor.AsFloatArray();
+            extrasDict["FacePaintUVOffset"] = customizeParameters.FacePaintUVOffset;
+            extrasDict["FacePaintUVMultiplier"] = customizeParameters.FacePaintUVMultiplier;
+            extrasDict["MuscleTone"] = customizeParameters.MuscleTone;
+            extrasDict["OptionColor"] = customizeParameters.OptionColor;
             extrasDict["CustomizeParameters"] = JsonNode.Parse(JsonSerializer.Serialize(customizeParameters, JsonOptions))!;
         }
 
@@ -494,6 +509,8 @@ public class MaterialSet
         void AddCustomizeData()
         {
             if (customizeData == null) return;
+            extrasDict["Highlights"] = customizeData.Highlights;
+            extrasDict["LipStick"] = customizeData.LipStick;
             extrasDict["CustomizeData"] = JsonNode.Parse(JsonSerializer.Serialize(customizeData, JsonOptions))!;
         }
         
@@ -517,7 +534,7 @@ public class MaterialSet
                         ShaderCategory.CategorySkinType => IsDefinedOrHex((SkinType)value),
                         ShaderCategory.CategoryDiffuseAlpha => IsDefinedOrHex((DiffuseAlpha)value),
                         ShaderCategory.CategorySpecularType => IsDefinedOrHex((SpecularMode)value),
-                        ShaderCategory.GetValuesTextureType => IsDefinedOrHex((TextureMode)value),
+                        ShaderCategory.GetValuesTextureType => IsDefinedOrHex((Meddle.Utils.Export.TextureMode)value),
                         ShaderCategory.CategoryFlowMapType => IsDefinedOrHex((FlowType)value),
                         ShaderCategory.CategoryBgVertexPaint => IsDefinedOrHex((BgVertexPaint)value),
                         _ => $"0x{value:X8}"
@@ -561,5 +578,11 @@ public class MaterialSet
                 }
             }
         }
+    }
+
+    private TextureMode textureMode = TextureMode.Bake;
+    public void SetTextureMode(TextureMode computeTextures)
+    {
+        this.textureMode = computeTextures;
     }
 }

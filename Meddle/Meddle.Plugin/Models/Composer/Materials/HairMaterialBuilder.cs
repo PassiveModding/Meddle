@@ -11,15 +11,19 @@ public class HairMaterialBuilder : MeddleMaterialBuilder
     private readonly MaterialSet set;
     private readonly DataProvider dataProvider;
     private readonly CustomizeParameter parameters;
+    private readonly TextureMode textureMode;
 
-    public HairMaterialBuilder(string name, MaterialSet set, DataProvider dataProvider, CustomizeParameter parameters) : base(name)
+    public HairMaterialBuilder(
+        string name, MaterialSet set, DataProvider dataProvider, CustomizeParameter parameters,
+        TextureMode textureMode) : base(name)
     {
         this.set = set;
         this.dataProvider = dataProvider;
         this.parameters = parameters;
+        this.textureMode = textureMode;
     }
 
-    public override MeddleMaterialBuilder Apply()
+    private void ApplyComputed()
     {
         var hairType = set.GetShaderKeyOrDefault(ShaderCategory.CategoryHairType, HairType.Hair);
         
@@ -65,13 +69,23 @@ public class HairMaterialBuilder : MeddleMaterialBuilder
         WithBaseColor(dataProvider.CacheTexture(diffuseTexture, $"Computed/{set.ComputedTextureName("diffuse")}"));
         WithNormal(dataProvider.CacheTexture(normalTexture, $"Computed/{set.ComputedTextureName("normal")}"));
         WithMetallicRoughness(dataProvider.CacheTexture(metallicRoughnessTexture, $"Computed/{set.ComputedTextureName("metallicRoughness")}"));
+    }
+    
+    public override MeddleMaterialBuilder Apply()
+    {
+        if (textureMode == TextureMode.Bake)
+        {
+            ApplyComputed();   
+        }
+        else
+        {
+            ApplyRaw(set, dataProvider);
+        }
+        
         WithAlpha(AlphaMode.MASK, set.GetConstantOrThrow<float>(MaterialConstant.g_AlphaThreshold));
         IndexOfRefraction = set.GetConstantOrThrow<float>(MaterialConstant.g_GlassIOR);
         
-        Extras = set.ComposeExtrasNode(
-            ("hairColor", hairColor.AsFloatArray()),
-            ("bonusColor", bonusColor.AsFloatArray())
-        );
+        Extras = set.ComposeExtrasNode();
         return this;
     }
 }

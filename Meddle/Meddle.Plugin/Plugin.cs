@@ -133,7 +133,7 @@ public class Configuration : IPluginConfiguration
     /// </summary>
     public SkeletonUtils.PoseMode PoseMode { get; set; } = DefaultPoseMode;
     
-    public bool ComputeCharacterTextures { get; set; } = true;
+    public TextureMode TextureMode { get; set; } = TextureMode.Bake;
     
     /// <summary>
     /// GLTF = GLTF JSON

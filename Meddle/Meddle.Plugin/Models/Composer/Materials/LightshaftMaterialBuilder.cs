@@ -20,7 +20,6 @@ public class LightshaftMaterialBuilder : GenericMaterialBuilder
         this.WithBaseColor(new Vector4(1, 1, 1, 0));
         WithAlpha(AlphaMode.BLEND, 0.5f);
 
-        IndexOfRefraction = 1.0f;
         Extras = set.ComposeExtrasNode();
         return this;
     }

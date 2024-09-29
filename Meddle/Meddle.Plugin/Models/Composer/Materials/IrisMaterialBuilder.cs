@@ -12,12 +12,16 @@ public class IrisMaterialBuilder : MeddleMaterialBuilder
     private readonly MaterialSet set;
     private readonly DataProvider dataProvider;
     private readonly CustomizeParameter parameters;
+    private readonly TextureMode textureMode;
 
-    public IrisMaterialBuilder(string name, MaterialSet set, DataProvider dataProvider, CustomizeParameter parameters) : base(name)
+    public IrisMaterialBuilder(
+        string name, MaterialSet set, DataProvider dataProvider, CustomizeParameter parameters,
+        TextureMode textureMode) : base(name)
     {
         this.set = set;
         this.dataProvider = dataProvider;
         this.parameters = parameters;
+        this.textureMode = textureMode;
     }
 
     private SKTexture GetCubeMap(int index)
@@ -29,7 +33,7 @@ public class IrisMaterialBuilder : MeddleMaterialBuilder
         return ImageUtils.GetTexData(cubeMap, index, 0, 0).ToTexture();
     }
 
-    public override MeddleMaterialBuilder Apply()
+    private void ApplyComputed()
     {
         if (!set.TryGetTextureStrict(dataProvider, TextureUsage.g_SamplerNormal, out var normalRes))
             throw new InvalidOperationException("Missing normal texture");
@@ -79,16 +83,25 @@ public class IrisMaterialBuilder : MeddleMaterialBuilder
         WithSpecularFactor(dataProvider.CacheTexture(specularTexture, $"Computed/{set.ComputedTextureName("specular")}"), 0.2f);
         WithSpecularColor(dataProvider.CacheTexture(specularTexture, $"Computed/{set.ComputedTextureName("specular")}"));
         WithEmissive(dataProvider.CacheTexture(emissiveTexture, $"Computed/{set.ComputedTextureName("emissive")}"));
+    }
+
+    public override MeddleMaterialBuilder Apply()
+    {
+        if (textureMode == TextureMode.Bake)
+        {
+            ApplyComputed();
+        }
+        else
+        {
+            ApplyRaw(set, dataProvider);
+        }
         
         IndexOfRefraction = set.GetConstantOrThrow<float>(MaterialConstant.g_GlassIOR);
         var alphaThreshold = set.GetConstantOrThrow<float>(MaterialConstant.g_AlphaThreshold);
         if (alphaThreshold > 0)
             WithAlpha(AlphaMode.MASK, alphaThreshold);
-        
-        Extras = set.ComposeExtrasNode(
-            ("leftIrisColor", leftIrisColor.AsFloatArray()), 
-            ("rightIrisColor", parameters.RightColor.AsFloatArray())
-        );
+
+        Extras = set.ComposeExtrasNode();
         return this;
     }
 }

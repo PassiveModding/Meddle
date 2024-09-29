@@ -12,18 +12,22 @@ public class SkinMaterialBuilder : MeddleMaterialBuilder
     private readonly DataProvider dataProvider;
     private readonly CustomizeParameter parameters;
     private readonly CustomizeData data;
+    private readonly TextureMode textureMode;
 
-    public SkinMaterialBuilder(string name, MaterialSet set, DataProvider dataProvider, CustomizeParameter parameters, CustomizeData data) : base(name)
+    public SkinMaterialBuilder(
+        string name, MaterialSet set, DataProvider dataProvider, CustomizeParameter parameters, CustomizeData data,
+        TextureMode textureMode) : base(name)
     {
         this.set = set;
         this.dataProvider = dataProvider;
         this.parameters = parameters;
         this.data = data;
+        this.textureMode = textureMode;
     }
 
-    public override MeddleMaterialBuilder Apply()
+    private void ApplyComputed()
     {
-        var skinType = set.GetShaderKeyOrDefault(ShaderCategory.CategorySkinType, SkinType.Face);
+         var skinType = set.GetShaderKeyOrDefault(ShaderCategory.CategorySkinType, SkinType.Face);
         
         // var normalTexture = set.GetTexture(dataProvider, TextureUsage.g_SamplerNormal).ToResource().ToTexture();
         // var maskTexture = set.GetTexture(dataProvider, TextureUsage.g_SamplerMask).ToResource().ToTexture(normalTexture.Size);
@@ -113,13 +117,26 @@ public class SkinMaterialBuilder : MeddleMaterialBuilder
         WithNormal(dataProvider.CacheTexture(normalTexture, $"Computed/{set.ComputedTextureName("normal")}"));
         WithMetallicRoughness(dataProvider.CacheTexture(metallicRoughnessTexture, $"Computed/{set.ComputedTextureName("metallicRoughness")}"));
         WithVolumeThickness(dataProvider.CacheTexture(sssTexture, $"Computed/{set.ComputedTextureName("sss")}"), 1.0f);
-
-        IndexOfRefraction = set.GetConstantOrThrow<float>(MaterialConstant.g_GlassIOR);
-        WithMetallicRoughnessShader();
-        WithAlpha(AlphaMode.MASK, alphaThreshold);
-        WithDoubleSide(set.RenderBackfaces);
-        
-        Extras = set.ComposeExtrasNode();
-        return this;
+    }
+    
+    public override MeddleMaterialBuilder Apply()
+    {
+       if (textureMode == TextureMode.Bake)
+       {
+           ApplyComputed();
+       }
+       else
+       {
+           ApplyRaw(set, dataProvider);
+       }
+       
+       IndexOfRefraction = set.GetConstantOrDefault(MaterialConstant.g_GlassIOR, 1.0f);
+       var alphaThreshold = set.GetConstantOrDefault(MaterialConstant.g_AlphaThreshold, 0.0f);
+       WithAlpha(AlphaMode.MASK, alphaThreshold);
+       WithMetallicRoughnessShader();
+       WithDoubleSide(set.RenderBackfaces);
+       Extras = set.ComposeExtrasNode();
+       
+       return this;
     }
 }

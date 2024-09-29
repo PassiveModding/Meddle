@@ -12,7 +12,9 @@ public class CharacterTattooMaterialBuilder : MeddleMaterialBuilder
     private readonly DataProvider dataProvider;
     private readonly CustomizeParameter customizeParameter;
 
-    public CharacterTattooMaterialBuilder(string name, MaterialSet set, DataProvider dataProvider, CustomizeParameter customizeParameter) : base(name)
+    public CharacterTattooMaterialBuilder(
+        string name, MaterialSet set, DataProvider dataProvider, CustomizeParameter customizeParameter,
+        TextureMode textureMode) : base(name)
     {
         this.set = set;
         this.dataProvider = dataProvider;

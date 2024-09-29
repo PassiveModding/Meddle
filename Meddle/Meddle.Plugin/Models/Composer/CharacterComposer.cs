@@ -22,7 +22,7 @@ public class CharacterComposer
     private static readonly object StaticFileLock = new();
     private readonly SkeletonUtils.PoseMode poseMode;
     private readonly bool includePose;
-    private readonly bool computeCharacterTextures;
+    private readonly TextureMode textureMode;
     
     public CharacterComposer(DataProvider dataProvider, Configuration config, Action<ProgressEvent>? progress = null) 
     {
@@ -30,7 +30,7 @@ public class CharacterComposer
         this.progress = progress;
         includePose = config.IncludePose;
         poseMode = config.PoseMode;
-        computeCharacterTextures = config.ComputeCharacterTextures;
+        textureMode = config.TextureMode;
 
         lock (StaticFileLock)
         {
@@ -76,11 +76,6 @@ public class CharacterComposer
             try
             {
                 var materialInfo = modelInfo.Materials[i];
-                if (!computeCharacterTextures)
-                {
-                    materialBuilders[i] = new MaterialBuilder(materialInfo.Path.FullPath);
-                    continue;
-                }
                 
                 progress?.Invoke(new ProgressEvent(modelInfo.GetHashCode(), $"{materialInfo.Path.GamePath}", i + 1, modelInfo.Materials.Length));
                 var mtrlData = dataProvider.LookupData(materialInfo.Path.FullPath);
@@ -117,6 +112,7 @@ public class CharacterComposer
 
                 material.SetCustomizeParameters(customizeParameter);
                 material.SetCustomizeData(customizeData);
+                material.SetTextureMode(textureMode);
 
                 materialBuilders[i] = material.Compose(dataProvider);
             }

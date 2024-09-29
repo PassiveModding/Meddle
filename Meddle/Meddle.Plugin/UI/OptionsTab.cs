@@ -77,12 +77,7 @@ public class OptionsTab : ITab
         
         DrawPoseMode();
         
-        var computeCharacterTextures = config.ComputeCharacterTextures;
-        if (ImGui.Checkbox("Compute Character Textures", ref computeCharacterTextures))
-        {
-            config.ComputeCharacterTextures = computeCharacterTextures;
-            config.Save();
-        }
+        DrawCharacterTextureMode();
         
         ImGui.Separator();
         
@@ -159,6 +154,30 @@ public class OptionsTab : ITab
         if (!Enum.IsDefined(typeof(SkeletonUtils.PoseMode), config.PoseMode))
         {
             config.PoseMode = Configuration.DefaultPoseMode;
+            config.Save();
+        }
+    }
+    
+    private void DrawCharacterTextureMode()
+    {
+        var characterTexture = config.TextureMode;
+        if (ImGui.BeginCombo("Character Texture Mode", characterTexture.ToString()))
+        {
+            foreach (var mode in Enum.GetValues<TextureMode>())
+            {
+                if (ImGui.Selectable(mode.ToString(), mode == characterTexture))
+                {
+                    config.TextureMode = mode;
+                    config.Save();
+                }
+            }
+
+            ImGui.EndCombo();
+        }
+        
+        if (!Enum.IsDefined(typeof(TextureMode), config.TextureMode))
+        {
+            config.TextureMode = TextureMode.Bake;
             config.Save();
         }
     }

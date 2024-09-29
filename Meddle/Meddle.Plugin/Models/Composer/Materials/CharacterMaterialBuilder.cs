@@ -12,17 +12,19 @@ public class CharacterMaterialBuilder : MeddleMaterialBuilder
     private readonly MaterialSet set;
     private readonly DataProvider dataProvider;
     private readonly IColorTableSet? colorTableSet;
+    private readonly TextureMode textureMode;
 
-    public CharacterMaterialBuilder(string name, MaterialSet set, DataProvider dataProvider, IColorTableSet? colorTableSet) : base(name)
+    public CharacterMaterialBuilder(string name, MaterialSet set, DataProvider dataProvider, IColorTableSet? colorTableSet, TextureMode textureMode) : base(name)
     {
         this.set = set;
         this.dataProvider = dataProvider;
         this.colorTableSet = colorTableSet;
+        this.textureMode = textureMode;
     }
 
-    public override MeddleMaterialBuilder Apply()
+    private void ApplyComputed()
     {
-        var textureMode = set.GetShaderKeyOrDefault(ShaderCategory.GetValuesTextureType, TextureMode.Default);
+        var textureMode = set.GetShaderKeyOrDefault(ShaderCategory.GetValuesTextureType, Meddle.Utils.Export.TextureMode.Default);
         var specularMode = set.GetShaderKeyOrDefault(ShaderCategory.CategorySpecularType, SpecularMode.Default); // TODO: is default actually default
         var flowType = set.GetShaderKeyOrDefault(ShaderCategory.CategoryFlowMapType, FlowType.Standard);
         
@@ -35,7 +37,7 @@ public class CharacterMaterialBuilder : MeddleMaterialBuilder
 
         var diffuseTexture = textureMode switch
         {
-            TextureMode.Compatibility => set.TryGetTexture(dataProvider, TextureUsage.g_SamplerDiffuse, out var tex) ? tex.ToTexture(normalRes.Size) : throw new InvalidOperationException("Missing diffuse texture"),
+            Meddle.Utils.Export.TextureMode.Compatibility => set.TryGetTexture(dataProvider, TextureUsage.g_SamplerDiffuse, out var tex) ? tex.ToTexture(normalRes.Size) : throw new InvalidOperationException("Missing diffuse texture"),
             _ => new SKTexture(normalRes.Width, normalRes.Height)
         };
         
@@ -58,13 +60,13 @@ public class CharacterMaterialBuilder : MeddleMaterialBuilder
 
             var blended = ((ColorTableSet?)colorTableSet)!.Value.ColorTable
                                 .GetBlendedPair(indexColor.Red, indexColor.Green);
-            if (textureMode == TextureMode.Compatibility)
+            if (textureMode == Meddle.Utils.Export.TextureMode.Compatibility)
             {
                 var diffuse = diffuseTexture![x, y].ToVector4();
                 diffuse *= new Vector4(blended.Diffuse, normal.Z);
                 diffuseTexture[x, y] = (diffuse with {W = normal.Z}).ToSkColor();
             }
-            else if (textureMode == TextureMode.Default)
+            else if (textureMode == Meddle.Utils.Export.TextureMode.Default)
             {
                 var diffuse = new Vector4(blended.Diffuse, normal.Z);
                 diffuseTexture[x, y] = diffuse.ToSkColor();
@@ -89,6 +91,20 @@ public class CharacterMaterialBuilder : MeddleMaterialBuilder
 
         WithBaseColor(dataProvider.CacheTexture(diffuseTexture, $"Computed/{set.ComputedTextureName("diffuse")}"));
         WithNormal(dataProvider.CacheTexture(normalTexture, $"Computed/{set.ComputedTextureName("normal")}"));
+        
+    }
+    
+    public override MeddleMaterialBuilder Apply()
+    {
+        if (textureMode == TextureMode.Bake)
+        {
+            ApplyComputed();
+        }
+        else
+        {
+            ApplyRaw(set, dataProvider);
+        }
+        
         IndexOfRefraction = set.GetConstantOrThrow<float>(MaterialConstant.g_GlassIOR);
             
         var alphaThreshold = set.GetConstantOrDefault(MaterialConstant.g_AlphaThreshold, 0.0f);

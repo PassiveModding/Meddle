@@ -23,7 +23,7 @@ public record BgColorChangeParams : IBgMaterialBuilderParams
 public record BgParams : IBgMaterialBuilderParams;
 
 
-public class BgMaterialBuilder : MeddleMaterialBuilder, IVertexPaintMaterialBuilder
+public class BgMaterialBuilder : MeddleMaterialBuilder
 {
     private readonly IBgMaterialBuilderParams bgParams;
     private readonly MaterialSet set;
@@ -105,8 +105,6 @@ public class BgMaterialBuilder : MeddleMaterialBuilder, IVertexPaintMaterialBuil
         }
     }
 
-    public bool VertexPaint { get; private set; }
-
     
     private bool GetDiffuseColor(out Vector4 diffuseColor)
     {
@@ -162,8 +160,6 @@ public class BgMaterialBuilder : MeddleMaterialBuilder, IVertexPaintMaterialBuil
         WithBaseColor(colorMap0Texture);
         // only the green/y channel is used here for roughness
         WithMetallicRoughness(specularMap0Texture, 0.0f, 1.0f);
-        
-        IndexOfRefraction = 1.0f;
         
         Extras = set.ComposeExtrasNode(extras.ToArray());
         return this;

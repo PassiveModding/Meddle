@@ -1,12 +1,19 @@
 ﻿using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Dalamud.Interface.Textures;
 using Dalamud.Interface.Utility.Raii;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
+using FFXIVClientStructs.FFXIV.Client.Graphics;
+using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Layer;
+using FFXIVClientStructs.Interop;
 using ImGuiNET;
 using Meddle.Plugin.Models.Layout;
+using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Export;
+using Transform = FFXIVClientStructs.FFXIV.Client.LayoutEngine.Transform;
 
 namespace Meddle.Plugin.UI.Layout;
 
@@ -26,7 +33,7 @@ public partial class LayoutWindow
             DrawInstance(instance, [], additionalOptions);
         }
     }
-
+    
     private void DrawInstance(ParsedInstance instance, Stack<ParsedInstance> stack, Action<Stack<ParsedInstance>, ParsedInstance>? additionalOptions = null)
     {
         if (stack.Count > 10)
