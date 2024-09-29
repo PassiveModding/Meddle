@@ -136,6 +136,8 @@ public class DataProvider
 
         return outPath;
     }
+    
+    
 
     public ImageBuilder CacheTexture(SKTexture texture, string texName)
     {
@@ -146,6 +148,24 @@ public class DataProvider
         }
         
         var outPath = Path.Combine(cacheDir, $"{texName}.png");
+        SaveTextureToDisk(texture, outPath);
+        
+        var outImage = new MemoryImage(() => File.ReadAllBytes(outPath));
+
+        var name = Path.GetFileNameWithoutExtension(texName.Replace('.', '_'));
+        var builder = ImageBuilder.From(outImage, name);
+        builder.AlternateWriteFileName = $"{name}.*";
+        return builder;
+    }
+    
+    public static void SaveTextureToDisk(SKTexture texture, string path)
+    {
+        var directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+        
         byte[] textureBytes;
         using (var memoryStream = new MemoryStream())
         {
@@ -153,18 +173,6 @@ public class DataProvider
             textureBytes = memoryStream.ToArray();
         }
 
-        var outDir = Path.GetDirectoryName(outPath);
-        if (!string.IsNullOrEmpty(outDir) && !Directory.Exists(outDir))
-        {
-            Directory.CreateDirectory(outDir);
-        }
-
-        File.WriteAllBytes(outPath, textureBytes);
-        var outImage = new MemoryImage(() => File.ReadAllBytes(outPath));
-
-        var name = Path.GetFileNameWithoutExtension(texName.Replace('.', '_'));
-        var builder = ImageBuilder.From(outImage, name);
-        builder.AlternateWriteFileName = $"{name}.*";
-        return builder;
+        File.WriteAllBytes(path, textureBytes);
     }
 }

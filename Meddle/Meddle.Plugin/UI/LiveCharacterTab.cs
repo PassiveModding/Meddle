@@ -805,7 +805,7 @@ public unsafe class LiveCharacterTab : ITab
 
             if (ImGui.MenuItem("Export raw textures as pngs"))
             {
-                var textureBuffer = new Dictionary<string, SKBitmap>();
+                var textureBuffer = new Dictionary<string, SKTexture>();
                 for (var i = 0; i < material->TexturesSpan.Length; i++)
                 {
                     var textureEntry = material->TexturesSpan[i];
@@ -818,7 +818,7 @@ public unsafe class LiveCharacterTab : ITab
                     {
                         var textureName = material->MaterialResourceHandle->TexturePathString(i);
                         var gpuTex = DXHelper.ExportTextureResource(textureEntry.Texture->Texture);
-                        var textureData = gpuTex.Resource.ToBitmap();
+                        var textureData = gpuTex.Resource.ToBitmap().ToTexture();
                         textureBuffer[textureName] = textureData;
                     }
                 }
@@ -834,10 +834,7 @@ public unsafe class LiveCharacterTab : ITab
                                                 {
                                                     var fileName = Path.GetFileNameWithoutExtension(name);
                                                     var filePath = Path.Combine(path, $"{fileName}.png");
-                                                    using var str = new SKDynamicMemoryWStream();
-                                                    texture.Encode(str, SKEncodedImageFormat.Png, 100);
-                                                    var imageData = str.DetachAsData().AsSpan();
-                                                    File.WriteAllBytes(filePath, imageData.ToArray());
+                                                    DataProvider.SaveTextureToDisk(texture, filePath);
                                                 }
                                                 Process.Start("explorer.exe", path);
                                             }, Plugin.TempDirectory);
@@ -911,16 +908,13 @@ public unsafe class LiveCharacterTab : ITab
                 var defaultFileName = Path.GetFileName(textureFileName);
                 defaultFileName = Path.ChangeExtension(defaultFileName, ".png");
                 var gpuTex = DXHelper.ExportTextureResource(textureEntry.Texture->Texture);
-                var textureData = gpuTex.Resource.ToBitmap();
+                var textureData = gpuTex.Resource.ToBitmap().ToTexture();
 
                 fileDialog.SaveFileDialog("Save Texture", "PNG Image{.png}", defaultFileName, ".png",
                                           (result, path) =>
                                           {
                                               if (!result) return;
-                                              using var str = new SKDynamicMemoryWStream();
-                                              textureData.Encode(str, SKEncodedImageFormat.Png, 100);
-                                              var imageData = str.DetachAsData().AsSpan();
-                                              File.WriteAllBytes(path, imageData.ToArray());
+                                              DataProvider.SaveTextureToDisk(textureData, path);
                                           }, Plugin.TempDirectory);
             }
 
@@ -952,18 +946,20 @@ public unsafe class LiveCharacterTab : ITab
         {
             UiUtil.Text($"Game File Name: {textureName}", textureName);
             UiUtil.Text($"File Name: {textureFileName}", textureFileName);
-            ImGui.Text($"Id: {textureEntry.Id}");
+            ImGui.Text($"Id: {textureEntry.Id}"); 
+            ImGui.SameLine();
             ImGui.Text($"File Size: {textureEntry.Texture->FileSize}");
-            ImGui.Text($"Width: {textureEntry.Texture->Texture->Width}");
-            ImGui.Text($"Height: {textureEntry.Texture->Texture->Height}");
+            ImGui.Text($"Size: {textureEntry.Texture->Texture->ActualWidth}x{textureEntry.Texture->Texture->ActualHeight}");
             ImGui.Text($"Depth: {textureEntry.Texture->Texture->Depth}");
+            ImGui.SameLine();
             ImGui.Text($"Mip Levels: {textureEntry.Texture->Texture->MipLevel}");
+            ImGui.SameLine();
             ImGui.Text($"Array Size: {textureEntry.Texture->Texture->ArraySize}");
             ImGui.Text($"Format: {(TexFile.TextureFormat)textureEntry.Texture->Texture->TextureFormat}");
 
             var availableWidth = ImGui.GetContentRegionAvail().X;
-            float displayWidth = textureEntry.Texture->Texture->Width;
-            float displayHeight = textureEntry.Texture->Texture->Height;
+            float displayWidth = textureEntry.Texture->Texture->ActualWidth;
+            float displayHeight = textureEntry.Texture->Texture->ActualHeight;
             if (displayWidth > availableWidth)
             {
                 var ratio = availableWidth / displayWidth;
