@@ -953,6 +953,13 @@ public unsafe class LiveCharacterTab : ITab
             UiUtil.Text($"Game File Name: {textureName}", textureName);
             UiUtil.Text($"File Name: {textureFileName}", textureFileName);
             ImGui.Text($"Id: {textureEntry.Id}");
+            ImGui.Text($"File Size: {textureEntry.Texture->FileSize}");
+            ImGui.Text($"Width: {textureEntry.Texture->Texture->Width}");
+            ImGui.Text($"Height: {textureEntry.Texture->Texture->Height}");
+            ImGui.Text($"Depth: {textureEntry.Texture->Texture->Depth}");
+            ImGui.Text($"Mip Levels: {textureEntry.Texture->Texture->MipLevel}");
+            ImGui.Text($"Array Size: {textureEntry.Texture->Texture->ArraySize}");
+            ImGui.Text($"Format: {(TexFile.TextureFormat)textureEntry.Texture->Texture->TextureFormat}");
 
             var availableWidth = ImGui.GetContentRegionAvail().X;
             float displayWidth = textureEntry.Texture->Texture->Width;
