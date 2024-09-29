@@ -1,6 +1,7 @@
 ﻿using System.Numerics;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
+using Microsoft.Extensions.Logging;
 using OtterTex;
 using SkiaSharp;
 
@@ -243,9 +244,11 @@ public static class ImageUtils
                 if (resource.Resource.Data.Length > span.Length)
                 {
                     // As far as I can tell this only happens when placeholder textures are used anyway
-                    Console.WriteLine($"Data too large for scratch image. " +
-                                      $"{resource.Resource.Data.Length} > {span.Length} " +
-                                      $"{resource.Meta.Width}x{resource.Meta.Height} {resource.Meta.Format}");
+                    Global.Logger.LogWarning("Data too large for scratch image. " +
+                                             "{Length} > {Length2} " +
+                                             "{Width}x{Height} {Format}",
+                                                resource.Resource.Data.Length, span.Length, resource.Meta.Width, 
+                                                resource.Meta.Height, resource.Meta.Format);
                 }
                 else
                 {
@@ -289,9 +292,11 @@ public static class ImageUtils
                 if (resource.Data.Length > span.Length)
                 {
                     // As far as I can tell this only happens when placeholder textures are used anyways
-                    Console.WriteLine($"Data too large for scratch image. " +
-                                        $"{resource.Data.Length} > {span.Length} " +
-                                        $"{resource.Width}x{resource.Height} {resource.Format}");
+                    Global.Logger.LogWarning("Data too large for scratch image. " +
+                                             "{Length} > {Length2} " +
+                                             "{Width}x{Height} {Format}",
+                                                resource.Data.Length, span.Length, resource.Width, 
+                                                resource.Height, resource.Format);
                 }
                 else
                 {
