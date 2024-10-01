@@ -209,16 +209,6 @@ public static class ImageUtils
         return new SKTexture(bitmap);
     }
     
-    public static SKTexture ToTexture(this SKBitmap bitmap, (int width, int height)? resize = null)
-    {
-        if (resize != null)
-        {
-            bitmap = bitmap.Resize(new SKImageInfo(resize.Value.width, resize.Value.height, SKColorType.Rgba8888, SKAlphaType.Unpremul), SKFilterQuality.High);
-        }
-        
-        return new SKTexture(bitmap);
-    }
-    
     public static SKTexture ToTexture(this Texture tex, (int width, int height)? resize = null)
     {
         var bitmap = tex.ToBitmap();
@@ -230,104 +220,81 @@ public static class ImageUtils
         return new SKTexture(bitmap);
     }
 
-    private static readonly object LockObj = new();
     private static unsafe SKBitmap ToBitmap(this Texture resource)
     {
-        lock (LockObj)
+        var image = ScratchImage.Initialize(resource.Meta);
+
+        // copy data - ensure destination not too short
+        fixed (byte* data = image.Pixels)
         {
-            var image = ScratchImage.Initialize(resource.Meta);
-
-            // copy data - ensure destination not too short
-            fixed (byte* data = image.Pixels)
+            var span = new Span<byte>(data, image.Pixels.Length);
+            if (resource.Resource.Data.Length > span.Length)
             {
-                var span = new Span<byte>(data, image.Pixels.Length);
-                if (resource.Resource.Data.Length > span.Length)
-                {
-                    resource.Resource.Data[..span.Length].CopyTo(span);
-                    Global.Logger.LogDebug("Data too large for scratch image. " +
-                                           "{Length} > {Length2} " +
-                                           "{Width}x{Height} {Format}\n{HandlePath}\n" +
-                                           "Trimmed to fit.",
-                                           resource.Resource.Data.Length, span.Length, resource.Meta.Width, 
-                                           resource.Meta.Height, resource.Meta.Format,
-                                           resource.HandlePath);
-                }
-                else
-                {
-                    resource.Resource.Data.CopyTo(span);
-                }
+                resource.Resource.Data[..span.Length].CopyTo(span);
+                Global.Logger.LogDebug("Data too large for scratch image. " +
+                                       "{Length} > {Length2} " +
+                                       "{Width}x{Height} {Format}\n" +
+                                       "{HandlePath}\n" +
+                                       "Trimmed to fit.",
+                                       resource.Resource.Data.Length, span.Length, resource.Meta.Width, 
+                                       resource.Meta.Height, resource.Meta.Format,
+                                       resource.HandlePath);
             }
-            
-            image.GetRGBA(out var rgba);
-
-            var bitmap = new SKBitmap(rgba.Meta.Width, rgba.Meta.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-            bitmap.Erase(new SKColor(0));
-            fixed (byte* data = rgba.Pixels)
+            else
             {
-                bitmap.InstallPixels(bitmap.Info, (nint)data, rgba.Meta.Width * 4);
+                resource.Resource.Data.CopyTo(span);
             }
-
-            // return copy, retaining unpremultiplied alpha
-            var copy = new SKBitmap(rgba.Meta.Width, rgba.Meta.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-            var pixelBuf = copy.GetPixelSpan().ToArray();
-            bitmap.GetPixelSpan().CopyTo(pixelBuf);
-            fixed (byte* data = pixelBuf)
-            {
-                copy.InstallPixels(copy.Info, (nint)data, copy.Info.RowBytes);
-            }
-            
-            return copy;
         }
-    }
+        
+        image.GetRGBA(out var rgba);
+
+        var bitmap = new SKBitmap(rgba.Meta.Width, rgba.Meta.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
+        bitmap.Erase(new SKColor(0));
+        fixed (byte* data = rgba.Pixels)
+        {
+            bitmap.InstallPixels(bitmap.Info, (nint)data, rgba.Meta.Width * 4);
+        }
+        bitmap.SetImmutable();
+
+        return bitmap.Copy() ?? throw new InvalidOperationException("Failed to copy bitmap.");
+}
     
     public static unsafe SKBitmap ToBitmap(this TextureResource resource)
     {
-        lock (LockObj)
+        var meta = FromResource(resource);
+        var image = ScratchImage.Initialize(meta);
+
+        // copy data - ensure destination not too short
+        fixed (byte* data = image.Pixels)
         {
-            var meta = FromResource(resource);
-            var image = ScratchImage.Initialize(meta);
-
-            // copy data - ensure destination not too short
-            fixed (byte* data = image.Pixels)
+            var span = new Span<byte>(data, image.Pixels.Length);
+            if (resource.Data.Length > span.Length)
             {
-                var span = new Span<byte>(data, image.Pixels.Length);
-                if (resource.Data.Length > span.Length)
-                {
-                    resource.Data[..span.Length].CopyTo(span);
-                    Global.Logger.LogDebug("Data too large for scratch image. " +
-                                           "{Length} > {Length2} " +
-                                           "{Width}x{Height} {Format}\n" +
-                                           "Trimmed to fit.",
-                                           resource.Data.Length, span.Length, resource.Width, 
-                                           resource.Height, resource.Format);
-                }
-                else
-                {
-                    resource.Data.CopyTo(span);
-                }
+                resource.Data[..span.Length].CopyTo(span);
+                Global.Logger.LogDebug("Data too large for scratch image. " +
+                                       "{Length} > {Length2} " +
+                                       "{Width}x{Height} {Format}\n" +
+                                       "Trimmed to fit.",
+                                       resource.Data.Length, span.Length, resource.Width, 
+                                       resource.Height, resource.Format);
             }
-            
-            image.GetRGBA(out var rgba);
-
-            var bitmap = new SKBitmap(rgba.Meta.Width, rgba.Meta.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-            bitmap.Erase(new SKColor(0));
-            fixed (byte* data = rgba.Pixels)
+            else
             {
-                bitmap.InstallPixels(bitmap.Info, (nint)data, rgba.Meta.Width * 4);
+                resource.Data.CopyTo(span);
             }
-            bitmap.SetImmutable();
-            
-            // I have trust issues
-            var copy = new SKBitmap(rgba.Meta.Width, rgba.Meta.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-            var pixelBuf = copy.GetPixelSpan().ToArray();
-            bitmap.GetPixelSpan().CopyTo(pixelBuf);
-            fixed (byte* data = pixelBuf)
-            {
-                copy.InstallPixels(copy.Info, (nint)data, copy.Info.RowBytes);
-            }
-            
-            return copy;
         }
+        
+        image.GetRGBA(out var rgba);
+
+        var bitmap = new SKBitmap(rgba.Meta.Width, rgba.Meta.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
+        bitmap.Erase(new SKColor(0));
+        fixed (byte* data = rgba.Pixels)
+        {
+            bitmap.InstallPixels(bitmap.Info, (nint)data, rgba.Meta.Width * 4);
+        }
+        bitmap.SetImmutable();
+
+        return bitmap.Copy() ?? throw new InvalidOperationException("Failed to copy bitmap.");
     }
 
     public static TexMeta FromResource(TextureResource resource)

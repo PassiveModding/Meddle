@@ -818,7 +818,7 @@ public unsafe class LiveCharacterTab : ITab
                     {
                         var textureName = material->MaterialResourceHandle->TexturePathString(i);
                         var gpuTex = DXHelper.ExportTextureResource(textureEntry.Texture->Texture);
-                        var textureData = gpuTex.Resource.ToBitmap().ToTexture();
+                        var textureData = gpuTex.Resource.ToTexture();
                         textureBuffer[textureName] = textureData;
                     }
                 }
@@ -908,7 +908,7 @@ public unsafe class LiveCharacterTab : ITab
                 var defaultFileName = Path.GetFileName(textureFileName);
                 defaultFileName = Path.ChangeExtension(defaultFileName, ".png");
                 var gpuTex = DXHelper.ExportTextureResource(textureEntry.Texture->Texture);
-                var textureData = gpuTex.Resource.ToBitmap().ToTexture();
+                var textureData = gpuTex.Resource.ToTexture();
 
                 fileDialog.SaveFileDialog("Save Texture", "PNG Image{.png}", defaultFileName, ".png",
                                           (result, path) =>
