@@ -41,60 +41,6 @@ public unsafe struct Vertex
     public Vector4? Color2;
     public Vector4? Flow;
     public Vector4? Binormal;
-
-    private static class VertexItem
-    {
-        private static float FromSNorm(short value) =>
-            value != short.MinValue ?
-                value / 32767.0f :
-                -1.0f;
-        
-        private static float FromUNorm(byte value) =>
-            value / 255.0f;
-
-        public static Vector4 HandleUshort4(ReadOnlySpan<byte> buffer)
-        {
-            var byteValues = new byte[8];
-            byteValues[0] = buffer[0];
-            byteValues[4] = buffer[1];
-            byteValues[1] = buffer[2];
-            byteValues[5] = buffer[3];
-            byteValues[2] = buffer[4];
-            byteValues[6] = buffer[5];
-            byteValues[3] = buffer[6];
-            byteValues[7] = buffer[7];
-            var us = MemoryMarshal.Cast<byte, ushort>(byteValues);
-            return new Vector4(us[0], us[1], us[2], us[3]);
-        }
-
-        public static T ConvertTo<T>(object value) where T : struct
-        {
-            if (value is T t)
-                return t;
-            if (value is Vector2 v2)
-            {
-                if (typeof(T) == typeof(Vector3))
-                    return (T)(object)new Vector3(v2, 0);
-                if (typeof(T) == typeof(Vector4))
-                    return (T)(object)new Vector4(v2, 0, 0);
-            }
-            if (value is Vector3 v3)
-            {
-                if (typeof(T) == typeof(Vector2))
-                    return (T)(object)new Vector2(v3.X, v3.Y);
-                if (typeof(T) == typeof(Vector4))
-                    return (T)(object)new Vector4(v3, 0);
-            }
-            if (value is Vector4 v4)
-            {
-                if (typeof(T) == typeof(Vector2))
-                    return (T)(object)new Vector2(v4.X, v4.Y);
-                if (typeof(T) == typeof(Vector3))
-                    return (T)(object)new Vector3(v4.X, v4.Y, v4.Z);
-            }
-            throw new ArgumentException($"Cannot convert {value} to {typeof(T)}");
-        }
-    }
     
     public static Vector3 ReadVector3(ReadOnlySpan<byte> buffer, VertexType type)
     {

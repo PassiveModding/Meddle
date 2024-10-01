@@ -6,7 +6,9 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Meddle.Plugin.Models.Composer.Materials;
 using Meddle.Plugin.Models.Layout;
+using Meddle.Plugin.Utils;
 using Meddle.Utils;
+using Meddle.Utils.Constants;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.Structs.Material;
@@ -534,7 +536,7 @@ public class MaterialSet
                         ShaderCategory.CategorySkinType => IsDefinedOrHex((SkinType)value),
                         ShaderCategory.CategoryDiffuseAlpha => IsDefinedOrHex((DiffuseAlpha)value),
                         ShaderCategory.CategorySpecularType => IsDefinedOrHex((SpecularMode)value),
-                        ShaderCategory.GetValuesTextureType => IsDefinedOrHex((Meddle.Utils.Export.TextureMode)value),
+                        ShaderCategory.GetValuesTextureType => IsDefinedOrHex((Meddle.Utils.Constants.TextureMode)value),
                         ShaderCategory.CategoryFlowMapType => IsDefinedOrHex((FlowType)value),
                         ShaderCategory.CategoryBgVertexPaint => IsDefinedOrHex((BgVertexPaint)value),
                         _ => $"0x{value:X8}"

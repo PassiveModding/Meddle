@@ -1,9 +1,6 @@
-﻿using System.Numerics;
-using System.Runtime.InteropServices;
-using System.Text;
+﻿using System.Text;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.Structs.Material;
-using Vector2 = FFXIVClientStructs.FFXIV.Common.Math.Vector2;
 
 namespace Meddle.Utils.Helpers;
 

@@ -1,6 +1,7 @@
 using System.Numerics;
 using System.Text.RegularExpressions;
 using FFXIVClientStructs.Havok.Common.Base.Math.QsTransform;
+using Meddle.Utils.Constants;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 

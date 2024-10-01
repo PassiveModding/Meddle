@@ -1,7 +1,10 @@
 ﻿using System.Numerics;
+using Meddle.Plugin.Utils;
 using Meddle.Utils;
+using Meddle.Utils.Constants;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files.Structs.Material;
+using Meddle.Utils.Helpers;
 using Meddle.Utils.Materials;
 using SharpGLTF.Materials;
 
@@ -24,7 +27,7 @@ public class CharacterMaterialBuilder : MeddleMaterialBuilder
 
     private void ApplyComputed()
     {
-        var textureMode = set.GetShaderKeyOrDefault(ShaderCategory.GetValuesTextureType, Meddle.Utils.Export.TextureMode.Default);
+        var textureMode = set.GetShaderKeyOrDefault(ShaderCategory.GetValuesTextureType, Meddle.Utils.Constants.TextureMode.Default);
         var specularMode = set.GetShaderKeyOrDefault(ShaderCategory.CategorySpecularType, SpecularMode.Default); // TODO: is default actually default
         var flowType = set.GetShaderKeyOrDefault(ShaderCategory.CategoryFlowMapType, FlowType.Standard);
         
@@ -37,7 +40,7 @@ public class CharacterMaterialBuilder : MeddleMaterialBuilder
 
         var diffuseTexture = textureMode switch
         {
-            Meddle.Utils.Export.TextureMode.Compatibility => set.TryGetTexture(dataProvider, TextureUsage.g_SamplerDiffuse, out var tex) ? tex.ToTexture(normalRes.Size) : throw new InvalidOperationException("Missing diffuse texture"),
+            Meddle.Utils.Constants.TextureMode.Compatibility => set.TryGetTexture(dataProvider, TextureUsage.g_SamplerDiffuse, out var tex) ? tex.ToTexture(normalRes.Size) : throw new InvalidOperationException("Missing diffuse texture"),
             _ => new SKTexture(normalRes.Width, normalRes.Height)
         };
         
@@ -60,13 +63,13 @@ public class CharacterMaterialBuilder : MeddleMaterialBuilder
 
             var blended = ((ColorTableSet?)colorTableSet)!.Value.ColorTable
                                 .GetBlendedPair(indexColor.Red, indexColor.Green);
-            if (textureMode == Meddle.Utils.Export.TextureMode.Compatibility)
+            if (textureMode == Meddle.Utils.Constants.TextureMode.Compatibility)
             {
                 var diffuse = diffuseTexture![x, y].ToVector4();
                 diffuse *= new Vector4(blended.Diffuse, normal.Z);
                 diffuseTexture[x, y] = (diffuse with {W = normal.Z}).ToSkColor();
             }
-            else if (textureMode == Meddle.Utils.Export.TextureMode.Default)
+            else if (textureMode == Meddle.Utils.Constants.TextureMode.Default)
             {
                 var diffuse = new Vector4(blended.Diffuse, normal.Z);
                 diffuseTexture[x, y] = diffuse.ToSkColor();
