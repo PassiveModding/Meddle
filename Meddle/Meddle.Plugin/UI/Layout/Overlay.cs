@@ -68,12 +68,15 @@ public partial class LayoutWindow
         if (instance is ParsedCharacterInstance {Visible: false})
             return;
         
-        if (extras && instance is IPathInstance pathInstance)
+        if (extras)
         {
-            ImGui.Text($"Path: {pathInstance.Path.FullPath}");
-            if (pathInstance.Path.GamePath != pathInstance.Path.FullPath)
+            if (instance is IPathInstance pathInstance)
             {
-                ImGui.Text($"Game Path: {pathInstance.Path.GamePath}");
+                ImGui.Text($"Path: {pathInstance.Path.FullPath}");
+                if (pathInstance.Path.GamePath != pathInstance.Path.FullPath)
+                {
+                    ImGui.Text($"Game Path: {pathInstance.Path.GamePath}");
+                }
             }
         }
         
@@ -135,13 +138,14 @@ public partial class LayoutWindow
             var groupedChildren = shared.Children.GroupBy(x =>
             {
                 var type = x.Type;
+                
                 if (x is IPathInstance parsedInstance)
                 {
                     return (type, parsedInstance.Path.FullPath);
                 }
 
                 return (type, "");
-            });
+            }).Where(x => config.LayoutConfig.DrawTypes.HasFlag(x.Key.type));
 
             using var groupIndent = ImRaii.PushIndent();
             foreach (var childGroup in groupedChildren)
