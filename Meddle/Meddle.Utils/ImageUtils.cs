@@ -243,17 +243,18 @@ public static class ImageUtils
                 var span = new Span<byte>(data, image.Pixels.Length);
                 if (resource.Resource.Data.Length > span.Length)
                 {
-                    // As far as I can tell this only happens when placeholder textures are used anyway
+                    resource.Resource.Data[..span.Length].CopyTo(span);
                     Global.Logger.LogDebug("Data too large for scratch image. " +
                                            "{Length} > {Length2} " +
-                                           "{Width}x{Height} {Format}\n{HandlePath}",
+                                           "{Width}x{Height} {Format}\n{HandlePath}\n" +
+                                           "Trimmed to fit.",
                                            resource.Resource.Data.Length, span.Length, resource.Meta.Width, 
                                            resource.Meta.Height, resource.Meta.Format,
                                            resource.HandlePath);
                 }
                 else
                 {
-                    resource.Resource.Data.AsSpan().CopyTo(span);
+                    resource.Resource.Data.CopyTo(span);
                 }
             }
             
@@ -292,16 +293,17 @@ public static class ImageUtils
                 var span = new Span<byte>(data, image.Pixels.Length);
                 if (resource.Data.Length > span.Length)
                 {
-                    // As far as I can tell this only happens when placeholder textures are used anyways
+                    resource.Data[..span.Length].CopyTo(span);
                     Global.Logger.LogDebug("Data too large for scratch image. " +
-                                             "{Length} > {Length2} " +
-                                             "{Width}x{Height} {Format}",
-                                             resource.Data.Length, span.Length, resource.Width, 
-                                             resource.Height, resource.Format);
+                                           "{Length} > {Length2} " +
+                                           "{Width}x{Height} {Format}\n" +
+                                           "Trimmed to fit.",
+                                           resource.Data.Length, span.Length, resource.Width, 
+                                           resource.Height, resource.Format);
                 }
                 else
                 {
-                    resource.Data.AsSpan().CopyTo(span);
+                    resource.Data.CopyTo(span);
                 }
             }
             
@@ -313,6 +315,7 @@ public static class ImageUtils
             {
                 bitmap.InstallPixels(bitmap.Info, (nint)data, rgba.Meta.Width * 4);
             }
+            bitmap.SetImmutable();
             
             // I have trust issues
             var copy = new SKBitmap(rgba.Meta.Width, rgba.Meta.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);

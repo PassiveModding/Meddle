@@ -34,7 +34,7 @@ public sealed class SKTexture
             Width = width;
             Height = height;
         }
-
+        
         public SKTexture(SKBitmap bitmap) : this(bitmap.Width, bitmap.Height)
         {
             if (bitmap.ColorType != SKColorType.Rgba8888 || bitmap.AlphaType != SKAlphaType.Unpremul)
