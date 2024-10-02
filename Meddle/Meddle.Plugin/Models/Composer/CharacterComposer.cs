@@ -125,7 +125,7 @@ public class CharacterComposer
         }
 
         var model = new Model(modelInfo.Path.GamePath, mdlFile, modelInfo.ShapeAttributeGroup);
-        //EnsureBonesExist(model, bones, rootBone);
+        EnsureBonesExist(model, bones, rootBone);
         (GenderRace from, GenderRace to, RaceDeformer deformer)? deform;
         if (modelInfo.Deformer != null)
         {
@@ -450,20 +450,52 @@ public class CharacterComposer
         foreach (var mesh in model.Meshes)
         {
             if (mesh.BoneTable == null) continue;
-
+    
             foreach (var boneName in mesh.BoneTable)
             {
                 if (bones.All(b => !b.BoneName.Equals(boneName, StringComparison.Ordinal)))
                 {
-                    Plugin.Logger?.LogInformation("Adding bone {BoneName} from mesh {MeshPath}", boneName,
-                                                  model.Path);
-                    var bone = new BoneNodeBuilder(boneName);
-                    if (root == null) throw new InvalidOperationException("Root bone not found");
-                    root.AddNode(bone);
-                    Plugin.Logger?.LogInformation("Added bone {BoneName} to {ParentBone}", boneName, root.BoneName);
+                    var bone = new BoneNodeBuilder(boneName)
+                    {
+                        IsGenerated = true
+                    };
+                    if (root == null) throw new InvalidOperationException($"Root bone not found when generating missing bone {boneName} for {model.Path}");
+                    
+                    var parent = FindLogicalParent(model, bone, bones) ?? root;
+                    parent.AddNode(bone);
+                    
+                    Plugin.Logger?.LogWarning("Added bone {BoneName} to {ParentBone}\n" +
+                                              "NOTE: This may break posing in some cases, you may find better results " +
+                                              "deleting the bone after importing into editing software", boneName, parent.BoneName);
                     bones.Add(bone);
                 }
             }
         }
+    }
+
+    private BoneNodeBuilder? FindLogicalParent(Model model, BoneNodeBuilder node, List<BoneNodeBuilder> bones)
+    {
+        foreach (var mesh in model.Meshes)
+        {
+            if (mesh.BoneTable != null && mesh.BoneTable.Contains(node.BoneName))
+            {
+                foreach (var vertex in mesh.Vertices)
+                {
+                    if (vertex.BlendIndices == null) continue;
+                    
+                    var vertexBones = vertex.BlendIndices.Select(x => mesh.BoneTable[x]).ToArray();
+                    if (vertexBones.Contains(node.BoneName))
+                    {
+                        var parentBone = vertexBones.FirstOrDefault(x => bones.Any(b => b.BoneName.Equals(x, StringComparison.Ordinal)));
+                        if (parentBone != null)
+                        {
+                            return bones.FirstOrDefault(x => x.BoneName.Equals(parentBone, StringComparison.Ordinal));
+                        }
+                    }
+                }
+            }
+        }
+        
+        return null;
     }
 }
