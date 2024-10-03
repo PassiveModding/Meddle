@@ -242,9 +242,18 @@ public static class ImageUtils
         {
             bitmap.InstallPixels(bitmap.Info, (nint)data, rgba.Meta.Width * 4);
         }
-        bitmap.SetImmutable();
-
-        return bitmap.Copy() ?? throw new InvalidOperationException("Failed to copy bitmap.");
+        // bitmap.SetImmutable();
+        //
+        // return bitmap.Copy() ?? throw new InvalidOperationException("Failed to copy bitmap.");
+        var copy = new SKBitmap(rgba.Meta.Width, rgba.Meta.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
+        var pixelBuf = copy.GetPixelSpan().ToArray();
+        bitmap.GetPixelSpan().CopyTo(pixelBuf);
+        fixed (byte* data = pixelBuf)
+        {
+            copy.InstallPixels(copy.Info, (nint)data, copy.Info.RowBytes);
+        }
+            
+        return copy;
     }
 
     public static TexMeta FromResource(TextureResource resource)
