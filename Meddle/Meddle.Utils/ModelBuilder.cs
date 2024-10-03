@@ -25,7 +25,20 @@ public static class ModelBuilder
         foreach (var mesh in model.Meshes)
         {
             MeshBuilder meshBuilder;
-            var material = materials[mesh.MaterialIdx];
+            MaterialBuilder material;
+            if (mesh.MaterialIdx >= materials.Count)
+            {
+                Global.Logger.LogWarning("[{Path}] Mesh {MeshIdx} has invalid material index {MaterialIdx}",
+                                         model.Path,
+                                         mesh.MeshIdx,
+                                         mesh.MaterialIdx);
+                material = new MaterialBuilder($"{model.Path}_{mesh.MeshIdx}_{mesh.MaterialIdx}");
+            }
+            else
+            {
+                material = materials[mesh.MaterialIdx];
+            }
+            
             if (mesh.BoneTable != null)
             {
                 meshBuilder = new MeshBuilder(mesh, boneMap, material, raceDeformer);
