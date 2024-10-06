@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using System.Text.Json;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
@@ -61,12 +62,23 @@ public class DebugTab : ITab
     public string Name => "Debug";
     public int Order => int.MaxValue - 10;
 
+    private JsonSerializerOptions jsonOptions = new()
+    {
+        WriteIndented = true,
+        IncludeFields = true
+    };
     
     public void Draw()
     {
         if (ImGui.CollapsingHeader("View Skeleton"))
         {
             DrawSelectedCharacter();
+        }
+
+        if (ImGui.CollapsingHeader("Config Json"))
+        {
+            var cofigJson = JsonSerializer.Serialize(config, jsonOptions);
+            ImGui.TextWrapped(cofigJson);
         }
 
         if (ImGui.CollapsingHeader("Object Table"))

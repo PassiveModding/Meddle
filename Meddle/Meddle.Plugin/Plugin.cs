@@ -28,6 +28,8 @@ public sealed class Plugin : IDalamudPlugin
         {
             var config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
             pluginInterface.Inject(config);
+            config.Migrate();
+            
             Alloc.Init();
 
             var host = Host.CreateDefaultBuilder();
@@ -80,6 +82,25 @@ public class Configuration : IPluginConfiguration
 {
     public const ExportType DefaultExportType = ExportType.GLTF;
     public const SkeletonUtils.PoseMode DefaultPoseMode = SkeletonUtils.PoseMode.Model;
+
+    public void Migrate()
+    {
+        if (Version == 1)
+        {
+            if (DisableAutomaticUiHide == false)
+            {
+                DisableAutomaticUiHide = true;
+            }
+            
+            if (DisableCutsceneUiHide == false)
+            {
+                DisableCutsceneUiHide = true;
+            }
+            
+            Version = 2;
+            Save();
+        }
+    }
     
     [PluginService]
     [JsonIgnore]
@@ -120,7 +141,7 @@ public class Configuration : IPluginConfiguration
     /// </summary>
     public ExportType ExportType { get; set; } = DefaultExportType;
     
-    public int Version { get; set; } = 1;
+    public int Version { get; set; } = 2;
     
     public LayoutWindow.LayoutConfig LayoutConfig { get; set; } = new();
 
