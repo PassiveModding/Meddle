@@ -499,7 +499,16 @@ public class MaterialSet
         void AddColorTable()
         {
             if (colorTable == null) return;
-            extrasDict["ColorTable"] = JsonNode.Parse(JsonSerializer.Serialize(colorTable, JsonOptions))!;
+
+            switch (colorTable)
+            {
+                case ColorTableSet colorTableSet:
+                    extrasDict["ColorTable"] = JsonNode.Parse(JsonSerializer.Serialize(colorTableSet.ToObject(), JsonOptions))!;
+                    break;
+                case LegacyColorTableSet legacyColorTableSet:
+                    extrasDict["LegacyColorTable"] = JsonNode.Parse(JsonSerializer.Serialize(legacyColorTableSet.ToObject(), JsonOptions))!;
+                    break;
+            }
         }
         
         void AddStainColor()

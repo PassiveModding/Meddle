@@ -1,4 +1,6 @@
 ﻿using System.Numerics;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Meddle.Utils.Files.Structs.Material;
 
@@ -8,12 +10,30 @@ public struct ColorTableSet : IColorTableSet
 {
     public ColorTable ColorTable;
     public ColorDyeTable? ColorDyeTable;
+    
+    public object ToObject()
+    {
+        return new
+        {
+            ColorTable = ColorTable.ToObject(),
+            ColorDyeTable = ColorDyeTable?.ToObject()
+        };
+    }
 }
 
 public struct LegacyColorTableSet : IColorTableSet
 {
     public LegacyColorTable ColorTable;
     public LegacyColorDyeTable? ColorDyeTable;
+    
+    public object ToObject()
+    {
+        return new
+        {
+            ColorTable = ColorTable.ToObject(),
+            ColorDyeTable = ColorDyeTable?.ToObject()
+        };
+    }
 }
 
 public readonly struct LegacyColorDyeTable
@@ -24,6 +44,23 @@ public readonly struct LegacyColorDyeTable
     public LegacyColorDyeTable(ref SpanBinaryReader reader)
     {
         rows = reader.Read<LegacyColorDyeTableRow>(LegacyColorTable.LegacyNumRows).ToArray();
+    }
+    
+    public object ToObject()
+    {
+        return new
+        {
+            Rows = Rows.ToArray().Select(r => new
+            {
+                Template = r.Template,
+                Diffuse = r.Diffuse,
+                Specular = r.Specular,
+                Emissive = r.Emissive,
+                Gloss = r.Gloss,
+                SpecularStrength = r.SpecularStrength,
+                
+            }).ToArray()
+        };
     }
 }
 
@@ -36,6 +73,23 @@ public readonly struct ColorDyeTable
     {
         rows = reader.Read<ColorDyeTableRow>(ColorTable.NumRows).ToArray();
     }
+
+    public object ToObject()
+    {
+        return new
+        {
+            Rows = Rows.ToArray().Select(r => new
+            {
+                Template = r.Template,
+                Diffuse = r.Diffuse,
+                Specular = r.Specular,
+                Emissive = r.Emissive,
+                Gloss = r.Gloss,
+                SpecularStrength = r.SpecularStrength,
+                
+            }).ToArray()
+        };
+    }
 }
 
 
@@ -47,6 +101,24 @@ public readonly struct LegacyColorTable
     public LegacyColorTable(ref SpanBinaryReader reader)
     {
         rows = reader.Read<LegacyColorTableRow>(LegacyNumRows).ToArray();
+    }
+    
+    public object ToObject()
+    {
+        return new
+        {
+            Rows = Rows.ToArray().Select(r => new
+            {
+                Diffuse = r.Diffuse,
+                Specular = r.Specular,
+                SpecularStrength = r.SpecularStrength,
+                Emissive = r.Emissive,
+                GlossStrength = r.GlossStrength,
+                MaterialRepeat = r.MaterialRepeat,
+                MaterialSkew = r.MaterialSkew,
+                TileIndex = r.TileIndex
+            }).ToArray()
+        };
     }
     
     // normal pixel A channel on legacy normal as a float from 0-1
@@ -119,6 +191,25 @@ public readonly struct ColorTable
         var pair1 = rows[pairIdx + 1];
 
         return (pair0, pair1);
+    }
+    
+    public object ToObject()
+    {
+        return new
+        {
+            Rows = Rows.ToArray().Select(r => new
+            {
+                Diffuse = r.Diffuse,
+                Specular = r.Specular,
+                SpecularStrength = r.SpecularStrength,
+                Emissive = r.Emissive,
+                GlossStrength = r.GlossStrength,
+                MaterialRepeat = r.MaterialRepeat,
+                MaterialSkew = r.MaterialSkew,
+                TileIndex = r.TileIndex,
+                ShaderId = r.ShaderId
+            }).ToArray()
+        };
     }
     
     public ColorTableRow GetBlendedPair(int weight, int blend)
