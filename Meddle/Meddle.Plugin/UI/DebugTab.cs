@@ -60,7 +60,7 @@ public class DebugTab : ITab
     }
 
     public string Name => "Debug";
-    public int Order => int.MaxValue - 10;
+    public int Order => 0;
 
     private readonly JsonSerializerOptions jsonOptions = new()
     {
