@@ -75,7 +75,7 @@ public class OptionsTab : ITab
             ImGui.EndTooltip();
         }
         
-        DrawPoseMode();
+        // DrawPoseMode();
         
         DrawCharacterTextureMode();
         
@@ -134,29 +134,29 @@ public class OptionsTab : ITab
         }
     }
 
-    private void DrawPoseMode()
-    {
-        var poseMode = config.PoseMode;
-        if (ImGui.BeginCombo("Pose Mode", poseMode.ToString()))
-        {
-            foreach (var mode in Enum.GetValues<SkeletonUtils.PoseMode>())
-            {
-                if (ImGui.Selectable(mode.ToString(), mode == poseMode))
-                {
-                    config.PoseMode = mode;
-                    config.Save();
-                }
-            }
-
-            ImGui.EndCombo();
-        }
-        
-        if (!Enum.IsDefined(typeof(SkeletonUtils.PoseMode), config.PoseMode))
-        {
-            config.PoseMode = Configuration.DefaultPoseMode;
-            config.Save();
-        }
-    }
+    // private void DrawPoseMode()
+    // {
+    //     var poseMode = config.PoseMode;
+    //     if (ImGui.BeginCombo("Pose Mode", poseMode.ToString()))
+    //     {
+    //         foreach (var mode in Enum.GetValues<SkeletonUtils.PoseMode>())
+    //         {
+    //             if (ImGui.Selectable(mode.ToString(), mode == poseMode))
+    //             {
+    //                 config.PoseMode = mode;
+    //                 config.Save();
+    //             }
+    //         }
+    //
+    //         ImGui.EndCombo();
+    //     }
+    //     
+    //     if (!Enum.IsDefined(typeof(SkeletonUtils.PoseMode), config.PoseMode))
+    //     {
+    //         config.PoseMode = Configuration.DefaultPoseMode;
+    //         config.Save();
+    //     }
+    // }
     
     private void DrawCharacterTextureMode()
     {

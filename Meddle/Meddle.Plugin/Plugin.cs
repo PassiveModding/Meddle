@@ -105,11 +105,11 @@ public class Configuration : IPluginConfiguration
     /// If enabled, pose will be included at 0 on the timeline under the 'pose' track.
     /// </summary>
     public bool IncludePose { get; set; } = true;
-    
+
     /// <summary>
     /// Indicates whether scaling should be taken from the model pose rather than the local pose.
     /// </summary>
-    public SkeletonUtils.PoseMode PoseMode { get; set; } = DefaultPoseMode;
+    public SkeletonUtils.PoseMode PoseMode => SkeletonUtils.PoseMode.Local;//{ get; set; } = DefaultPoseMode;
     
     public TextureMode TextureMode { get; set; } = TextureMode.Bake;
     
