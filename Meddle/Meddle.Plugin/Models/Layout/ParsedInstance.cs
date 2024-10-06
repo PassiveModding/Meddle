@@ -239,7 +239,7 @@ public class ParsedTerrainInstance : ParsedInstance, IPathInstance, IResolvableI
         if (IsResolved) return;
         try
         {
-            resolver.ResolveParsedTerrainInstance(this);
+            resolver.ResolveInstances(this);
         } 
         finally
         {
@@ -363,7 +363,7 @@ public class ParsedCharacterInstance : ParsedInstance, IResolvableInstance, ICha
         if (IsResolved) return;
         try
         {
-            resolver.ResolveParsedCharacterInstance(this);
+            resolver.ResolveInstances(this);
         } 
         finally
         {

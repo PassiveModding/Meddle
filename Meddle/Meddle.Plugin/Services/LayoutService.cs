@@ -44,44 +44,43 @@ public class LayoutService : IService, IDisposable
         this.framework.Update += Update;
     }
 
-    public DateTime LastDrawTime { get; set; }
+    public bool RequestUpdate { get; set; }
     
     public ParsedInstance[]? LastState { get; private set; }
     
-    private void Update(IFramework framework)
+    private void Update(IFramework _)
     {
-        // if last draw time longer than 5sec ago, skip
-        if (LastDrawTime != default && DateTime.Now - LastDrawTime > TimeSpan.FromSeconds(5))
+        if (RequestUpdate == false)
             return;
         
         var worldState = GetWorldState();
         LastState = worldState;
+        RequestUpdate = false;
     }
 
-    public static ActivitySource ActivitySource { get; } = new("Meddle.LayoutService");
-    
     public unsafe ParsedInstance[]? GetWorldState()
     {
-        using var activity = ActivitySource.StartActivity();
         var layoutWorld = sigUtil.GetLayoutWorld();
         if (layoutWorld == null)
             return null;
+        
+        var layers = new List<ParsedInstance>();
+        var objects = ParseObjects();
+        layers.AddRange(objects);
 
         var currentTerritory = GetCurrentTerritory();
         var housingItems = ParseTerritoryFurniture(currentTerritory);
         var parseCtx = new ParseContext(housingItems);
-        var objects = ParseObjects();
+        
         var loadedLayouts = layoutWorld->LoadedLayouts.ToArray();
         var loadedLayers = loadedLayouts
                            .Select(layout => ParseLayout(layout.Value, parseCtx))
                            .SelectMany(x => x).ToArray();
         var globalLayers = ParseLayout(layoutWorld->GlobalLayout, parseCtx);
 
-        var layers = new List<ParsedInstance>();
 
         layers.AddRange(loadedLayers.SelectMany(x => x.Instances));
         layers.AddRange(globalLayers.SelectMany(x => x.Instances));
-        layers.AddRange(objects);
 
         return layers.ToArray();
     }
@@ -101,7 +100,6 @@ public class LayoutService : IService, IDisposable
     private unsafe ParsedInstanceSet[] ParseLayout(LayoutManager* activeLayout, ParseContext context)
     {
         if (activeLayout == null) return [];
-        using var activity = ActivitySource.StartActivity();
         var layers = new List<ParsedInstanceSet>();
         foreach (var (_, layerPtr) in activeLayout->Layers)
         {
@@ -132,8 +130,6 @@ public class LayoutService : IService, IDisposable
         if (terrainPtr == null || terrainPtr.Value == null)
             return null;
         
-        using var activity = ActivitySource.StartActivity();
-        
         var terrainManager = terrainPtr.Value;
         var path = terrainManager->PathString;
         return new ParsedTerrainInstance((nint)terrainManager, new Transform(Vector3.Zero, Quaternion.Identity, Vector3.One), path);
@@ -144,7 +140,6 @@ public class LayoutService : IService, IDisposable
         if (layerManagerPtr == null || layerManagerPtr.Value == null)
             return null;
 
-        using var activity = ActivitySource.StartActivity();
         var layerManager = layerManagerPtr.Value;
         var instances = new List<ParsedInstance>();
         foreach (var (_, instancePtr) in layerManager->Instances)
@@ -171,10 +166,7 @@ public class LayoutService : IService, IDisposable
         if (instancePtr == null || instancePtr.Value == null)
             return null;
 
-        using var activity = ActivitySource.StartActivity();
         var instanceLayout = instancePtr.Value;
-        activity?.SetTag("instanceType", instanceLayout->Id.Type.ToString());
-        activity?.SetTag("instancePtr", (nint)instanceLayout);
         switch (instanceLayout->Id.Type)
         {
             case InstanceType.BgPart:
@@ -319,7 +311,6 @@ public class LayoutService : IService, IDisposable
     
     public unsafe ParsedInstance[] ParseObjects()
     {
-        using var activity = ActivitySource.StartActivity();
         var gameObjectManager = sigUtil.GetGameObjectManager();
 
         var objects = new List<ParsedInstance>();
@@ -365,7 +356,6 @@ public class LayoutService : IService, IDisposable
         if (furniture == null || objectManager == null)
             return [];
 
-        using var activity = ActivitySource.StartActivity();
         var items = new List<Furniture>();
         foreach (var item in furniture)
         {

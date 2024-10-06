@@ -1,5 +1,4 @@
 using System.Numerics;
-using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 using Dalamud.Configuration;
 using Dalamud.IoC;
@@ -12,10 +11,6 @@ using Meddle.Utils.Files.SqPack;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using OpenTelemetry;
-using OpenTelemetry.Metrics;
-using OpenTelemetry.Resources;
-using OpenTelemetry.Trace;
 using OtterTex;
 
 namespace Meddle.Plugin;
@@ -53,23 +48,6 @@ public sealed class Plugin : IDalamudPlugin
                     .AddSingleton(config)
                     .AddUi()
                     .AddSingleton(new SqPack(Environment.CurrentDirectory));
-
-#if DEBUG
-                services.AddOpenTelemetry()
-                        .ConfigureResource(x => { x.AddService("Meddle"); })
-                        .WithTracing(x =>
-                        {
-                            x.AddSource("Meddle.*");
-                        })
-                        .WithMetrics(x =>
-                        {
-                            x.AddProcessInstrumentation();
-                            x.AddRuntimeInstrumentation();
-                            x.AddMeter("Meddle.*");
-                        })
-                        .WithLogging()
-                        .UseOtlpExporter();
-#endif
             });
 
             app = host.Build();

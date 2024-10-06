@@ -5,8 +5,6 @@ namespace Meddle.Utils.Files.SqPack;
 
 public class SqPack : IDisposable
 {
-    private static readonly ActivitySource ActivitySource = new("Meddle.Utils.Files.SqPack");
-
     private static uint[]? CrcTable;
     public IReadOnlyList<Repository> Repositories { get; private set; }
 
@@ -46,11 +44,7 @@ public class SqPack : IDisposable
 
     public bool FileExists(string path, out ParsedFilePath hash)
     {
-        using var activity = ActivitySource.StartActivity();
-        activity?.SetTag("path", path);
         hash = GetFileHash(path);
-        activity?.SetTag("hash", hash.IndexHash.ToString());
-
         var categoryName = path.Split('/')[0];
 
         byte? catId = null;
@@ -85,11 +79,7 @@ public class SqPack : IDisposable
     public (Category category, IndexHashTableEntry hash, SqPackFile file)? GetFile(
         string path, FileType? fileType = null)
     {
-        using var activity = ActivitySource.StartActivity();
-        activity?.SetTag("path", path);
         var hash = GetFileHash(path);
-        activity?.SetTag("hash", hash.IndexHash.ToString());
-        activity?.SetTag("category", hash.Category);
 
         var categoryName = path.Split('/')[0];
 

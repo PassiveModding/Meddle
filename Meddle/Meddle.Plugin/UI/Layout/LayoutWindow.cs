@@ -3,7 +3,6 @@ using System.Numerics;
 using Dalamud.Interface;
 using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.Utility.Raii;
-using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
 using ImGuiNET;
 using Meddle.Plugin.Models;
@@ -72,6 +71,7 @@ public partial class LayoutWindow : ITab
 
     private void SetupCurrentState()
     {
+        layoutService.RequestUpdate = true;
         currentLayout = layoutService.LastState ?? [];
         currentPos = sigUtil.GetLocalPosition();
     }
@@ -110,7 +110,6 @@ public partial class LayoutWindow : ITab
 
             if (shouldUpdateState)
             {
-                layoutService.LastDrawTime = DateTime.Now;
                 SetupCurrentState();
                 shouldUpdateState = false;
             }

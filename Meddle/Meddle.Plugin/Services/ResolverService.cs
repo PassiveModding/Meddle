@@ -1,4 +1,5 @@
 ﻿using System.Runtime.InteropServices;
+using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
@@ -26,6 +27,7 @@ public class ResolverService : IService
     private readonly LayoutService layoutService;
     private readonly SqPack pack;
     private readonly ParseService parseService;
+    private readonly IFramework framework;
     private readonly PbdHooks pbdHooks;
 
     public ResolverService(
@@ -33,22 +35,27 @@ public class ResolverService : IService
         LayoutService layoutService,
         SqPack pack,
         ParseService parseService, 
+        IFramework framework,
         PbdHooks pbdHooks)
     {
         this.logger = logger;
         this.layoutService = layoutService;
         this.pack = pack;
         this.parseService = parseService;
+        this.framework = framework;
         this.pbdHooks = pbdHooks;
     }
     
     
-    public void ResolveInstances(ParsedInstance[] instances)
+    public void ResolveInstances(params ParsedInstance[] instances)
     {
-        foreach (var instance in instances)
+        framework.RunOnTick(() =>
         {
-            ResolveInstance(instance);
-        }
+            foreach (var instance in instances)
+            {
+                ResolveInstance(instance);
+            }
+        }).GetAwaiter().GetResult();
     }
     
     private bool IsCharacterKind(ObjectKind kind)
@@ -66,7 +73,7 @@ public class ResolverService : IService
         };
     }
 
-    public unsafe void ResolveParsedCharacterInstance(ParsedCharacterInstance characterInstance)
+    private unsafe void ResolveParsedCharacterInstance(ParsedCharacterInstance characterInstance)
     {
         var objects = layoutService.ParseObjects();
         // check to ensure the character instance is still valid
@@ -90,7 +97,7 @@ public class ResolverService : IService
         }
     }
     
-    public void ResolveParsedTerrainInstance(ParsedTerrainInstance terrainInstance)
+    private void ResolveParsedTerrainInstance(ParsedTerrainInstance terrainInstance)
     {
         var path = terrainInstance.Path;
         var teraPath = $"{terrainInstance.Path.GamePath}/bgplate/terrain.tera";
@@ -106,7 +113,7 @@ public class ResolverService : IService
         terrainInstance.Data = new ParsedTerrainInstanceData(terrain);
     }
     
-    public void ResolveInstance(ParsedInstance instance)
+    private void ResolveInstance(ParsedInstance instance)
     {
         if (instance is ParsedCharacterInstance {IsResolved: false} characterInstance)
         {

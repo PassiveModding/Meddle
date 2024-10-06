@@ -12,7 +12,6 @@ namespace Meddle.Plugin.Services;
 
 public class AnimationExportService : IDisposable, IService
 {
-    private static readonly ActivitySource ActivitySource = new("Meddle.Plugin.Utils.ExportUtil");
     private readonly Configuration configuration;
     private readonly ILogger<AnimationExportService> logger;
 
@@ -31,7 +30,6 @@ public class AnimationExportService : IDisposable, IService
     {
         try
         {
-            using var activity = ActivitySource.StartActivity();
             var boneSets = SkeletonUtils.GetAnimatedBoneMap(frames.ToArray(), configuration.PoseMode);
             var startTime = frames.Min(x => x.Item1);
             //var folder = GetPathForOutput();

@@ -20,7 +20,6 @@ namespace Meddle.Plugin.Services;
 
 public class ParseService : IDisposable, IService
 {
-    private static readonly ActivitySource ActivitySource = new("Meddle.Plugin.Utils.ParseUtil");
     private readonly EventLogger<ParseService> logger;
     private readonly SqPack pack;
     private readonly PbdHooks pbdHooks;
@@ -60,7 +59,6 @@ public class ParseService : IDisposable, IService
     
     public unsafe Dictionary<int, IColorTableSet> ParseColorTableTextures(CharacterBase* characterBase)
     {
-        using var activity = ActivitySource.StartActivity();
         var colorTableTextures = new Dictionary<int, IColorTableSet>();
         for (var i = 0; i < characterBase->ColorTableTexturesSpan.Length; i++)
         {
@@ -81,7 +79,6 @@ public class ParseService : IDisposable, IService
     // Only call from main thread or you will probably crash
     public unsafe IColorTableSet ParseColorTableTexture(Texture* colorTableTexture)
     {
-        using var activity = ActivitySource.StartActivity();
         var (colorTableRes, stride) = DXHelper.ExportTextureResource(colorTableTexture);
         if ((TexFile.TextureFormat)colorTableTexture->TextureFormat != TexFile.TextureFormat.R16G16B16A16F)
         {
