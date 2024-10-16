@@ -26,15 +26,7 @@ public class CharacterTattooMaterialBuilder : MeddleMaterialBuilder
 
     public override MeddleMaterialBuilder Apply()
     {
-        var hairType = set.GetShaderKeyOrDefault(ShaderCategory.CategoryHairType, (HairType)0);
-        
-        Vector3 color = hairType switch
-        {
-            HairType.Face => customizeParameter.OptionColor,
-            HairType.Hair => customizeParameter.MeshColor,
-            _ => Vector3.Zero
-        };
-        
+        var influenceColor = customizeParameter.OptionColor;
         if (!set.TryGetTextureStrict(dataProvider, TextureUsage.g_SamplerNormal, out var normalRes))
             throw new InvalidOperationException("Missing normal texture");
         
@@ -47,7 +39,7 @@ public class CharacterTattooMaterialBuilder : MeddleMaterialBuilder
 
             if (influence > 0)
             {
-                diffuseTexture[x, y] = new Vector4(color, normal.W).ToSkColor();
+                diffuseTexture[x, y] = new Vector4(influenceColor, normal.W).ToSkColor();
             }
             else
             {

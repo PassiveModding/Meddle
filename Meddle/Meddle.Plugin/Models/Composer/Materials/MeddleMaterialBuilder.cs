@@ -25,6 +25,7 @@ public abstract class MeddleMaterialBuilder : MaterialBuilder, IVertexPaintMater
             {
                 var texName = $"{Path.GetFileNameWithoutExtension(set.MtrlPath)}_{hashStr}/{texture.Value.GamePath}";
                 var builder = dataProvider.CacheTexture(tex.ToTexture(), texName);
+                set.AddProperty($"{texture.Key}_PngCachePath", $"{DataProvider.FilterTexName(texName)}.png");
                 var mapped = GenericMaterialBuilder.MapTextureUsageToChannel(texture.Key);
                 if (mapped != null)
                 {

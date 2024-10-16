@@ -103,6 +103,9 @@ public partial class LayoutWindow
                                      : ImGui.ColorConvertU32ToFloat4(housingInstance.Stain.Color);
                 if (color != null)
                 {
+                    var colorSq = color.Value * color.Value;
+                    ImGui.ColorButton("Stain", colorSq);
+                    ImGui.SameLine();
                     ImGui.ColorButton("Stain", color.Value);
                 }
                 else

@@ -23,10 +23,10 @@ namespace Meddle.Plugin.Services;
 public class LayoutService : IService, IDisposable
 {
     private readonly Dictionary<uint, Item> itemDict;
+    private readonly Dictionary<uint, Stain> stainDict;
     private readonly ILogger<LayoutService> logger;
     private readonly IFramework framework;
     private readonly SigUtil sigUtil;
-    private readonly Dictionary<uint, Stain> stainDict;
 
     public LayoutService(
         SigUtil sigUtil, 
@@ -259,20 +259,16 @@ public class LayoutService : IService, IDisposable
         var furnitureMatch = context.HousingItems.FirstOrDefault(item => item.LayoutInstance == sharedGroupPtr);
         if (furnitureMatch is not null)
         {
-            // TODO: Kinda messy
-            var stain = stainDict.GetValueOrDefault(furnitureMatch.HousingFurniture.Stain);
-            var item = itemDict.GetValueOrDefault(furnitureMatch.HousingFurniture.Id);
-            
             var housing = new ParsedHousingInstance((nint)sharedGroup, new Transform(*sharedGroup->GetTransformImpl()), path,
-                                             furnitureMatch.GameObject->NameString,
-                                             furnitureMatch.GameObject->ObjectKind,
-                                             stain,
-                                             item, children);
+                                             furnitureMatch.GameObject->HousingObject.NameString,
+                                             furnitureMatch.GameObject->HousingObject.ObjectKind,
+                                             furnitureMatch.Stain,
+                                             furnitureMatch.Item, children);
             foreach (var child in housing.Flatten())
             {
                 if (child is ParsedBgPartsInstance parsedBgPartsInstance)
                 {
-                    parsedBgPartsInstance.StainColor = stain?.Color != null ? ImGui.ColorConvertU32ToFloat4(stain.Color) : null;
+                    parsedBgPartsInstance.StainColor = furnitureMatch.Stain != null ? ImGui.ColorConvertU32ToFloat4(furnitureMatch.Stain.Color) : null;
                 }
             }
             
@@ -362,19 +358,41 @@ public class LayoutService : IService, IDisposable
             var index = item.Index;
             if (item.Index == -1) continue;
             var objectPtr = objectManager->Objects[index];
-            if (objectPtr == null || objectPtr.Value == null || objectPtr.Value->LayoutInstance == null)
+            if (objectPtr == null || objectPtr.Value == null || objectPtr.Value->SharedGroupLayoutInstance == null)
             {
                 continue;
             }
 
-            var layoutInstance = objectPtr.Value->LayoutInstance;
+            if (objectPtr.Value->ObjectKind != ObjectKind.HousingEventObject)
+            {
+                logger.LogWarning("ObjectKind is not HousingEventObject");
+                continue;
+            }
+            
+            var housingObjectPtr = (MeddleHousingObject*)objectPtr.Value;
+            var layoutInstance = housingObjectPtr->HousingObject.SharedGroupLayoutInstance;
+            var lookupItem = itemDict.GetValueOrDefault(item.Id);
+            Stain? stain = null;
+            if (housingObjectPtr->ColorId != 0)
+            {
+                stain = stainDict.GetValueOrDefault(housingObjectPtr->ColorId);
+            }
+            
+            var sLayoutInstance = (MeddleSharedGroupLayoutInstance*)layoutInstance;
+            if (sLayoutInstance->ColorId != 0)
+            {
+                stain = stainDict.GetValueOrDefault(sLayoutInstance->ColorId);
+            }
+            
+            
+            
             items.Add(new Furniture
             {
-                GameObject = objectPtr,
+                GameObject = housingObjectPtr,
                 LayoutInstance = layoutInstance,
                 HousingFurniture = item,
-                Stain = stainDict.GetValueOrDefault(item.Stain),
-                Item = itemDict.GetValueOrDefault(item.Id)
+                Stain = stain,
+                Item = lookupItem
             });
         }
 
@@ -393,10 +411,10 @@ public class LayoutService : IService, IDisposable
 
     public unsafe class Furniture
     {
-        public GameObject* GameObject;
+        public MeddleHousingObject* GameObject;
         public HousingFurniture HousingFurniture;
         public Item? Item;
-        public ILayoutInstance* LayoutInstance;
+        public SharedGroupLayoutInstance* LayoutInstance;
         public Stain? Stain;
     }
 

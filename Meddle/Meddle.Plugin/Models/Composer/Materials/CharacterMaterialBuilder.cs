@@ -27,9 +27,9 @@ public class CharacterMaterialBuilder : MeddleMaterialBuilder
 
     private void ApplyComputed()
     {
-        var textureMode = set.GetShaderKeyOrDefault(ShaderCategory.GetValuesTextureType, Meddle.Utils.Constants.TextureMode.Default);
-        var specularMode = set.GetShaderKeyOrDefault(ShaderCategory.CategorySpecularType, SpecularMode.Default); // TODO: is default actually default
-        var flowType = set.GetShaderKeyOrDefault(ShaderCategory.CategoryFlowMapType, FlowType.Standard);
+        var textureMode = set.GetShaderKeyOrDefault<Meddle.Utils.Constants.TextureMode>(ShaderCategory.GetValuesTextureType);
+        var specularMode = set.GetShaderKeyOrDefault<SpecularMode>(ShaderCategory.CategorySpecularType);
+        var flowType = set.GetShaderKeyOrDefault<FlowType>(ShaderCategory.CategoryFlowMapType);
         
         if (!set.TryGetTextureStrict(dataProvider, TextureUsage.g_SamplerNormal, out var normalRes))
             throw new InvalidOperationException("Missing normal texture");

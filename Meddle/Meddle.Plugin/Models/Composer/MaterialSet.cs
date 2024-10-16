@@ -47,9 +47,9 @@ public class MaterialSet
             hash.Add(key);
             hash.Add(value);
         }
-        foreach (var key in ShaderKeys)
+        foreach (var key in ShaderKeyDict)
         {
-            hash.Add(key.Category);
+            hash.Add(key.Key);
             hash.Add(key.Value);
         }
         return hash.ToHashCode();
@@ -86,8 +86,28 @@ public class MaterialSet
     //private readonly ShaderPackage package;
     public readonly string MtrlPath;
     public readonly string ShpkName;
-    public readonly ShaderKey[] ShaderKeys;
-    public readonly Dictionary<MaterialConstant, float[]> Constants;
+    public Dictionary<MaterialConstant, float[]> Constants => AllConstants();
+    public readonly Dictionary<MaterialConstant, float[]> ShpkConstants;
+    public readonly Dictionary<MaterialConstant, float[]> MtrlConstants;
+    public readonly Dictionary<ShaderCategory, uint> ShaderKeyDict;
+    private Dictionary<string, object> AdditionalProperties = new();
+    
+    public void AddProperty(string key, object value)
+    {
+        AdditionalProperties[key] = value;
+    }
+
+    private Dictionary<MaterialConstant, float[]> AllConstants()
+    {
+        var all = new Dictionary<MaterialConstant, float[]>(ShpkConstants);
+        foreach (var (key, value) in MtrlConstants)
+        {
+            all[key] = value;
+        }
+        
+        return all;
+    }
+    
     public readonly Dictionary<TextureUsage, HandleString> TextureUsageDict;
     private readonly Func<HandleString, TextureResource?>? textureLoader;
     
@@ -312,31 +332,29 @@ public class MaterialSet
                    : @default;
     }
     
-    public TValue GetShaderKeyOrDefault<TCategory, TValue>(TCategory category, TValue @default) where TCategory : Enum where TValue : Enum
+    public uint GetShaderKeyOrDefault(uint category)
     {
-        var cat = Convert.ToUInt32(category);
-        var value = GetShaderKeyOrDefault(cat, Convert.ToUInt32(@default));
-        return (TValue)Enum.ToObject(typeof(TValue), value);
+        return GetShaderKeyOrDefault((ShaderCategory)category);
     }
     
-    public TValue GetShaderKeyOrDefault<TCategory, TValue>(TCategory category, uint @default) where TCategory : Enum where TValue : Enum
+    public uint GetShaderKeyOrDefault(ShaderCategory category)
     {
-        var cat = Convert.ToUInt32(category);
-        var value = GetShaderKeyOrDefault(cat, @default);
-        return (TValue)Enum.ToObject(typeof(TValue), value);
-    }
-    
-    public uint GetShaderKeyOrDefault(uint category, uint @default)
-    {
-        foreach (var key in ShaderKeys)
+        if (ShaderKeyDict.TryGetValue(category, out var value))
         {
-            if (key.Category == category)
-            {
-                return key.Value;
-            }
+            return value;
         }
-
-        return @default;
+        
+        throw new InvalidOperationException($"Shader key {category} not found");
+    }
+    
+    public TValue GetShaderKeyOrDefault<TValue>(ShaderCategory category) where TValue : Enum
+    {
+        if (ShaderKeyDict.TryGetValue(category, out var value))
+        {
+            return (TValue)(object)value;
+        }
+        
+        throw new InvalidOperationException($"Shader key {category} not found");
     }
 
     public MaterialSet(MtrlFile file, string mtrlPath, ShpkFile shpk, string shpkName, HandleString[]? texturePathOverride, Func<HandleString, TextureResource?>? textureLoader)
@@ -347,8 +365,18 @@ public class MaterialSet
         shaderFlagData = file.ShaderHeader.Flags;
         var package = new ShaderPackage(shpk, shpkName);
         colorTable = file.GetColorTable();
-        ShaderKeys = file.ShaderKeys;
-        Constants = package.MaterialConstants;
+        ShpkConstants = package.MaterialConstants;
+        MtrlConstants = new Dictionary<MaterialConstant, float[]>();
+        ShaderKeyDict = new Dictionary<ShaderCategory, uint>();
+        foreach (var (key, value) in package.DefaultKeyValues)
+        {
+            ShaderKeyDict[(ShaderCategory)key] = value;
+        }
+        
+        foreach (var key in file.ShaderKeys)
+        {
+            ShaderKeyDict[(ShaderCategory)key.Category] = key.Value;
+        }
         
         // override with material constants
         foreach (var constant in file.Constants)
@@ -371,7 +399,7 @@ public class MaterialSet
             }
 
             // even if duplicate, last probably takes precedence
-            Constants[id] = MemoryMarshal.Cast<uint, float>(buf.ToArray()).ToArray();
+            MtrlConstants[id] = MemoryMarshal.Cast<uint, float>(buf.ToArray()).ToArray();
             if (logOutOfBounds)
             {
                 Plugin.Logger?.LogWarning("Material constant {id} out of bounds for {mtrlPath}, {indexAndCount} greater than {shaderValuesLength}, [{values}]", 
@@ -410,16 +438,9 @@ public class MaterialSet
     
     private MeddleMaterialBuilder GetMaterialBuilder(DataProvider dataProvider)
     {
-        var mtrlName = $"{Path.GetFileNameWithoutExtension(MtrlPath)}_{Path.GetFileNameWithoutExtension(ShpkName)}_{Uid()}";
+        var mtrlName = $"{Path.GetFileNameWithoutExtension(MtrlPath)}_{Path.GetFileNameWithoutExtension(ShpkName)}_{HashStr()}";
         switch (ShpkName)
         {
-            case "bg.shpk":
-            case "bguvscroll.shpk":
-                return new BgMaterialBuilder(mtrlName, new BgParams(), this, dataProvider);
-            case "bgcolorchange.shpk":
-                return new BgMaterialBuilder(mtrlName, new BgColorChangeParams(stainColor), this, dataProvider);
-            case "lightshaft.shpk":
-                return new LightshaftMaterialBuilder(mtrlName, this, dataProvider);
             case "character.shpk":
             case "characterlegacy.shpk":
                 return new CharacterMaterialBuilder(mtrlName, this, dataProvider, colorTable, textureMode);
@@ -476,6 +497,11 @@ public class MaterialSet
         AddCustomizeData();
         AddStainColor();
         AddColorTable();
+        
+        foreach (var (key, value) in AdditionalProperties)
+        {
+            extrasDict[key] = value;
+        }
 
         return extrasDict;
 
@@ -532,14 +558,13 @@ public class MaterialSet
         
         void AddShaderKeys()
         {
-            foreach (var key in ShaderKeys)
+            foreach (var key in ShaderKeyDict)
             {
-                var category = key.Category;
+                uint category = (uint)key.Key;
                 var value = key.Value;
                 if (Enum.IsDefined(typeof(ShaderCategory), category))
                 {
-                    var keyCat = (ShaderCategory)category;
-                    var valStr = keyCat switch
+                    var valStr = key.Key switch
                     {
                         ShaderCategory.CategoryHairType => IsDefinedOrHex((HairType)value),
                         ShaderCategory.CategorySkinType => IsDefinedOrHex((SkinType)value),
@@ -551,7 +576,7 @@ public class MaterialSet
                         _ => $"0x{value:X8}"
                     };
                     
-                    extrasDict[keyCat.ToString()] = valStr;
+                    extrasDict[key.Key.ToString()] = valStr;
                 }
                 else
                 {
@@ -567,10 +592,7 @@ public class MaterialSet
             {
                 var usageStr = usage.ToString();
                 extrasDict[usageStr] = path.GamePath;
-                if (path.FullPath != path.GamePath)
-                {
-                    extrasDict[$"{usageStr}_FullPath"] = path.FullPath;
-                }
+                extrasDict[$"{usageStr}_FullPath"] = path.FullPath;
             }
         }
 

@@ -8,12 +8,16 @@ using FFXIVClientStructs.FFXIV.Client.Graphics;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Layer;
 using FFXIVClientStructs.Interop;
 using ImGuiNET;
+using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
+using Meddle.Utils.Constants;
 using Meddle.Utils.Export;
+using Meddle.Utils.Files;
 using Meddle.Utils.Helpers;
+using Microsoft.Extensions.Logging;
 using Transform = FFXIVClientStructs.FFXIV.Client.LayoutEngine.Transform;
 
 namespace Meddle.Plugin.UI.Layout;
@@ -111,6 +115,11 @@ public partial class LayoutWindow
                     ImGui.Text("No Stain");
                 }
             }
+            
+            if (instance is ParsedBgPartsInstance bgPart)
+            {
+                DrawCache(bgPart);
+            }
 
             if (instance is ParsedCharacterInstance character)
             {
@@ -185,6 +194,191 @@ public partial class LayoutWindow
                     }
                 }
             }
+        }
+    }
+
+    private unsafe void DrawCache(ParsedInstance instance)
+    {
+        if (instance is not ParsedBgPartsInstance bgPartInstance) return;
+        var mdlPath = bgPartInstance.Path.FullPath;
+        
+        if (!mdlCache.TryGetValue(mdlPath, out var cachedMdl))
+        {
+            try
+            {
+                var mdlFile = dataManager.GetFileOrReadFromDisk(mdlPath);
+                if (mdlFile == null)
+                {
+                    mdlCache[mdlPath] = null;
+                }
+                else
+                {
+                    mdlCache[mdlPath] = new MdlFile(mdlFile);
+                }
+            }
+            catch (Exception e)
+            {
+                log.LogError(e, "Failed to load mdl file");
+                mdlCache[mdlPath] = null;
+            }
+                
+            cachedMdl = mdlCache[mdlPath];
+        }
+            
+        if (cachedMdl == null)
+        {
+            ImGui.Text("No cached mdl data");
+            return;
+        }
+        
+        using var treeNode = ImRaii.TreeNode("Mdl Data");
+        if (!treeNode.Success) return;
+
+        foreach (var mtrlName in cachedMdl.GetMaterialNames().Select(x => x.Value))
+        {
+            using var materialNode = ImRaii.TreeNode(mtrlName);
+            if (!materialNode.Success) continue;
+            
+            if (!mtrlCache.TryGetValue(mtrlName, out var cachedMtrl))
+            {
+                try
+                {
+                    var mtrlFile = dataManager.GetFileOrReadFromDisk(mtrlName);
+                    if (mtrlFile == null)
+                    {
+                        mtrlCache[mtrlName] = null;
+                    }
+                    else
+                    {
+                        mtrlCache[mtrlName] = new MtrlFile(mtrlFile);
+                    }
+                }
+                catch (Exception e)
+                {
+                    log.LogError(e, "Failed to load mtrl file");
+                    mtrlCache[mtrlName] = null;
+                }
+                
+                cachedMtrl = mtrlCache[mtrlName];
+            }
+            
+            if (cachedMtrl == null)
+            {
+                ImGui.Text("No cached mtrl data");
+                continue;
+            }
+            
+            ImGui.Text($"Shader: {cachedMtrl.GetShaderPackageName()}");
+            if (!shpkCache.TryGetValue(cachedMtrl.GetShaderPackageName(), out var cachedShpk))
+            {
+                try
+                {
+                    var shpkFile = dataManager.GetFileOrReadFromDisk($"shader/sm5/shpk/{cachedMtrl.GetShaderPackageName()}");
+                    if (shpkFile == null)
+                    {
+                        shpkCache[cachedMtrl.GetShaderPackageName()] = null;
+                    }
+                    else
+                    {
+                        shpkCache[cachedMtrl.GetShaderPackageName()] = new ShpkFile(shpkFile);
+                    }
+                }
+                catch (Exception e)
+                {
+                    log.LogError(e, "Failed to load shpk file");
+                    shpkCache[cachedMtrl.GetShaderPackageName()] = null;
+                }
+                
+                cachedShpk = shpkCache[cachedMtrl.GetShaderPackageName()];
+            }
+            
+            if (cachedShpk == null)
+            {
+                ImGui.Text("No cached shpk data");
+                continue;
+            }
+
+            var materialSet = new MaterialSet(cachedMtrl, mtrlName, cachedShpk, cachedMtrl.GetShaderPackageName(), null, null);
+            using (var shpkContentNode = ImRaii.TreeNode("Shpk Constants"))
+            {
+                if (shpkContentNode.Success)
+                {
+                    foreach (var constant in materialSet.ShpkConstants)
+                    {
+                        ImGui.Text(Enum.IsDefined(constant.Key)
+                                       ? $"{constant.Key}: {string.Join(", ", constant.Value)}"
+                                       : $"{(uint)constant.Key:X8}: {string.Join(", ", constant.Value)}");
+                    }
+                }
+            }
+            
+            using (var mtrlContentNode = ImRaii.TreeNode("Mtrl Constants"))
+            {
+                if (mtrlContentNode.Success)
+                {
+                    foreach (var constant in materialSet.MtrlConstants)
+                    {
+                        ImGui.Text(Enum.IsDefined(constant.Key)
+                                       ? $"{constant.Key}: {string.Join(", ", constant.Value)}"
+                                       : $"{(uint)constant.Key:X8}: {string.Join(", ", constant.Value)}");
+                    }
+                }
+            }
+            
+            TreeNode("Shader Keys", () =>
+            {
+                foreach (var key in cachedMtrl.ShaderKeys)
+                {
+                    ImGui.Text($"{(ShaderCategory)key.Category}: {key.Value:X8}");
+                }
+            });
+            
+            TreeNode("Color Sets", () =>
+            {
+                foreach (var key in cachedMtrl.GetColorSetStrings())
+                {
+                    ImGui.Text(key.Value);
+                }
+            });
+            
+            TreeNode("UVColor Sets", () =>
+            {
+                foreach (var key in cachedMtrl.GetUvColorSetStrings())
+                {
+                    ImGui.Text(key.Value);
+                }
+            });
+            
+            TreeNode("Textures", () =>
+            {
+                foreach (var key in cachedMtrl.GetTexturePaths())
+                {
+                    ImGui.Text(key.Value);
+                }
+            });
+            
+            TreeNode("Samplers", () =>
+            {
+                foreach (var key in cachedMtrl.Samplers)
+                {
+                    ImGui.Text($"[{key.TextureIndex}]{(TextureUsage)key.SamplerId}: {key.Flags}");
+                }
+            });
+            
+            TreeNode("ColorTable", () =>
+            {
+                ImGui.Text($"Has Color Table: {cachedMtrl.HasTable}");
+                ImGui.Text($"Has Dye Table: {cachedMtrl.HasDyeTable}");
+            });
+        }
+    }
+    
+    private void TreeNode(string name, Action action)
+    {
+        using var node = ImRaii.TreeNode(name);
+        if (node.Success)
+        {
+            action();
         }
     }
 

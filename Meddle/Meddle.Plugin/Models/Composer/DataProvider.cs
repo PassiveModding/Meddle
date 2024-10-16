@@ -37,8 +37,16 @@ public class DataProvider
             cancellationToken.ThrowIfCancellationRequested();
             return new Lazy<MaterialBuilder>(() =>
             {
-                logger.LogInformation("[{shpkName}] Composing material {path}", shpkName, path);
-                return material.Compose(this);
+                try 
+                { 
+                    logger.LogInformation("[{shpkName}] Composing material {path}", shpkName, path);
+                    return material.Compose(this);
+                }
+                catch (Exception e)
+                {
+                    logger.LogError(e, "[{shpkName}] Failed to compose material {path}", shpkName, path);
+                    return new MaterialBuilder(path);
+                }
             }, LazyThreadSafetyMode.ExecutionAndPublication);
         }).Value;
     }
@@ -137,10 +145,8 @@ public class DataProvider
 
         return outPath;
     }
-    
-    
 
-    public ImageBuilder CacheTexture(SKTexture texture, string texName)
+    public static string FilterTexName(string texName)
     {
         texName = texName.TrimHandlePath();
         if (Path.IsPathRooted(texName))
@@ -148,6 +154,12 @@ public class DataProvider
             texName = Path.GetFileName(texName);
         }
         
+        return texName;
+    }
+
+    public ImageBuilder CacheTexture(SKTexture texture, string texName)
+    {
+        texName = FilterTexName(texName);
         var outPath = Path.Combine(cacheDir, $"{texName}.png");
         SaveTextureToDisk(texture, outPath);
         

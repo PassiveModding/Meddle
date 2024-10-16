@@ -8,6 +8,7 @@ using FFXIVClientStructs.FFXIV.Client.Graphics.Render;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.Havok.Animation.Rig;
 using ImGuiNET;
+using Lumina.Excel.GeneratedSheets2;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.Services.UI;
@@ -26,6 +27,7 @@ public class DebugTab : ITab
     private readonly LayoutService layoutService;
     private readonly ParseService parseService;
     private readonly PbdHooks pbdHooks;
+    private readonly IDataManager dataManager;
     private string boneSearch = "";
 
     private ICharacter? selectedCharacter;
@@ -42,7 +44,8 @@ public class DebugTab : ITab
     public DebugTab(Configuration config, SigUtil sigUtil, CommonUi commonUi, 
                     IGameGui gui, IClientState clientState, 
                     LayoutService layoutService,
-                    ParseService parseService, PbdHooks pbdHooks)
+                    ParseService parseService, PbdHooks pbdHooks,
+                    IDataManager dataManager)
     {
         this.config = config;
         this.sigUtil = sigUtil;
@@ -52,6 +55,8 @@ public class DebugTab : ITab
         this.layoutService = layoutService;
         this.parseService = parseService;
         this.pbdHooks = pbdHooks;
+        this.dataManager = dataManager;
+        stainDict = dataManager.GetExcelSheet<Stain>()!.ToDictionary(row => row.RowId, row => row);
     }
 
     public void Dispose()
@@ -67,7 +72,9 @@ public class DebugTab : ITab
         WriteIndented = true,
         IncludeFields = true
     };
-    
+
+    private readonly Dictionary<uint, Stain> stainDict;
+
     public void Draw()
     {
         if (ImGui.CollapsingHeader("View Skeleton"))
@@ -96,6 +103,11 @@ public class DebugTab : ITab
             DrawCacheInfo();
         }
 
+        if (ImGui.CollapsingHeader("Stain Info"))
+        {
+            DrawStainInfo();
+        }
+
         if (ImGui.CollapsingHeader("PBD Info"))
         {
             using var table = ImRaii.Table("##PbdInfo", 5, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable);
@@ -122,6 +134,19 @@ public class DebugTab : ITab
                     ImGui.Text($"{deformer.Value.PbdPath}");
                 }
             }
+        }
+    }
+
+    private void DrawStainInfo()
+    {
+        foreach (var (key, stain) in stainDict)
+        {
+            using var id = ImRaii.PushId(key.ToString());
+            ImGui.Text($"Stain: {key}, {stain.Name}");
+            var color = ImGui.ColorConvertU32ToFloat4(stain.Color);
+            ImGui.SameLine();
+            ImGui.ColorButton("Color", color);
+            
         }
     }
 

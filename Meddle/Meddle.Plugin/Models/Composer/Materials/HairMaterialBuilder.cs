@@ -28,7 +28,7 @@ public class HairMaterialBuilder : MeddleMaterialBuilder
 
     private void ApplyComputed()
     {
-        var hairType = set.GetShaderKeyOrDefault(ShaderCategory.CategoryHairType, HairType.Hair);
+        var hairType = set.GetShaderKeyOrDefault<HairType>(ShaderCategory.CategoryHairType);
         
         if (!set.TryGetTextureStrict(dataProvider, TextureUsage.g_SamplerNormal, out var normalRes))
             throw new InvalidOperationException("Missing normal texture");

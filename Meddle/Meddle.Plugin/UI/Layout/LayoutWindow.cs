@@ -9,6 +9,7 @@ using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Services;
+using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
 using Microsoft.Extensions.Logging;
 using SharpGLTF.Scenes;
@@ -38,6 +39,9 @@ public partial class LayoutWindow : ITab
     private CancellationTokenSource cancelToken = new();
     private ParsedInstance[] currentLayout = [];
     private readonly Dictionary<nint, ParsedInstance> selectedInstances = new();
+    private readonly Dictionary<string, MdlFile?> mdlCache = new();
+    private readonly Dictionary<string, MtrlFile?> mtrlCache = new();
+    private readonly Dictionary<string, ShpkFile?> shpkCache = new();
     private Vector3 currentPos;
 
     private string? lastError;
