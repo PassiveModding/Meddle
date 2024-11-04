@@ -117,6 +117,8 @@ public class Configuration : IPluginConfiguration
     public float WorldCutoffDistance { get; set; } = 100;
     public Vector4 WorldDotColor { get; set; } = new(1f, 1f, 1f, 0.5f);
     
+    public string ExportDirectory { get; set; } = Plugin.TempDirectory;
+    
     /// <summary>
     /// Used to hide names in the UI
     /// </summary>

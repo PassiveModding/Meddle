@@ -25,9 +25,26 @@ public class OptionsTab : ITab
 
     public void Draw()
     {
+        var exportDirectory = config.ExportDirectory;
+        if (ImGui.InputText("Default Export Directory", ref exportDirectory, 256))
+        {
+            config.ExportDirectory = exportDirectory;
+            config.Save();
+        }
+        
+        ImGui.SameLine();
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+        {
+            if (ImGui.Button(FontAwesomeIcon.Redo.ToIconString()))
+            {
+                config.ExportDirectory = Plugin.TempDirectory;
+                config.Save();
+            }
+        }
+        
         if (ImGui.Button("Open output folder"))
         {
-            Process.Start("explorer.exe", Plugin.TempDirectory);
+            Process.Start("explorer.exe", config.ExportDirectory);
         }
         
         var openOnLoad = config.OpenOnLoad;

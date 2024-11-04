@@ -348,7 +348,7 @@ public partial class LayoutWindow : ITab
                                             
                                             Process.Start("explorer.exe", path);
                                         }, cancelToken.Token);
-                                    }, Plugin.TempDirectory);
+                                    }, config.ExportDirectory);
     }
 
     public void Dispose()

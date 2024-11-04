@@ -18,6 +18,7 @@ public class AnimationTab : ITab
 {
     private readonly AnimationExportService animationExportService;
     private readonly CommonUi commonUi;
+    private readonly Configuration config;
     private readonly List<(DateTime Time, AttachSet[])> frames = [];
     private readonly IFramework framework;
     private readonly ILogger<AnimationTab> logger;
@@ -33,12 +34,14 @@ public class AnimationTab : ITab
     public AnimationTab(
         IFramework framework, ILogger<AnimationTab> logger,
         AnimationExportService animationExportService,
-        CommonUi commonUi)
+        CommonUi commonUi,
+        Configuration config)
     {
         this.framework = framework;
         this.logger = logger;
         this.animationExportService = animationExportService;
         this.commonUi = commonUi;
+        this.config = config;
         this.framework.Update += OnFrameworkUpdate;
     }
 
@@ -84,7 +87,7 @@ public class AnimationTab : ITab
             {
                 if (!result) return;
                 animationExportService.ExportAnimation(frames, includePositionalData, path);
-            }, Plugin.TempDirectory);   
+            }, config.ExportDirectory);   
             
             
         }

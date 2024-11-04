@@ -319,7 +319,7 @@ public unsafe class LiveCharacterTab : ITab
                                                     gltf.SaveAsType(exportType, path, "models");
                                                     Process.Start("explorer.exe", path);
                                                 }, exportCancelTokenSource.Token);
-                                            }, Plugin.TempDirectory);
+                                            }, config.ExportDirectory);
             }
         }
 
@@ -377,7 +377,7 @@ public unsafe class LiveCharacterTab : ITab
                                             gltf.SaveAsType(exportType, path, "character");
                                             Process.Start("explorer.exe", path);
                                         }, exportCancelTokenSource.Token);
-                                    }, Plugin.TempDirectory);
+                                    }, config.ExportDirectory);
     }
     
     private void ExportAllModels(CSCharacterBase* cBase, CustomizeParameter? customizeParams, CustomizeData? customizeData)
@@ -431,7 +431,7 @@ public unsafe class LiveCharacterTab : ITab
                                             }
                                             Process.Start("explorer.exe", path);
                                         }, exportCancelTokenSource.Token);
-                                    }, Plugin.TempDirectory);
+                                    }, config.ExportDirectory);
     }
 
     private void DrawModel(Pointer<CharacterBase> cPtr, Pointer<CSModel> mPtr, CustomizeParameter? customizeParams,
@@ -568,7 +568,7 @@ public unsafe class LiveCharacterTab : ITab
                                                         }
                                                         Process.Start("explorer.exe", path);
                                                     }, exportCancelTokenSource.Token);
-                                                }, Plugin.TempDirectory);
+                                                }, config.ExportDirectory);
                 }
             }
 
@@ -839,7 +839,7 @@ public unsafe class LiveCharacterTab : ITab
                                                     DataProvider.SaveTextureToDisk(texture, filePath);
                                                 }
                                                 Process.Start("explorer.exe", path);
-                                            }, Plugin.TempDirectory);
+                                            }, config.ExportDirectory);
             }
 
 
@@ -917,7 +917,7 @@ public unsafe class LiveCharacterTab : ITab
                                           {
                                               if (!result) return;
                                               DataProvider.SaveTextureToDisk(textureData, path);
-                                          }, Plugin.TempDirectory);
+                                          }, config.ExportDirectory);
             }
 
             if (ImGui.MenuItem("Export as tex"))
@@ -937,7 +937,7 @@ public unsafe class LiveCharacterTab : ITab
                                               }
 
                                               File.WriteAllBytes(path, data);
-                                          }, Plugin.TempDirectory);
+                                          }, config.ExportDirectory);
             }
 
             ImGui.EndPopup();
