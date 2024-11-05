@@ -96,8 +96,13 @@ public struct ColorHdr {
 
     public float HdrIntensity => Intensity * _vec3.Length();
     
-    private static Vector3 HdrToRgb(Vector3 hdr) {
-        var len = hdr.Length();
-        return hdr / (1.0f + len);
+    private static Vector3 HdrToRgb(Vector3 hdr)
+    {
+        return Vector3.Clamp(new Vector3(
+            Reinhard(hdr.X),
+            Reinhard(hdr.Y),
+            Reinhard(hdr.Z)
+        ), Vector3.Zero, Vector3.One);
+        float Reinhard(float x) => x / (1.0f + x);
     }
 }
