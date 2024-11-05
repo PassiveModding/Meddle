@@ -168,15 +168,17 @@ public class ParsedSharedInstance : ParsedInstance, IPathInstance, ISearchableIn
 public class ParsedHousingInstance : ParsedSharedInstance, ISearchableInstance
 {
     public ParsedHousingInstance(nint id, Transform transform, string path, string name, 
-                                 ObjectKind kind, Stain? stain, Item? item, IReadOnlyList<ParsedInstance> children) : base(id, ParsedInstanceType.Housing, transform, path, children)
+                                 ObjectKind kind, Stain? stain, Stain defaultStain, Item? item, IReadOnlyList<ParsedInstance> children) : base(id, ParsedInstanceType.Housing, transform, path, children)
     {
         Name = name;
         Kind = kind;
         Stain = stain;
+        DefaultStain = defaultStain;
         Item = item;
     }
 
     public Stain? Stain { get; }
+    public Stain DefaultStain { get; }
     public Item? Item { get; }
     public string Name { get; }
     public ObjectKind Kind { get; }

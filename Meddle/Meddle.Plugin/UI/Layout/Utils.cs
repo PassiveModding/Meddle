@@ -5,7 +5,7 @@ namespace Meddle.Plugin.UI.Layout;
 
 public partial class LayoutWindow
 {
-        private unsafe bool WorldToScreenFallback(Vector3 worldPos, out Vector2 screenPos, out bool inView)
+    private unsafe bool WorldToScreenFallback(Vector3 worldPos, out Vector2 screenPos, out bool inView)
     {
         var currentCamera = sigUtil.GetCamera();
 

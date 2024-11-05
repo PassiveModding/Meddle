@@ -510,4 +510,13 @@ public static class UiUtil
         
         ImGui.TreePop();
     }
+    
+    public static Vector4 ConvertU32ColorToVector4(uint color)
+    {
+        var r = (color & 0xFF) / 255f;
+        var g = ((color >> 8) & 0xFF) / 255f;
+        var b = ((color >> 16) & 0xFF) / 255f;
+        var a = ((color >> 24) & 0xFF) / 255f;
+        return new Vector4(r, g, b, a);
+    }
 }

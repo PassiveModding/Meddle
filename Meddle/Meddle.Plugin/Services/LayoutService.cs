@@ -260,15 +260,18 @@ public class LayoutService : IService, IDisposable
         if (furnitureMatch is not null)
         {
             var housing = new ParsedHousingInstance((nint)sharedGroup, new Transform(*sharedGroup->GetTransformImpl()), path,
-                                             furnitureMatch.GameObject->HousingObject.NameString,
-                                             furnitureMatch.GameObject->HousingObject.ObjectKind,
+                                             furnitureMatch.GameObject->NameString,
+                                             furnitureMatch.GameObject->ObjectKind,
                                              furnitureMatch.Stain,
+                                             furnitureMatch.DefaultStain,
                                              furnitureMatch.Item, children);
             foreach (var child in housing.Flatten())
             {
                 if (child is ParsedBgPartsInstance parsedBgPartsInstance)
                 {
-                    parsedBgPartsInstance.StainColor = furnitureMatch.Stain != null ? ImGui.ColorConvertU32ToFloat4(furnitureMatch.Stain.Color) : null;
+                    parsedBgPartsInstance.StainColor = furnitureMatch.Stain != null ? 
+                                                           UiUtil.ConvertU32ColorToVector4(furnitureMatch.Stain.Color) : 
+                                                           UiUtil.ConvertU32ColorToVector4(furnitureMatch.DefaultStain.Color);
                 }
             }
             
@@ -369,30 +372,30 @@ public class LayoutService : IService, IDisposable
                 continue;
             }
             
-            var housingObjectPtr = (MeddleHousingObject*)objectPtr.Value;
-            var layoutInstance = housingObjectPtr->HousingObject.SharedGroupLayoutInstance;
-            var lookupItem = itemDict.GetValueOrDefault(item.Id);
-            Stain? stain = null;
-            if (housingObjectPtr->ColorId != 0)
+            var housingObjectPtr = (HousingObject*)objectPtr.Value;
+            var layoutInstance = housingObjectPtr->SharedGroupLayoutInstance;
+            var instanceHandle = (SharedGroupResourceHandle*)layoutInstance->ResourceHandle;
+            if (instanceHandle == null)
             {
-                stain = stainDict.GetValueOrDefault(housingObjectPtr->ColorId);
+                logger.LogWarning("InstanceHandle is null");
+                continue;
             }
             
-            var sLayoutInstance = (MeddleSharedGroupLayoutInstance*)layoutInstance;
-            if (sLayoutInstance->ColorId != 0)
+            var housingSettings = instanceHandle->SceneChunk->GetHousingSettings();
+            if (housingSettings == null)
             {
-                stain = stainDict.GetValueOrDefault(sLayoutInstance->ColorId);
+                logger.LogWarning("HousingSettings is null");
+                continue;
             }
-            
-            
-            
+
             items.Add(new Furniture
             {
                 GameObject = housingObjectPtr,
                 LayoutInstance = layoutInstance,
                 HousingFurniture = item,
-                Stain = stain,
-                Item = lookupItem
+                Stain = item.Stain != 0 ? stainDict[item.Stain] : null,
+                DefaultStain = stainDict[housingSettings.Value->DefaultColorId],
+                Item = itemDict.GetValueOrDefault(item.Id)
             });
         }
 
@@ -411,11 +414,12 @@ public class LayoutService : IService, IDisposable
 
     public unsafe class Furniture
     {
-        public MeddleHousingObject* GameObject;
+        public HousingObject* GameObject;
         public HousingFurniture HousingFurniture;
         public Item? Item;
         public SharedGroupLayoutInstance* LayoutInstance;
         public Stain? Stain;
+        public Stain DefaultStain;
     }
 
     public void Dispose()

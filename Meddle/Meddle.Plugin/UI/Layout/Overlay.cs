@@ -98,19 +98,19 @@ public partial class LayoutWindow
                     ImGui.Text($"Item Name: {housingInstance.Item.Name}");
                 }
 
-                Vector4? color = housingInstance.Stain == null
-                                     ? null
-                                     : ImGui.ColorConvertU32ToFloat4(housingInstance.Stain.Color);
-                if (color != null)
+                if (housingInstance.Stain != null)
                 {
-                    var colorSq = color.Value * color.Value;
-                    ImGui.ColorButton("Stain", colorSq);
+                    Vector4 color = UiUtil.ConvertU32ColorToVector4(housingInstance.Stain.Color);
+                    ImGui.Text("Stain");
                     ImGui.SameLine();
-                    ImGui.ColorButton("Stain", color.Value);
+                    ImGui.ColorButton("Stain", color);
                 }
                 else
                 {
-                    ImGui.Text("No Stain");
+                    Vector4 defaultColor = UiUtil.ConvertU32ColorToVector4(housingInstance.DefaultStain.Color);
+                    ImGui.Text("Stain (Default)");
+                    ImGui.SameLine();
+                    ImGui.ColorButton("Stain", defaultColor);
                 }
             }
 
