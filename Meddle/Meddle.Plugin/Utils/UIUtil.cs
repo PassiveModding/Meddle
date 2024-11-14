@@ -8,6 +8,7 @@ using ImGuiNET;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Skeletons;
 using Meddle.Utils.Files.Structs.Material;
+using Microsoft.Extensions.Logging;
 using SharpGLTF.Transforms;
 using CustomizeData = Meddle.Utils.Export.CustomizeData;
 using CustomizeParameter = Meddle.Utils.Export.CustomizeParameter;
@@ -107,16 +108,18 @@ public static class UiUtil
 
     private static void DrawRow(int i, ColorTableRow row, ColorDyeTable? dyeTable)
     {
+        using var rowId = ImRaii.PushId(i);
         ImGui.TableNextRow();
         ImGui.TableSetColumnIndex(0);
         ImGui.Text($"{i}");
         ImGui.TableSetColumnIndex(1);
         ImGui.ColorButton("##rowdiff", new Vector4(row.Diffuse, 1f), ImGuiColorEditFlags.NoAlpha);
+        
         if (dyeTable != null)
         {
             ImGui.SameLine();
             var diff = dyeTable.Value.Rows[i].Diffuse;
-            ImGui.Checkbox("##rowdiff", ref diff);
+            ImGui.Checkbox("##rowdiffcheck", ref diff);
         }
 
         ImGui.TableSetColumnIndex(2);
@@ -125,7 +128,7 @@ public static class UiUtil
         {
             ImGui.SameLine();
             var spec = dyeTable.Value.Rows[i].Specular;
-            ImGui.Checkbox("##rowspec", ref spec);
+            ImGui.Checkbox("##rowspeccheck", ref spec);
         }
 
         ImGui.TableSetColumnIndex(3);
@@ -134,7 +137,7 @@ public static class UiUtil
         {
             ImGui.SameLine();
             var emm = dyeTable.Value.Rows[i].Emissive;
-            ImGui.Checkbox("##rowemm", ref emm);
+            ImGui.Checkbox("##rowemmcheck", ref emm);
         }
 
         ImGui.TableSetColumnIndex(4);
@@ -145,7 +148,7 @@ public static class UiUtil
         if (dyeTable != null)
         {
             var specStrength = dyeTable.Value.Rows[i].SpecularStrength;
-            ImGui.Checkbox("##rowspecstr", ref specStrength);
+            ImGui.Checkbox("##rowspecstrcheck", ref specStrength);
             ImGui.SameLine();
         }
 
@@ -154,7 +157,7 @@ public static class UiUtil
         if (dyeTable != null)
         {
             var gloss = dyeTable.Value.Rows[i].Gloss;
-            ImGui.Checkbox("##rowgloss", ref gloss);
+            ImGui.Checkbox("##rowglosscheck", ref gloss);
             ImGui.SameLine();
         }
 
@@ -506,5 +509,14 @@ public static class UiUtil
         }
         
         ImGui.TreePop();
+    }
+    
+    public static Vector4 ConvertU32ColorToVector4(uint color)
+    {
+        var r = (color & 0xFF) / 255f;
+        var g = ((color >> 8) & 0xFF) / 255f;
+        var b = ((color >> 16) & 0xFF) / 255f;
+        var a = ((color >> 24) & 0xFF) / 255f;
+        return new Vector4(r, g, b, a);
     }
 }

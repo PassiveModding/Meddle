@@ -30,7 +30,7 @@ public class SkinMaterialBuilder : MeddleMaterialBuilder
 
     private void ApplyComputed()
     {
-         var skinType = set.GetShaderKeyOrDefault(ShaderCategory.CategorySkinType, SkinType.Face);
+         var skinType = set.GetShaderKeyOrDefault<SkinType>(ShaderCategory.CategorySkinType);
         
         // var normalTexture = set.GetTexture(dataProvider, TextureUsage.g_SamplerNormal).ToResource().ToTexture();
         // var maskTexture = set.GetTexture(dataProvider, TextureUsage.g_SamplerMask).ToResource().ToTexture(normalTexture.Size);

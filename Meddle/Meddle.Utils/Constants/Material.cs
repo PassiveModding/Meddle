@@ -11,13 +11,6 @@ public enum ShaderCategory : uint
     CategoryFlowMapType = 0x40D1481E,  // STANDARD, FLOW
     CategoryDiffuseAlpha = 0xA9A3EE25, // Alpha channel on diffuse texture is used
     CategoryBgVertexPaint = 0x4F4F0636, // Enable vertex paint
-    CategoryBgTextureMode = 0x36F72D5F, // Number of textures in BG shader
-}
-
-public enum BgTextureMode : uint
-{
-    Map0 = 0x1E314009,
-    Map1 = 0x9807BAC4
 }
 
 public enum BgVertexPaint : uint
@@ -59,7 +52,7 @@ public enum TextureMode : uint
     Simple = 0x22A4AABF,        // meh
     
     // BG.shpk
-    BG_UNK0 = 0x669A451B,
+    BG_UNK0 = 0x669A451B, // no map1 usage
     BG_UNK1 = 0x1DF2985C, 
     BG_UNK2 = 0x941820BE, // Mix both textures? 
 }

@@ -1,6 +1,4 @@
-﻿using System.Collections.Concurrent;
-using System.Diagnostics;
-using System.Numerics;
+﻿using System.Numerics;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
@@ -9,8 +7,7 @@ using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Group;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Layer;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Terrain;
 using FFXIVClientStructs.Interop;
-using ImGuiNET;
-using Lumina.Excel.GeneratedSheets;
+using Lumina.Excel.Sheets;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Utils;
@@ -22,11 +19,11 @@ namespace Meddle.Plugin.Services;
 
 public class LayoutService : IService, IDisposable
 {
-    private readonly Dictionary<uint, Item> itemDict;
+    // private readonly Dictionary<uint, Item> itemDict;
+    private readonly Dictionary<uint, Stain> stainDict;
     private readonly ILogger<LayoutService> logger;
     private readonly IFramework framework;
     private readonly SigUtil sigUtil;
-    private readonly Dictionary<uint, Stain> stainDict;
 
     public LayoutService(
         SigUtil sigUtil, 
@@ -38,9 +35,9 @@ public class LayoutService : IService, IDisposable
         this.logger = logger;
         this.framework = framework;
         stainDict = dataManager.GetExcelSheet<Stain>()!.ToDictionary(row => row.RowId, row => row);
-        itemDict = dataManager.GetExcelSheet<Item>()!
-                              .Where(item => item.AdditionalData != 0 && item.ItemSearchCategory.Row is 65 or 66)
-                              .ToDictionary(row => row.AdditionalData, row => row);
+        // itemDict = dataManager.GetExcelSheet<Item>()!
+        //                       .Where(item => item.AdditionalData.RowId != 0 && item.ItemSearchCategory.Value.RowId is 65 or 66)
+        //                       .ToDictionary(row => row.AdditionalData.RowId, row => row);
         this.framework.Update += Update;
     }
 
@@ -259,20 +256,19 @@ public class LayoutService : IService, IDisposable
         var furnitureMatch = context.HousingItems.FirstOrDefault(item => item.LayoutInstance == sharedGroupPtr);
         if (furnitureMatch is not null)
         {
-            // TODO: Kinda messy
-            var stain = stainDict.GetValueOrDefault(furnitureMatch.HousingFurniture.Stain);
-            var item = itemDict.GetValueOrDefault(furnitureMatch.HousingFurniture.Id);
-            
             var housing = new ParsedHousingInstance((nint)sharedGroup, new Transform(*sharedGroup->GetTransformImpl()), path,
                                              furnitureMatch.GameObject->NameString,
                                              furnitureMatch.GameObject->ObjectKind,
-                                             stain,
-                                             item, children);
+                                             furnitureMatch.Stain,
+                                             furnitureMatch.DefaultStain,
+                                             /*furnitureMatch.Item,*/ children);
             foreach (var child in housing.Flatten())
             {
                 if (child is ParsedBgPartsInstance parsedBgPartsInstance)
                 {
-                    parsedBgPartsInstance.StainColor = stain?.Color != null ? ImGui.ColorConvertU32ToFloat4(stain.Color) : null;
+                    parsedBgPartsInstance.StainColor = furnitureMatch.Stain != null ? 
+                                                           UiUtil.ConvertU32ColorToVector4(furnitureMatch.Stain.Value.Color) : 
+                                                           UiUtil.ConvertU32ColorToVector4(furnitureMatch.DefaultStain.Color);
                 }
             }
             
@@ -362,19 +358,41 @@ public class LayoutService : IService, IDisposable
             var index = item.Index;
             if (item.Index == -1) continue;
             var objectPtr = objectManager->Objects[index];
-            if (objectPtr == null || objectPtr.Value == null || objectPtr.Value->LayoutInstance == null)
+            if (objectPtr == null || objectPtr.Value == null || objectPtr.Value->SharedGroupLayoutInstance == null)
             {
                 continue;
             }
 
-            var layoutInstance = objectPtr.Value->LayoutInstance;
+            if (objectPtr.Value->ObjectKind != ObjectKind.HousingEventObject)
+            {
+                logger.LogWarning("ObjectKind is not HousingEventObject");
+                continue;
+            }
+            
+            var housingObjectPtr = (HousingObject*)objectPtr.Value;
+            var layoutInstance = housingObjectPtr->SharedGroupLayoutInstance;
+            var instanceHandle = (SharedGroupResourceHandle*)layoutInstance->ResourceHandle;
+            if (instanceHandle == null)
+            {
+                logger.LogWarning("InstanceHandle is null");
+                continue;
+            }
+            
+            var housingSettings = instanceHandle->SceneChunk->GetHousingSettings();
+            if (housingSettings == null)
+            {
+                logger.LogWarning("HousingSettings is null");
+                continue;
+            }
+
             items.Add(new Furniture
             {
-                GameObject = objectPtr,
+                GameObject = housingObjectPtr,
                 LayoutInstance = layoutInstance,
                 HousingFurniture = item,
-                Stain = stainDict.GetValueOrDefault(item.Stain),
-                Item = itemDict.GetValueOrDefault(item.Id)
+                Stain = item.Stain != 0 ? stainDict[item.Stain] : null,
+                DefaultStain = stainDict[housingSettings.Value->DefaultColorId],
+                //Item = itemDict.GetValueOrDefault(item.Id)
             });
         }
 
@@ -393,11 +411,12 @@ public class LayoutService : IService, IDisposable
 
     public unsafe class Furniture
     {
-        public GameObject* GameObject;
+        public HousingObject* GameObject;
         public HousingFurniture HousingFurniture;
-        public Item? Item;
-        public ILayoutInstance* LayoutInstance;
+        //public Item? Item;
+        public SharedGroupLayoutInstance* LayoutInstance;
         public Stain? Stain;
+        public Stain DefaultStain;
     }
 
     public void Dispose()

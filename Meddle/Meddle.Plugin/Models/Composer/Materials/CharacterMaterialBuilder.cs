@@ -27,9 +27,7 @@ public class CharacterMaterialBuilder : MeddleMaterialBuilder
 
     private void ApplyComputed()
     {
-        var textureMode = set.GetShaderKeyOrDefault(ShaderCategory.GetValuesTextureType, Meddle.Utils.Constants.TextureMode.Default);
-        var specularMode = set.GetShaderKeyOrDefault(ShaderCategory.CategorySpecularType, SpecularMode.Default); // TODO: is default actually default
-        var flowType = set.GetShaderKeyOrDefault(ShaderCategory.CategoryFlowMapType, FlowType.Standard);
+        var textureMode = set.GetShaderKeyOrDefault<Meddle.Utils.Constants.TextureMode>(ShaderCategory.GetValuesTextureType);
         
         if (!set.TryGetTextureStrict(dataProvider, TextureUsage.g_SamplerNormal, out var normalRes))
             throw new InvalidOperationException("Missing normal texture");
@@ -42,12 +40,6 @@ public class CharacterMaterialBuilder : MeddleMaterialBuilder
         {
             Meddle.Utils.Constants.TextureMode.Compatibility => set.TryGetTexture(dataProvider, TextureUsage.g_SamplerDiffuse, out var tex) ? tex.ToTexture(normalRes.Size) : throw new InvalidOperationException("Missing diffuse texture"),
             _ => new SKTexture(normalRes.Width, normalRes.Height)
-        };
-        
-        var flowTexture = flowType switch
-        {
-            FlowType.Flow => set.TryGetTexture(dataProvider, TextureUsage.g_SamplerFlow, out var tex) ? tex.ToTexture(normalRes.Size) : throw new InvalidOperationException("Missing flow texture"),
-            _ => null
         };
 
         var normalTexture = normalRes.ToTexture();

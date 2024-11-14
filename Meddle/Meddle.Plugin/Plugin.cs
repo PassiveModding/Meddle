@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Dalamud.Configuration;
 using Dalamud.IoC;
 using Dalamud.Plugin;
+//using InteropGenerator.Runtime;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.UI.Layout;
@@ -26,6 +27,10 @@ public sealed class Plugin : IDalamudPlugin
     {
         try
         {
+            // FFXIVClientStructs.Interop.Generated.Addresses.Register();
+            // Resolver.GetInstance.Setup();
+            // Resolver.GetInstance.Resolve();
+            
             var config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
             pluginInterface.Inject(config);
             config.Migrate();
@@ -116,6 +121,8 @@ public class Configuration : IPluginConfiguration
     public bool DisableGposeUiHide { get; set; } = true;
     public float WorldCutoffDistance { get; set; } = 100;
     public Vector4 WorldDotColor { get; set; } = new(1f, 1f, 1f, 0.5f);
+    
+    public string ExportDirectory { get; set; } = Plugin.TempDirectory;
     
     /// <summary>
     /// Used to hide names in the UI

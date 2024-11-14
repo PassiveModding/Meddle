@@ -10,6 +10,7 @@ public unsafe class ShaderPackage
     public Dictionary<uint, TextureUsage> TextureLookup { get; }
     public Dictionary<MaterialConstant, float[]> MaterialConstants { get; }
     public Dictionary<uint, string>? ResourceKeys { get; }
+    public Dictionary<uint, uint> DefaultKeyValues { get; }
 
     public ShaderPackage(ShpkFile file, string name)
     {
@@ -17,6 +18,7 @@ public unsafe class ShaderPackage
         
         var textureUsages = new Dictionary<uint, TextureUsage>();
         var resourceKeys = new Dictionary<uint, string>();
+        var defaultKeyValues = new Dictionary<uint, uint>();
         var stringReader = new SpanBinaryReader(file.RawData[(int)file.FileHeader.StringsOffset..]);
         foreach (var sampler in file.Samplers)
         {
@@ -72,7 +74,28 @@ public unsafe class ShaderPackage
             Array.Copy(defaults, defaultCopy, defaults.Length);
             materialConstantDict[(MaterialConstant)materialParam.Id] = defaultCopy;
         }
+
+        foreach (var materialKey in file.MaterialKeys)
+        {
+            defaultKeyValues[materialKey.Id] = materialKey.DefaultValue;
+        }
         
+        foreach (var systemKey in file.SystemKeys)
+        {
+            defaultKeyValues[systemKey.Id] = systemKey.DefaultValue;
+        }
+        
+        foreach (var sceneKey in file.SceneKeys)
+        {
+            defaultKeyValues[sceneKey.Id] = sceneKey.DefaultValue;
+        }
+
+        foreach (var subViewKey in file.SubViewKeys)
+        {
+            defaultKeyValues[subViewKey.Id] = subViewKey.DefaultValue;
+        }
+        
+        DefaultKeyValues = defaultKeyValues;
         MaterialConstants = materialConstantDict;
         TextureLookup = textureUsages;
         ResourceKeys = resourceKeys;

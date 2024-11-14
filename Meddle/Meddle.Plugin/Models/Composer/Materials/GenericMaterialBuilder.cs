@@ -20,27 +20,7 @@ public class GenericMaterialBuilder : MeddleMaterialBuilder
     
     public override MeddleMaterialBuilder Apply()
     {
-        var alphaThreshold = set.GetConstantOrDefault(MaterialConstant.g_AlphaThreshold, 0.0f);
-        if (alphaThreshold > 0)
-            WithAlpha(AlphaMode.MASK, alphaThreshold);
-        
-        var setTypes = new HashSet<TextureUsage>();
-        foreach (var textureUsage in set.TextureUsageDict)
-        {
-            var texData = dataProvider.LookupData(textureUsage.Value.FullPath);
-            if (texData == null) continue;
-            // caching the texture regardless of usage, but only applying it to the material if it's a known channel
-            var texture = new TexFile(texData).ToResource().ToTexture();
-            var tex = dataProvider.CacheTexture(texture, textureUsage.Value.FullPath);
-            
-            var channel = MapTextureUsageToChannel(textureUsage.Key);
-            if (channel != null && setTypes.Add(textureUsage.Key))
-            {
-                WithChannelImage(channel.Value, tex);
-            }
-        }
-        
-        IndexOfRefraction = set.GetConstantOrDefault(MaterialConstant.g_GlassIOR, 1.0f);
+        ApplyRaw(set, dataProvider);
         Extras = set.ComposeExtrasNode();
         return this;
     }

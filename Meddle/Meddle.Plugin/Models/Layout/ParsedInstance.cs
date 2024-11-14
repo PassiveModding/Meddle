@@ -1,7 +1,7 @@
 ﻿using System.Numerics;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
-using Lumina.Excel.GeneratedSheets;
+using Lumina.Excel.Sheets;
 using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Services;
@@ -168,16 +168,20 @@ public class ParsedSharedInstance : ParsedInstance, IPathInstance, ISearchableIn
 public class ParsedHousingInstance : ParsedSharedInstance, ISearchableInstance
 {
     public ParsedHousingInstance(nint id, Transform transform, string path, string name, 
-                                 ObjectKind kind, Stain? stain, Item? item, IReadOnlyList<ParsedInstance> children) : base(id, ParsedInstanceType.Housing, transform, path, children)
+                                 ObjectKind kind, Stain? stain, Stain defaultStain, 
+                                 /*Item? item,*/ 
+                                 IReadOnlyList<ParsedInstance> children) : base(id, ParsedInstanceType.Housing, transform, path, children)
     {
         Name = name;
         Kind = kind;
         Stain = stain;
-        Item = item;
+        DefaultStain = defaultStain;
+        //Item = item;
     }
 
     public Stain? Stain { get; }
-    public Item? Item { get; }
+    public Stain DefaultStain { get; }
+    // public Item? Item { get; }
     public string Name { get; }
     public ObjectKind Kind { get; }
     
