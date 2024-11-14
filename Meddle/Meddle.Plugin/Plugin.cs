@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Dalamud.Configuration;
 using Dalamud.IoC;
 using Dalamud.Plugin;
+//using InteropGenerator.Runtime;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.UI.Layout;
@@ -26,6 +27,10 @@ public sealed class Plugin : IDalamudPlugin
     {
         try
         {
+            // FFXIVClientStructs.Interop.Generated.Addresses.Register();
+            // Resolver.GetInstance.Setup();
+            // Resolver.GetInstance.Resolve();
+            
             var config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
             pluginInterface.Inject(config);
             config.Migrate();

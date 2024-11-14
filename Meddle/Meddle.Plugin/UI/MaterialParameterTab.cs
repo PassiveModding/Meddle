@@ -2,6 +2,7 @@
 using System.Runtime.InteropServices;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface.Utility.Raii;
+using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.Interop;
 using ImGuiNET;
@@ -91,7 +92,7 @@ public class MaterialParameterTab : ITab
                 customizeParameters = null;
                 lastHuman = human;
             }
-
+            
             var parameter = human->CustomizeParameterCBuffer->TryGetBuffer<Vector4>();
             if (customizeParameters == null)
             {

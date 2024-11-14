@@ -8,7 +8,7 @@ using FFXIVClientStructs.FFXIV.Client.Graphics.Render;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.Havok.Animation.Rig;
 using ImGuiNET;
-using Lumina.Excel.GeneratedSheets2;
+using Lumina.Excel.Sheets;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.Services.UI;
@@ -164,7 +164,7 @@ public class DebugTab : ITab
             var obj = objPtr.Value;
             
             var kind = obj->GetObjectKind();
-            if (ImGui.CollapsingHeader($"[{i}|{(nint)obj:X8}] {kind} - {obj->NameString}"))
+            if (ImGui.CollapsingHeader($"[{i}|{(nint)obj:X8}] {kind} - {obj->NameString} {(obj->DrawObject != null ? $"Visible: {obj->DrawObject->IsVisible}" : "")}"))
             {
                 UiUtil.Text($"Address: {(nint)obj:X8}", $"{(nint)obj:X8}");
                 ImGui.Text($"Name: {obj->NameString}");
@@ -173,7 +173,7 @@ public class DebugTab : ITab
                 if (drawObject != null)
                 {
                     var drawObjectType = drawObject->GetObjectType();
-                    ImGui.Text($"DrawObject Address: {(nint)drawObject:X8}");
+                    UiUtil.Text($"DrawObject Address: {(nint)drawObject:X8}", $"{(nint)drawObject:X8}");
                     ImGui.Text($"DrawObject Type: {drawObjectType}");
                     ImGui.Text($"DrawObject Position: {drawObject->Position}");
                     ImGui.Text($"DrawObject Rotation: {drawObject->Rotation}");
@@ -380,65 +380,173 @@ public class DebugTab : ITab
         {
             ImGui.Text($"Visible: {cBase->IsVisible}");
             ImGui.Text($"ModelType: {cBase->GetModelType()}");
+
+            if (cBase->GetModelType() == CharacterBase.ModelType.Human)
+            {
+                var human = (Human*)cBase;
+                ImGui.Text($"RaceSexId: {human->RaceSexId}");
+                ImGui.Text($"HairId: {human->HairId}");
+                ImGui.Text($"FaceId: {human->FaceId}");
+                ImGui.Text($"TailEarId: {human->TailEarId}");
+                ImGui.Text($"FurId: {human->FurId}");
+                
+                ImGui.Text($"Highlights: {human->Customize.Highlights}");
+                ImGui.Text($"Lipstick: {human->Customize.Lipstick}");
+            }
+            
             var skeleton = cBase->Skeleton;
             if (skeleton == null)
             {
                 ImGui.Text($"{name} Skeleton is null");
-                return;
             }
-
-            ImGui.Text($"Skeleton: {(nint)cBase->Skeleton:X8}");
-            ImGui.Text($"Partial Skeleton Count: {cBase->Skeleton->PartialSkeletonCount}");
-            if (ImGui.CollapsingHeader("Draw Bones"))
+            else
             {
-                // boneMode
-                ImGui.Text("Bone Mode");
-                ImGui.SameLine();
-                ImGui.SetNextItemWidth(200);
-                using (var combo = ImRaii.Combo("##BoneMode", boneMode.ToString()))
+                ImGui.Text($"Skeleton: {(nint)cBase->Skeleton:X8}");
+                ImGui.Text($"Partial Skeleton Count: {cBase->Skeleton->PartialSkeletonCount}");
+                using var skeletonIndent = ImRaii.PushIndent();
+                if (ImGui.CollapsingHeader("Draw Bones"))
                 {
-                    if (combo.Success)
+                    // boneMode
+                    ImGui.Text("Bone Mode");
+                    ImGui.SameLine();
+                    ImGui.SetNextItemWidth(200);
+                    using (var combo = ImRaii.Combo("##BoneMode", boneMode.ToString()))
                     {
-                        foreach (BoneMode mode in Enum.GetValues(typeof(BoneMode)))
+                        if (combo.Success)
                         {
-                            if (ImGui.Selectable(mode.ToString(), mode == boneMode))
+                            foreach (BoneMode mode in Enum.GetValues(typeof(BoneMode)))
                             {
-                                boneMode = mode;
+                                if (ImGui.Selectable(mode.ToString(), mode == boneMode))
+                                {
+                                    boneMode = mode;
+                                }
                             }
                         }
                     }
-                }
-                
-                ImGui.Text("Bone Search");
-                ImGui.SameLine();
-                ImGui.SetNextItemWidth(200);
-                ImGui.InputText("##BoneSearch", ref boneSearch, 100);
-                
-                // imgui select partial skeleton by index
-                for (int i = 0; i < skeleton->PartialSkeletonCount; i++)
-                {
-                    var partialSkeleton = skeleton->PartialSkeletons[i];
-                    var handle = partialSkeleton.SkeletonResourceHandle;
-                    if (handle == null) continue;
-                    var path = handle->FileName.ParseString();
-                    if (ImGui.CollapsingHeader($"Partial Skeleton {i}: {path}"))
+                    
+                    ImGui.Text("Bone Search");
+                    ImGui.SameLine();
+                    ImGui.SetNextItemWidth(200);
+                    ImGui.InputText("##BoneSearch", ref boneSearch, 100);
+                    
+                    // imgui select partial skeleton by index
+                    for (int i = 0; i < skeleton->PartialSkeletonCount; i++)
                     {
-                        var boneCount = StructExtensions.GetBoneCount(&partialSkeleton);
-                        ImGui.Text($"Partial Skeleton Bone Count: {boneCount}");
-                        using var boneTable = ImRaii.Table($"##BoneTable{i}", 5, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable);
-                        ImGui.TableSetupColumn("Bone", ImGuiTableColumnFlags.WidthStretch);
-                        ImGui.TableSetupColumn("Parent", ImGuiTableColumnFlags.WidthStretch);
-                        ImGui.TableSetupColumn("Translation", ImGuiTableColumnFlags.WidthStretch);
-                        ImGui.TableSetupColumn("Rotation", ImGuiTableColumnFlags.WidthStretch);
-                        ImGui.TableSetupColumn("Scale", ImGuiTableColumnFlags.WidthStretch);
-                        ImGui.TableHeadersRow();
-                        DrawBoneTransformsOnScreen(partialSkeleton, boneMode);
+                        using var pskeletonIndent = ImRaii.PushIndent();
+                        var partialSkeleton = skeleton->PartialSkeletons[i];
+                        var handle = partialSkeleton.SkeletonResourceHandle;
+                        if (handle == null) continue;
+                        var path = handle->FileName.ParseString();
+                        if (ImGui.CollapsingHeader($"Partial Skeleton {i}: {path}"))
+                        {
+                            var boneCount = StructExtensions.GetBoneCount(&partialSkeleton);
+                            ImGui.Text($"Partial Skeleton Bone Count: {boneCount}");
+                            using var boneTable = ImRaii.Table($"##BoneTable{i}", 5, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable);
+                            ImGui.TableSetupColumn("Bone", ImGuiTableColumnFlags.WidthStretch);
+                            ImGui.TableSetupColumn("Parent", ImGuiTableColumnFlags.WidthStretch);
+                            ImGui.TableSetupColumn("Translation", ImGuiTableColumnFlags.WidthStretch);
+                            ImGui.TableSetupColumn("Rotation", ImGuiTableColumnFlags.WidthStretch);
+                            ImGui.TableSetupColumn("Scale", ImGuiTableColumnFlags.WidthStretch);
+                            ImGui.TableHeadersRow();
+                            DrawBoneTransformsOnScreen(partialSkeleton, boneMode);
+                        }
                     }
+                }
+            }
+           
+
+            if (ImGui.CollapsingHeader("Draw Models"))
+            {
+                using var skeletonIndent = ImRaii.PushIndent();
+                DrawModels(cBase);
+            }
+        }
+    }
+
+    private unsafe void DrawModels(CharacterBase* cBase)
+    {
+        var models = cBase->ModelsSpan;
+        for (var i = 0; i < models.Length; i++)
+        {
+            var modelPtr = models[i];
+            if (ImGui.CollapsingHeader($"Model {i} - {((nint)modelPtr.Value):X8}") && modelPtr.Value != null)
+            {
+                try
+                {
+                    using var modelIndent = ImRaii.PushIndent();
+                    using var modelId = ImRaii.PushId(i);
+                    var model = modelPtr.Value;
+                    UiUtil.Text($"Model: {(nint)model:X8}", $"{(nint)model:X8}");
+                    ImGui.Text($"Name: {model->ModelResourceHandle->FileName.ToString()}");
+                    ImGui.Text($"Material Count: {model->MaterialsSpan.Length}");
+                    ImGui.Text($"Bone Count: {model->BoneCount}");
+                
+                    if (ImGui.CollapsingHeader("Materials"))
+                    {
+                        try
+                        {
+                            using var materialIndent = ImRaii.PushIndent();
+                            for (var materialIdx = 0; materialIdx < model->MaterialsSpan.Length; materialIdx++)
+                            {
+                                var material = model->MaterialsSpan[materialIdx];
+                                if (ImGui.CollapsingHeader($"Material {materialIdx} - {(nint)material.Value:X8}") && material.Value != null)
+                                {
+                                    try
+                                    {
+                                        using var materialId = ImRaii.PushId(materialIdx);
+                                        UiUtil.Text($"Material: {(nint)material.Value:X8}", $"{(nint)material.Value:X8}");
+                                        UiUtil.Text($"Material Resource: {(nint)material.Value->MaterialResourceHandle:X8}", $"{(nint)material.Value->MaterialResourceHandle:X8}");
+                                        ImGui.Text($"Texture Count: {material.Value->TextureCount}");
+
+                                        for (var j = 0; j < material.Value->TextureCount; j++)
+                                        {
+                                            try
+                                            {
+                                                using var textureIndent = ImRaii.PushIndent();
+                                                var texture = material.Value->Textures[j];
+                                                if (ImGui.CollapsingHeader($"Texture {j} - {(nint)texture.Texture:X8}") && texture.Texture != null)
+                                                {
+                                                    try
+                                                    {
+                                                        using var textureId = ImRaii.PushId(j);
+                                                        UiUtil.Text($"Texture: {(nint)texture.Texture:X8}", $"{(nint)texture.Texture:X8}");
+                                                        ImGui.Text($"Id: {texture.Id}");
+                                                        ImGui.Text($"SamplerFlags: {texture.SamplerFlags}");
+                                                        ImGui.Text($"Texture: {texture.Texture->FileName.ToString()}");
+                                                    }
+                                                    catch (Exception e)
+                                                    {
+                                                        ImGui.Text($"Error: {e.Message}");
+                                                    }
+                                                }
+                                            }
+                                            catch (Exception e)
+                                            {
+                                                ImGui.Text($"Error: {e.Message}");
+                                            }
+                                        }
+                                    }
+                                    catch (Exception e)
+                                    {
+                                        ImGui.Text($"Error: {e.Message}");
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            ImGui.Text($"Error: {e.Message}");
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    ImGui.Text($"Error: {e.Message}");
                 }
             }
         }
     }
-    
+
     private unsafe void DrawBoneTransformsOnScreen(PartialSkeleton partialSkeleton, BoneMode boneMode)
     {
         var rootPos = partialSkeleton.Skeleton->Transform;

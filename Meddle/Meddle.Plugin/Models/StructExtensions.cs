@@ -12,9 +12,9 @@ namespace Meddle.Plugin.Models;
 public static class StructExtensions
 {
     public const int CharacterBaseAttachOffset = 0xD0; // CharacterBase + 0xD0 -> Attach
-
-    public const int ModelEnabledAttributeIndexMaskOffset = 0xAC; // Model + 0xAC -> EnabledAttributeIndexMask
-    public const int ModelEnabledShapeKeyIndexMaskOffset = 0xC8;  // Model + 0xC8 -> EnabledShapeKeyIndexMask
+    //
+    // public const int ModelEnabledAttributeIndexMaskOffset = 0xAC; // Model + 0xAC -> EnabledAttributeIndexMask
+    // public const int ModelEnabledShapeKeyIndexMaskOffset = 0xC8;  // Model + 0xC8 -> EnabledShapeKeyIndexMask
 
     public const int PartialSkeletonFlagsOffset = 0x8; // PartialSkeleton + 0x8 -> Flags
 
@@ -69,17 +69,17 @@ public static class StructExtensions
         return new ParsedSkeleton(skeleton.Value);
     }
 
-    public static unsafe (uint EnabledAttributeIndexMask, uint EnabledShapeKeyIndexMask) GetModelMasks(
-        this Pointer<Model> model)
-    {
-        if (model == null) throw new ArgumentNullException(nameof(model));
-        if (model.Value == null) throw new ArgumentNullException(nameof(model));
-
-        var modelBase = model.Value;
-        var enabledAttributeIndexMask = *(uint*)((nint)modelBase + ModelEnabledAttributeIndexMaskOffset);
-        var enabledShapeKeyIndexMask = *(uint*)((nint)modelBase + ModelEnabledShapeKeyIndexMaskOffset);
-        return (enabledAttributeIndexMask, enabledShapeKeyIndexMask);
-    }
+    // public static unsafe (uint EnabledAttributeIndexMask, uint EnabledShapeKeyIndexMask) GetModelMasks(
+    //     this Pointer<Model> model)
+    // {
+    //     if (model == null) throw new ArgumentNullException(nameof(model));
+    //     if (model.Value == null) throw new ArgumentNullException(nameof(model));
+    //
+    //     var modelBase = model.Value;
+    //     var enabledAttributeIndexMask = *(uint*)((nint)modelBase + ModelEnabledAttributeIndexMaskOffset);
+    //     var enabledShapeKeyIndexMask = *(uint*)((nint)modelBase + ModelEnabledShapeKeyIndexMaskOffset);
+    //     return (enabledAttributeIndexMask, enabledShapeKeyIndexMask);
+    // }
     
     public static unsafe Meddle.Utils.Export.Model.ShapeAttributeGroup ParseModelShapeAttributes(
         Pointer<Model> modelPointer)
@@ -87,7 +87,7 @@ public static class StructExtensions
         if (modelPointer == null) throw new ArgumentNullException(nameof(modelPointer));
         if (modelPointer.Value == null) throw new ArgumentNullException(nameof(modelPointer));
         var model = modelPointer.Value;
-        var (enabledAttributeIndexMask, enabledShapeKeyIndexMask) = modelPointer.GetModelMasks();
+        // var (enabledAttributeIndexMask, enabledShapeKeyIndexMask) = modelPointer.GetModelMasks();
         var shapes = new List<(string, short)>();
         foreach (var shape in model->ModelResourceHandle->Shapes)
         {
@@ -101,7 +101,8 @@ public static class StructExtensions
         }
 
         var shapeAttributeGroup = new Meddle.Utils.Export.Model.ShapeAttributeGroup(
-            enabledShapeKeyIndexMask, enabledAttributeIndexMask, shapes.ToArray(), attributes.ToArray());
+            model->EnabledShapeKeyIndexMask, model->EnabledAttributeIndexMask, 
+            shapes.ToArray(), attributes.ToArray());
 
         return shapeAttributeGroup;
     }

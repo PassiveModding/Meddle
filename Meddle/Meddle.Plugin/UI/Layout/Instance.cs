@@ -104,8 +104,8 @@ public partial class LayoutWindow
             {
                 ImGui.Text($"Kind: {ho.Kind}");
                 ImGui.Text($"Object Name: {ho.Name}");
-                ImGui.Text($"Item Name: {ho.Item?.Name}");
-                Vector4? color = ho.Stain == null ? null : ImGui.ColorConvertU32ToFloat4(ho.Stain.Color);
+                //ImGui.Text($"Item Name: {ho.Item?.Name}");
+                Vector4? color = ho.Stain == null ? null : ImGui.ColorConvertU32ToFloat4(ho.Stain.Value.Color);
                 if (color != null)
                 {
                     ImGui.ColorButton("Stain", color.Value);

@@ -86,11 +86,11 @@ public class ParseService : IDisposable, IService
                 $"Color table is not R16G16B16A16F ({(TexFile.TextureFormat)colorTableTexture->TextureFormat})");
         }
 
-        if (colorTableTexture->Width == 4 && colorTableTexture->Height == 16)
+        if (colorTableTexture->ActualWidth == 4 && colorTableTexture->ActualHeight == 16)
         {
             // legacy table
-            var stridedData = ImageUtils.AdjustStride(stride, (int)colorTableTexture->Width * 8,
-                                                      (int)colorTableTexture->Height, colorTableRes.Data);
+            var stridedData = ImageUtils.AdjustStride(stride, (int)colorTableTexture->ActualWidth * 8,
+                                                      (int)colorTableTexture->ActualHeight, colorTableRes.Data);
             var reader = new SpanBinaryReader(stridedData);
             return new LegacyColorTableSet
             {
@@ -98,11 +98,11 @@ public class ParseService : IDisposable, IService
             };
         }
 
-        if (colorTableTexture->Width == 8 && colorTableTexture->Height == 32)
+        if (colorTableTexture->ActualWidth == 8 && colorTableTexture->ActualHeight == 32)
         {
             // new table
-            var stridedData = ImageUtils.AdjustStride(stride, (int)colorTableTexture->Width * 8,
-                                                      (int)colorTableTexture->Height, colorTableRes.Data);
+            var stridedData = ImageUtils.AdjustStride(stride, (int)colorTableTexture->ActualWidth * 8,
+                                                      (int)colorTableTexture->ActualHeight, colorTableRes.Data);
             var reader = new SpanBinaryReader(stridedData);
             return new ColorTableSet
             {
@@ -111,6 +111,6 @@ public class ParseService : IDisposable, IService
         }
 
         throw new ArgumentException(
-            $"Color table is not 4x16 or 8x32 ({colorTableTexture->Width}x{colorTableTexture->Height})");
+            $"Color table is not 4x16 or 8x32 ({colorTableTexture->ActualWidth}x{colorTableTexture->ActualHeight})");
     }
 }

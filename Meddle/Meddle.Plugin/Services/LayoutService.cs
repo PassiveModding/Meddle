@@ -1,6 +1,4 @@
-﻿using System.Collections.Concurrent;
-using System.Diagnostics;
-using System.Numerics;
+﻿using System.Numerics;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
@@ -9,8 +7,7 @@ using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Group;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Layer;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Terrain;
 using FFXIVClientStructs.Interop;
-using ImGuiNET;
-using Lumina.Excel.GeneratedSheets;
+using Lumina.Excel.Sheets;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Utils;
@@ -22,7 +19,7 @@ namespace Meddle.Plugin.Services;
 
 public class LayoutService : IService, IDisposable
 {
-    private readonly Dictionary<uint, Item> itemDict;
+    // private readonly Dictionary<uint, Item> itemDict;
     private readonly Dictionary<uint, Stain> stainDict;
     private readonly ILogger<LayoutService> logger;
     private readonly IFramework framework;
@@ -38,9 +35,9 @@ public class LayoutService : IService, IDisposable
         this.logger = logger;
         this.framework = framework;
         stainDict = dataManager.GetExcelSheet<Stain>()!.ToDictionary(row => row.RowId, row => row);
-        itemDict = dataManager.GetExcelSheet<Item>()!
-                              .Where(item => item.AdditionalData != 0 && item.ItemSearchCategory.Row is 65 or 66)
-                              .ToDictionary(row => row.AdditionalData, row => row);
+        // itemDict = dataManager.GetExcelSheet<Item>()!
+        //                       .Where(item => item.AdditionalData.RowId != 0 && item.ItemSearchCategory.Value.RowId is 65 or 66)
+        //                       .ToDictionary(row => row.AdditionalData.RowId, row => row);
         this.framework.Update += Update;
     }
 
@@ -264,13 +261,13 @@ public class LayoutService : IService, IDisposable
                                              furnitureMatch.GameObject->ObjectKind,
                                              furnitureMatch.Stain,
                                              furnitureMatch.DefaultStain,
-                                             furnitureMatch.Item, children);
+                                             /*furnitureMatch.Item,*/ children);
             foreach (var child in housing.Flatten())
             {
                 if (child is ParsedBgPartsInstance parsedBgPartsInstance)
                 {
                     parsedBgPartsInstance.StainColor = furnitureMatch.Stain != null ? 
-                                                           UiUtil.ConvertU32ColorToVector4(furnitureMatch.Stain.Color) : 
+                                                           UiUtil.ConvertU32ColorToVector4(furnitureMatch.Stain.Value.Color) : 
                                                            UiUtil.ConvertU32ColorToVector4(furnitureMatch.DefaultStain.Color);
                 }
             }
@@ -395,7 +392,7 @@ public class LayoutService : IService, IDisposable
                 HousingFurniture = item,
                 Stain = item.Stain != 0 ? stainDict[item.Stain] : null,
                 DefaultStain = stainDict[housingSettings.Value->DefaultColorId],
-                Item = itemDict.GetValueOrDefault(item.Id)
+                //Item = itemDict.GetValueOrDefault(item.Id)
             });
         }
 
@@ -416,7 +413,7 @@ public class LayoutService : IService, IDisposable
     {
         public HousingObject* GameObject;
         public HousingFurniture HousingFurniture;
-        public Item? Item;
+        //public Item? Item;
         public SharedGroupLayoutInstance* LayoutInstance;
         public Stain? Stain;
         public Stain DefaultStain;

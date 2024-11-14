@@ -219,34 +219,41 @@ public unsafe class LiveCharacterTab : ITab
         }
         
         DrawDrawObject(drawObject, customizeData, customizeParams, genderRace);
-        
-        if (character->Mount.MountObject != null)
-        {
-            ImGui.Separator();
-            DrawCharacter(character->Mount.MountObject, "Mount", depth + 1);
-        }
 
-        if (character->CompanionData.CompanionObject != null)
+        try
         {
-            ImGui.Separator();
-            DrawCharacter(&character->CompanionData.CompanionObject->Character, "Companion", depth + 1);
-        }
-
-        if (character->OrnamentData.OrnamentObject != null)
-        {
-            ImGui.Separator();
-            DrawCharacter(&character->OrnamentData.OrnamentObject->Character, "Ornament", depth + 1);
-        }
-
-        for (var weaponIdx = 0; weaponIdx < character->DrawData.WeaponData.Length; weaponIdx++)
-        {
-            var weaponData = character->DrawData.WeaponData[weaponIdx];
-            if (weaponData.DrawObject != null)
+            if (character->Mount.MountObject != null)
             {
                 ImGui.Separator();
-                ImGui.Text($"Weapon {weaponIdx}");
-                DrawDrawObject(weaponData.DrawObject, null, null, GenderRace.Unknown);
+                DrawCharacter(character->Mount.MountObject, "Mount", depth + 1);
             }
+
+            if (character->CompanionData.CompanionObject != null)
+            {
+                ImGui.Separator();
+                DrawCharacter(&character->CompanionData.CompanionObject->Character, "Companion", depth + 1);
+            }
+
+            if (character->OrnamentData.OrnamentObject != null)
+            {
+                ImGui.Separator();
+                DrawCharacter(&character->OrnamentData.OrnamentObject->Character, "Ornament", depth + 1);
+            }
+
+            for (var weaponIdx = 0; weaponIdx < character->DrawData.WeaponData.Length; weaponIdx++)
+            {
+                var weaponData = character->DrawData.WeaponData[weaponIdx];
+                if (weaponData.DrawObject != null)
+                {
+                    ImGui.Separator();
+                    ImGui.Text($"Weapon {weaponIdx}");
+                    DrawDrawObject(weaponData.DrawObject, null, null, GenderRace.Unknown);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            ImGui.Text($"Error: {ex.Message}");
         }
     }
 
