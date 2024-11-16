@@ -24,8 +24,8 @@ jobs:
         shell: bash
     strategy:
       matrix:
-        dotnet-version: [7.0.x] # Can add multiple .NET versions here to test against (For example, testing a new version of .NET before it's released)
-        dalamud-version: ["latest"] # Can add multiple Dalamud branches here to test against (For example, testing against Dalamud staging)
+        dotnet-version: [8.0.x] # Can add multiple .NET versions here to test against (For example, testing a new version of .NET before it's released)
+        dalamud-version: ["api11/latest", "stg/latest", "latest"] # Can add multiple Dalamud branches here to test against (For example, testing against Dalamud staging)
     env:
       DALAMUD_HOME: /tmp/dalamud
       IsCI: true
