@@ -26,7 +26,7 @@ jobs:
             fail-fast: false
             matrix:
                 dotnet-version: [ 8.0.x ] # Can add multiple .NET versions here to test against (For example, testing a new version of .NET before it's released)
-                dalamud-version: [ "api11/latest", "stg/latest", "latest" ] # Can add multiple Dalamud branches here to test against (For example, testing against Dalamud staging)
+                dalamud-version: [ "api11_latest", "stg_latest", "latest" ] # Can add multiple Dalamud branches here to test against (For example, testing against Dalamud staging)
         env:
             DALAMUD_HOME: /tmp/dalamud
             IsCI: true
@@ -43,8 +43,11 @@ jobs:
                     dotnet-version: ${{ matrix.dotnet-version }}
 
             -   name: Download Dalamud Library
+                # version = ${{ matrix.dalamud-version }}, replacing _ with / to get the correct URL
+                # wget https://goatcorp.github.io/dalamud-distrib/${{ matrix.dalamud-version }}.zip -O /tmp/dalamud.zip
                 run: |
-                    wget https://goatcorp.github.io/dalamud-distrib/${{ matrix.dalamud-version }}.zip -O /tmp/dalamud.zip
+                    version=$(echo ${{ matrix.dalamud-version }} | sed 's/_/\//g')
+                    wget https://goatcorp.github.io/dalamud-distrib/${version}.zip -O /tmp/dalamud.zip
                     unzip /tmp/dalamud.zip -d /tmp/dalamud
 
             -   name: Restore Dependencies
@@ -56,16 +59,8 @@ jobs:
             -   name: Build plugin in release mode
                 run: dotnet build -c Release --no-restore --nologo -o ./bin/${{ matrix.dalamud-version }}/Release
 
-            # Meddle.Plugin-${{ matrix.dalamud-version }}-${{ github.sha }} - replace invalid characters in the branch name
-            # setup artifact name and sanitize it
-            -   name: Set Artifact Name
-                id: set_artifact_name
-                run: |
-                    echo "artifact_name=Meddle.Plugin-${{ matrix.dalamud-version }}-${{ github.sha }}" >> $GITHUB_ENV
-                    echo "artifact_name=${artifact_name//[^a-zA-Z0-9._-]/_}" >> $GITHUB_ENV
-
             -   name: Upload Artifact
                 uses: actions/upload-artifact@v4
                 with:
-                    name: ${{ steps.set_artifact_name.outputs.artifact_name }}
+                    name: Meddle.Plugin-${{ matrix.dalamud-version }}-${{ github.sha }}
                     path: Meddle/Meddle.Plugin/bin/${{ matrix.dalamud-version }}/Release
