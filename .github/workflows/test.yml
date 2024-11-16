@@ -56,8 +56,16 @@ jobs:
             -   name: Build plugin in release mode
                 run: dotnet build -c Release --no-restore --nologo -o ./bin/${{ matrix.dalamud-version }}/Release
 
-            -   name: Upload Artifacts
+            # Meddle.Plugin-${{ matrix.dalamud-version }}-${{ github.sha }} - replace invalid characters in the branch name
+            # setup artifact name and sanitize it
+            -   name: Set Artifact Name
+                id: set_artifact_name
+                run: |
+                    echo "artifact_name=Meddle.Plugin-${{ matrix.dalamud-version }}-${{ github.sha }}" >> $GITHUB_ENV
+                    echo "artifact_name=${artifact_name//[^a-zA-Z0-9._-]/_}" >> $GITHUB_ENV
+
+            -   name: Upload Artifact
                 uses: actions/upload-artifact@v4
                 with:
-                    name: Meddle.Plugin-${{ matrix.dalamud-version }}-${{ github.sha }}
-                    path: Meddle/Meddle.Plugin/bin/${{ matrix.dalamud-version }}/Release          
+                    name: ${{ steps.set_artifact_name.outputs.artifact_name }}
+                    path: Meddle/Meddle.Plugin/bin/${{ matrix.dalamud-version }}/Release
