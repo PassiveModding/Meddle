@@ -50,13 +50,14 @@ jobs:
         run: dotnet restore
 
       - name: Build plugin in debug mode
-        run: dotnet build -c Debug --no-restore --nologo
+        run: dotnet build -c Debug --no-restore --nologo -o ./bin/${{ matrix.dalamud-version }} -p:Version=testing_${{ github.sha }}
 
       - name: Build plugin in release mode
-        run: dotnet build -c Release --no-restore --nologo
+        run: dotnet build -c Release --no-restore --nologo -o ./bin/${{ matrix.dalamud-version }} -p:Version=testing_${{ github.sha }}
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: Build Artifacts
-          path: Meddle/Meddle.Plugin/bin/
+          path: Meddle/Meddle.Plugin/bin/${{ matrix.dalamud-version }}
+          
