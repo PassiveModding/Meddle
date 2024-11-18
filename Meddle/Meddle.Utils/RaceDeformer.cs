@@ -1,8 +1,6 @@
 using System.Numerics;
 using System.Text.RegularExpressions;
-using FFXIVClientStructs.Havok.Common.Base.Math.QsTransform;
 using Meddle.Utils.Constants;
-using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 
 namespace Meddle.Utils;
@@ -13,7 +11,7 @@ public partial class RaceDeformer(PbdFile pbd, IReadOnlyList<BoneNodeBuilder> bo
     public PbdFile PbdFile { get; } = pbd;
     private IReadOnlyList<BoneNodeBuilder> BoneMap { get; } = boneMap;
 
-    private hkQsTransformf? ResolveDeformation(PbdFile.Deformer deformer, string name)
+    private PbdFile.DeformMatrix4x4? ResolveDeformation(PbdFile.Deformer deformer, string name)
     {
         // Try and fetch it from the PBD
         var boneNames = deformer.BoneNames;

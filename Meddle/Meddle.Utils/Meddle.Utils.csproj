@@ -18,14 +18,6 @@
             <HintPath>Lib\OtterTex.dll</HintPath>
         </Reference>
     </ItemGroup>
-
-    <PropertyGroup>
-        <DalamudLibPath>$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
-    </PropertyGroup>
-
-    <PropertyGroup Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Linux)))'">
-        <DalamudLibPath>$(DALAMUD_HOME)/</DalamudLibPath>
-    </PropertyGroup>
     
     <ItemGroup>
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.1" />
@@ -33,9 +25,5 @@
         <PackageReference Include="SharpGLTF.Toolkit" Version="1.0.2" />
         <PackageReference Include="SkiaSharp" Version="2.88.8"/>
         <PackageReference Include="System.IO.Hashing" Version="8.0.0"/>
-        <Reference Include="FFXIVClientStructs">
-            <HintPath>$(DalamudLibPath)FFXIVClientStructs.dll</HintPath>
-            <Private>false</Private>
-        </Reference>
     </ItemGroup>
 </Project>
