@@ -18,12 +18,65 @@ public class CharacterComposer
 {
     private readonly DataProvider dataProvider;
     private readonly Action<ProgressEvent>? progress;
-    private static TexFile? CubeMapTex;
-    private static PbdFile? PbdFile;
     private static readonly object StaticFileLock = new();
+    private static PbdFile? DefaultPbdFile;
     private readonly SkeletonUtils.PoseMode poseMode;
     private readonly bool includePose;
     private readonly TextureMode textureMode;
+    private bool arrayTexturesSaved;
+    
+    private void SaveArrayTextures()
+    {
+        if (arrayTexturesSaved) return;
+        arrayTexturesSaved = true;
+        lock (StaticFileLock)
+        {
+            try
+            {
+                var outDir = Path.Combine(this.dataProvider.GetCacheDir(), "array_textures");
+
+                var catchlight = this.dataProvider.LookupData("chara/common/texture/sphere_d_array.tex");
+                if (catchlight == null) throw new Exception("Failed to load catchlight texture");
+                var catchLightTex = new TexFile(catchlight);
+                var catchlightOutDir = Path.Combine(outDir, "chara/common/texture/sphere_d_array");
+                Directory.CreateDirectory(catchlightOutDir);
+                for (int i = 0; i < catchLightTex.Header.CalculatedArraySize; i++)
+                {
+                    var img = ImageUtils.GetTexData(catchLightTex, i, 0, 0);
+                    var texture = img.ImageAsPng();
+                    File.WriteAllBytes(Path.Combine(catchlightOutDir, $"sphere_d_array.{i}.png"), texture.ToArray());
+                }
+
+                var tileNorm = this.dataProvider.LookupData("chara/common/texture/tile_norm_array.tex");
+                if (tileNorm == null) throw new Exception("Failed to load tile norm texture");
+                var tileNormTex = new TexFile(tileNorm);
+                var tileNormOutDir = Path.Combine(outDir, "chara/common/texture/tile_norm_array");
+                Directory.CreateDirectory(tileNormOutDir);
+                for (int i = 0; i < tileNormTex.Header.CalculatedArraySize; i++)
+                {
+                    var img = ImageUtils.GetTexData(tileNormTex, i, 0, 0);
+                    var texture = img.ImageAsPng();
+                    File.WriteAllBytes(Path.Combine(tileNormOutDir, $"tile_norm_array.{i}.png"), texture.ToArray());
+                }
+
+                var tileOrb = this.dataProvider.LookupData("chara/common/texture/tile_orb_array.tex");
+                if (tileOrb == null) throw new Exception("Failed to load tile orb texture");
+                var tileOrbTex = new TexFile(tileOrb);
+                var tileOrbOutDir = Path.Combine(outDir, "chara/common/texture/tile_orb_array");
+                Directory.CreateDirectory(tileOrbOutDir);
+                for (int i = 0; i < tileOrbTex.Header.CalculatedArraySize; i++)
+                {
+                    var img = ImageUtils.GetTexData(tileOrbTex, i, 0, 0);
+                    var texture = img.ImageAsPng();
+                    File.WriteAllBytes(Path.Combine(tileOrbOutDir, $"tile_orb_array.{i}.png"), texture.ToArray());
+                }
+            }
+            catch (Exception e)
+            {
+                Plugin.Logger?.LogError(e, "Failed to save array textures");
+            }
+        }
+    }
     
     public CharacterComposer(DataProvider dataProvider, Configuration config, Action<ProgressEvent>? progress = null) 
     {
@@ -32,21 +85,14 @@ public class CharacterComposer
         includePose = config.IncludePose;
         poseMode = config.PoseMode;
         textureMode = config.TextureMode;
-
+        
         lock (StaticFileLock)
         {
-            if (CubeMapTex == null)
+            if (DefaultPbdFile == null)
             {
-                var catchlight = this.dataProvider.LookupData("chara/common/texture/sphere_d_array.tex");
-                if (catchlight == null) throw new Exception("Failed to load catchlight texture");
-                CubeMapTex = new TexFile(catchlight);
-            }
-
-            if (PbdFile == null)
-            {
-                var pbdData = this.dataProvider.LookupData("chara/xls/boneDeformer/human.pbd");
-                if (pbdData == null) throw new Exception("Failed to load human.pbd");
-                PbdFile = new PbdFile(pbdData);
+                var pbdData = dataProvider.LookupData("chara/xls/boneDeformer/human.pbd");
+                if (pbdData == null) throw new InvalidOperationException("Failed to load default pbd file");
+                DefaultPbdFile = new PbdFile(pbdData);
             }
         }
     }
@@ -56,6 +102,8 @@ public class CharacterComposer
                              BoneNodeBuilder? rootBone,
                              Matrix4x4 transform)
     {
+        SaveArrayTextures();
+        
         if (modelInfo.Path.GamePath.Contains("b0003_top"))
         {
             Plugin.Logger?.LogDebug("Skipping model {ModelPath}", modelInfo.Path.GamePath);
@@ -140,7 +188,7 @@ public class CharacterComposer
             var parsed = RaceDeformer.ParseRaceCode(modelInfo.Path.GamePath);
             if (Enum.IsDefined(parsed))
             {
-                deform = (parsed, genderRace, new RaceDeformer(PbdFile!, bones));
+                deform = (parsed, genderRace, new RaceDeformer(DefaultPbdFile!, bones));
             }
             else
             {

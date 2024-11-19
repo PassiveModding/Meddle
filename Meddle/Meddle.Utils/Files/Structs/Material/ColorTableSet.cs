@@ -199,15 +199,21 @@ public readonly struct ColorTable
         {
             Rows = Rows.ToArray().Select(r => new
             {
-                Diffuse = r.Diffuse,
-                Specular = r.Specular,
-                SpecularStrength = r.SpecularStrength,
-                Emissive = r.Emissive,
-                GlossStrength = r.GlossStrength,
-                MaterialRepeat = r.MaterialRepeat,
-                MaterialSkew = r.MaterialSkew,
-                TileIndex = r.TileIndex,
-                ShaderId = r.ShaderId
+                r.Diffuse,
+                r.Specular,
+                r.Emissive,
+                r.SheenRate,
+                r.SheenTint,
+                r.SheenAptitude,
+                r.Roughness,
+                r.Metalness,
+                r.Anisotropy,
+                r.SphereMask,
+                r.ShaderId,
+                r.TileIndex,
+                r.TileAlpha,
+                r.SphereIndex,
+                r.TileMatrix,
             }).ToArray()
         };
     }
@@ -223,10 +229,14 @@ public readonly struct ColorTable
             Diffuse = Vector3.Clamp(Vector3.Lerp(row1.Diffuse, row0.Diffuse, blendAmount), Vector3.Zero, Vector3.One),
             Specular = Vector3.Clamp(Vector3.Lerp(row1.Specular, row0.Specular, blendAmount), Vector3.Zero, Vector3.One),
             Emissive = Vector3.Clamp(Vector3.Lerp(row1.Emissive, row0.Emissive, blendAmount), Vector3.Zero, Vector3.One),
-            SpecularStrength = float.Lerp(row1.SpecularStrength, row0.SpecularStrength, blendAmount),
-            GlossStrength = float.Lerp(row1.GlossStrength, row0.GlossStrength, blendAmount),
-            MaterialRepeat = prioRow.MaterialRepeat,
-            MaterialSkew = prioRow.MaterialSkew,
+            SheenRate = float.Lerp(row1.SheenRate, row0.SheenRate, blendAmount),
+            SheenTint = float.Lerp(row1.SheenTint, row0.SheenTint, blendAmount),
+            SheenAptitude = float.Lerp(row1.SheenAptitude, row0.SheenAptitude, blendAmount),
+            Roughness = float.Lerp(row1.Roughness, row0.Roughness, blendAmount),
+            Metalness = float.Lerp(row1.Metalness, row0.Metalness, blendAmount),
+            Anisotropy = float.Lerp(row1.Anisotropy, row0.Anisotropy, blendAmount),
+            SphereMask = float.Lerp(row1.SphereMask, row0.SphereMask, blendAmount),
+            
             TileIndex = prioRow.TileIndex
         };
 

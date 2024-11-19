@@ -84,17 +84,27 @@ public static class UiUtil
 
     public static void DrawColorTable(ReadOnlySpan<ColorTableRow> tableRows, ColorDyeTable? dyeTable = null)
     {
-        if (ImGui.BeginTable("ColorTable", 9, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable))
+        if (ImGui.BeginTable("ColorTable", 16, ImGuiTableFlags.Borders |
+                                               ImGuiTableFlags.Resizable | 
+                                               ImGuiTableFlags.SizingFixedFit |
+                                               ImGuiTableFlags.Hideable))
         {
             ImGui.TableSetupColumn("Row", ImGuiTableColumnFlags.WidthFixed, 50);
             ImGui.TableSetupColumn("Diffuse", ImGuiTableColumnFlags.WidthFixed, 100);
             ImGui.TableSetupColumn("Specular", ImGuiTableColumnFlags.WidthFixed, 100);
             ImGui.TableSetupColumn("Emissive", ImGuiTableColumnFlags.WidthFixed, 100);
-            ImGui.TableSetupColumn("Material Repeat", ImGuiTableColumnFlags.WidthFixed, 100);
-            ImGui.TableSetupColumn("Material Skew", ImGuiTableColumnFlags.WidthFixed, 100);
-            ImGui.TableSetupColumn("Specular Strength", ImGuiTableColumnFlags.WidthFixed, 100);
-            ImGui.TableSetupColumn("Gloss", ImGuiTableColumnFlags.WidthFixed, 100);
-            ImGui.TableSetupColumn("Tile Set", ImGuiTableColumnFlags.WidthFixed, 100);
+            ImGui.TableSetupColumn("Sheen Rate", ImGuiTableColumnFlags.WidthFixed, 50);
+            ImGui.TableSetupColumn("Sheen Tint", ImGuiTableColumnFlags.WidthFixed, 50);
+            ImGui.TableSetupColumn("Sheen Apt.", ImGuiTableColumnFlags.WidthFixed, 50);
+            ImGui.TableSetupColumn("Roughness", ImGuiTableColumnFlags.WidthFixed, 50);
+            ImGui.TableSetupColumn("Metalness", ImGuiTableColumnFlags.WidthFixed, 50);
+            ImGui.TableSetupColumn("Anisotropy", ImGuiTableColumnFlags.WidthFixed, 50);
+            ImGui.TableSetupColumn("Tile Matrix", ImGuiTableColumnFlags.WidthFixed, 100);
+            ImGui.TableSetupColumn("Sphere Mask", ImGuiTableColumnFlags.WidthFixed, 50);
+            ImGui.TableSetupColumn("Sphere Idx", ImGuiTableColumnFlags.WidthFixed, 50);
+            ImGui.TableSetupColumn("Shader Idx", ImGuiTableColumnFlags.WidthFixed, 50);
+            ImGui.TableSetupColumn("Tile Index", ImGuiTableColumnFlags.WidthFixed, 50);
+            ImGui.TableSetupColumn("Tile Alpha", ImGuiTableColumnFlags.WidthFixed, 50);
             ImGui.TableHeadersRow();
 
             for (var i = 0; i < tableRows.Length; i++)
@@ -141,29 +151,40 @@ public static class UiUtil
         }
 
         ImGui.TableSetColumnIndex(4);
-        ImGui.Text($"{row.MaterialRepeat}");
+        ImGui.Text($"{row.SheenRate}");
+        
         ImGui.TableSetColumnIndex(5);
-        ImGui.Text($"{row.MaterialSkew}");
+        ImGui.Text($"{row.SheenTint}");
+        
         ImGui.TableSetColumnIndex(6);
-        if (dyeTable != null)
-        {
-            var specStrength = dyeTable.Value.Rows[i].SpecularStrength;
-            ImGui.Checkbox("##rowspecstrcheck", ref specStrength);
-            ImGui.SameLine();
-        }
-
-        ImGui.Text($"{row.SpecularStrength}");
+        ImGui.Text($"{row.SheenAptitude}");
+        
         ImGui.TableSetColumnIndex(7);
-        if (dyeTable != null)
-        {
-            var gloss = dyeTable.Value.Rows[i].Gloss;
-            ImGui.Checkbox("##rowglosscheck", ref gloss);
-            ImGui.SameLine();
-        }
-
-        ImGui.Text($"{row.GlossStrength}");
+        ImGui.Text($"{row.Roughness}");
+        
         ImGui.TableSetColumnIndex(8);
+        ImGui.Text($"{row.Metalness}");
+        
+        ImGui.TableSetColumnIndex(9);
+        ImGui.Text($"{row.Anisotropy}");
+        
+        ImGui.TableSetColumnIndex(10);
+        ImGui.Text($"UU: {row.TileMatrix.UU}, UV: {row.TileMatrix.UV}, VU: {row.TileMatrix.VU}, VV: {row.TileMatrix.VV}");
+        
+        ImGui.TableSetColumnIndex(11);
+        ImGui.Text($"{row.SphereMask}");
+        
+        ImGui.TableSetColumnIndex(12);
+        ImGui.Text($"{row.SphereIndex}");
+        
+        ImGui.TableSetColumnIndex(13);
+        ImGui.Text($"{row.ShaderId}");
+        
+        ImGui.TableSetColumnIndex(14);
         ImGui.Text($"{row.TileIndex}");
+        
+        ImGui.TableSetColumnIndex(15);
+        ImGui.Text($"{row.TileAlpha}");
     }
 
     public static unsafe void DrawCharacterAttaches(Pointer<Character> characterPointer)

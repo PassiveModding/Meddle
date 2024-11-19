@@ -8,14 +8,14 @@ namespace Meddle.Utils.Files.Structs.Material;
 /// <code>
 /// #       |    X (+0)    |    |    Y (+1)    |    |    Z (+2)   |    |   W (+3)    |
 /// --------------------------------------------------------------------------------------
-/// 0 (+ 0) |    Diffuse.R |  0 |    Diffuse.G |  0 |   Diffuse.B |  0 |             |  
+/// 0 (+ 0) |    Diffuse.R |  0 |    Diffuse.G |  0 |   Diffuse.B |  0 |         Unk |  
 /// 1 (+ 4) |   Specular.R |  1 |   Specular.G |  1 |  Specular.B |  1 |         Unk |
 /// 2 (+ 8) |   Emissive.R |  2 |   Emissive.G |  2 |  Emissive.B |  2 |         Unk |  3
-/// 3 (+12) |          Unk |  6 |          Unk |  7 |         Unk |  8 |             |
-/// 4 (+16) |          Unk |  5 |              |    |         Unk |  4 |         Unk |  9
-/// 5 (+20) |              |    |          Unk | 11 |             |    |             |   
-/// 6 (+24) |   Shader Idx |    |   Tile Index |    |         Unk |    |         Unk | 10
-/// 7 (+28) | Tile Count.X |    | Tile Count.Y |    | Tile Skew.X |    | Tile Skew.Y |
+/// 3 (+12) |   Sheen Rate |  6 |   Sheen Tint |  7 |  Sheen Apt. |  8 |         Unk |
+/// 4 (+16) |   Rougnhess? |  5 |              |    |  Metalness? |  4 |  Anisotropy |  9
+/// 5 (+20) |          Unk |    |  Sphere Mask | 11 |         Unk |    |         Unk |   
+/// 6 (+24) |   Shader Idx |    |   Tile Index |    |  Tile Alpha |    |  Sphere Idx | 10
+/// 7 (+28) |   Tile XF UU |    |   Tile XF UV |    |  Tile XF VU |    |  Tile XF VV |
 /// </code>
 /// </summary>
 [StructLayout(LayoutKind.Explicit, Size = 0x40)]
@@ -33,8 +33,8 @@ public struct ColorTableRow
     [FieldOffset(0x0)] public ShortVec4 _diffuse;
     [FieldOffset(0x8)] public ShortVec4 _specular;
     [FieldOffset(0x10)] public ShortVec4 _emissive;
-    [FieldOffset(0x18)] public ShortVec4 _unk0;
-    [FieldOffset(0x20)] public ShortVec4 _unk1;
+    [FieldOffset(0x18)] public ShortVec4 _sheen;
+    [FieldOffset(0x20)] public ShortVec4 _r_u_m_a;
     [FieldOffset(0x28)] public ShortVec4 _unk2;
     [FieldOffset(0x30)] public ShortVec4 _idxData;
     [FieldOffset(0x38)] public ShortVec4 _tile;
@@ -78,36 +78,84 @@ public struct ColorTableRow
         }
     }
     
-    public float SpecularStrength
+    public float SheenRate
     {
-        readonly get => ToFloat(_specular.W);
-        set => _specular.W = FromFloat(value);
+        readonly get => ToFloat(_sheen.X);
+        set => _sheen.X = FromFloat(value);
     }
     
-    public float GlossStrength
+    public float SheenTint
     {
-        readonly get => ToFloat(_emissive.W);
-        set => _emissive.W = FromFloat(value);
+        readonly get => ToFloat(_sheen.Y);
+        set => _sheen.Y = FromFloat(value);
     }
     
-    public Vector2 MaterialRepeat
+    public float SheenAptitude
     {
-        readonly get => new Vector2(ToFloat(_tile.X), ToFloat(_tile.Y));
+        readonly get => ToFloat(_sheen.Z);
+        set => _sheen.Z = FromFloat(value);
+    }
+    
+    public float Roughness
+    {
+        readonly get => ToFloat(_r_u_m_a.X);
+        set => _r_u_m_a.X = FromFloat(value);
+    }
+    
+    public float Metalness
+    {
+        readonly get => ToFloat(_r_u_m_a.Z);
+        set => _r_u_m_a.W = FromFloat(value);
+    }
+    
+    public float Anisotropy
+    {
+        readonly get => ToFloat(_r_u_m_a.W);
+        set => _r_u_m_a.W = FromFloat(value);
+    }
+    
+    // public float SpecularStrength
+    // {
+    //     readonly get => ToFloat(_specular.W);
+    //     set => _specular.W = FromFloat(value);
+    // }
+    //
+    // public float GlossStrength
+    // {
+    //     readonly get => ToFloat(_emissive.W);
+    //     set => _emissive.W = FromFloat(value);
+    // }
+    
+    public struct Matrix2x2
+    {
+        public float UU;
+        public float UV;
+        public float VU;
+        public float VV;
+    }
+    
+    public Matrix2x2 TileMatrix
+    {
+        readonly get => new()
+        {
+            UU = ToFloat(_tile.X),
+            UV = ToFloat(_tile.Y),
+            VU = ToFloat(_tile.Z),
+            VV = ToFloat(_tile.W)
+        };
         set
         {
-            _tile.X = FromFloat(value.X);
-            _tile.Y = FromFloat(value.Y);
+            _tile.X = FromFloat(value.UU);
+            _tile.Y = FromFloat(value.UV);
+            _tile.Z = FromFloat(value.VU);
+            _tile.W = FromFloat(value.VV);
         }
     }
     
-    public Vector2 MaterialSkew
+    public float SphereMask
     {
-        readonly get => new Vector2(ToFloat(_tile.Z), ToFloat(_tile.W));
-        set
-        {
-            _tile.Z = FromFloat(value.X);
-            _tile.W = FromFloat(value.Y);
-        }
+        readonly get => ToFloat(_unk2.Y);
+        set => _unk2.Y = FromFloat(value);
     }
     
     public ushort ShaderId
@@ -116,10 +164,23 @@ public struct ColorTableRow
         set => _idxData.X = value;
     }
     
-    public ushort TileIndex
+    public byte TileIndex
     {
-        readonly get => _idxData.Y;
-        set => _idxData.Y = value;
+        readonly get => (byte)(ToFloat(_idxData.Y) * 64f);
+        set => _idxData.Y = FromFloat((value + 0.5f) / 64f);
+    }
+
+    
+    public float TileAlpha
+    {
+        readonly get => ToFloat(_idxData.Z);
+        set => _idxData.Z = FromFloat(value);
+    }
+    
+    public ushort SphereIndex
+    {
+        readonly get => _idxData.W;
+        set => _idxData.W = value;
     }
 }
 
@@ -225,22 +286,5 @@ public struct LegacyColorTableRow
     {
         readonly get => _emissive.Y;
         set => _emissive.Y = value;
-    }
-    
-    public ColorTableRow ToNew()
-    {
-        var newRow = new ColorTableRow
-        {
-            Diffuse = Diffuse,
-            Specular = Specular,
-            Emissive = Emissive,
-            SpecularStrength = SpecularStrength,
-            GlossStrength = GlossStrength,
-            MaterialRepeat = MaterialRepeat,
-            MaterialSkew = MaterialSkew,
-            ShaderId = 0,
-            TileIndex = TileIndex
-        };
-        return newRow;
     }
 }

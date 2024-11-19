@@ -39,7 +39,7 @@ public static class ImageUtils
             file.TextureBuffer);
     }
     
-    public static ReadOnlySpan<byte> ImageAsPng(Image image)
+    public static ReadOnlySpan<byte> ImageAsPng(this Image image)
     {
         unsafe
         {

@@ -24,6 +24,63 @@ public class InstanceComposer : IDisposable
     private readonly Action<ProgressEvent>? progress;
     private readonly DataProvider dataProvider;
     private int countProgress;
+    private bool arrayTexturesSaved;
+    private static readonly object StaticFileLock = new();
+    private void SaveArrayTextures()
+    {
+        if (arrayTexturesSaved) return;
+        arrayTexturesSaved = true;
+        lock (StaticFileLock)
+        {
+            try
+            {
+                var outDir= Path.Combine(this.dataProvider.GetCacheDir(), "array_textures");
+
+                var catchlight = this.dataProvider.LookupData("bgcommon/texture/sphere_d_array.tex");
+                if (catchlight == null) throw new Exception("Failed to load catchlight texture");
+                var catchLightTex = new TexFile(catchlight);
+                var catchlightOutDir = Path.Combine(outDir, "bgcommon/texture/sphere_d_array");
+                Directory.CreateDirectory(catchlightOutDir);
+
+                for (int i = 0; i < catchLightTex.Header.CalculatedArraySize; i++)
+                {
+                    var img = ImageUtils.GetTexData(catchLightTex, i, 0, 0);
+                    var texture = img.ImageAsPng();
+                    File.WriteAllBytes(Path.Combine(catchlightOutDir, $"sphere_d_array.{i}.png"), texture.ToArray());
+                }
+
+                var detailD = this.dataProvider.LookupData("bgcommon/nature/detail/texture/detail_d_array.tex");
+                if (detailD == null) throw new Exception("Failed to load detail diffuse texture");
+                var detailDTex = new TexFile(detailD);
+                var detailDOutDir = Path.Combine(outDir, "bgcommon/nature/detail/texture/detail_d_array");
+                Directory.CreateDirectory(detailDOutDir);
+
+                for (int i = 0; i < detailDTex.Header.CalculatedArraySize; i++)
+                {
+                    var img = ImageUtils.GetTexData(detailDTex, i, 0, 0);
+                    var texture = img.ImageAsPng();
+                    File.WriteAllBytes(Path.Combine(detailDOutDir, $"detail_d_array.{i}.png"), texture.ToArray());
+                }
+
+                var detailN = this.dataProvider.LookupData("bgcommon/nature/detail/texture/detail_n_array.tex");
+                if (detailN == null) throw new Exception("Failed to load tile orb texture");
+                var detailNTex = new TexFile(detailN);
+                var detailNOutDir = Path.Combine(outDir, "bgcommon/nature/detail/texture/detail_n_array");
+                Directory.CreateDirectory(detailNOutDir);
+
+                for (int i = 0; i < detailNTex.Header.CalculatedArraySize; i++)
+                {
+                    var img = ImageUtils.GetTexData(detailNTex, i, 0, 0);
+                    var texture = img.ImageAsPng();
+                    File.WriteAllBytes(Path.Combine(detailNOutDir, $"detail_n_array.{i}.png"), texture.ToArray());
+                }
+            }
+            catch (Exception e)
+            {
+                Plugin.Logger?.LogError(e, "Failed to save array textures");
+            }
+        }
+    }
 
     public InstanceComposer(
         Configuration config,
@@ -93,6 +150,7 @@ public class InstanceComposer : IDisposable
     public NodeBuilder? ComposeInstance(SceneBuilder scene, ParsedInstance parsedInstance)
     {
         if (cancellationToken.IsCancellationRequested) return null;
+        SaveArrayTextures();
         var root = new NodeBuilder();
         var transform = parsedInstance.Transform;
         if (parsedInstance is IPathInstance pathInstance)

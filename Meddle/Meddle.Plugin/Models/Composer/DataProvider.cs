@@ -21,6 +21,7 @@ public class DataProvider
     private readonly ConcurrentDictionary<int, Lazy<MaterialBuilder>> mtrlCache = new();
     private readonly ConcurrentDictionary<string, Lazy<MtrlFile>> mtrlFileCache = new();
     private readonly ConcurrentDictionary<string, Lazy<ShpkFile>> shpkFileCache = new();
+    public string GetCacheDir() => cacheDir;
 
     public DataProvider(string cacheDir, SqPack dataManager, ILogger logger, CancellationToken cancellationToken)
     {
