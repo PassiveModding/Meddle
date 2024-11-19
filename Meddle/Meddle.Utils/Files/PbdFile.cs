@@ -1,6 +1,5 @@
 ﻿using System.Numerics;
 using System.Runtime.InteropServices;
-using FFXIVClientStructs.Havok.Common.Base.Math.QsTransform;
 
 namespace Meddle.Utils.Files;
 
@@ -57,7 +56,7 @@ public class PbdFile
         public ushort HeaderIdx;
     }
 
-    /*public readonly struct DeformMatrix4x4
+    public readonly struct DeformMatrix4x4
     {
         private readonly float[] matrix;
 
@@ -81,12 +80,6 @@ public class PbdFile
             this.matrix = matrix;
         }
 
-        public static DeformMatrix4x4 Identity => new([
-            0, 0, 0, 0, // Translation (vec3 + unused)
-            0, 0, 0, 1, // Rotation (vec4)
-            1, 1, 1, 0,  // Scale (vec3 + unused)
-        ]);
-
         // https://github.com/TexTools/xivModdingFramework/blob/459b863fdacf291ee0817feef379a18275f33010/xivModdingFramework/Models/Helpers/ModelModifiers.cs#L1202
         public Vector3 TransformCoordinate(Vector3 vector) =>
             new(
@@ -94,13 +87,13 @@ public class PbdFile
                 (vector.X * matrix[4]) + (vector.Y * matrix[5]) + (vector.Z * matrix[6]) + (1.0f * matrix[7]),
                 (vector.X * matrix[8]) + (vector.Y * matrix[9]) + (vector.Z * matrix[10]) + (1.0f * matrix[11])
             );
-    }*/
+    }
 
     public struct Deformer
     {
         public int BoneCount;
         public string[] BoneNames;
-        public hkQsTransformf?[] DeformMatrices;
+        public DeformMatrix4x4?[] DeformMatrices;
 
         public static Deformer Read(SpanBinaryReader reader)
         {
@@ -120,11 +113,14 @@ public class PbdFile
             var padding = boneCount * 2 % 4;
             reader.Read<byte>(padding);
 
-            var matrixArray = new hkQsTransformf?[boneCount];
+            var matrixArray = new DeformMatrix4x4?[boneCount];
             for (var i = 0; i < boneCount; i++)
             {
-                var matrix = reader.Read<hkQsTransformf>();
-                matrixArray[i] = matrix;
+                var matrix = reader.Read<float>(12);
+                var buf = new float[16];
+                matrix.CopyTo(buf);
+                buf[15] = 1.0f;
+                matrixArray[i] = new DeformMatrix4x4(buf);
             }
 
             return new Deformer
@@ -135,7 +131,7 @@ public class PbdFile
             };
         }
 
-        public static unsafe hkQsTransformf Identity()
+        public static DeformMatrix4x4 Identity()
         {
             var buf = new float[]
             {
@@ -144,20 +140,12 @@ public class PbdFile
                 1, 1, 1, 0,  // Scale (vec3 + unused)
                 0, 0, 0, 1, // Affine
             };
-            
-            // marshal the buffer to a struct
-            fixed (float* ptr = buf)
-            {
-                return *(hkQsTransformf*)ptr;
-            }
+
+            return new DeformMatrix4x4(buf);
         }
         
-        public static Vector3 TransformCoordinate(Vector3 vector, hkQsTransformf matrix) =>
-            new(
-                (vector.X * matrix.Translation.X) + (vector.Y * matrix.Translation.Y) + (vector.Z * matrix.Translation.Z) + (1.0f * matrix.Translation.W),
-                (vector.X * matrix.Rotation.X) + (vector.Y * matrix.Rotation.Y) + (vector.Z * matrix.Rotation.Z) + (1.0f * matrix.Rotation.W),
-                (vector.X * matrix.Scale.X) + (vector.Y * matrix.Scale.Y) + (vector.Z * matrix.Scale.Z) + (1.0f * matrix.Scale.W)
-            );
+        public static Vector3 TransformCoordinate(Vector3 vector, DeformMatrix4x4 matrix) =>
+            matrix.TransformCoordinate(vector);
     }
 
     public IEnumerable<Deformer> GetDeformers(ushort from, ushort to)
