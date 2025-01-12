@@ -297,7 +297,7 @@ public class MeshBuilder
         {
             return paintBuilder.VertexPaint switch
             {
-                true => vertex.Color!.Value,
+                true => vertex.Color ?? new Vector4(0, 0, 0, 0),
                 false => new Vector4(1, 1, 1, 1)
             };
         }
@@ -356,15 +356,15 @@ public class MeshBuilder
         if (type == typeof(VertexColor1Texture3))
         {
             var texCoord = ToVec2(vertex.TexCoord!.Value);
-            var texCoord2 = ToVec2(vertex.TexCoord2!.Value);
-            return new VertexColor1Texture3(GetColor(vertex, materialBuilder), texCoord.XY, texCoord.ZW, texCoord2.XY);
+            (Vector2 xy, Vector2 zw) texCoord2 = vertex.TexCoord2 != null ? ToVec2(vertex.TexCoord2!.Value) : (Vector2.Zero, Vector2.Zero);
+            return new VertexColor1Texture3(GetColor(vertex, materialBuilder), texCoord.XY, texCoord.ZW, texCoord2.xy);
         }
         
         if (type == typeof(VertexColor1Texture4))
         {
             var texCoord = ToVec2(vertex.TexCoord!.Value);
-            var texCoord2 = ToVec2(vertex.TexCoord2!.Value);
-            return new VertexColor1Texture4(GetColor(vertex, materialBuilder), texCoord.XY, texCoord.ZW, texCoord2.XY, texCoord2.ZW);
+            (Vector2 xy, Vector2 zw) texCoord2 = vertex.TexCoord2 != null ? ToVec2(vertex.TexCoord2!.Value) : (Vector2.Zero, Vector2.Zero);
+            return new VertexColor1Texture4(GetColor(vertex, materialBuilder), texCoord.XY, texCoord.ZW, texCoord2.xy, texCoord2.zw);
         }
         
         if (type == typeof(VertexTexture1))
@@ -381,15 +381,16 @@ public class MeshBuilder
         if (type == typeof(VertexTexture3))
         {
             var texCoord = ToVec2(vertex.TexCoord!.Value);
-            var texCoord2 = ToVec2(vertex.TexCoord2!.Value);
-            return new VertexTexture3(texCoord.XY, texCoord.ZW, texCoord2.XY);
+            (Vector2 xy, Vector2 zw) texCoord2 = vertex.TexCoord2 != null ? ToVec2(vertex.TexCoord2!.Value) : (Vector2.Zero, Vector2.Zero);
+            return new VertexTexture3(texCoord.XY, texCoord.ZW, texCoord2.xy);
         }
         
         if (type == typeof(VertexTexture4))
         {
             var texCoord = ToVec2(vertex.TexCoord!.Value);
-            var texCoord2 = ToVec2(vertex.TexCoord2!.Value);
-            return new VertexTexture4(texCoord.XY, texCoord.ZW, texCoord2.XY, texCoord2.ZW);
+            
+            (Vector2 xy, Vector2 zw) texCoord2 = vertex.TexCoord2 != null ? ToVec2(vertex.TexCoord2!.Value) : (Vector2.Zero, Vector2.Zero);
+            return new VertexTexture4(texCoord.XY, texCoord.ZW, texCoord2.xy, texCoord2.zw);
         }
         
         return new VertexEmpty();
