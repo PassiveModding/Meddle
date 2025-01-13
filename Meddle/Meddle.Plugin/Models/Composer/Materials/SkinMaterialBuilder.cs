@@ -30,7 +30,7 @@ public class SkinMaterialBuilder : MeddleMaterialBuilder
 
     private void ApplyComputed()
     {
-         var skinType = set.GetShaderKeyOrDefault<SkinType>(ShaderCategory.CategorySkinType);
+         var skinType = set.GetShaderKeyOrThrow<SkinType>(ShaderCategory.CategorySkinType);
         
         // var normalTexture = set.GetTexture(dataProvider, TextureUsage.g_SamplerNormal).ToResource().ToTexture();
         // var maskTexture = set.GetTexture(dataProvider, TextureUsage.g_SamplerMask).ToResource().ToTexture(normalTexture.Size);
@@ -136,7 +136,6 @@ public class SkinMaterialBuilder : MeddleMaterialBuilder
        IndexOfRefraction = set.GetConstantOrDefault(MaterialConstant.g_GlassIOR, 1.0f);
        var alphaThreshold = set.GetConstantOrDefault(MaterialConstant.g_AlphaThreshold, 0.0f);
        WithAlpha(AlphaMode.MASK, alphaThreshold);
-       WithMetallicRoughnessShader();
        WithDoubleSide(set.RenderBackfaces);
        Extras = set.ComposeExtrasNode();
        

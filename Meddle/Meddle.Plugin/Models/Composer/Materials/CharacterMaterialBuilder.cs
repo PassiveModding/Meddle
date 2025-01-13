@@ -27,7 +27,7 @@ public class CharacterMaterialBuilder : MeddleMaterialBuilder
 
     private void ApplyComputed()
     {
-        var textureMode = set.GetShaderKeyOrDefault<Meddle.Utils.Constants.TextureMode>(ShaderCategory.GetValuesTextureType);
+        var textureMode = set.GetShaderKeyOrThrow<Meddle.Utils.Constants.TextureMode>(ShaderCategory.GetValuesTextureType);
         
         if (!set.TryGetTextureStrict(dataProvider, TextureUsage.g_SamplerNormal, out var normalRes))
             throw new InvalidOperationException("Missing normal texture");
@@ -107,7 +107,6 @@ public class CharacterMaterialBuilder : MeddleMaterialBuilder
             WithAlpha(AlphaMode.MASK, alphaThreshold);
         
         WithDoubleSide(set.RenderBackfaces);
-        
         
         Extras = set.ComposeExtrasNode();
         return this;

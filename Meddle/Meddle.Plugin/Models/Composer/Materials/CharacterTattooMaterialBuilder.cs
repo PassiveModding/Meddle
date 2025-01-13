@@ -14,6 +14,7 @@ public class CharacterTattooMaterialBuilder : MeddleMaterialBuilder
     private readonly MaterialSet set;
     private readonly DataProvider dataProvider;
     private readonly CustomizeParameter customizeParameter;
+    private readonly TextureMode textureMode;
 
     public CharacterTattooMaterialBuilder(
         string name, MaterialSet set, DataProvider dataProvider, CustomizeParameter customizeParameter,
@@ -22,9 +23,10 @@ public class CharacterTattooMaterialBuilder : MeddleMaterialBuilder
         this.set = set;
         this.dataProvider = dataProvider;
         this.customizeParameter = customizeParameter;
+        this.textureMode = textureMode;
     }
 
-    public override MeddleMaterialBuilder Apply()
+    private void ApplyComputed()
     {
         var influenceColor = customizeParameter.OptionColor;
         if (!set.TryGetTextureStrict(dataProvider, TextureUsage.g_SamplerNormal, out var normalRes))
@@ -51,14 +53,25 @@ public class CharacterTattooMaterialBuilder : MeddleMaterialBuilder
 
         WithBaseColor(dataProvider.CacheTexture(diffuseTexture, $"Computed/{set.ComputedTextureName("diffuse")}"));
         WithNormal(dataProvider.CacheTexture(normalTexture, $"Computed/{set.ComputedTextureName("normal")}"));
+    }
+    
+    public override MeddleMaterialBuilder Apply()
+    {
+        if (textureMode == TextureMode.Bake)
+        {
+            ApplyComputed();
+        }
+        else
+        {
+            ApplyRaw(set, dataProvider);
+        }
         
         WithDoubleSide(set.RenderBackfaces);
-        
+        WithAlpha(AlphaMode.BLEND, set.GetConstantOrThrow<float>(MaterialConstant.g_AlphaThreshold));
         IndexOfRefraction = set.GetConstantOrThrow<float>(MaterialConstant.g_GlassIOR);
-        var alphaThreshold = set.GetConstantOrThrow<float>(MaterialConstant.g_AlphaThreshold);
-        WithAlpha(AlphaMode.BLEND, alphaThreshold);
-        
+        WithDoubleSide(set.RenderBackfaces);
         Extras = set.ComposeExtrasNode();
+        
         return this;
     }
 }

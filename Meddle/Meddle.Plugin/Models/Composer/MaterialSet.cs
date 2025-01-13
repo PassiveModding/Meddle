@@ -332,12 +332,12 @@ public class MaterialSet
                    : @default;
     }
     
-    public uint GetShaderKeyOrDefault(uint category)
+    public uint GetShaderKeyOrThrow(uint category)
     {
-        return GetShaderKeyOrDefault((ShaderCategory)category);
+        return GetShaderKeyOrThrow((ShaderCategory)category);
     }
     
-    public uint GetShaderKeyOrDefault(ShaderCategory category)
+    public uint GetShaderKeyOrThrow(ShaderCategory category)
     {
         if (ShaderKeyDict.TryGetValue(category, out var value))
         {
@@ -347,7 +347,7 @@ public class MaterialSet
         throw new InvalidOperationException($"Shader key {category} not found");
     }
     
-    public TValue GetShaderKeyOrDefault<TValue>(ShaderCategory category) where TValue : Enum
+    public TValue GetShaderKeyOrThrow<TValue>(ShaderCategory category) where TValue : Enum
     {
         if (ShaderKeyDict.TryGetValue(category, out var value))
         {
@@ -518,7 +518,7 @@ public class MaterialSet
             extrasDict["FacePaintUVOffset"] = customizeParameters.FacePaintUVOffset;
             extrasDict["FacePaintUVMultiplier"] = customizeParameters.FacePaintUVMultiplier;
             extrasDict["MuscleTone"] = customizeParameters.MuscleTone;
-            extrasDict["OptionColor"] = customizeParameters.OptionColor;
+            extrasDict["OptionColor"] = customizeParameters.OptionColor.AsFloatArray();
             extrasDict["CustomizeParameters"] = JsonNode.Parse(JsonSerializer.Serialize(customizeParameters, JsonOptions))!;
         }
 
