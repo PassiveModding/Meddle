@@ -59,9 +59,37 @@ public sealed class MainWindow : MeddleWindowBase
             {
                 Process.Start(new ProcessStartInfo
                 {
-                    FileName = "https://github.com/PassiveModding/MeddleTools/", UseShellExecute = true
+                    FileName = "https://github.com/PassiveModding/MeddleTools", UseShellExecute = true
                 });
             }
+
+            if (ImGui.MenuItem("Github"))
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "https://github.com/PassiveModding/Meddle", UseShellExecute = true
+                });
+            }
+            
+            if (ImGui.MenuItem("Bug Report"))
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "https://github.com/PassiveModding/Meddle/issues", UseShellExecute = true
+                });
+            }
+            
+            using (ImRaii.PushFont(UiBuilder.IconFont))
+            {
+                if (ImGui.MenuItem(FontAwesomeIcon.Heart.ToIconString()))
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "https://github.com/sponsors/PassiveModding", UseShellExecute = true
+                    });
+                }
+            }
+
             ImGui.EndMenuBar();
         }
     }

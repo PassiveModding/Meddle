@@ -111,7 +111,8 @@ public unsafe class LiveCharacterTab : ITab
     {
         // Warning text:
         ImGui.TextWrapped("NOTE: Exported models use a rudimentary approximation of the games pixel shaders, " +
-                          "they will likely not match 1:1 to the in-game appearance.");
+                          "they will likely not match 1:1 to the in-game appearance.\n" +
+                          "You can get a better result by using the Blender addon.");
 
         if (!exportTask.IsCompleted)
         {

@@ -1,6 +1,7 @@
 ﻿using System.Numerics;
 using System.Text.Json;
 using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Interface.ImGuiNotification;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
@@ -13,6 +14,7 @@ using Meddle.Plugin.Models;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.Services.UI;
 using Meddle.Plugin.Utils;
+using Meddle.Utils.Files.SqPack;
 
 namespace Meddle.Plugin.UI;
 
@@ -27,6 +29,8 @@ public class DebugTab : ITab
     private readonly LayoutService layoutService;
     private readonly ParseService parseService;
     private readonly PbdHooks pbdHooks;
+    private readonly INotificationManager notificationManager;
+    private readonly SqPack sqPack;
     private readonly IDataManager dataManager;
     private string boneSearch = "";
 
@@ -45,6 +49,8 @@ public class DebugTab : ITab
                     IGameGui gui, IClientState clientState, 
                     LayoutService layoutService,
                     ParseService parseService, PbdHooks pbdHooks,
+                    INotificationManager notificationManager,
+                    SqPack sqPack,
                     IDataManager dataManager)
     {
         this.config = config;
@@ -55,6 +61,8 @@ public class DebugTab : ITab
         this.layoutService = layoutService;
         this.parseService = parseService;
         this.pbdHooks = pbdHooks;
+        this.notificationManager = notificationManager;
+        this.sqPack = sqPack;
         this.dataManager = dataManager;
         stainDict = dataManager.GetExcelSheet<Stain>()!.ToDictionary(row => row.RowId, row => row);
     }
@@ -135,8 +143,38 @@ public class DebugTab : ITab
                 }
             }
         }
+        
+        if (ImGui.CollapsingHeader("File Export"))
+        {
+            DrawFileExportUi();
+        }
     }
 
+    private string path = "";
+    public void DrawFileExportUi()
+    {
+        using var indent = ImRaii.PushIndent();
+        ImGui.Text("Export Path");
+        ImGui.SameLine();
+        ImGui.InputText("##ExportPath", ref path, 100);
+        if (ImGui.Button("Export"))
+        {
+            var data = sqPack.GetFile(path);
+            if (data == null)
+            {
+                notificationManager.AddNotification(new Notification
+                {
+                    Content = $"File not found: {path}",
+                    Type = NotificationType.Error
+                });
+                return;
+            }
+            
+            var outPath = Path.Combine(config.ExportDirectory, Path.GetFileName(path));
+            File.WriteAllBytes(outPath, data.Value.file.RawData.ToArray());
+        }
+    }
+    
     private void DrawStainInfo()
     {
         foreach (var (key, stain) in stainDict)

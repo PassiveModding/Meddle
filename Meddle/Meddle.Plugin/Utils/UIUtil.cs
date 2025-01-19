@@ -37,12 +37,10 @@ public static class UiUtil
         ImGui.ColorEdit3("Main Color", ref customize.MainColor);
         ImGui.ColorEdit3("Mesh Color", ref customize.MeshColor);
         ImGui.ColorEdit4("Left Color", ref customize.LeftColor);
-        ImGui.BeginDisabled();
         ImGui.ColorEdit4("Right Color", ref customize.RightColor);
         //ImGui.ColorEdit3("Hair Fresnel Value", ref customize.HairFresnelValue0);
         //ImGui.DragFloat("Muscle Tone", ref customize.MuscleTone, 0.01f, 0f, 1f);
         //ImGui.ColorEdit4("Skin Fresnel Value", ref customize.SkinFresnelValue0);
-        ImGui.EndDisabled();
         ImGui.SameLine();
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
@@ -51,7 +49,7 @@ public static class UiUtil
         if (ImGui.IsItemHovered())
         {
             ImGui.BeginTooltip();
-            ImGui.Text("Right Eye Color will not apply to computed textures as it is " +
+            ImGui.Text("Right Eye Color will not apply to baked textures as it is " +
                        "selected using the vertex shaders");
             ImGui.EndTooltip();
         }

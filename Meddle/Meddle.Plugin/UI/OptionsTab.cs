@@ -42,6 +42,13 @@ public class OptionsTab : ITab
             }
         }
         
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.BeginTooltip();
+            ImGui.Text("Reset to default export directory");
+            ImGui.EndTooltip();
+        }
+        
         if (ImGui.Button("Open output folder"))
         {
             Process.Start("explorer.exe", config.ExportDirectory);

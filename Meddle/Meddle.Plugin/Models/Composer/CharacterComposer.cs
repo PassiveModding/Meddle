@@ -523,6 +523,9 @@ public class CharacterComposer
 
     private BoneNodeBuilder? FindLogicalParent(Model model, BoneNodeBuilder node, List<BoneNodeBuilder> bones)
     {
+        // for each vertex in meshes which contain the bone
+        // check if the bone is included in the blend indices for the vertex
+        // if it is, check other bones weighted to the same vertex to find a parent bone
         foreach (var mesh in model.Meshes)
         {
             if (mesh.BoneTable != null && mesh.BoneTable.Contains(node.BoneName))
