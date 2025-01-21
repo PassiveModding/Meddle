@@ -1,15 +1,33 @@
 # Meddle
+<a href="https://github.com/sponsors/PassiveModding"><img alt="Sponsor Badge" src="https://img.shields.io/badge/Meddle-Sponsor-pink?style=flat"></a>
+<a href="https://github.com/PassiveModding/Meddle/"><img alt="Meddle" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FPassiveModding%2FMeddle%2Frefs%2Fheads%2Fmain%2Frepo.json&query=%24.%5B0%5D.AssemblyVersion&label=Meddle"></a>
+<a href="https://github.com/PassiveModding/MeddleTools/releases"><img alt="MeddleTools" src="https://img.shields.io/badge/dynamic/toml?url=https%3A%2F%2Fraw.githubusercontent.com%2FPassiveModding%2FMeddleTools%2Frefs%2Fheads%2Fmain%2FMeddleTools%2Fblender_manifest.toml&query=%24.version&label=MeddleTools"></a>
 
 This project is a Dalamud plugin which provides a GUI for exporting player models from FFXIV.
 
-- This is very much a work in progress, and is not yet fully functional.
-- There is no guarantee that memory safety is maintained, and it is possible that this plugin could crash your game.
-
-For single model export, use Penumbra. This plugin is intended for exporting multiple meshes at once, such as for a full character model.
-
 - [Installation](#installation)
 - [Releases](https://github.com/PassiveModding/Meddle/releases)
-- [Blender Addon](https://github.com/PassiveModding/MeddleTools)
+- [MeddleTools Blender Addon](https://github.com/PassiveModding/MeddleTools)
+- [Attributions](#attributions)
+
+> NOTE: For single mesh export and mod creation, use Penumbra. 
+> This plugin is intended for exporting multiple meshes at once, such as for a full character model or an environment.
+
+## Installation
+Meddle is written as a Dalamud plugin and as such, requires that you use FFXIVQuickLauncher to start your game.
+This will enable you to install community-created plugins.
+
+1. Type the `/xlsettings` command into your chatbox. This will open your Dalamud Settings.
+2. In the window that opens, navigate to the "Experimental" tab. Scroll down to "Custom Plugin Repositories".
+3. Copy and paste the repo URL (seen below) into the input box, making sure to press the "+" button to add it.
+4. Press the "Save and Close" button. This will add Meddle to Dalamud's list of available plugins.
+5. Open the plugin installer by typing the `/xlplugins` command, search for Meddle, and click install.
+
+Repo URL
+
+```
+https://raw.githubusercontent.com/PassiveModding/Meddle/main/repo.json
+```
 
 ## Attributions
 Much of this code is from or based on the following projects and wouldn't have been possible without them:
@@ -45,18 +63,3 @@ Important contributors:
 - Members of the Penumbra discord
   - Testing and feedback
 
-## Installation
-Meddle is written as a Dalamud plugin and as such, requires that you use FFXIVQuickLauncher to start your game.
-This will enable you to install community-created plugins.
-
-1. Type the `/xlsettings` command into your chatbox. This will open your Dalamud Settings.
-2. In the window that opens, navigate to the "Experimental" tab. Scroll down to "Custom Plugin Repositories". 
-3. Copy and paste the repo URL (seen below) into the input box, making sure to press the "+" button to add it. 
-4. Press the "Save and Close" button. This will add Meddle to Dalamud's list of available plugins. 
-5. Open the plugin installer by typing the `/xlplugins` command, search for Meddle, and click install.
-
-Repo URL
-
-```
-https://raw.githubusercontent.com/PassiveModding/Meddle/main/repo.json
-```
