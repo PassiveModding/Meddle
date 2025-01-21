@@ -26,6 +26,7 @@ public class InstanceComposer : IDisposable
     private int countProgress;
     private bool arrayTexturesSaved;
     private static readonly object StaticFileLock = new();
+    
     private void SaveArrayTextures()
     {
         if (arrayTexturesSaved) return;
@@ -138,7 +139,7 @@ public class InstanceComposer : IDisposable
             }
             catch (Exception ex)
             {
-                Plugin.Logger?.LogError(ex, "Failed to compose instance {instanceId} {instanceType}", instance.Id, instance.Type);
+                Plugin.Logger?.LogError(ex, "Failed to compose instance {instanceId} {instanceType}\n{Message}", instance.Id, instance.Type, ex.Message);
             }
 
             //countProgress++;
@@ -371,7 +372,11 @@ public class InstanceComposer : IDisposable
             var plateTransform = new Transform(new Vector3(platePos.X, 0, platePos.Y), Quaternion.Identity, Vector3.One);
             var mdlPath = $"{terrainInstance.Path.GamePath}/bgplate/{i:D4}.mdl";
             var mdlData = dataProvider.LookupData(mdlPath);
-            if (mdlData == null) throw new Exception($"Failed to load model file: {mdlPath}");
+            if (mdlData == null)
+            {
+                throw new Exception($"Failed to load model file {mdlPath} returned null");
+            }
+            
             Plugin.Logger?.LogInformation("Loaded model {mdlPath}", mdlPath);
             var mdlFile = new MdlFile(mdlData);
 

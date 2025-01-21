@@ -122,16 +122,15 @@ public class CharacterComposer
         var materialBuilders = new MaterialBuilder[modelInfo.Materials.Length];
         for (int i = 0; i < modelInfo.Materials.Length; i++)
         {
+            var materialInfo = modelInfo.Materials[i];
             try
             {
-                var materialInfo = modelInfo.Materials[i];
-                
                 progress?.Invoke(new ProgressEvent(modelInfo.GetHashCode(), $"{materialInfo.Path.GamePath}", i + 1, modelInfo.Materials.Length));
                 var mtrlData = dataProvider.LookupData(materialInfo.Path.FullPath);
                 if (mtrlData == null)
                 {
                     Plugin.Logger?.LogWarning("Failed to load material file: {mtrlPath}", materialInfo.Path.FullPath);
-                    throw new Exception($"Failed to load material file: {materialInfo.Path.FullPath}");
+                    throw new Exception($"Failed to load material file {materialInfo.Path.FullPath} returned null");
                 }
 
                 Plugin.Logger?.LogInformation("Loaded material {mtrlPath}", materialInfo.Path.FullPath);
@@ -139,7 +138,7 @@ public class CharacterComposer
                 var shpkName = mtrlFile.GetShaderPackageName();
                 var shpkPath = $"shader/sm5/shpk/{shpkName}";
                 var shpkData = dataProvider.LookupData(shpkPath);
-                if (shpkData == null) throw new Exception($"Failed to load shader package file: {shpkPath}");
+                if (shpkData == null) throw new Exception($"Failed to load shader package file {shpkPath} returned null");
                 var shpkFile = new ShpkFile(shpkData);
                 var material = new MaterialSet(mtrlFile, materialInfo.Path.GamePath,
                                                shpkFile,
@@ -167,7 +166,7 @@ public class CharacterComposer
             }
             catch (Exception e)
             {
-                Plugin.Logger?.LogError(e, "Failed to load material {MaterialInfo}", JsonSerializer.Serialize(modelInfo.Materials[i], jsonOptions));
+                Plugin.Logger?.LogError(e, "Failed to load material\n{Message}\n{MaterialInfo}", e.Message, JsonSerializer.Serialize(modelInfo.Materials[i], jsonOptions));
                 materialBuilders[i] = new MaterialBuilder("error");
             }
         }
@@ -179,7 +178,11 @@ public class CharacterComposer
         {
             // custom pbd may exist
             var pbdFileData = dataProvider.LookupData(modelInfo.Deformer.Value.PbdPath);
-            if (pbdFileData == null) throw new InvalidOperationException($"Failed to get deformer pbd {modelInfo.Deformer.Value.PbdPath}");
+            if (pbdFileData == null)
+            {
+                throw new InvalidOperationException($"Failed to get deformer pbd {modelInfo.Deformer.Value.PbdPath} returned null");
+            }
+            
             deform = ((GenderRace)modelInfo.Deformer.Value.DeformerId, (GenderRace)modelInfo.Deformer.Value.RaceSexId, new RaceDeformer(new PbdFile(pbdFileData), bones));
             Plugin.Logger?.LogDebug("Using deformer pbd {Path}", modelInfo.Deformer.Value.PbdPath);
         }
@@ -427,7 +430,7 @@ public class CharacterComposer
             }
             catch (Exception e)
             {
-                Plugin.Logger?.LogError(e, "Failed to handle model {ModelInfo}", JsonSerializer.Serialize(
+                Plugin.Logger?.LogError(e, "Failed to handle model\n{Message}\n{ModelInfo}", e.Message, JsonSerializer.Serialize(
                                             t, new JsonSerializerOptions
                                             {
                                                 IncludeFields = true
@@ -481,7 +484,7 @@ public class CharacterComposer
             }
             catch (Exception e)
             {
-                Plugin.Logger?.LogError(e, "Failed to handle model {ModelInfo}", JsonSerializer.Serialize(t, jsonOptions));
+                Plugin.Logger?.LogError(e, "Failed to handle model\n{Message}\n{ModelInfo}", e.Message, JsonSerializer.Serialize(t, jsonOptions));
             }
         }
     }
@@ -503,11 +506,15 @@ public class CharacterComposer
             {
                 if (bones.All(b => !b.BoneName.Equals(boneName, StringComparison.Ordinal)))
                 {
+                    if (root == null)
+                    {
+                        throw new InvalidOperationException($"Root bone not found when generating missing bone {boneName} for {model.Path}");
+                    }
+                    
                     var bone = new BoneNodeBuilder(boneName)
                     {
                         IsGenerated = true
                     };
-                    if (root == null) throw new InvalidOperationException($"Root bone not found when generating missing bone {boneName} for {model.Path}");
                     
                     var parent = FindLogicalParent(model, bone, bones) ?? root;
                     parent.AddNode(bone);
