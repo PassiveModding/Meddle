@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using Meddle.Plugin.Models.Composer.Materials;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Utils;
@@ -433,7 +434,8 @@ public class MaterialSet
     
     public static JsonSerializerOptions JsonOptions => new()
     {
-        IncludeFields = true
+        IncludeFields = true,
+        NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals
     };
     
     private MeddleMaterialBuilder GetMaterialBuilder(DataProvider dataProvider)
