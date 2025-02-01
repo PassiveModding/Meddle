@@ -315,6 +315,8 @@ public partial class LayoutWindow : ITab
         }
 
         resolverService.ResolveInstances(instances);
+        
+        var origin = config.LayoutConfig.AdjustOrigin ? currentPos : Vector3.Zero;
 
         var defaultName = $"InstanceExport-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
         var currentExportType = config.ExportType;
@@ -326,6 +328,7 @@ public partial class LayoutWindow : ITab
                                         exportTask = Task.Run(() =>
                                         {
                                             var composer = composerFactory.CreateComposer(instances, 
+                                                origin,
                                                 Path.Combine(path, "cache"),
                                                 x => progress = x, cancelToken.Token);
                                             var scene = new SceneBuilder();

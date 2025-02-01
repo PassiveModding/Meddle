@@ -29,6 +29,20 @@ public static class UiUtil
             }
         }
     }
+    
+    public static void HintCircle(string text)
+    {
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+        {
+            ImGui.Text(FontAwesomeIcon.QuestionCircle.ToIconString());
+        }
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.BeginTooltip();
+            ImGui.Text(text);
+            ImGui.EndTooltip();
+        }
+    }
 
     public static void DrawCustomizeParams(ref CustomizeParameter customize)
     {

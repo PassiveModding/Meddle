@@ -11,6 +11,7 @@ using Meddle.Utils.Helpers;
 using Microsoft.Extensions.Logging;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
+using SharpGLTF.Transforms;
 
 namespace Meddle.Plugin.Models.Composer;
 
@@ -23,6 +24,7 @@ public class InstanceComposer : IDisposable
     private readonly ParsedInstance[] instances;
     private readonly Action<ProgressEvent>? progress;
     private readonly DataProvider dataProvider;
+    private readonly Vector3 origin;
     private int countProgress;
     private bool arrayTexturesSaved;
     private static readonly object StaticFileLock = new();
@@ -89,7 +91,8 @@ public class InstanceComposer : IDisposable
         Action<ProgressEvent>? progress,
         CancellationToken cancellationToken,
         CharacterComposer characterComposer,
-        DataProvider dataProvider)
+        DataProvider dataProvider,
+        Vector3 origin)
     {
         this.instances = instances;
         this.config = config;
@@ -98,6 +101,7 @@ public class InstanceComposer : IDisposable
         this.characterComposer = characterComposer;
         this.count = instances.Length;
         this.dataProvider = dataProvider;
+        this.origin = origin;
     }
 
     public void Dispose()
@@ -310,7 +314,10 @@ public class InstanceComposer : IDisposable
 
         if (wasAdded)
         {
-            root.SetLocalTransform(transform.AffineTransform, true);
+            var adjustedAffine = transform.AffineTransform
+                                    .WithTranslation(transform.AffineTransform.Translation - origin);
+            
+            root.SetLocalTransform(adjustedAffine, true);
             return root;
         }
 
