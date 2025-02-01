@@ -105,7 +105,7 @@ public struct ColorTableRow
     public float Metalness
     {
         readonly get => ToFloat(_r_u_m_a.Z);
-        set => _r_u_m_a.W = FromFloat(value);
+        set => _r_u_m_a.Z = FromFloat(value);
     }
     
     public float Anisotropy
