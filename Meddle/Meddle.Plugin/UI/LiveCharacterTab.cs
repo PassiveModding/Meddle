@@ -311,22 +311,22 @@ public unsafe class LiveCharacterTab : ITab
                 fileDialog.SaveFolderDialog("Save Model", folder,
                                             (result, path) =>
                                             {
-                                                if (!result) return;
-                                                if (!CanExport()) return;
-                                                exportCancelTokenSource = new CancellationTokenSource();
-                                                exportTask = Task.Run(() =>
-                                                {
-                                                    var exportType = config.ExportType;
-                                                    var composer = composerFactory.CreateCharacterComposer(Path.Combine(path, "cache"), HandleProgressEvent, exportCancelTokenSource.Token);
-                                                    var scene = new SceneBuilder();
-                                                    var root = new NodeBuilder();
-                                                    composer.ComposeModels(models.ToArray(), genderRace, customizeParams, 
-                                                                           customizeData, skeleton, scene, root);
-                                                    scene.AddNode(root);
-                                                    var gltf = scene.ToGltf2();
-                                                    gltf.SaveAsType(exportType, path, "models");
-                                                    Process.Start("explorer.exe", path);
-                                                }, exportCancelTokenSource.Token);
+                                                // if (!result) return;
+                                                // if (!CanExport()) return;
+                                                // exportCancelTokenSource = new CancellationTokenSource();
+                                                // exportTask = Task.Run(() =>
+                                                // {
+                                                //     var exportType = config.ExportType;
+                                                //     var composer = composerFactory.CreateCharacterComposer(Path.Combine(path, "cache"), HandleProgressEvent, exportCancelTokenSource.Token);
+                                                //     var scene = new SceneBuilder();
+                                                //     var root = new NodeBuilder();
+                                                //     composer.ComposeModels(models.ToArray(), genderRace, customizeParams, 
+                                                //                            customizeData, skeleton, scene, root);
+                                                //     scene.AddNode(root);
+                                                //     var gltf = scene.ToGltf2();
+                                                //     gltf.SaveAsType(exportType, path, "models");
+                                                //     Process.Start("explorer.exe", path);
+                                                // }, exportCancelTokenSource.Token);
                                             }, config.ExportDirectory);
             }
         }
@@ -375,15 +375,15 @@ public unsafe class LiveCharacterTab : ITab
                                         exportCancelTokenSource = new CancellationTokenSource();
                                         exportTask = Task.Run(() =>
                                         {
-                                            var exportType = config.ExportType;
-                                            var composer = composerFactory.CreateCharacterComposer(Path.Combine(path, "cache"), HandleProgressEvent, exportCancelTokenSource.Token);
-                                            var scene = new SceneBuilder();
-                                            var root = new NodeBuilder();
-                                            composer.ComposeCharacterInfo(info, null, scene, root);
-                                            scene.AddNode(root);
-                                            var gltf = scene.ToGltf2();
-                                            gltf.SaveAsType(exportType, path, "character");
-                                            Process.Start("explorer.exe", path);
+                                            // var exportType = config.ExportType;
+                                            // var composer = composerFactory.CreateCharacterComposer(Path.Combine(path, "cache"), HandleProgressEvent, exportCancelTokenSource.Token);
+                                            // var scene = new SceneBuilder();
+                                            // var root = new NodeBuilder();
+                                            // composer.ComposeCharacterInfo(info, null, scene, root);
+                                            // scene.AddNode(root);
+                                            // var gltf = scene.ToGltf2();
+                                            // gltf.SaveAsType(exportType, path, "character");
+                                            // Process.Start("explorer.exe", path);
                                         }, exportCancelTokenSource.Token);
                                     }, config.ExportDirectory);
     }
@@ -416,28 +416,28 @@ public unsafe class LiveCharacterTab : ITab
                                         exportCancelTokenSource = new CancellationTokenSource();
                                         exportTask = Task.Run(() =>
                                         {
-                                            var exportType = config.ExportType;
-                                            var composer = composerFactory.CreateCharacterComposer(Path.Combine(path, "cache"), HandleProgressEvent, exportCancelTokenSource.Token);
-                                            var scene = new SceneBuilder();
-                                            var root = new NodeBuilder();
-                                            composer.ComposeCharacterInfo(info, null, scene, root);
-                                            scene.AddNode(root);
-                                            var gltf = scene.ToGltf2();
-                                            if (exportType.HasFlag(ExportType.GLTF))
-                                            {
-                                                gltf.SaveGLTF(Path.Combine(path, "character.gltf"));
-                                            }
-                                            
-                                            if (exportType.HasFlag(ExportType.GLB))
-                                            {
-                                                gltf.SaveGLB(Path.Combine(path, "character.glb"));
-                                            }
-                                            
-                                            if (exportType.HasFlag(ExportType.OBJ))
-                                            {
-                                                gltf.SaveAsWavefront(Path.Combine(path, "character.obj"));
-                                            }
-                                            Process.Start("explorer.exe", path);
+                                            // var exportType = config.ExportType;
+                                            // var composer = composerFactory.CreateCharacterComposer(Path.Combine(path, "cache"), HandleProgressEvent, exportCancelTokenSource.Token);
+                                            // var scene = new SceneBuilder();
+                                            // var root = new NodeBuilder();
+                                            // composer.ComposeCharacterInfo(info, null, scene, root);
+                                            // scene.AddNode(root);
+                                            // var gltf = scene.ToGltf2();
+                                            // if (exportType.HasFlag(ExportType.GLTF))
+                                            // {
+                                            //     gltf.SaveGLTF(Path.Combine(path, "character.gltf"));
+                                            // }
+                                            //
+                                            // if (exportType.HasFlag(ExportType.GLB))
+                                            // {
+                                            //     gltf.SaveGLB(Path.Combine(path, "character.glb"));
+                                            // }
+                                            //
+                                            // if (exportType.HasFlag(ExportType.OBJ))
+                                            // {
+                                            //     gltf.SaveAsWavefront(Path.Combine(path, "character.obj"));
+                                            // }
+                                            // Process.Start("explorer.exe", path);
                                         }, exportCancelTokenSource.Token);
                                     }, config.ExportDirectory);
     }
@@ -546,35 +546,35 @@ public unsafe class LiveCharacterTab : ITab
                                                     exportCancelTokenSource = new CancellationTokenSource();
                                                     exportTask = Task.Run(() =>
                                                     {
-                                                        var exportType = config.ExportType;
-                                                        var composer =
-                                                            composerFactory.CreateCharacterComposer(
-                                                                Path.Combine(path, "cache"), HandleProgressEvent,
-                                                                exportCancelTokenSource.Token);
-                                                        var scene = new SceneBuilder();
-                                                        var root = new NodeBuilder();
-                                                        composer.ComposeModels(
-                                                            [modelData], characterInfo.GenderRace,
-                                                            characterInfo.CustomizeParameter,
-                                                            characterInfo.CustomizeData, characterInfo.Skeleton, scene,
-                                                            root);
-                                                        scene.AddNode(root);
-                                                        var gltf = scene.ToGltf2();
-                                                        if (exportType.HasFlag(ExportType.GLTF))
-                                                        {
-                                                            gltf.SaveGLTF(Path.Combine(path, "model.gltf"));
-                                                        }
-                                            
-                                                        if (exportType.HasFlag(ExportType.GLB))
-                                                        {
-                                                            gltf.SaveGLB(Path.Combine(path, "model.glb"));
-                                                        }
-                                            
-                                                        if (exportType.HasFlag(ExportType.OBJ))
-                                                        {
-                                                            gltf.SaveAsWavefront(Path.Combine(path, "model.obj"));
-                                                        }
-                                                        Process.Start("explorer.exe", path);
+                                                        // var exportType = config.ExportType;
+                                                        // var composer =
+                                                        //     composerFactory.CreateCharacterComposer(
+                                                        //         Path.Combine(path, "cache"), HandleProgressEvent,
+                                                        //         exportCancelTokenSource.Token);
+                                                        // var scene = new SceneBuilder();
+                                                        // var root = new NodeBuilder();
+                                                        // composer.ComposeModels(
+                                                        //     [modelData], characterInfo.GenderRace,
+                                                        //     characterInfo.CustomizeParameter,
+                                                        //     characterInfo.CustomizeData, characterInfo.Skeleton, scene,
+                                                        //     root);
+                                                        // scene.AddNode(root);
+                                                        // var gltf = scene.ToGltf2();
+                                                        // if (exportType.HasFlag(ExportType.GLTF))
+                                                        // {
+                                                        //     gltf.SaveGLTF(Path.Combine(path, "model.gltf"));
+                                                        // }
+                                                        //
+                                                        // if (exportType.HasFlag(ExportType.GLB))
+                                                        // {
+                                                        //     gltf.SaveGLB(Path.Combine(path, "model.glb"));
+                                                        // }
+                                                        //
+                                                        // if (exportType.HasFlag(ExportType.OBJ))
+                                                        // {
+                                                        //     gltf.SaveAsWavefront(Path.Combine(path, "model.obj"));
+                                                        // }
+                                                        // Process.Start("explorer.exe", path);
                                                     }, exportCancelTokenSource.Token);
                                                 }, config.ExportDirectory);
                 }
@@ -837,16 +837,16 @@ public unsafe class LiveCharacterTab : ITab
                 fileDialog.SaveFolderDialog("Save Textures", materialNameNoExt,
                                             (result, path) =>
                                             {
-                                                if (!result) return;
-                                                Directory.CreateDirectory(path);
-
-                                                foreach (var (name, texture) in textureBuffer)
-                                                {
-                                                    var fileName = Path.GetFileNameWithoutExtension(name);
-                                                    var filePath = Path.Combine(path, $"{fileName}.png");
-                                                    DataProvider.SaveTextureToDisk(texture, filePath);
-                                                }
-                                                Process.Start("explorer.exe", path);
+                                                // if (!result) return;
+                                                // Directory.CreateDirectory(path);
+                                                //
+                                                // foreach (var (name, texture) in textureBuffer)
+                                                // {
+                                                //     var fileName = Path.GetFileNameWithoutExtension(name);
+                                                //     var filePath = Path.Combine(path, $"{fileName}.png");
+                                                //     DataProvider.SaveTextureToDisk(texture, filePath);
+                                                // }
+                                                // Process.Start("explorer.exe", path);
                                             }, config.ExportDirectory);
             }
 
@@ -923,8 +923,8 @@ public unsafe class LiveCharacterTab : ITab
                 fileDialog.SaveFileDialog("Save Texture", "PNG Image{.png}", defaultFileName, ".png",
                                           (result, path) =>
                                           {
-                                              if (!result) return;
-                                              DataProvider.SaveTextureToDisk(textureData, path);
+                                              // if (!result) return;
+                                              // DataProvider.SaveTextureToDisk(textureData, path);
                                           }, config.ExportDirectory);
             }
 

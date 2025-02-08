@@ -301,32 +301,32 @@ public partial class LayoutWindow
                 continue;
             }
 
-            var materialSet = new MaterialSet(cachedMtrl, mtrlName, cachedShpk, cachedMtrl.GetShaderPackageName(), null, null);
-            using (var shpkContentNode = ImRaii.TreeNode("Shpk Constants"))
-            {
-                if (shpkContentNode.Success)
-                {
-                    foreach (var constant in materialSet.ShpkConstants)
-                    {
-                        ImGui.Text(Enum.IsDefined(constant.Key)
-                                       ? $"{constant.Key}: {string.Join(", ", constant.Value)}"
-                                       : $"{(uint)constant.Key:X8}: {string.Join(", ", constant.Value)}");
-                    }
-                }
-            }
-            
-            using (var mtrlContentNode = ImRaii.TreeNode("Mtrl Constants"))
-            {
-                if (mtrlContentNode.Success)
-                {
-                    foreach (var constant in materialSet.MtrlConstants)
-                    {
-                        ImGui.Text(Enum.IsDefined(constant.Key)
-                                       ? $"{constant.Key}: {string.Join(", ", constant.Value)}"
-                                       : $"{(uint)constant.Key:X8}: {string.Join(", ", constant.Value)}");
-                    }
-                }
-            }
+            // var materialSet = new MaterialSet(cachedMtrl, mtrlName, cachedShpk, cachedMtrl.GetShaderPackageName(), null, null);
+            // using (var shpkContentNode = ImRaii.TreeNode("Shpk Constants"))
+            // {
+            //     if (shpkContentNode.Success)
+            //     {
+            //         foreach (var constant in materialSet.ShpkConstants)
+            //         {
+            //             ImGui.Text(Enum.IsDefined(constant.Key)
+            //                            ? $"{constant.Key}: {string.Join(", ", constant.Value)}"
+            //                            : $"{(uint)constant.Key:X8}: {string.Join(", ", constant.Value)}");
+            //         }
+            //     }
+            // }
+            //
+            // using (var mtrlContentNode = ImRaii.TreeNode("Mtrl Constants"))
+            // {
+            //     if (mtrlContentNode.Success)
+            //     {
+            //         foreach (var constant in materialSet.MtrlConstants)
+            //         {
+            //             ImGui.Text(Enum.IsDefined(constant.Key)
+            //                            ? $"{constant.Key}: {string.Join(", ", constant.Value)}"
+            //                            : $"{(uint)constant.Key:X8}: {string.Join(", ", constant.Value)}");
+            //         }
+            //     }
+            // }
             
             TreeNode("Shader Keys", () =>
             {

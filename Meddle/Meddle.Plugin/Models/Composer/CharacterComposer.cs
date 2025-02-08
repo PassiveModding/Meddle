@@ -7,7 +7,7 @@ using Meddle.Utils;
 using Meddle.Utils.Constants;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
-using Meddle.Utils.Helpers;
+using Meddle.Utils.Files.SqPack;
 using Microsoft.Extensions.Logging;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
@@ -16,182 +16,81 @@ namespace Meddle.Plugin.Models.Composer;
 
 public class CharacterComposer
 {
-    private readonly DataProvider dataProvider;
-    private readonly Action<ProgressEvent>? progress;
-    private static readonly object StaticFileLock = new();
-    private static PbdFile? DefaultPbdFile;
-    private readonly SkeletonUtils.PoseMode poseMode;
-    private readonly bool includePose;
-    private readonly TextureMode textureMode;
-    private bool arrayTexturesSaved;
+    public record SkinningContext(List<BoneNodeBuilder> Bones, BoneNodeBuilder? RootBone, Matrix4x4 Transform);
     
-    private void SaveArrayTextures()
+    private readonly Configuration config;
+    private readonly SqPack pack;
+    private readonly ComposerCache composerCache;
+    private readonly CancellationToken cancellationToken;
+    
+    public CharacterComposer(Configuration config, SqPack pack, ComposerCache composerCache, CancellationToken cancellationToken = default)
     {
-        if (arrayTexturesSaved) return;
-        arrayTexturesSaved = true;
-        lock (StaticFileLock)
-        {
-            try
-            {
-                var outDir = Path.Combine(this.dataProvider.GetCacheDir(), "array_textures");
-
-                var catchlight = this.dataProvider.LookupData("chara/common/texture/sphere_d_array.tex");
-                if (catchlight == null) throw new Exception("Failed to load catchlight texture");
-                var catchLightTex = new TexFile(catchlight);
-                var catchlightOutDir = Path.Combine(outDir, "chara/common/texture/sphere_d_array");
-                Directory.CreateDirectory(catchlightOutDir);
-                for (int i = 0; i < catchLightTex.Header.CalculatedArraySize; i++)
-                {
-                    var img = ImageUtils.GetTexData(catchLightTex, i, 0, 0);
-                    var texture = img.ImageAsPng();
-                    File.WriteAllBytes(Path.Combine(catchlightOutDir, $"sphere_d_array.{i}.png"), texture.ToArray());
-                }
-
-                var tileNorm = this.dataProvider.LookupData("chara/common/texture/tile_norm_array.tex");
-                if (tileNorm == null) throw new Exception("Failed to load tile norm texture");
-                var tileNormTex = new TexFile(tileNorm);
-                var tileNormOutDir = Path.Combine(outDir, "chara/common/texture/tile_norm_array");
-                Directory.CreateDirectory(tileNormOutDir);
-                for (int i = 0; i < tileNormTex.Header.CalculatedArraySize; i++)
-                {
-                    var img = ImageUtils.GetTexData(tileNormTex, i, 0, 0);
-                    var texture = img.ImageAsPng();
-                    File.WriteAllBytes(Path.Combine(tileNormOutDir, $"tile_norm_array.{i}.png"), texture.ToArray());
-                }
-
-                var tileOrb = this.dataProvider.LookupData("chara/common/texture/tile_orb_array.tex");
-                if (tileOrb == null) throw new Exception("Failed to load tile orb texture");
-                var tileOrbTex = new TexFile(tileOrb);
-                var tileOrbOutDir = Path.Combine(outDir, "chara/common/texture/tile_orb_array");
-                Directory.CreateDirectory(tileOrbOutDir);
-                for (int i = 0; i < tileOrbTex.Header.CalculatedArraySize; i++)
-                {
-                    var img = ImageUtils.GetTexData(tileOrbTex, i, 0, 0);
-                    var texture = img.ImageAsPng();
-                    File.WriteAllBytes(Path.Combine(tileOrbOutDir, $"tile_orb_array.{i}.png"), texture.ToArray());
-                }
-            }
-            catch (Exception e)
-            {
-                Plugin.Logger?.LogError(e, "Failed to save array textures");
-            }
-        }
+        this.config = config;
+        this.pack = pack;
+        this.composerCache = composerCache;
+        this.cancellationToken = cancellationToken;
     }
     
-    public CharacterComposer(DataProvider dataProvider, Configuration config, Action<ProgressEvent>? progress = null) 
+    private void HandleModel(ParsedCharacterInfo characterInfo, ParsedModelInfo m, SceneBuilder scene, SkinningContext skinningContext)
     {
-        this.dataProvider = dataProvider;
-        this.progress = progress;
-        includePose = config.IncludePose;
-        poseMode = config.PoseMode;
-        textureMode = config.TextureMode;
-        
-        lock (StaticFileLock)
+        if (m.Path.GamePath.Contains("b0003_top"))
         {
-            if (DefaultPbdFile == null)
-            {
-                var pbdData = dataProvider.LookupData("chara/xls/boneDeformer/human.pbd");
-                if (pbdData == null) throw new InvalidOperationException("Failed to load default pbd file");
-                DefaultPbdFile = new PbdFile(pbdData);
-            }
-        }
-    }
-
-    private void HandleModel(GenderRace genderRace, CustomizeParameter customizeParameter, CustomizeData customizeData, 
-                             ParsedModelInfo modelInfo, SceneBuilder scene, List<BoneNodeBuilder> bones, 
-                             BoneNodeBuilder? rootBone,
-                             Matrix4x4 transform)
-    {
-        SaveArrayTextures();
-        
-        if (modelInfo.Path.GamePath.Contains("b0003_top"))
-        {
-            Plugin.Logger?.LogDebug("Skipping model {ModelPath}", modelInfo.Path.GamePath);
+            Plugin.Logger?.LogDebug("Skipping model {ModelPath}", m.Path.GamePath);
             return;
         }
-        var mdlData = dataProvider.LookupData(modelInfo.Path.FullPath);
+        
+        var mdlData = pack.GetFileOrReadFromDisk(m.Path.FullPath);
         if (mdlData == null)
         {
-            Plugin.Logger?.LogWarning("Failed to load model file: {modelPath}", modelInfo.Path);
+            Plugin.Logger?.LogWarning("Failed to load model file: {modelPath}", m.Path);
             return;
         }
 
-        Plugin.Logger?.LogInformation("Loaded model {modelPath}", modelInfo.Path.FullPath);
+        Plugin.Logger?.LogInformation("Loaded model {modelPath}", m.Path.FullPath);
         var mdlFile = new MdlFile(mdlData);
-        //var materialBuilders = new List<MaterialBuilder>();
-        var materialBuilders = new MaterialBuilder[modelInfo.Materials.Length];
-        for (int i = 0; i < modelInfo.Materials.Length; i++)
+        var materialBuilders = new MaterialBuilder[m.Materials.Length];
+        for (int i = 0; i < m.Materials.Length; i++)
         {
-            var materialInfo = modelInfo.Materials[i];
+            var materialInfo = m.Materials[i];
             try
             {
-                progress?.Invoke(new ProgressEvent(modelInfo.GetHashCode(), $"{materialInfo.Path.GamePath}", i + 1, modelInfo.Materials.Length));
-                var mtrlData = dataProvider.LookupData(materialInfo.Path.FullPath);
-                if (mtrlData == null)
-                {
-                    Plugin.Logger?.LogWarning("Failed to load material file: {mtrlPath}", materialInfo.Path.FullPath);
-                    throw new Exception($"Failed to load material file {materialInfo.Path.FullPath} returned null");
-                }
-
-                Plugin.Logger?.LogInformation("Loaded material {mtrlPath}", materialInfo.Path.FullPath);
-                var mtrlFile = new MtrlFile(mtrlData);
-                var shpkName = mtrlFile.GetShaderPackageName();
-                var shpkPath = $"shader/sm5/shpk/{shpkName}";
-                var shpkData = dataProvider.LookupData(shpkPath);
-                if (shpkData == null) throw new Exception($"Failed to load shader package file {shpkPath} returned null");
-                var shpkFile = new ShpkFile(shpkData);
-                var material = new MaterialSet(mtrlFile, materialInfo.Path.GamePath,
-                                               shpkFile,
-                                               shpkName,
-                                               materialInfo.Textures
-                                                           .Select(x => x.Path)
-                                                           .ToArray(),
-                                               handleString =>
-                                               {
-                                                   var match = materialInfo.Textures.FirstOrDefault(x =>
-                                                           x.Path.GamePath == handleString.GamePath &&
-                                                           x.Path.FullPath == handleString.FullPath);
-                                                   return match?.Resource;
-                                               });
-                if (materialInfo.ColorTable != null)
-                {
-                    material.SetColorTable(materialInfo.ColorTable);
-                }
-
-                material.SetCustomizeParameters(customizeParameter);
-                material.SetCustomizeData(customizeData);
-                material.SetTextureMode(textureMode);
-
-                materialBuilders[i] = material.Compose(dataProvider);
+                materialBuilders[i] = composerCache.ComposeMaterial(materialInfo.Path.FullPath, 
+                                                                    materialInfo: materialInfo, 
+                                                                    characterInfo: characterInfo, 
+                                                                    colorTableSet: materialInfo.ColorTable);
             }
             catch (Exception e)
             {
-                Plugin.Logger?.LogError(e, "Failed to load material\n{Message}\n{MaterialInfo}", e.Message, JsonSerializer.Serialize(modelInfo.Materials[i], jsonOptions));
+                Plugin.Logger?.LogError(e, "Failed to load material\n{Message}\n{MaterialInfo}", e.Message, 
+                                        JsonSerializer.Serialize(m.Materials[i], 
+                                            MaterialComposer.JsonOptions));
                 materialBuilders[i] = new MaterialBuilder("error");
             }
         }
 
-        var model = new Model(modelInfo.Path.GamePath, mdlFile, modelInfo.ShapeAttributeGroup);
-        EnsureBonesExist(model, bones, rootBone);
+        var model = new Model(m.Path.GamePath, mdlFile, m.ShapeAttributeGroup);
+        EnsureBonesExist(model, skinningContext.Bones, skinningContext.RootBone);
         (GenderRace from, GenderRace to, RaceDeformer deformer)? deform;
-        if (modelInfo.Deformer != null)
+        if (m.Deformer != null)
         {
             // custom pbd may exist
-            var pbdFileData = dataProvider.LookupData(modelInfo.Deformer.Value.PbdPath);
-            if (pbdFileData == null)
+            var pbdFile = composerCache.GetPbdFile(m.Deformer.Value.PbdPath);
+            if (pbdFile == null)
             {
-                throw new InvalidOperationException($"Failed to get deformer pbd {modelInfo.Deformer.Value.PbdPath} returned null");
+                throw new InvalidOperationException($"Failed to get deformer pbd {m.Deformer.Value.PbdPath} returned null");
             }
             
-            deform = ((GenderRace)modelInfo.Deformer.Value.DeformerId, (GenderRace)modelInfo.Deformer.Value.RaceSexId, new RaceDeformer(new PbdFile(pbdFileData), bones));
-            Plugin.Logger?.LogDebug("Using deformer pbd {Path}", modelInfo.Deformer.Value.PbdPath);
+            deform = ((GenderRace)m.Deformer.Value.DeformerId, 
+                         (GenderRace)m.Deformer.Value.RaceSexId, 
+                         new RaceDeformer(pbdFile, skinningContext.Bones));
+            Plugin.Logger?.LogDebug("Using deformer pbd {Path}", m.Deformer.Value.PbdPath);
         }
         else
         {
-            var parsed = RaceDeformer.ParseRaceCode(modelInfo.Path.GamePath);
+            var parsed = RaceDeformer.ParseRaceCode(m.Path.GamePath);
             if (Enum.IsDefined(parsed))
             {
-                deform = (parsed, genderRace, new RaceDeformer(DefaultPbdFile!, bones));
+                deform = (parsed, characterInfo.GenderRace, new RaceDeformer(composerCache.GetDefaultPbdFile(), skinningContext.Bones));
             }
             else
             {
@@ -199,17 +98,17 @@ public class CharacterComposer
             }
         }
 
-        var meshes = ModelBuilder.BuildMeshes(model, materialBuilders, bones, deform);
+        var meshes = ModelBuilder.BuildMeshes(model, materialBuilders, skinningContext.Bones, deform);
         foreach (var mesh in meshes)
         {
             InstanceBuilder instance;
-            if (bones.Count > 0)
+            if (skinningContext.Bones.Count > 0)
             {
-                instance = scene.AddSkinnedMesh(mesh.Mesh, transform, bones.Cast<NodeBuilder>().ToArray());
+                instance = scene.AddSkinnedMesh(mesh.Mesh, skinningContext.Transform, skinningContext.Bones.Cast<NodeBuilder>().ToArray());
             }
             else
             {
-                instance = scene.AddRigidMesh(mesh.Mesh, transform);
+                instance = scene.AddRigidMesh(mesh.Mesh, skinningContext.Transform);
             }
 
             if (model.Shapes.Count != 0 && mesh.Shapes != null)
@@ -355,18 +254,13 @@ public class CharacterComposer
         return rootParented;
     }
     
-    private static JsonSerializerOptions jsonOptions = new()
-    {
-        IncludeFields = true
-    };
-    
     public (List<BoneNodeBuilder> bones, BoneNodeBuilder root)? ComposeCharacterInfo(ParsedCharacterInfo characterInfo, (ParsedCharacterInfo Owner, List<BoneNodeBuilder> OwnerBones, ParsedAttach Attach)? attachData, SceneBuilder scene, NodeBuilder root)
     {
         List<BoneNodeBuilder> bones;
         BoneNodeBuilder? rootBone;
         try
         {
-            bones = SkeletonUtils.GetBoneMap(characterInfo.Skeleton, includePose ? poseMode : null, out rootBone);
+            bones = SkeletonUtils.GetBoneMap(characterInfo.Skeleton, SkeletonUtils.PoseMode.Local, out rootBone);
             if (rootBone == null)
             {
                 Plugin.Logger?.LogWarning("Root bone not found");
@@ -396,7 +290,7 @@ public class CharacterComposer
                 {
                     AttachData = attachData.Value.Attach,
                     Owner = attachData.Value.Owner
-                }, jsonOptions));
+                }, MaterialComposer.JsonOptions));
             }
         }
         else if (characterInfo.Attach.ExecuteType != 0)
@@ -410,7 +304,7 @@ public class CharacterComposer
             }
             catch (Exception e)
             {
-                Plugin.Logger?.LogError(e, "Failed to handle root attach {CharacterInfo}", JsonSerializer.Serialize(characterInfo, jsonOptions));
+                Plugin.Logger?.LogError(e, "Failed to handle root attach {CharacterInfo}", JsonSerializer.Serialize(characterInfo, MaterialComposer.JsonOptions));
             }
         }
 
@@ -422,11 +316,12 @@ public class CharacterComposer
         for (var i = 0; i < characterInfo.Models.Length; i++)
         {
             var t = characterInfo.Models[i];
-            progress?.Invoke(new ProgressEvent(characterInfo.GetHashCode(), $"{t.Path.GamePath}", i + 1, characterInfo.Models.Length));
+            
             try
             {
-                HandleModel(characterInfo.GenderRace, characterInfo.CustomizeParameter, characterInfo.CustomizeData,
-                            t, scene, bones, rootBone, transform);
+                HandleModel(characterInfo, t, 
+                            scene,
+                            new SkinningContext(bones, rootBone, transform));
             }
             catch (Exception e)
             {
@@ -448,55 +343,14 @@ public class CharacterComposer
             }
             catch (Exception e)
             {
-                Plugin.Logger?.LogError(e, "Failed to handle attach {Attach}", JsonSerializer.Serialize(characterInfo.Attaches[i], jsonOptions));
+                Plugin.Logger?.LogError(e, "Failed to handle attach {Attach}", JsonSerializer.Serialize(characterInfo.Attaches[i], MaterialComposer.JsonOptions));
             }
         }
 
         return (bones, rootBone);
     }
-
-    public void ComposeModels(ParsedModelInfo[] models, GenderRace genderRace, CustomizeParameter customizeParameter, 
-                              CustomizeData customizeData, ParsedSkeleton skeleton, SceneBuilder scene, NodeBuilder root)
-    { 
-        List<BoneNodeBuilder> bones;
-        BoneNodeBuilder? rootBone;
-        try
-        {
-            bones = SkeletonUtils.GetBoneMap(skeleton, includePose ? poseMode : null, out rootBone);
-            if (rootBone == null)
-            {
-                Plugin.Logger?.LogWarning("Root bone not found");
-                return;
-            }
-        }
-        catch (Exception e)
-        {
-            Plugin.Logger?.LogError(e, "Failed to get bone map");
-            return;
-        }
-
-        foreach (var t in models)
-        {
-            try
-            {
-                HandleModel(genderRace, customizeParameter, customizeData, t, scene, bones, rootBone,
-                            Matrix4x4.Identity);
-            }
-            catch (Exception e)
-            {
-                Plugin.Logger?.LogError(e, "Failed to handle model\n{Message}\n{ModelInfo}", e.Message, JsonSerializer.Serialize(t, jsonOptions));
-            }
-        }
-    }
     
-    public void ComposeCharacterInstance(ParsedCharacterInstance characterInstance, SceneBuilder scene, NodeBuilder root)
-    {
-        var characterInfo = characterInstance.CharacterInfo;
-        if (characterInfo == null) return;
-        ComposeCharacterInfo(characterInfo, null, scene, root);
-    }
-    
-    private void EnsureBonesExist(Model model, List<BoneNodeBuilder> bones, BoneNodeBuilder? root)
+    public static void EnsureBonesExist(Model model, List<BoneNodeBuilder> bones, BoneNodeBuilder? root)
     {
         foreach (var mesh in model.Meshes)
         {
@@ -528,7 +382,11 @@ public class CharacterComposer
         }
     }
 
-    private BoneNodeBuilder? FindLogicalParent(Model model, BoneNodeBuilder node, List<BoneNodeBuilder> bones)
+    /// <summary>
+    /// Find a logical parent bone for a bone in a model
+    /// </summary>
+    /// <returns></returns>
+    public static BoneNodeBuilder? FindLogicalParent(Model model, BoneNodeBuilder node, List<BoneNodeBuilder> bones)
     {
         // for each vertex in meshes which contain the bone
         // check if the bone is included in the blend indices for the vertex

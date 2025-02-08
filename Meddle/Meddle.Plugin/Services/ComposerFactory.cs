@@ -19,41 +19,12 @@ public class ComposerFactory : IService
         this.configuration = configuration;
     }
     
-    private DataProvider CreateDataProvider(string cacheDir, CancellationToken cancellationToken)
-    {
-        return new DataProvider(cacheDir, pack, loggerProvider.CreateLogger<DataProvider>(), cancellationToken);
-    }
-    
-    public InstanceComposer CreateComposer(ParsedInstance[] instances, 
-                                           Vector3 origin,
-                                           string? cacheDir = null,
-                                           Action<ProgressEvent>? progressEvent = null, 
+    public MeddleComposer CreateComposer(ParsedInstance[] instances, 
+                                           string outDir,
                                            CancellationToken cancellationToken = default)
     {
-        cacheDir ??= Path.Combine(Path.GetTempPath(), "Meddle", "Cache");
-        Directory.CreateDirectory(cacheDir);
-        
-        var dataProvider = CreateDataProvider(cacheDir, cancellationToken);
-        return new InstanceComposer(configuration,
-                                    instances,
-                                    progressEvent,
-                                    cancellationToken,
-                                    CreateCharacterComposer(dataProvider),
-                                    dataProvider,
-            origin);
-    }
-    
-    public CharacterComposer CreateCharacterComposer(string? cacheDir = null, Action<ProgressEvent>? progress = null, CancellationToken cancellationToken = default)
-    {
-        cacheDir ??= Path.Combine(Path.GetTempPath(), "Meddle", "Cache");
-        Directory.CreateDirectory(cacheDir);
-        
-        var dataProvider = CreateDataProvider(cacheDir, cancellationToken);
-        return new CharacterComposer(dataProvider, configuration, progress);
-    }
-    
-    public CharacterComposer CreateCharacterComposer(DataProvider dataProvider)
-    {
-        return new CharacterComposer(dataProvider, configuration);
+        return new MeddleComposer(configuration, pack,
+                                  outDir, instances, cancellationToken);
+
     }
 }

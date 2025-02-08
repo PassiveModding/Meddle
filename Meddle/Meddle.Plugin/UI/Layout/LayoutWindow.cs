@@ -316,10 +316,7 @@ public partial class LayoutWindow : ITab
 
         resolverService.ResolveInstances(instances);
         
-        var origin = config.LayoutConfig.AdjustOrigin ? currentPos : Vector3.Zero;
-
         var defaultName = $"InstanceExport-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
-        var currentExportType = config.ExportType;
         cancelToken = new CancellationTokenSource();
         fileDialog.SaveFolderDialog("Save Instances", defaultName,
                                     (result, path) =>
@@ -328,26 +325,10 @@ public partial class LayoutWindow : ITab
                                         exportTask = Task.Run(() =>
                                         {
                                             var composer = composerFactory.CreateComposer(instances, 
-                                                origin,
-                                                Path.Combine(path, "cache"),
-                                                x => progress = x, cancelToken.Token);
-                                            var scene = new SceneBuilder();
-                                            composer.Compose(scene);
-                                            var gltf = scene.ToGltf2();
-                                            if (currentExportType.HasFlag(ExportType.GLB))
-                                            {
-                                                gltf.SaveGLB(Path.Combine(path, $"{defaultName}.glb"));
-                                            }
-
-                                            if (currentExportType.HasFlag(ExportType.GLTF))
-                                            {
-                                                gltf.SaveGLTF(Path.Combine(path, $"{defaultName}.gltf"));
-                                            }
-
-                                            if (currentExportType.HasFlag(ExportType.OBJ))
-                                            {
-                                                gltf.SaveAsWavefront(Path.Combine(path, $"{defaultName}.obj"));
-                                            }
+                                                path,
+                                                cancelToken.Token);
+                                            
+                                            composer.Compose();
                                             
                                             Process.Start("explorer.exe", path);
                                         }, cancelToken.Token);
