@@ -1,6 +1,7 @@
 ﻿using System.Numerics;
 using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Layout;
+using Meddle.Plugin.UI.Layout;
 using Meddle.Utils.Files.SqPack;
 using Microsoft.Extensions.Logging;
 
@@ -19,11 +20,12 @@ public class ComposerFactory : IService
         this.configuration = configuration;
     }
     
-    public MeddleComposer CreateComposer(ParsedInstance[] instances, 
+    public InstanceComposer CreateComposer(ParsedInstance[] instances, 
                                            string outDir,
+                                           Configuration.ExportConfiguration exportConfig,
                                            CancellationToken cancellationToken = default)
     {
-        return new MeddleComposer(configuration, pack,
+        return new InstanceComposer(configuration, pack, exportConfig,
                                   outDir, instances, cancellationToken);
 
     }

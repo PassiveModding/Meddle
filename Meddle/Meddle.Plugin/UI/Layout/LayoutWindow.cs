@@ -12,44 +12,41 @@ using Meddle.Plugin.Services;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
 using Microsoft.Extensions.Logging;
-using SharpGLTF.Scenes;
-using SharpGLTF.Schema2;
 
 namespace Meddle.Plugin.UI.Layout;
 
 public partial class LayoutWindow : ITab
 {
-    private readonly LayoutService layoutService;
-    private readonly Configuration config;
-    private readonly SigUtil sigUtil;
-    private readonly ILogger<LayoutWindow> log;
-    private readonly TextureCache textureCache;
-    private readonly ITextureProvider textureProvider;
-    private readonly ResolverService resolverService;
     private readonly ComposerFactory composerFactory;
+    private readonly Configuration config;
     private readonly SqPack dataManager;
-
-    
-    public string Name => "Layout";
-    public int Order => (int) WindowOrder.Layout;
-    public MenuType MenuType => MenuType.Default;
-    
-    private ProgressEvent? progress;
-    private Task exportTask = Task.CompletedTask;
-    private CancellationTokenSource cancelToken = new();
-    private ParsedInstance[] currentLayout = [];
-    private readonly Dictionary<nint, ParsedInstance> selectedInstances = new();
-    private readonly Dictionary<string, MdlFile?> mdlCache = new();
-    private readonly Dictionary<string, MtrlFile?> mtrlCache = new();
-    private readonly Dictionary<string, ShpkFile?> shpkCache = new();
-    private Vector3 currentPos;
-
-    private string? lastError;
 
     private readonly FileDialogManager fileDialog = new()
     {
         AddedWindowFlags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoDocking
     };
+
+    private readonly LayoutService layoutService;
+    private readonly ILogger<LayoutWindow> log;
+    private readonly Dictionary<string, MdlFile?> mdlCache = new();
+    private readonly Dictionary<string, MtrlFile?> mtrlCache = new();
+    private readonly ResolverService resolverService;
+    private readonly Dictionary<nint, ParsedInstance> selectedInstances = new();
+    private readonly Dictionary<string, ShpkFile?> shpkCache = new();
+    private readonly SigUtil sigUtil;
+    private readonly TextureCache textureCache;
+    private readonly ITextureProvider textureProvider;
+    private CancellationTokenSource cancelToken = new();
+    private ParsedInstance[] currentLayout = [];
+    private Vector3 currentPos;
+    private Action? drawExportSettingsCallback;
+    private Task exportTask = Task.CompletedTask;
+    private InstanceComposer? instanceComposer;
+
+    private string? lastError;
+    private string search = "";
+    private bool shouldUpdateState = true;
+    private bool requestedPopup;
 
     public LayoutWindow(
         LayoutService layoutService,
@@ -60,7 +57,7 @@ public partial class LayoutWindow : ITab
         ITextureProvider textureProvider,
         ResolverService resolverService,
         ComposerFactory composerFactory,
-        SqPack dataManager)// : base("Layout")
+        SqPack dataManager)
     {
         this.layoutService = layoutService;
         this.config = config;
@@ -73,51 +70,23 @@ public partial class LayoutWindow : ITab
         this.dataManager = dataManager;
     }
 
-    private void SetupCurrentState()
-    {
-        layoutService.RequestUpdate = true;
-        currentLayout = layoutService.LastState ?? [];
-        currentPos = sigUtil.GetLocalPosition();
-    }
 
-    private bool shouldUpdateState = true;
-    private string search = "";
+    public string Name => "Layout";
+    public int Order => (int)WindowOrder.Layout;
+    public MenuType MenuType => MenuType.Default;
 
     public void Draw()
     {
         try
         {
-            if (!exportTask.IsCompleted && progress != null)
-            {
-                ImGui.Text($"Exporting {progress.Progress} of {progress.Total}");
-                ImGui.ProgressBar(progress.Progress / (float)progress.Total, new Vector2(-1, 0), progress.Name);
-
-                var subProgress = progress.SubProgress;
-                while (subProgress != null)
-                {
-                    ImGui.Text($"Exporting {subProgress.Progress} of {subProgress.Total}");
-                    ImGui.ProgressBar(subProgress.Progress / (float)subProgress.Total, new Vector2(-1, 0), subProgress.Name);
-                    subProgress = subProgress.SubProgress;
-                }
-                
-                if (ImGui.Button("Cancel"))
-                {
-                    cancelToken.Cancel();
-                }
-            }
-
-            if (exportTask.IsFaulted)
-            {
-                ImGui.TextColored(new Vector4(1, 0, 0, 1), "Export failed");
-                ImGui.TextWrapped(exportTask.Exception?.ToString());
-            }
+            DrawProgress();
 
             if (shouldUpdateState)
             {
                 SetupCurrentState();
                 shouldUpdateState = false;
             }
-            
+
             if (config.LayoutConfig.DrawOverlay)
             {
                 shouldUpdateState = true;
@@ -132,94 +101,26 @@ public partial class LayoutWindow : ITab
 
             if (ImGui.CollapsingHeader("Selected"))
             {
-                if (selectedInstances.Count == 0)
-                {
-                    ImGui.Text("No instances selected");
-                }
-
-                using var disabled = ImRaii.Disabled(selectedInstances.Count == 0);
-                using var id = ImRaii.PushId("selectedTable");
-                ExportButton($"Export {selectedInstances.Count} instance(s)", selectedInstances.Values);
-
-                ImGui.SameLine();
-                if (ImGui.Button("Clear all"))
-                {
-                    selectedInstances.Clear();
-                }
-
-                DrawInstanceTable(selectedInstances.Values.ToArray(), DrawSelectedButtons);
+                DrawSelected();
             }
 
             if (ImGui.CollapsingHeader("All"))
             {
-                shouldUpdateState = true;
-                ImGui.InputText("Search", ref search, 100);
-                
-                using var id = ImRaii.PushId("layoutTable");
-                var set = currentLayout
-                          .Where(x =>
-                          {
-                              // keep terrain regardless of distance
-                              if (x is ParsedTerrainInstance) return true;
-                              return Vector3.Distance(x.Transform.Translation, currentPos) < config.WorldCutoffDistance;
-                          })
-                          .Where(x => config.LayoutConfig.DrawTypes.HasFlag(x.Type));
-                if (config.LayoutConfig.OrderByDistance)
-                {
-                    set = set.OrderBy(x => Vector3.Distance(x.Transform.Translation, sigUtil.GetLocalPosition()));
-                }
-
-                if (config.LayoutConfig.HideOffscreenCharacters)
-                {
-                    set = set.Where(x => x is not ParsedCharacterInstance {Visible: false});
-                }
-
-                
-                if (!string.IsNullOrWhiteSpace(search))
-                {
-                    set = set.Where(x =>
-                    {
-                        if (x is ISearchableInstance si)
-                        {
-                            return si.Search(search);
-                        }
-
-                        return true;
-                    });
-                }
-                
-                var items = set.ToArray();
-                
-
-                var count = 0;
-                foreach (var item in items)
-                {
-                    if (item is ParsedSharedInstance shared)
-                    {
-                        count += shared.Flatten().Length;
-                    }
-                    else
-                    {
-                        count++;
-                    }
-                }
-                
-                ExportButton($"Export {items.Length} instance(s)", items);
-                ImGui.SameLine();
-                if (ImGui.Button($"Add {items.Length} instance(s) to selection"))
-                {
-                    foreach (var item in items)
-                    {
-                        selectedInstances[item.Id] = item;
-                    }
-                }
-                ImGui.SameLine();
-                ImGui.Text($"Total: {count}");
-
-                DrawInstanceTable(items, DrawLayoutButtons);
+                DrawAll();
             }
 
             fileDialog.Draw();
+
+            if (requestedPopup)
+            {
+                ImGui.OpenPopup("ExportSettingsPopup");
+                requestedPopup = false;
+            }
+
+            if (drawExportSettingsCallback != null)
+            {
+                drawExportSettingsCallback();
+            }
         }
         catch (Exception e)
         {
@@ -233,12 +134,134 @@ public partial class LayoutWindow : ITab
             ImGui.TextWrapped(e.ToString());
         }
     }
+    private void DrawAll()
+    {
+
+        shouldUpdateState = true;
+        ImGui.InputText("Search", ref search, 100);
+
+        using var id = ImRaii.PushId("layoutTable");
+        var set = currentLayout
+                  .Where(x =>
+                  {
+                      // keep terrain regardless of distance
+                      if (x is ParsedTerrainInstance) return true;
+                      return Vector3.Distance(x.Transform.Translation, currentPos) < config.WorldCutoffDistance;
+                  })
+                  .Where(x => config.LayoutConfig.DrawTypes.HasFlag(x.Type));
+        if (config.LayoutConfig.OrderByDistance)
+        {
+            set = set.OrderBy(x => Vector3.Distance(x.Transform.Translation, sigUtil.GetLocalPosition()));
+        }
+
+        if (config.LayoutConfig.HideOffscreenCharacters)
+        {
+            set = set.Where(x => x is not ParsedCharacterInstance {Visible: false});
+        }
+
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            set = set.Where(x =>
+            {
+                if (x is ISearchableInstance si)
+                {
+                    return si.Search(search);
+                }
+
+                return true;
+            });
+        }
+
+        var items = set.ToArray();
+
+
+        var count = 0;
+        foreach (var item in items)
+        {
+            if (item is ParsedSharedInstance shared)
+            {
+                count += shared.Flatten().Length;
+            }
+            else
+            {
+                count++;
+            }
+        }
+
+        ExportButton($"Export {items.Length} instance(s)", items);
+        ImGui.SameLine();
+        if (ImGui.Button($"Add {items.Length} instance(s) to selection"))
+        {
+            foreach (var item in items)
+            {
+                selectedInstances[item.Id] = item;
+            }
+        }
+        ImGui.SameLine();
+        ImGui.Text($"Total: {count}");
+
+        DrawInstanceTable(items, DrawLayoutButtons);
+    }
+    private void DrawSelected()
+    {
+
+        if (selectedInstances.Count == 0)
+        {
+            ImGui.Text("No instances selected");
+        }
+
+        using var disabled = ImRaii.Disabled(selectedInstances.Count == 0);
+        using var id = ImRaii.PushId("selectedTable");
+        ExportButton($"Export {selectedInstances.Count} instance(s)", selectedInstances.Values);
+
+        ImGui.SameLine();
+        if (ImGui.Button("Clear all"))
+        {
+            selectedInstances.Clear();
+        }
+
+        DrawInstanceTable(selectedInstances.Values.ToArray(), DrawSelectedButtons);
+    }
+
+    public void Dispose()
+    {
+        cancelToken.Cancel();
+    }
+
+    private void SetupCurrentState()
+    {
+        layoutService.RequestUpdate = true;
+        currentLayout = layoutService.LastState ?? [];
+        currentPos = sigUtil.GetLocalPosition();
+    }
+
+
+    private void DrawProgress()
+    {
+        if (exportTask.IsFaulted)
+        {
+            ImGui.TextColored(new Vector4(1, 0, 0, 1), "Export failed");
+            ImGui.TextWrapped(exportTask.Exception?.ToString());
+        }
+        if (instanceComposer == null) return;
+        if (exportTask.IsCompleted) return;
+        
+        var progress = instanceComposer.Progress;
+        ImGui.Text($"Exporting {progress.Progress} of {progress.Total}");
+        ImGui.ProgressBar(progress.Progress / (float)progress.Total, new Vector2(-1, 0));
+        
+        if (ImGui.Button("Cancel"))
+        {
+            cancelToken.Cancel();
+        }
+    }
 
     private void DrawExportSingle(ParsedInstance instance)
     {
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
-            ExportButton(FontAwesomeIcon.FileExport.ToIconString(), new[] {instance});
+            ExportButton(FontAwesomeIcon.FileExport.ToIconString(), [instance]);
         }
     }
 
@@ -302,11 +325,14 @@ public partial class LayoutWindow : ITab
         using var disabled = ImRaii.Disabled(!exportTask.IsCompleted);
         if (ImGui.Button(text))
         {
-            InstanceExport(instances.ToArray());
+            requestedPopup = true;
+            var instancesArray = instances.ToArray();
+            resolverService.ResolveInstances(instancesArray);
+            drawExportSettingsCallback = () => DrawExportSettings(instancesArray);
         }
     }
 
-    private void InstanceExport(ParsedInstance[] instances)
+    private void DrawExportSettings(ParsedInstance[] instances)
     {
         if (!exportTask.IsCompleted)
         {
@@ -314,29 +340,71 @@ public partial class LayoutWindow : ITab
             return;
         }
 
-        resolverService.ResolveInstances(instances);
-        
-        var defaultName = $"InstanceExport-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
-        cancelToken = new CancellationTokenSource();
-        fileDialog.SaveFolderDialog("Save Instances", defaultName,
-                                    (result, path) =>
-                                    {
-                                        if (!result) return;
-                                        exportTask = Task.Run(() =>
-                                        {
-                                            var composer = composerFactory.CreateComposer(instances, 
-                                                path,
-                                                cancelToken.Token);
-                                            
-                                            composer.Compose();
-                                            
-                                            Process.Start("explorer.exe", path);
-                                        }, cancelToken.Token);
-                                    }, config.ExportDirectory);
+        if (!ImGui.BeginPopup("ExportSettingsPopup", ImGuiWindowFlags.AlwaysAutoResize)) return;
+        try
+        {
+            var cacheFileTypes = config.ExportConfig.CacheFileTypes;
+            if (EnumExtensions.DrawEnumCombo("Cache Files", ref cacheFileTypes))
+            {
+                config.ExportConfig.CacheFileTypes = cacheFileTypes;
+                config.Save();
+            }
+
+            var exportPose = config.ExportConfig.ExportPose;
+            if (ImGui.Checkbox("Export pose", ref exportPose))
+            {
+                config.ExportConfig.ExportPose = exportPose;
+                config.Save();
+            }
+
+            if (ImGui.Button("Export"))
+            {
+                var configClone = config.ExportConfig.Clone();
+                var defaultName = $"InstanceExport-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
+                cancelToken = new CancellationTokenSource();
+                fileDialog.SaveFolderDialog("Save Instances", defaultName,
+                                            (result, path) =>
+                                            {
+                                                if (!result) return;
+                                                SetExportTask(instances, path, configClone, cancelToken);
+                                            }, config.ExportDirectory);
+
+                drawExportSettingsCallback = null;
+                ImGui.CloseCurrentPopup();
+            }
+
+            ImGui.SameLine();
+            if (ImGui.Button("Cancel"))
+            {
+                drawExportSettingsCallback = null;
+                ImGui.CloseCurrentPopup();
+            }
+        } 
+        finally
+        {
+            ImGui.EndPopup();
+        }
     }
 
-    public void Dispose()
+    private void SetExportTask(ParsedInstance[] instances, string path, Configuration.ExportConfiguration configClone, CancellationTokenSource cancellationTokenSource)
     {
-        cancelToken.Cancel();
+        exportTask = Task.Run(() =>
+        {
+            log.LogDebug("Exporting {count} instances to {path}, current task id: {taskId}", instances.Length, path, Task.CurrentId);
+            try
+            {
+                var composer = composerFactory.CreateComposer(instances,
+                                                              path,
+                                                              configClone,
+                                                              cancellationTokenSource.Token);
+                instanceComposer = composer;
+                composer.Compose();
+                Process.Start("explorer.exe", path);
+            } 
+            finally
+            {
+                instanceComposer = null;
+            }
+        }, cancellationTokenSource.Token);
     }
 }

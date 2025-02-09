@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using System.Text.Json.Serialization;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
 using Lumina.Excel.Sheets;
@@ -46,6 +47,13 @@ public interface ISearchableInstance
     public bool Search(string query);
 }
 
+[JsonDerivedType(typeof(ParsedUnsupportedInstance))]
+[JsonDerivedType(typeof(ParsedSharedInstance))]
+[JsonDerivedType(typeof(ParsedHousingInstance))]
+[JsonDerivedType(typeof(ParsedBgPartsInstance))]
+[JsonDerivedType(typeof(ParsedLightInstance))]
+[JsonDerivedType(typeof(ParsedCharacterInstance))]
+[JsonDerivedType(typeof(ParsedTerrainInstance))]
 public abstract class ParsedInstance
 {
     public ParsedInstance(nint id, ParsedInstanceType type, Transform transform)
@@ -213,11 +221,16 @@ public class ParsedBgPartsInstance : ParsedInstance, IPathInstance, IStainableIn
 
 public class ParsedLightInstance : ParsedInstance, ISearchableInstance
 {
-    public RenderLight Light { get; }
+    public ParsedRenderLight Light { get; }
     
     public unsafe ParsedLightInstance(nint id, Transform transform, RenderLight* light) : base(id, ParsedInstanceType.Light, transform)
     {
-        Light = *light;
+        Light = new(light);
+    }
+    
+    public ParsedLightInstance(nint id, Transform transform, ParsedRenderLight light) : base(id, ParsedInstanceType.Light, transform)
+    {
+        Light = light;
     }
     
     public bool Search(string query)
@@ -239,7 +252,6 @@ public class ParsedTerrainInstance : ParsedInstance, IPathInstance, IResolvableI
     public bool IsResolved { get; private set; }
     public void Resolve(ResolverService resolver)
     {
-        if (IsResolved) return;
         if (IsResolved) return;
         try
         {

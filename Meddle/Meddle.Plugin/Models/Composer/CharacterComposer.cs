@@ -39,15 +39,8 @@ public class CharacterComposer
             return;
         }
         
-        var mdlData = pack.GetFileOrReadFromDisk(m.Path.FullPath);
-        if (mdlData == null)
-        {
-            Plugin.Logger?.LogWarning("Failed to load model file: {modelPath}", m.Path);
-            return;
-        }
-
+        var mdlFile = composerCache.GetMdlFile(m.Path.FullPath);
         Plugin.Logger?.LogInformation("Loaded model {modelPath}", m.Path.FullPath);
-        var mdlFile = new MdlFile(mdlData);
         var materialBuilders = new MaterialBuilder[m.Materials.Length];
         for (int i = 0; i < m.Materials.Length; i++)
         {

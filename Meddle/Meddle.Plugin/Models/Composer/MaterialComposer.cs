@@ -220,6 +220,8 @@ public class MaterialComposer
     public static JsonSerializerOptions JsonOptions => new()
     {
         IncludeFields = true,
-        NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals
+        NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
+        WriteIndented = true,
+        Converters = { new IntPtrSerializer(), new TransformSerializer() },
     };
 }

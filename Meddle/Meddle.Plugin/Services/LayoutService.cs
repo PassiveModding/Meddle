@@ -35,9 +35,6 @@ public class LayoutService : IService, IDisposable
         this.logger = logger;
         this.framework = framework;
         stainDict = dataManager.GetExcelSheet<Stain>()!.ToDictionary(row => row.RowId, row => row);
-        // itemDict = dataManager.GetExcelSheet<Item>()!
-        //                       .Where(item => item.AdditionalData.RowId != 0 && item.ItemSearchCategory.Value.RowId is 65 or 66)
-        //                       .ToDictionary(row => row.AdditionalData.RowId, row => row);
         this.framework.Update += Update;
     }
 

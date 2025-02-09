@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Numerics;
 using System.Text.Json.Serialization;
 using Dalamud.Configuration;
@@ -86,12 +87,12 @@ public sealed class Plugin : IDalamudPlugin
 public class Configuration : IPluginConfiguration
 {
     public const ExportType DefaultExportType = ExportType.GLTF;
-    public const SkeletonUtils.PoseMode DefaultPoseMode = SkeletonUtils.PoseMode.Model;
 
     public void Migrate()
     {
         if (Version == 1)
         {
+            Plugin.Logger?.LogInformation("Migrating configuration from version 1 to 2");
             if (DisableAutomaticUiHide == false)
             {
                 DisableAutomaticUiHide = true;
@@ -112,7 +113,6 @@ public class Configuration : IPluginConfiguration
     private IDalamudPluginInterface PluginInterface { get; set; } = null!;
 
     public bool OpenDebugMenuOnLoad { get; set; }
-    public bool OpenLayoutMenuOnLoad { get; set; }
     public LogLevel MinimumNotificationLogLevel { get; set; } = LogLevel.Warning;
     public bool OpenOnLoad { get; set; }
     public bool DisableUserUiHide { get; set; }
@@ -132,13 +132,10 @@ public class Configuration : IPluginConfiguration
     /// <summary>
     /// If enabled, pose will be included at 0 on the timeline under the 'pose' track.
     /// </summary>
+    [Obsolete("Use ExportConfig.ExportPose")]
     public bool IncludePose { get; set; } = true;
 
-    /// <summary>
-    /// Indicates whether scaling should be taken from the model pose rather than the local pose.
-    /// </summary>
-    public SkeletonUtils.PoseMode PoseMode => SkeletonUtils.PoseMode.Local;//{ get; set; } = DefaultPoseMode;
-    
+    [Obsolete("Use ExportConfig.TextureMode")]
     public TextureMode TextureMode { get; set; } = TextureMode.Bake;
     
     /// <summary>
@@ -146,11 +143,30 @@ public class Configuration : IPluginConfiguration
     /// GLB = GLTF Binary
     /// OBJ = Wavefront OBJ
     /// </summary>
+    [Obsolete("Use ExportConfig.ExportType")]
     public ExportType ExportType { get; set; } = DefaultExportType;
     
     public int Version { get; set; } = 2;
     
     public LayoutWindow.LayoutConfig LayoutConfig { get; set; } = new();
+    public ExportConfiguration ExportConfig { get; set; } = new();
+    
+    public class ExportConfiguration
+    {
+        public CacheFileType CacheFileTypes { get; set; }
+        public bool ExportPose { get; set; } = true;
+        public ExportType ExportType { get; set; } = DefaultExportType;
+        
+        public ExportConfiguration Clone()
+        {
+            return new ExportConfiguration
+            {
+                CacheFileTypes = CacheFileTypes,
+                ExportPose = ExportPose,
+                ExportType = ExportType
+            };
+        }
+    }
 
     public event Action? OnConfigurationSaved;
 

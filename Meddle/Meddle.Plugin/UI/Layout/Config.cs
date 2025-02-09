@@ -25,7 +25,7 @@ public partial class LayoutWindow
         public bool TraceToHovered { get; set; } = true;
         public bool HideOffscreenCharacters { get; set; } = true;
         public int MaxItemCount { get; set; } = 100;
-        public bool AdjustOrigin { get; set; }
+        // public bool AdjustOrigin { get; set; }
     }
     
 
@@ -81,16 +81,17 @@ public partial class LayoutWindow
             config.Save();
         }
         
-        var adjustOrigin = config.LayoutConfig.AdjustOrigin;
-        if (ImGui.Checkbox("Adjust Origin", ref adjustOrigin))
-        {
-            config.LayoutConfig.AdjustOrigin = adjustOrigin;
-            config.Save();
-        }
-        ImGui.SameLine();
-        UiUtil.HintCircle("Subtracts the players position at the time of export from the position of the object, this will mean " +
-                          "that the object will be centered around the player when exported, " +
-                          "but may cause issues if exporting multiple components separately if the player moves between exports");
+        // var adjustOrigin = config.LayoutConfig.AdjustOrigin;
+        // if (ImGui.Checkbox("Adjust Origin", ref adjustOrigin))
+        // {
+        //     config.LayoutConfig.AdjustOrigin = adjustOrigin;
+        //     config.Save();
+        // }
+        // ImGui.SameLine();
+        // UiUtil.HintCircle("Subtracts the players position at the time of export from the position of the object, this will mean " +
+        //                   "that the object will be centered around the player when exported, " +
+        //                   "but may cause issues if exporting multiple components separately if the player moves between exports");
+        
         
         var hideOffscreenCharacters = config.LayoutConfig.HideOffscreenCharacters;
         if (ImGui.Checkbox("Hide Offscreen Characters", ref hideOffscreenCharacters))

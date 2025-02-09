@@ -1,8 +1,6 @@
-﻿using System.Collections.Concurrent;
-using System.Numerics;
+﻿using System.Numerics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Meddle.Plugin.Models.Composer.Materials;
 using Meddle.Plugin.Models.Composer.Textures;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Models.Structs;
@@ -11,213 +9,173 @@ using Meddle.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
-using Meddle.Utils.Files.Structs.Material;
 using Meddle.Utils.Helpers;
 using Microsoft.Extensions.Logging;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
 using SharpGLTF.Schema2;
 using SharpGLTF.Validation;
-using SkiaSharp;
 
 namespace Meddle.Plugin.Models.Composer;
 
-public class ComposerCache
+public class ExportProgress
 {
-    private readonly PbdFile defaultPbdFile;
-    private readonly ConcurrentDictionary<string, ShaderPackage> shpkCache = new();
-    private readonly ConcurrentDictionary<string, MtrlFile> mtrlCache = new();
-    private readonly ConcurrentDictionary<string, PbdFile> pbdCache = new();
-    private readonly SqPack pack;
-    private readonly string cacheDir;
-
-    public ComposerCache(SqPack pack, string cacheDir)
-    {
-        this.pack = pack;
-        this.cacheDir = cacheDir;
-        var pbdData = pack.GetFileOrReadFromDisk("chara/xls/boneDeformer/human.pbd");
-        if (pbdData == null) throw new InvalidOperationException("Failed to load default pbd file");
-        defaultPbdFile = new PbdFile(pbdData);
-    }
-    
-    public PbdFile GetDefaultPbdFile()
-    {
-        return defaultPbdFile;
-    }
-    
-    public PbdFile GetPbdFile(string path)
-    {
-        return pbdCache.GetOrAdd(path, key =>
-        {
-            var pbdData = pack.GetFileOrReadFromDisk(path);
-            if (pbdData == null) throw new Exception($"Failed to load pbd file: {path}");
-            return new PbdFile(pbdData);
-        });
-    }
-    
-    public MtrlFile GetMtrlFile(string path)
-    {
-        return mtrlCache.GetOrAdd(path, key =>
-        {
-            var mtrlData = pack.GetFileOrReadFromDisk(path);
-            if (mtrlData == null) throw new Exception($"Failed to load material file: {path}");
-            return new MtrlFile(mtrlData);
-        });
-    }
-    
-    public ShaderPackage GetShaderPackage(string shpkName)
-    {
-        var shpkPath = $"shader/sm5/shpk/{shpkName}";
-        return shpkCache.GetOrAdd(shpkPath, key =>
-        {
-            var shpkData = pack.GetFileOrReadFromDisk(shpkPath);
-            if (shpkData == null) throw new Exception($"Failed to load shader package file: {shpkPath}");
-            var shpkFile = new ShpkFile(shpkData);
-            return new ShaderPackage(shpkFile, shpkName);
-        });
-    }
-
-    private string CacheTexture(string fullPath)
-    {
-        var cleanPath = fullPath.TrimHandlePath();
-        if (Path.IsPathRooted(cleanPath))
-        {
-            var pathRoot = Path.GetPathRoot(cleanPath) ?? string.Empty;
-            cleanPath = cleanPath[pathRoot.Length..];
-        }
-        
-        var cachePath = Path.Combine(cacheDir, cleanPath) + ".png";
-        if (File.Exists(cachePath)) return cachePath;
-        var texFile = pack.GetFileOrReadFromDisk(fullPath);
-        if (texFile == null) throw new Exception($"Failed to load texture file: {fullPath}");
-        
-        var tex = new TexFile(texFile);
-        var texture = tex.ToResource().ToTexture();
-        byte[] textureBytes;
-        using (var memoryStream = new MemoryStream())
-        {
-            texture.Bitmap.Encode(memoryStream, SKEncodedImageFormat.Png, 100);
-            textureBytes = memoryStream.ToArray();
-        }
-
-        Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
-        File.WriteAllBytes(cachePath, textureBytes);
-        return cachePath;
-    }
-
-    public MaterialBuilder ComposeMaterial(string mtrlPath, 
-       ParsedMaterialInfo? materialInfo = null,
-       ParsedInstance? instance = null, 
-       ParsedCharacterInfo? characterInfo = null, 
-       IColorTableSet? colorTableSet = null)
-    {
-        var mtrlFile = GetMtrlFile(mtrlPath);
-        var shaderPackage = GetShaderPackage(mtrlFile.GetShaderPackageName());
-        var material = new MaterialComposer(mtrlFile, mtrlPath, shaderPackage);
-        if (instance != null)
-        {
-            material.SetPropertiesFromInstance(instance);
-        }
-        
-        if (characterInfo != null)
-        {
-            material.SetPropertiesFromCharacterInfo(characterInfo);
-        }
-        
-        if (colorTableSet != null)
-        {
-            material.SetPropertiesFromColorTable(colorTableSet);
-        }
-       
-        var materialBuilder = new RawMaterialBuilder(mtrlPath);
-        foreach (var texture in material.TextureUsageDict)
-        {
-            // ensure texture gets saved to cache dir.
-            var fullPath = texture.Value.FullPath;
-            if (materialInfo != null)
-            {
-                var match = materialInfo.Textures.FirstOrDefault(x => x.Path.GamePath == texture.Value.GamePath);
-                if (match != null)
-                {
-                    fullPath = match.Path.FullPath;
-                }
-            }
-            
-            var cachePath = CacheTexture(fullPath);
-            material.SetProperty($"{texture.Key}_PngCachePath", cachePath);
-        }
-
-        materialBuilder.Extras = material.ExtrasNode;
-        return materialBuilder;
-    }
+    public int Progress;
+    public int Total;
 }
 
-public class MeddleComposer
+public class InstanceComposer
 {
     private readonly Configuration config;
     private readonly SqPack pack;
+    private readonly Configuration.ExportConfiguration exportConfig;
     private readonly string outDir;
     private readonly string cacheDir;
     private readonly ParsedInstance[] instances;
     private readonly CancellationToken cancellationToken;
     private readonly ComposerCache composerCache;
-    public MeddleComposer(Configuration config, SqPack pack, string outDir, ParsedInstance[] instances, CancellationToken cancellationToken)
+    public readonly ExportProgress Progress;
+    
+    public InstanceComposer(
+        Configuration config,
+        SqPack pack,
+        Configuration.ExportConfiguration exportConfig,
+        string outDir,
+        ParsedInstance[] instances,
+        CancellationToken cancellationToken)
     {
         this.config = config;
         this.pack = pack;
+        this.exportConfig = exportConfig;
         this.outDir = outDir;
         Directory.CreateDirectory(outDir);
         this.cacheDir = Path.Combine(outDir, "cache");
         Directory.CreateDirectory(cacheDir);
         this.instances = instances;
         this.cancellationToken = cancellationToken;
-        this.composerCache = new ComposerCache(pack, cacheDir);
+        this.composerCache = new ComposerCache(pack, cacheDir, exportConfig);
+        this.Progress = new ExportProgress
+        {
+            Progress = 0,
+            Total = instances.Length
+        };
     }
 
-    public void Compose()
+    private void SaveScene(SceneBuilder scene, string path)
     {
-        SaveArrayTextures();
-
-        var orderedInstances = instances.OrderBy(x => x.Transform.Translation.LengthSquared()).ToArray();
-        var scenes = new List<SceneBuilder>();
-        var scene = new SceneBuilder();
-        
-        for (var i = 0; i < orderedInstances.Length; i++)
+        try
         {
-            if (cancellationToken.IsCancellationRequested) break;
-            try
-            {
-                if (ComposeInstance(orderedInstances[i], scene) != null)
-                {
-                    if (scene.Instances.Count > 100)
-                    {
-                        scenes.Add(scene);
-                        scene = new SceneBuilder();
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Plugin.Logger?.LogError(ex, "Failed to compose instance {instance} {instanceType}\n{Message}", orderedInstances[i].Id, orderedInstances[i].Type, ex.Message);
-            }
-        }
-        
-        if (scene.Instances.Count > 0)
-        {
-            scenes.Add(scene);
-        }
-        
-        for (var i = 0; i < scenes.Count; i++)
-        {
-            var currentScene = scenes[i];
-            var scenePath = Path.Combine(outDir, $"scene_{i:D4}.gltf");
-            var modelRoot = currentScene.ToGltf2();
-            modelRoot.SaveGLTF(scenePath, new WriteSettings
+            Plugin.Logger?.LogInformation("Saving scene to {Path}", path);
+            var modelRoot = scene.ToGltf2();
+            modelRoot.SaveGLTF(path, new WriteSettings
             {
                 Validation = ValidationMode.TryFix,
                 JsonIndented = false,
             });
         }
+        catch (Exception ex)
+        {
+            Plugin.Logger?.LogError(ex, "Failed to save scene to {Path}\n{Message}", path, ex.Message);
+        }
+    }
+    
+    private void SaveRemainingScenes(ParsedInstanceType groupKey, int lastSceneIdx, int totalInstances, Dictionary<SceneBuilder, SceneStats> scenes)
+    {
+        foreach (var (sceneBuilder, stats) in scenes)
+        {
+            if (stats is {Saved: false, Instances: > 0})
+            {
+                SaveScene(sceneBuilder, Path.Combine(outDir, $"{groupKey}_{lastSceneIdx:D4}-{totalInstances:D4}.gltf"));
+                stats.Saved = true;
+            }
+        }
+    }
+
+    private sealed class SceneStats
+    {
+        public int Instances { get; set; }
+        public bool Saved { get; set; }
+    }
+    
+    private void ComposeInstanceGroup(IGrouping<ParsedInstanceType, ParsedInstance> group)
+    {
+        var scenes = new Dictionary<SceneBuilder, SceneStats>();
+        var scene = new SceneBuilder();
+        scenes.Add(scene, new SceneStats());
+
+        var orderedInstances = group.OrderBy(x => x.Transform.Translation.LengthSquared()).ToArray();
+        var lastSceneIdx = 0;
+
+        for (var i = 0; i < orderedInstances.Length; i++)
+        {
+            if (cancellationToken.IsCancellationRequested) break;
+            Interlocked.Increment(ref Progress.Progress);
+            try
+            {
+                if (ComposeInstance(orderedInstances[i], scene) != null)
+                {
+                    var stats = scenes[scene];
+                    stats.Instances++;
+                    if (stats.Instances > 100 || scene.Instances.Count > 100)
+                    {
+                        Plugin.Logger?.LogDebug("Saving scene {key} {startIdx:D4}-{endIdx:D4} Instances: {instances} Nodes: {nodes}", 
+                                                group.Key, lastSceneIdx, i, stats.Instances, scene.Instances.Count);
+                        SaveScene(scene, Path.Combine(outDir, $"{group.Key}_{lastSceneIdx:D4}-{i:D4}.gltf"));
+                        scenes[scene].Saved = true;
+                        lastSceneIdx = i;
+        
+                        scene = new SceneBuilder();
+                        scenes.Add(scene, new SceneStats());
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                try
+                {
+                    var blob = JsonSerializer.Serialize(orderedInstances[i], MaterialComposer.JsonOptions);
+                    Plugin.Logger?.LogError(ex, 
+                                            "Failed to compose instance {instance} {instanceType}\n{Message}\b{Blob}", 
+                                            orderedInstances[i].Id, 
+                                            orderedInstances[i].Type, 
+                                            ex.Message, blob);
+                }
+                catch (Exception ex2)
+                {
+                    Plugin.Logger?.LogError(new AggregateException(ex, ex2), 
+                                            "Failed to compose instance {instance} {instanceType}\n{Message}", 
+                                            orderedInstances[i].Id, 
+                                            orderedInstances[i].Type,
+                        ex.Message);
+                }
+            }
+        }
+
+        SaveRemainingScenes(group.Key, lastSceneIdx, orderedInstances.Length, scenes);
+    }
+    
+    public void Compose()
+    {
+        try
+        {
+            var instanceBlob = JsonSerializer.Serialize(instances, MaterialComposer.JsonOptions);
+            File.WriteAllText(Path.Combine(outDir, "instance_blob.json"), instanceBlob);
+        }
+        catch (Exception ex)
+        {
+            Plugin.Logger?.LogError(ex, "Failed to save instance blob\n{Message}", ex.Message);
+        }
+        
+        SaveArrayTextures();
+
+        var instanceGroups = instances.GroupBy(x => x.Type);
+        
+        foreach (var group in instanceGroups)
+        {
+            ComposeInstanceGroup(group);
+        }
+        
+        Plugin.Logger?.LogInformation("Finished composing instances");
     }
     
     public void SaveArrayTextures()

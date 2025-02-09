@@ -1,0 +1,248 @@
+﻿using System.Collections.Concurrent;
+using Meddle.Plugin.Models.Composer.Materials;
+using Meddle.Plugin.Models.Layout;
+using Meddle.Plugin.Utils;
+using Meddle.Utils.Export;
+using Meddle.Utils.Files;
+using Meddle.Utils.Files.SqPack;
+using Meddle.Utils.Files.Structs.Material;
+using Meddle.Utils.Helpers;
+using Microsoft.Extensions.Logging;
+using SharpGLTF.Materials;
+using SkiaSharp;
+
+namespace Meddle.Plugin.Models.Composer;
+
+public class ComposerCache
+{
+    private readonly PbdFile defaultPbdFile;
+    private readonly ConcurrentDictionary<string, ShaderPackage> shpkCache = new();
+    private readonly ConcurrentDictionary<string, RefCounter<MtrlFile>> mtrlCache = new();
+    private readonly ConcurrentDictionary<string, PbdFile> pbdCache = new();
+    private readonly ConcurrentDictionary<string, RefCounter<MdlFile>> mdlCache = new();
+    
+    private sealed class RefCounter<T>(T obj)
+    {
+        public T Object { get; } = obj;
+        public DateTime LastAccess { get; set; } = DateTime.UtcNow;
+    }
+    
+    private readonly SqPack pack;
+    private readonly string cacheDir;
+    private readonly Configuration.ExportConfiguration exportConfig;
+
+    public ComposerCache(SqPack pack, string cacheDir, Configuration.ExportConfiguration exportConfig)
+    {
+        this.pack = pack;
+        this.cacheDir = cacheDir;
+        this.exportConfig = exportConfig;
+        defaultPbdFile = GetPbdFile("chara/xls/boneDeformer/human.pbd");
+    }
+    
+    public PbdFile GetDefaultPbdFile()
+    {
+        return defaultPbdFile;
+    }
+    
+    public PbdFile GetPbdFile(string path)
+    {
+        var item = pbdCache.GetOrAdd(path, key =>
+        {
+            var pbdData = pack.GetFileOrReadFromDisk(key);
+            if (pbdData == null) throw new Exception($"Failed to load pbd file: {key}");
+
+            if (exportConfig.CacheFileTypes.HasFlag(CacheFileType.Pbd))
+            {
+                CacheFile(key);
+            }
+            
+            return new PbdFile(pbdData);
+        });
+        
+        return item;
+    }
+    
+    public MdlFile GetMdlFile(string path)
+    {
+        var item = mdlCache.GetOrAdd(path, key =>
+        {
+            var mdlData = pack.GetFileOrReadFromDisk(path);
+            if (mdlData == null) throw new Exception($"Failed to load model file: {path}");
+            var mdlFile = new MdlFile(mdlData);
+            
+            if (exportConfig.CacheFileTypes.HasFlag(CacheFileType.Mdl))
+            {
+                CacheFile(path);
+            }
+            
+            if (mdlCache.Count > 100)
+            {
+                var toRemove = mdlCache.OrderBy(x => x.Value.LastAccess).First();
+                mdlCache.TryRemove(toRemove.Key, out _);
+                Plugin.Logger?.LogDebug($"Evicting model file: {toRemove.Key}");
+            }
+            
+            return new RefCounter<MdlFile>(mdlFile);
+        });
+        
+        item.LastAccess = DateTime.UtcNow;
+        return item.Object;
+    }
+    
+    public MtrlFile GetMtrlFile(string path)
+    {
+        var item = mtrlCache.GetOrAdd(path, key =>
+        {
+            var mtrlData = pack.GetFileOrReadFromDisk(path);
+            if (mtrlData == null) throw new Exception($"Failed to load material file: {path}");
+            var mtrlFile = new MtrlFile(mtrlData);
+            
+            if (exportConfig.CacheFileTypes.HasFlag(CacheFileType.Mtrl))
+            {
+                CacheFile(path);
+            }
+            
+            if (mtrlCache.Count > 100)
+            {
+                // evict least recently accessed
+                var toRemove = mtrlCache.OrderBy(x => x.Value.LastAccess).First();
+                mtrlCache.TryRemove(toRemove.Key, out _);
+                Plugin.Logger?.LogDebug("Evicting material file: {toRemove}", toRemove.Key);
+            }
+            
+            return new RefCounter<MtrlFile>(mtrlFile);
+        });
+        
+        item.LastAccess = DateTime.UtcNow;
+        return item.Object;
+    }
+    
+    public ShaderPackage GetShaderPackage(string shpkName)
+    {
+        var shpkPath = $"shader/sm5/shpk/{shpkName}";
+        return shpkCache.GetOrAdd(shpkPath, key =>
+        {
+            var shpkData = pack.GetFileOrReadFromDisk(key);
+            if (shpkData == null) throw new Exception($"Failed to load shader package file: {key}");
+            var shpkFile = new ShpkFile(shpkData);
+            
+            if (exportConfig.CacheFileTypes.HasFlag(CacheFileType.Shpk))
+            {
+                CacheFile(key);
+            }
+            
+            return new ShaderPackage(shpkFile, shpkName);
+        });
+    }
+
+    private string DefaultCacheFunc(string fullPath, string cachePath)
+    {
+        var fileData = pack.GetFileOrReadFromDisk(fullPath);
+        if (fileData == null) throw new Exception($"Failed to load file: {fullPath}");
+        
+        Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
+        File.WriteAllBytes(cachePath, fileData);
+        return cachePath;
+    }
+    
+    private string CacheFile(string fullPath, Func<string, string, string>? cacheFunc = null)
+    {
+        var cleanPath = fullPath.TrimHandlePath();
+        var rooted = Path.IsPathRooted(cleanPath);
+
+        if (rooted)
+        {
+            var pathRoot = Path.GetPathRoot(cleanPath) ?? string.Empty;
+            cleanPath = cleanPath[pathRoot.Length..];
+        }
+
+        // modded files are stored in a separate directory to prevent conflict if the same file is modded and unmodded.
+        var basePath = rooted ? Path.Combine(cacheDir, "modded") : cacheDir;
+        var cachePath = Path.Combine(basePath, cleanPath);
+        
+        if (File.Exists(cachePath)) return cachePath;
+        
+        cacheFunc ??= DefaultCacheFunc;
+        var outPath = cacheFunc(fullPath, cachePath);
+        return outPath;
+    }
+    
+    private string TextureCacheFunc(string fullPath, string cachePath)
+    {
+        var pngCachePath = cachePath + ".png";
+        
+        // inner skip if the png cache exists.
+        if (File.Exists(pngCachePath)) return pngCachePath;
+        
+        var fileData = pack.GetFileOrReadFromDisk(fullPath);
+        if (fileData == null) throw new Exception($"Failed to load file: {fullPath}");
+        
+        Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
+
+        if (exportConfig.CacheFileTypes.HasFlag(CacheFileType.Tex))
+        {
+            File.WriteAllBytes(cachePath, fileData);
+        }
+        
+        var tex = new TexFile(fileData);
+        var texture = tex.ToResource().ToTexture();
+        using var memoryStream = new MemoryStream();
+        texture.Bitmap.Encode(memoryStream, SKEncodedImageFormat.Png, 100);
+        var textureBytes = memoryStream.ToArray();
+        File.WriteAllBytes(pngCachePath, textureBytes);
+        return pngCachePath;
+    }
+    
+    private string CacheTexture(string fullPath)
+    {
+        return CacheFile(fullPath, TextureCacheFunc);
+    }
+
+    public MaterialBuilder ComposeMaterial(string mtrlPath, 
+                                           ParsedMaterialInfo? materialInfo = null,
+                                           ParsedInstance? instance = null, 
+                                           ParsedCharacterInfo? characterInfo = null, 
+                                           IColorTableSet? colorTableSet = null)
+    {
+        var mtrlFile = GetMtrlFile(mtrlPath);
+        var shaderPackage = GetShaderPackage(mtrlFile.GetShaderPackageName());
+        var material = new MaterialComposer(mtrlFile, mtrlPath, shaderPackage);
+        if (instance != null)
+        {
+            material.SetPropertiesFromInstance(instance);
+        }
+        
+        if (characterInfo != null)
+        {
+            material.SetPropertiesFromCharacterInfo(characterInfo);
+        }
+        
+        if (colorTableSet != null)
+        {
+            material.SetPropertiesFromColorTable(colorTableSet);
+        }
+       
+        var materialBuilder = new RawMaterialBuilder(mtrlPath);
+        foreach (var texture in material.TextureUsageDict)
+        {
+            // ensure texture gets saved to cache dir.
+            var fullPath = texture.Value.FullPath;
+            if (materialInfo != null)
+            {
+                var match = materialInfo.Textures.FirstOrDefault(x => x.Path.GamePath == texture.Value.GamePath);
+                if (match != null)
+                {
+                    fullPath = match.Path.FullPath;
+                }
+            }
+            
+            var cachePath = CacheTexture(fullPath);
+            
+            // remove full path prefix, get only dir below cache dir.
+            material.SetProperty($"{texture.Key}_PngCachePath", Path.GetRelativePath(cacheDir, cachePath));
+        }
+
+        materialBuilder.Extras = material.ExtrasNode;
+        return materialBuilder;
+    }
+}
