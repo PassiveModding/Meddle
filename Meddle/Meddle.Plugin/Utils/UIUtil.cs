@@ -60,13 +60,13 @@ public static class UiUtil
         {
             ImGui.Text(FontAwesomeIcon.QuestionCircle.ToIconString());
         }
-        if (ImGui.IsItemHovered())
-        {
-            ImGui.BeginTooltip();
-            ImGui.Text("Right Eye Color will not apply to baked textures as it is " +
-                       "selected using the vertex shaders");
-            ImGui.EndTooltip();
-        }
+        // if (ImGui.IsItemHovered())
+        // {
+        //     ImGui.BeginTooltip();
+        //     ImGui.Text("Right Eye Color will not apply to baked textures as it is " +
+        //                "selected using the vertex shaders");
+        //     ImGui.EndTooltip();
+        // }
 
         ImGui.ColorEdit3("Option Color", ref customize.OptionColor);
     }

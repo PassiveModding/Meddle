@@ -6,8 +6,8 @@ namespace Meddle.Utils.Export;
 public unsafe class Model
 {
     public string HandlePath { get; private set; }
-    public string? ResolvedPath { get; private set; }
-    public string Path => ResolvedPath ?? HandlePath;
+    //public string? ResolvedPath { get; private set; }
+    //public string Path => ResolvedPath ?? HandlePath;
     public IReadOnlyList<Mesh> Meshes { get; private set; }
     public IReadOnlyList<string> MtrlFileNames { get; private set; }
     public IReadOnlyList<ModelShape> Shapes { get; private set; }

@@ -148,11 +148,6 @@ public unsafe class LiveCharacterTab : ITab
         DrawCharacter(charPtr, "Character");
     }
 
-    private bool CanExport()
-    {
-        return exportTask.IsCompleted;
-    }
-
     private void DrawCharacter(CSCharacter* character, string name, int depth = 0)
     {
         if (depth > 3)
@@ -187,29 +182,26 @@ public unsafe class LiveCharacterTab : ITab
         if (modelType == CSCharacterBase.ModelType.Human)
         {
             DrawHumanCharacter((CSHuman*)cBase, out customizeData, out customizeParams, out genderRace);
-            using (ImRaii.Disabled(!CanExport()))
+            ExportButton("Export All Models With Attaches", () =>
             {
-                ExportButton("Export All Models With Attaches", () =>
+                var info = resolverService.ParseCharacter(character);
+                if (info == null)
                 {
-                    var info = resolverService.ParseCharacter(character);
-                    if (info == null)
-                    {
-                        throw new Exception("Failed to get character info from draw object");
-                    }
+                    throw new Exception("Failed to get character info from draw object");
+                }
 
-                    if (customizeParams != null)
-                    {
-                        info.CustomizeParameter = customizeParams;
-                    }
+                if (customizeParams != null)
+                {
+                    info.CustomizeParameter = customizeParams;
+                }
 
-                    if (customizeData != null)
-                    {
-                        info.CustomizeData = customizeData;
-                    }
+                if (customizeData != null)
+                {
+                    info.CustomizeData = customizeData;
+                }
 
-                    return info;
-                });
-            }
+                return info;
+            }, $"{character->NameString}");
         }
         else
         {
@@ -218,7 +210,7 @@ public unsafe class LiveCharacterTab : ITab
             genderRace = GenderRace.Unknown;
         }
         
-        DrawDrawObject(drawObject, customizeData, customizeParams, genderRace);
+        DrawDrawObject(drawObject, $"{character->NameString}", customizeData, customizeParams, genderRace);
 
         try
         {
@@ -247,7 +239,7 @@ public unsafe class LiveCharacterTab : ITab
                 {
                     ImGui.Separator();
                     ImGui.Text($"Weapon {weaponIdx}");
-                    DrawDrawObject(weaponData.DrawObject, null, null, GenderRace.Unknown);
+                    DrawDrawObject(weaponData.DrawObject, $"{character->NameString}_Weapon", null, null, GenderRace.Unknown);
                 }
             }
         }
@@ -257,28 +249,28 @@ public unsafe class LiveCharacterTab : ITab
         }
     }
 
-    private void ExportButton(string text, Func<ParsedCharacterInfo> resolve)
+    private void ExportButton(string text, Func<ParsedCharacterInfo> resolve, string name)
     {
         using var disabled = ImRaii.Disabled(!exportTask.IsCompleted);
         if (ImGui.Button(text))
         {
             requestedPopup = true;
             var parsedCharacterInfo = resolve();
-            drawExportSettingsCallback = () => DrawExportSettings(parsedCharacterInfo);
+            drawExportSettingsCallback = () => DrawExportSettings(parsedCharacterInfo, name);
         }
     }
     
-    private void ExportMenuItem(string text, Func<ParsedCharacterInfo> resolve)
+    private void ExportMenuItem(string text, Func<ParsedCharacterInfo> resolve, string name)
     {
         if (ImGui.MenuItem(text))
         {
             requestedPopup = true;
             var parsedCharacterInfo = resolve();
-            drawExportSettingsCallback = () => DrawExportSettings(parsedCharacterInfo);
+            drawExportSettingsCallback = () => DrawExportSettings(parsedCharacterInfo, name);
         }
     }
     
-    private void DrawExportSettings(ParsedCharacterInfo characterInfo)
+    private void DrawExportSettings(ParsedCharacterInfo characterInfo, string name)
     {
         if (!exportTask.IsCompleted)
         {
@@ -316,7 +308,7 @@ public unsafe class LiveCharacterTab : ITab
                                                 {
                                                     var composer = composerFactory.CreateCharacterComposer(path, configClone, cancelToken.Token);
                                                     var scene = new SceneBuilder();
-                                                    var characterRoot = new NodeBuilder();
+                                                    var characterRoot = new NodeBuilder($"Character-{name}");
                                                     scene.AddNode(characterRoot);
                                                     progress = new ExportProgress(characterInfo.Models.Length, "Character");
                                                     composer.Compose(characterInfo, scene, characterRoot, progress);
@@ -349,7 +341,7 @@ public unsafe class LiveCharacterTab : ITab
         }
     }
 
-    private void DrawDrawObject(DrawObject* drawObject, CustomizeData? customizeData, CustomizeParameter? customizeParams, GenderRace genderRace)
+    private void DrawDrawObject(DrawObject* drawObject, string name, CustomizeData? customizeData, CustomizeParameter? customizeParams, GenderRace genderRace)
     {
         if (drawObject == null)
         {
@@ -366,29 +358,27 @@ public unsafe class LiveCharacterTab : ITab
 
         using var drawObjectId = ImRaii.PushId($"{(nint)drawObject}");
         var cBase = (CSCharacterBase*)drawObject;
-        using (ImRaii.Disabled(!CanExport()))
+
+        ExportButton("Export All Models", () =>
         {
-            ExportButton("Export All Models", () =>
+            var info = resolverService.ParseDrawObject((DrawObject*)cBase);
+            if (info == null)
             {
-                var info = resolverService.ParseDrawObject((DrawObject*)cBase);
-                if (info == null)
-                {
-                    throw new Exception("Failed to get character info from draw object");
-                }
-                
-                if (customizeParams != null)
-                {
-                    info.CustomizeParameter = customizeParams;
-                }
-                
-                if (customizeData != null)
-                {
-                    info.CustomizeData = customizeData;
-                }
-                
-                return info;
-            });
-        }
+                throw new Exception("Failed to get character info from draw object");
+            }
+
+            if (customizeParams != null)
+            {
+                info.CustomizeParameter = customizeParams;
+            }
+
+            if (customizeData != null)
+            {
+                info.CustomizeData = customizeData;
+            }
+
+            return info;
+        }, name);
 
         ImGui.SameLine();
         var currentSelectedModels = cBase->ModelsSpan.ToArray().Where(modelPtr =>
@@ -396,7 +386,7 @@ public unsafe class LiveCharacterTab : ITab
             if (modelPtr == null) return false;
             return selectedModels.ContainsKey((nint)modelPtr.Value) && selectedModels[(nint)modelPtr.Value];
         }).ToArray();
-        using (ImRaii.Disabled(currentSelectedModels.Length == 0 || !CanExport()))
+        using (ImRaii.Disabled(currentSelectedModels.Length == 0))
         {
             var label = $"Export Selected Models ({currentSelectedModels.Length})";
             ExportButton(label, () =>
@@ -417,7 +407,7 @@ public unsafe class LiveCharacterTab : ITab
 
                 var info = new ParsedCharacterInfo(models.ToArray(), skeleton, new ParsedAttach(), customizeData, customizeParams, genderRace);
                 return info;
-            });
+            }, name);
         }
 
         using var modelTable = ImRaii.Table("##Models", 2, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable);
@@ -482,9 +472,10 @@ public unsafe class LiveCharacterTab : ITab
         // popup for export options
         if (ImGui.BeginPopupContextItem("ExportModelPopup"))
         {
+            var defaultFileName = Path.GetFileName(fileName);
+            
             if (ImGui.MenuItem("Export as mdl"))
             {
-                var defaultFileName = Path.GetFileName(fileName);
                 fileDialog.SaveFileDialog("Save Model", "Model File{.mdl}", defaultFileName, ".mdl",
                                           (result, path) =>
                                           {
@@ -528,7 +519,7 @@ public unsafe class LiveCharacterTab : ITab
                 }
                 
                 return new ParsedCharacterInfo([modelData], info.Skeleton, new ParsedAttach(), info.CustomizeData, info.CustomizeParameter, info.GenderRace);
-            });
+            }, $"{defaultFileName}");
 
             ImGui.EndPopup();
         }

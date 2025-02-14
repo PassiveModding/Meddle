@@ -256,8 +256,18 @@ public class ComposerCache
         {
             material.SetPropertiesFromColorTable(colorTableSet);
         }
-       
-        var materialBuilder = new RawMaterialBuilder(mtrlPath);
+
+        string materialName;
+        if (materialInfo != null)
+        {
+            materialName = $"{Path.GetFileNameWithoutExtension(materialInfo.Path.GamePath)}_{materialInfo.Shpk}";
+        }
+        else
+        {
+            materialName = $"{Path.GetFileNameWithoutExtension(mtrlPath)}_{mtrlFile.GetShaderPackageName()}";
+        }
+
+        var materialBuilder = new RawMaterialBuilder(materialName);
         foreach (var texture in material.TextureUsageDict)
         {
             // ensure texture gets saved to cache dir.

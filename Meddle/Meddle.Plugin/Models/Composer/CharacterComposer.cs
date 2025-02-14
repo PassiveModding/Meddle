@@ -397,7 +397,7 @@ public class CharacterComposer
                 {
                     if (root == null)
                     {
-                        throw new InvalidOperationException($"Root bone not found when generating missing bone {boneName} for {model.Path}");
+                        throw new InvalidOperationException($"Root bone not found when generating missing bone {boneName} for {model.HandlePath}");
                     }
                     
                     var bone = new BoneNodeBuilder(boneName)
