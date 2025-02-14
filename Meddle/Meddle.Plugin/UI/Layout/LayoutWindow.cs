@@ -41,7 +41,6 @@ public partial class LayoutWindow : ITab
     private Vector3 currentPos;
     private Action? drawExportSettingsCallback;
     private Task exportTask = Task.CompletedTask;
-    private InstanceComposer? instanceComposer;
     private ExportProgress? progress;
 
     private string? lastError;
@@ -80,7 +79,7 @@ public partial class LayoutWindow : ITab
     {
         try
         {
-            DrawProgress();
+            DrawProgress(exportTask, progress, cancelToken);
 
             if (shouldUpdateState)
             {
@@ -238,14 +237,14 @@ public partial class LayoutWindow : ITab
     }
 
 
-    private void DrawProgress()
+    public static void DrawProgress(Task exportTask, ExportProgress? progress, CancellationTokenSource cancelToken)
     {
         if (exportTask.IsFaulted)
         {
             ImGui.TextColored(new Vector4(1, 0, 0, 1), "Export failed");
             ImGui.TextWrapped(exportTask.Exception?.ToString());
         }
-        if (instanceComposer == null) return;
+        
         if (exportTask.IsCompleted) return;
 
         if (progress != null)
@@ -257,18 +256,20 @@ public partial class LayoutWindow : ITab
         {
             cancelToken.Cancel();
         }
+        
+        return;
 
-        void DrawProgressRecursive(ExportProgress progress)
+        void DrawProgressRecursive(ExportProgress rProgress)
         {
-            if (progress.IsComplete) return;
-            ImGui.Text($"Exporting {progress.Progress} of {progress.Total}");
-            ImGui.ProgressBar(progress.Progress / (float)progress.Total, new Vector2(-1, 0), progress.Name ?? "");
-            if (progress.Children.Count > 0)
+            if (rProgress.IsComplete) return;
+            ImGui.Text($"Exporting {rProgress.Progress} of {rProgress.Total}");
+            ImGui.ProgressBar(rProgress.Progress / (float)rProgress.Total, new Vector2(-1, 0), rProgress.Name ?? "");
+            if (rProgress.Children.Count > 0)
             {
                 using var indent = ImRaii.PushIndent();
-                foreach (var child in progress.Children)
+                foreach (var child in rProgress.Children)
                 {
-                    if (child == this.progress)
+                    if (child == rProgress)
                     {
                         ImGui.Text("Recursive progress detected, skipping");
                         continue;
@@ -388,7 +389,15 @@ public partial class LayoutWindow : ITab
                                             (result, path) =>
                                             {
                                                 if (!result) return;
-                                                SetExportTask(instances, path, configClone, cancelToken);
+                                                exportTask = Task.Run(() =>
+                                                {
+                                                    var composer = composerFactory.CreateComposer(path,
+                                                                                                  configClone,
+                                                                                                  cancelToken.Token);
+                                                    progress = new ExportProgress(instances.Length, "Instances");
+                                                    composer.Compose(instances, progress);
+                                                    Process.Start("explorer.exe", path);
+                                                }, cancelToken.Token);
                                             }, config.ExportDirectory);
 
                 drawExportSettingsCallback = null;
@@ -406,27 +415,5 @@ public partial class LayoutWindow : ITab
         {
             ImGui.EndPopup();
         }
-    }
-
-    private void SetExportTask(ParsedInstance[] instances, string path, Configuration.ExportConfiguration configClone, CancellationTokenSource cancellationTokenSource)
-    {
-        exportTask = Task.Run(() =>
-        {
-            log.LogDebug("Exporting {count} instances to {path}, current task id: {taskId}", instances.Length, path, Task.CurrentId);
-            try
-            {
-                var composer = composerFactory.CreateComposer(path,
-                                                              configClone,
-                                                              cancellationTokenSource.Token);
-                instanceComposer = composer;
-                progress = new ExportProgress(instances.Length, "Instances");
-                composer.Compose(instances, progress);
-                Process.Start("explorer.exe", path);
-            } 
-            finally
-            {
-                instanceComposer = null;
-            }
-        }, cancellationTokenSource.Token);
     }
 }
