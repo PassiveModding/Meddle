@@ -27,34 +27,50 @@ public static class Names
         public static implicit operator Name(string value) => new(value);
     }
     
-    private static IReadOnlyList<ICrcPair>? Constants;
-    public static IReadOnlyList<ICrcPair> GetConstants()
+    private static Dictionary<uint, ICrcPair>? Constants;
+    public static Dictionary<uint, ICrcPair> GetConstants()
     {
         if (Constants == null)
         {
-            var buffer = new List<ICrcPair>();
-            var materialConstants = Enum.GetValues<MaterialConstant>();
-                        
+            var buffer = new Dictionary<uint, ICrcPair>();
+            
+            AddEnumConstants<MaterialConstant>();
+            AddEnumConstants<ShaderCategory>();
+            AddEnumConstants<BgVertexPaint>();
+            AddEnumConstants<DiffuseAlpha>();
+            AddEnumConstants<SkinType>();
+            AddEnumConstants<HairType>();
+            AddEnumConstants<FlowType>();
+            AddEnumConstants<TextureMode>();
+            AddEnumConstants<SpecularMode>();
+            
             foreach (var constant in KnownConstants)
             {
-                buffer.Add(new Name(constant));
+                var name = new Name(constant);
+                buffer[name.Crc] = name;
                 foreach (var suffix in KnownSuffixes)
-                    buffer.Add(new Name($"{constant}{suffix}"));
-            }
-            
-            foreach (var constant in materialConstants)
-            {
-                if (Crc32.GetHash(constant.ToString()) == (uint)constant)
                 {
-                    buffer.Add(new Name(constant.ToString()));
-                }
-                else
-                {
-                    buffer.Add(new StubName(constant.ToString(), (uint)constant));
+                    var suffixedName = new Name($"{constant}{suffix}");
+                    buffer[suffixedName.Crc] = suffixedName;
                 }
             }
-            
+
             Constants = buffer;
+            
+            void AddEnumConstants<T>() where T : struct, Enum
+            {
+                var values = Enum.GetValues<T>();
+                foreach (var value in values)
+                {
+                    ICrcPair name = new Name(value.ToString());
+                    if (name.Crc != (uint)(object)value)
+                    {
+                        name = new StubName(value.ToString(), (uint)(object)value);
+                    }
+                    
+                    buffer[name.Crc] = name;
+                }
+            }
         }
         
         return Constants;

@@ -154,36 +154,16 @@ public class MaterialComposer
         SetProperty("Material", mtrlPath);
         SetProperty("RenderBackfaces", RenderBackfaces);
         SetProperty("IsTransparent", IsTransparent);
-
-        string IsDefinedOrHex<TEnum>(TEnum value) where TEnum : Enum
-        {
-            return Enum.IsDefined(typeof(TEnum), value) ? value.ToString() : $"0x{Convert.ToUInt32(value):X8}";
-        }
-
+        
+        var constants = Names.GetConstants();
         foreach (var key in ShaderKeyDict)
         {
             var category = (uint)key.Key;
             var value = key.Value;
-            if (Enum.IsDefined(typeof(ShaderCategory), category))
-            {
-                var valStr = key.Key switch
-                {
-                    ShaderCategory.CategoryHairType => IsDefinedOrHex((HairType)value),
-                    ShaderCategory.CategorySkinType => IsDefinedOrHex((SkinType)value),
-                    ShaderCategory.CategoryDiffuseAlpha => IsDefinedOrHex((DiffuseAlpha)value),
-                    ShaderCategory.CategorySpecularType => IsDefinedOrHex((SpecularMode)value),
-                    ShaderCategory.GetValuesTextureType => IsDefinedOrHex((Meddle.Utils.Constants.TextureMode)value),
-                    ShaderCategory.CategoryFlowMapType => IsDefinedOrHex((FlowType)value),
-                    ShaderCategory.CategoryBgVertexPaint => IsDefinedOrHex((BgVertexPaint)value),
-                    _ => $"0x{value:X8}"
-                };
-
-                SetProperty(key.Key.ToString(), valStr);
-            }
-            else
-            {
-                SetProperty($"0x{category:X8}", $"0x{value:X8}");
-            }
+            var keyMatch = constants.GetValueOrDefault(category);
+            var valMatch = constants.GetValueOrDefault(value);
+            SetProperty(keyMatch != null ? keyMatch.Value : $"0x{category:X8}", 
+                        valMatch != null ? valMatch.Value : $"0x{value:X8}");
         }
 
         foreach (var (usage, path) in TextureUsageDict)

@@ -13,6 +13,7 @@ using ImGuiNET;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Layout;
+using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.Services.UI;
@@ -34,6 +35,7 @@ using CSHuman = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Human;
 using CustomizeParameter = Meddle.Utils.Export.CustomizeParameter;
 using CSMaterial = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Material;
 using CSModel = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Model;
+using ShaderPackage = FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.ShaderPackage;
 
 namespace Meddle.Plugin.UI;
 
@@ -896,21 +898,47 @@ public unsafe class LiveCharacterTab : ITab
 
     private void DrawKeys(CSMaterial* material)
     {
-        var keys = material->ShaderKeyValuesSpan.ToArray();
         var constants = Names.GetConstants();
-        for (var i = 0; i < keys.Length; i++)
-        {
-            var key = keys[i];
-            var match = constants.FirstOrDefault(c => c.Crc == key);
-            ImGui.Text($"Key {i}: 0x{key:X8} ({match?.Value ?? "Unknown"})");
-        }
-
         var shaderPackage = material->MaterialResourceHandle->ShaderPackageResourceHandle->ShaderPackage;
-        DrawKeyPairs(shaderPackage->MaterialKeysSpan, shaderPackage->MaterialValuesSpan, "Material");
-        DrawKeyPairs(shaderPackage->SystemKeysSpan, shaderPackage->SystemValuesSpan, "System");
-        DrawKeyPairs(shaderPackage->SceneKeysSpan, shaderPackage->SceneValuesSpan, "Scene");
+        var shaderPackageKeys = ShaderPackageKeys.FromShaderPackage(shaderPackage);
+        DrawKeyPairs(shaderPackageKeys->MaterialKeysSpan, shaderPackageKeys->MaterialValuesSpan, "Material (Shpk)");
+        DrawKeyPairs(shaderPackageKeys->MaterialKeysSpan, material->ShaderKeyValuesSpan, "Material (Mtrl)");
+        
+        // DrawKeyPairs(shaderPackageKeys->SceneKeysSpan, shaderPackageKeys->SceneValuesSpan, "Scene");
+        // var unknowns2Span = new Span<ShaderPackage.ConstantSamplerUnknown>(shaderPackage->Unknowns2, shaderPackage->Unk2Count);
+        // DrawConstantSamplerUnknownSpan(shaderPackage->SamplersSpan, "Sampler");
+        // DrawConstantSamplerUnknownSpan(shaderPackage->ConstantsSpan, "Constant");
+        // DrawConstantSamplerUnknownSpan(shaderPackage->UnknownsSpan, "Unknown");
+        // DrawConstantSamplerUnknownSpan(unknowns2Span, "Unknown2");
         
         return;
+
+        void DrawConstantSamplerUnknownSpan(Span<ShaderPackage.ConstantSamplerUnknown> samplers, string type)
+        {
+            using var id = ImRaii.PushId(type);
+            ImGui.Text($"{type} Keys");
+            using var table = ImRaii.Table($"{type}Keys", 3, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable);
+            ImGui.TableSetupColumn("Index", ImGuiTableColumnFlags.WidthFixed, 80);
+            ImGui.TableSetupColumn("Key", ImGuiTableColumnFlags.WidthFixed, 200);
+            ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
+            ImGui.TableHeadersRow();
+            
+            for (var i = 0; i < samplers.Length; i++)
+            {
+                var sampler = samplers[i];
+                var keyString = $"0x{sampler.Id:X8}";
+                var valueString = $"0x{sampler.CRC:X8}";
+                
+                ImGui.TableNextRow();
+                ImGui.TableSetColumnIndex(0);
+                ImGui.Text(i.ToString());
+                ImGui.TableSetColumnIndex(1);
+                ImGui.Text(keyString);
+                ImGui.TableSetColumnIndex(2);
+                ImGui.Text(valueString);
+            }
+        }
+        
         
         void DrawKeyPairs(Span<uint> keys, Span<uint> values, string type)
         {
@@ -935,8 +963,8 @@ public unsafe class LiveCharacterTab : ITab
             {
                 var key = keys[i];
                 var value = values[i];
-                var match = constants.FirstOrDefault(c => c.Crc == key);
-                var valueMatch = constants.FirstOrDefault(c => c.Crc == value);
+                var match = constants.GetValueOrDefault(key);
+                var valueMatch = constants.GetValueOrDefault(value);
                 var keyString = match != null ? $"{match.Value} (0x{key:X8})" : $"0x{key:X8}";
                 var valueString = valueMatch != null ? $"{valueMatch.Value} (0x{value:X8})" : $"0x{value:X8}";
                 ImGui.TableNextRow();
