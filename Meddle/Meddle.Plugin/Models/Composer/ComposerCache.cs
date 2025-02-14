@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using Meddle.Plugin.Models.Composer.Materials;
+using Meddle.Plugin.Models.Composer.Textures;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Utils;
 using Meddle.Utils.Export;
@@ -60,6 +61,20 @@ public class ComposerCache
         });
         
         return item;
+    }
+    
+    
+    private bool arrayTexturesSaved;
+    public void SaveArrayTextures()
+    {
+        if (arrayTexturesSaved) return;
+        arrayTexturesSaved = true;
+        
+        Directory.CreateDirectory(cacheDir);
+        ArrayTextureUtil.SaveSphereTextures(pack, cacheDir);
+        ArrayTextureUtil.SaveTileTextures(pack, cacheDir);
+        ArrayTextureUtil.SaveBgSphereTextures(pack, cacheDir);
+        ArrayTextureUtil.SaveBgDetailTextures(pack, cacheDir);
     }
     
     public MdlFile GetMdlFile(string path)
@@ -158,13 +173,33 @@ public class ComposerCache
 
         // modded files are stored in a separate directory to prevent conflict if the same file is modded and unmodded.
         var basePath = rooted ? Path.Combine(cacheDir, "modded") : cacheDir;
-        var cachePath = Path.Combine(basePath, cleanPath);
+        var cachePath = Path.Combine(basePath, TrimOutCleanPathDir());
         
         if (File.Exists(cachePath)) return cachePath;
         
         cacheFunc ??= DefaultCacheFunc;
         var outPath = cacheFunc(fullPath, cachePath);
         return outPath;
+
+        // Trim path to a suitable length for the cache directory if it exceeds the max length.
+        string TrimOutCleanPathDir()
+        {
+            const int maxCharacters = 255;
+            var charactersAvailable = maxCharacters - basePath.Length;
+            var len = cleanPath.Length + 5; // +5 is only because we may add a suffix.
+            if (len < charactersAvailable)
+            {
+                return cleanPath;
+            }
+            
+            var parts = cleanPath.Replace('\\', '/').Split('/');
+            var dirHash = Crc32.GetHash(string.Join("/", parts[..^1]));
+            var fileName = parts[^1];
+            
+            var trimmed = $"{dirHash}/{fileName}";
+            Plugin.Logger?.LogDebug("Cache path too long ({len} > {available}), using hash: {trimmed} for {fullPath}", len, charactersAvailable, trimmed, cleanPath);
+            return trimmed;
+        }
     }
     
     private string TextureCacheFunc(string fullPath, string cachePath)
