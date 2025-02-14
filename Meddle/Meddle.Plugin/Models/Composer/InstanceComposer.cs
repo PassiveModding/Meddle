@@ -20,8 +20,18 @@ namespace Meddle.Plugin.Models.Composer;
 
 public class ExportProgress
 {
+    public ExportProgress(int total, string? name)
+    {
+        Total = total;
+        Name = name;
+    }
+    
     public int Progress;
     public int Total;
+    public bool IsComplete;
+    public string? Name;
+    
+    public List<ExportProgress> Children = [];
 }
 
 public class InstanceComposer
@@ -31,17 +41,14 @@ public class InstanceComposer
     private readonly Configuration.ExportConfiguration exportConfig;
     private readonly string outDir;
     private readonly string cacheDir;
-    private readonly ParsedInstance[] instances;
     private readonly CancellationToken cancellationToken;
     private readonly ComposerCache composerCache;
-    public readonly ExportProgress Progress;
     
     public InstanceComposer(
         Configuration config,
         SqPack pack,
         Configuration.ExportConfiguration exportConfig,
         string outDir,
-        ParsedInstance[] instances,
         CancellationToken cancellationToken)
     {
         this.config = config;
@@ -51,14 +58,8 @@ public class InstanceComposer
         Directory.CreateDirectory(outDir);
         this.cacheDir = Path.Combine(outDir, "cache");
         Directory.CreateDirectory(cacheDir);
-        this.instances = instances;
         this.cancellationToken = cancellationToken;
         this.composerCache = new ComposerCache(pack, cacheDir, exportConfig);
-        this.Progress = new ExportProgress
-        {
-            Progress = 0,
-            Total = instances.Length
-        };
     }
 
     private void SaveScene(SceneBuilder scene, string path)
@@ -97,7 +98,7 @@ public class InstanceComposer
         public bool Saved { get; set; }
     }
     
-    private void ComposeInstanceGroup(IGrouping<ParsedInstanceType, ParsedInstance> group)
+    private void ComposeInstanceGroup(IGrouping<ParsedInstanceType, ParsedInstance> group, ExportProgress progress)
     {
         var scenes = new Dictionary<SceneBuilder, SceneStats>();
         var scene = new SceneBuilder();
@@ -109,10 +110,10 @@ public class InstanceComposer
         for (var i = 0; i < orderedInstances.Length; i++)
         {
             if (cancellationToken.IsCancellationRequested) break;
-            Interlocked.Increment(ref Progress.Progress);
+            progress.Progress++;
             try
             {
-                if (ComposeInstance(orderedInstances[i], scene) != null)
+                if (ComposeInstance(orderedInstances[i], scene, progress) != null)
                 {
                     var stats = scenes[scene];
                     stats.Instances++;
@@ -154,8 +155,10 @@ public class InstanceComposer
         SaveRemainingScenes(group.Key, lastSceneIdx, orderedInstances.Length, scenes);
     }
     
-    public void Compose()
+    public void Compose(ParsedInstance[] instances, ExportProgress progress)
     {
+        progress.Total = instances.Length;
+        progress.Progress = 0;
         try
         {
             var instanceBlob = JsonSerializer.Serialize(instances, MaterialComposer.JsonOptions);
@@ -172,7 +175,7 @@ public class InstanceComposer
         
         foreach (var group in instanceGroups)
         {
-            ComposeInstanceGroup(group);
+            ComposeInstanceGroup(group, progress);
         }
         
         Plugin.Logger?.LogInformation("Finished composing instances");
@@ -187,7 +190,7 @@ public class InstanceComposer
         ArrayTextureUtil.SaveBgDetailTextures(pack, cacheDir);
     }
 
-    public NodeBuilder? ComposeInstance(ParsedInstance parsedInstance, SceneBuilder scene)
+    public NodeBuilder? ComposeInstance(ParsedInstance parsedInstance, SceneBuilder scene, ExportProgress rootProgress)
     {
         if (cancellationToken.IsCancellationRequested) return null;
         if (parsedInstance is ParsedLightInstance parsedLightInstance)
@@ -207,49 +210,69 @@ public class InstanceComposer
         
         if (parsedInstance is ParsedSharedInstance parsedSharedInstance)
         {
-            return ComposeSharedInstance(parsedSharedInstance, scene);
+            return ComposeSharedInstance(parsedSharedInstance, scene, rootProgress);
         }
         
         if (parsedInstance is ParsedCharacterInstance parsedCharacterInstance)
         {
-            return ComposeCharacterInstance(parsedCharacterInstance, scene);
+            return ComposeCharacterInstance(parsedCharacterInstance, scene, rootProgress);
         }
         
         return null;
     }
 
-    public NodeBuilder? ComposeCharacterInstance(ParsedCharacterInstance instance, SceneBuilder scene)
+    public NodeBuilder? ComposeCharacterInstance(ParsedCharacterInstance instance, SceneBuilder scene, ExportProgress rootProgress)
     {
         if (instance.CharacterInfo == null)
         {
             Plugin.Logger?.LogWarning("Character instance {InstanceId} has no character info", instance.Id);
             return null;
         }
-        var characterComposer = new CharacterComposer(config, pack, composerCache, cancellationToken);
+        var characterComposer = new CharacterComposer(config, pack, composerCache, exportConfig, cancellationToken);
         var root = new NodeBuilder($"{instance.Type}_{instance.Name}_{instance.Id}");
-        characterComposer.ComposeCharacterInfo(instance.CharacterInfo, null, scene, root);
         
-        root.SetLocalTransform(instance.Transform.AffineTransform, true);
+        var characterProgress = new ExportProgress(instance.CharacterInfo.Models.Length, "Character Meshes");
+        rootProgress.Children.Add(characterProgress);
+        
+        try
+        {
+            characterComposer.Compose(instance.CharacterInfo, scene, root, characterProgress);
+            root.SetLocalTransform(instance.Transform.AffineTransform, true);
+        } 
+        finally
+        {
+            characterProgress.IsComplete = true;
+        }
         return root;
     }
     
-    public NodeBuilder? ComposeSharedInstance(ParsedSharedInstance instance, SceneBuilder scene)
+    public NodeBuilder? ComposeSharedInstance(ParsedSharedInstance instance, SceneBuilder scene, ExportProgress rootProgress)
     {
-        var root = new NodeBuilder($"{instance.Type}_{instance.Path.GamePath}");
-        bool validChild = false;
-        foreach (var child in instance.Children)
-        {
-            var childNode = ComposeInstance(child, scene);
-            if (childNode != null)
-            {
-                root.AddNode(childNode);
-                validChild = true;
-            }
-        }
+        var sharedGroupProgress = new ExportProgress(instance.Children.Count, "Shared Group");
+        rootProgress.Children.Add(sharedGroupProgress);
         
-        if (!validChild) return null;
-        root.SetLocalTransform(instance.Transform.AffineTransform, true);
-        return root;
+        var root = new NodeBuilder($"{instance.Type}_{instance.Path.GamePath}");
+        try 
+        {        
+            bool validChild = false;
+            foreach (var child in instance.Children)
+            {
+                var childNode = ComposeInstance(child, scene, sharedGroupProgress);
+                if (childNode != null)
+                {
+                    root.AddNode(childNode);
+                    validChild = true;
+                }
+            }
+        
+            if (!validChild) return null;
+            root.SetLocalTransform(instance.Transform.AffineTransform, true);
+            return root;
+        } 
+        finally
+        {
+            sharedGroupProgress.IsComplete = true;
+        }
     }
     
     
@@ -287,7 +310,7 @@ public class InstanceComposer
         return root;
     }
     
-    public NodeBuilder? ComposeTerrain(ParsedTerrainInstance terrainInstance, SceneBuilder scene)
+    public NodeBuilder ComposeTerrain(ParsedTerrainInstance terrainInstance, SceneBuilder scene)
     {
         var root = new NodeBuilder($"{terrainInstance.Type}_{terrainInstance.Path.GamePath}");
         var teraPath = $"{terrainInstance.Path.GamePath}/bgplate/terrain.tera";
@@ -298,7 +321,7 @@ public class InstanceComposer
         for (var i = 0; i < teraFile.Header.PlateCount; i++)
         {
             Plugin.Logger?.LogInformation("Parsing plate {i}", i);
-            var platePos = teraFile.GetPlatePosition((int)i);
+            var platePos = teraFile.GetPlatePosition(i);
             var plateTransform = new Transform(new Vector3(platePos.X, 0, platePos.Y), Quaternion.Identity, Vector3.One);
             var mdlPath = $"{terrainInstance.Path.GamePath}/bgplate/{i:D4}.mdl";
             var mdlData = pack.GetFileOrReadFromDisk(mdlPath);

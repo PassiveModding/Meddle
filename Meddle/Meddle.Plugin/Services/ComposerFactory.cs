@@ -20,13 +20,19 @@ public class ComposerFactory : IService
         this.configuration = configuration;
     }
     
-    public InstanceComposer CreateComposer(ParsedInstance[] instances, 
-                                           string outDir,
+    public InstanceComposer CreateComposer(string outDir,
                                            Configuration.ExportConfiguration exportConfig,
                                            CancellationToken cancellationToken = default)
     {
         return new InstanceComposer(configuration, pack, exportConfig,
-                                  outDir, instances, cancellationToken);
+                                  outDir, cancellationToken);
 
+    }
+    
+    public CharacterComposer CreateCharacterComposer(string outDir,
+                                                     Configuration.ExportConfiguration exportConfig,
+                                                     CancellationToken cancellationToken = default)
+    {
+        return new CharacterComposer(configuration, pack, exportConfig, outDir, cancellationToken);
     }
 }

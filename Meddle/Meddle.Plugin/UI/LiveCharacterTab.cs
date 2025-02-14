@@ -690,7 +690,7 @@ public unsafe class LiveCharacterTab : ITab
                 throw new Exception($"Failed to load {shpkPath}");
             }
         }
-        
+
         var orderedMaterialParams = shpk.MaterialParams.Select((x, idx) => (x, idx))
                                         .OrderBy(x => x.idx).ToArray();
         var availWidth = ImGui.GetContentRegionAvail().X;
@@ -717,6 +717,7 @@ public unsafe class LiveCharacterTab : ITab
 
             foreach (var (materialParam, i) in orderedMaterialParams)
             {
+                // TODO: This should exist on the in-memory shpk, would be nicer to parse it from there instead of loading the files.
                 var shpkDefaults = shpk.MaterialParamDefaults
                                        .Skip(materialParam.ByteOffset / 4)
                                        .Take(materialParam.ByteSize / 4).ToArray();
@@ -874,16 +875,77 @@ public unsafe class LiveCharacterTab : ITab
                 var colorTable = parseService.ParseColorTableTexture(colorTableTexture);
                 UiUtil.DrawColorTable(colorTable);
             }
-            
+
             if (ImGui.CollapsingHeader("Constants"))
             {
                 DrawConstantsTable(mtPtr);
+            }
+
+            if (ImGui.CollapsingHeader("Keys"))
+            {
+                DrawKeys(mtPtr);
             }
 
             for (var texIdx = 0; texIdx < material->TextureCount; texIdx++)
             {
                 var textureEntry = material->TexturesSpan[texIdx];
                 DrawTexture(material, textureEntry, texIdx);
+            }
+        }
+    }
+
+    private void DrawKeys(CSMaterial* material)
+    {
+        var keys = material->ShaderKeyValuesSpan.ToArray();
+        var constants = Names.GetConstants();
+        for (var i = 0; i < keys.Length; i++)
+        {
+            var key = keys[i];
+            var match = constants.FirstOrDefault(c => c.Crc == key);
+            ImGui.Text($"Key {i}: 0x{key:X8} ({match?.Value ?? "Unknown"})");
+        }
+
+        var shaderPackage = material->MaterialResourceHandle->ShaderPackageResourceHandle->ShaderPackage;
+        DrawKeyPairs(shaderPackage->MaterialKeysSpan, shaderPackage->MaterialValuesSpan, "Material");
+        DrawKeyPairs(shaderPackage->SystemKeysSpan, shaderPackage->SystemValuesSpan, "System");
+        DrawKeyPairs(shaderPackage->SceneKeysSpan, shaderPackage->SceneValuesSpan, "Scene");
+        
+        return;
+        
+        void DrawKeyPairs(Span<uint> keys, Span<uint> values, string type)
+        {
+            if (keys.Length != values.Length)
+            {
+                ImGui.Text("Key and value count mismatch");
+                return;
+            }
+            
+            using var id = ImRaii.PushId(type);
+            
+            ImGui.Text($"{type} Keys");
+            
+            using var table = ImRaii.Table($"{type}Keys", 3, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable);
+            ImGui.TableSetupColumn("Index", ImGuiTableColumnFlags.WidthFixed, 80);
+            ImGui.TableSetupColumn("Key", ImGuiTableColumnFlags.WidthFixed, 200);
+            ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
+            
+            ImGui.TableHeadersRow();
+            
+            for (int i = 0; i < keys.Length; i++)
+            {
+                var key = keys[i];
+                var value = values[i];
+                var match = constants.FirstOrDefault(c => c.Crc == key);
+                var valueMatch = constants.FirstOrDefault(c => c.Crc == value);
+                var keyString = match != null ? $"{match.Value} (0x{key:X8})" : $"0x{key:X8}";
+                var valueString = valueMatch != null ? $"{valueMatch.Value} (0x{value:X8})" : $"0x{value:X8}";
+                ImGui.TableNextRow();
+                ImGui.TableSetColumnIndex(0);
+                ImGui.Text(i.ToString());
+                ImGui.TableSetColumnIndex(1);
+                ImGui.Text(keyString);
+                ImGui.TableSetColumnIndex(2);
+                ImGui.Text(valueString);
             }
         }
     }

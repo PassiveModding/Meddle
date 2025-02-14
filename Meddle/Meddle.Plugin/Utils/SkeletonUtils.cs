@@ -98,7 +98,7 @@ public static class SkeletonUtils
             {
                 foreach (var bone in map.List)
                 {
-                    ApplyPose(rootTransform, bone, partialSkeletons, PoseMode.Local, 0);
+                    ApplyPose(rootTransform, bone, partialSkeletons, poseMode.Value, 0);
                 }
             }
         }

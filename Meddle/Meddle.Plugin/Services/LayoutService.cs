@@ -263,9 +263,7 @@ public class LayoutService : IService, IDisposable
             {
                 if (child is ParsedBgPartsInstance parsedBgPartsInstance)
                 {
-                    parsedBgPartsInstance.StainColor = furnitureMatch.Stain != null ? 
-                                                           UiUtil.ConvertU32ColorToVector4(furnitureMatch.Stain.Value.Color) : 
-                                                           UiUtil.ConvertU32ColorToVector4(furnitureMatch.DefaultStain.Color);
+                    parsedBgPartsInstance.StainColor = UiUtil.ConvertU32ColorToVector4(housing.Stain?.Color ?? housing.DefaultStain.Color);
                 }
             }
             

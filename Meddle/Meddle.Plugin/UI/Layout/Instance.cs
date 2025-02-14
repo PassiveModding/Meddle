@@ -118,6 +118,18 @@ public partial class LayoutWindow
                 Vector4 defaultColor = ImGui.ColorConvertU32ToFloat4(ho.DefaultStain.Color);
                 ImGui.ColorButton("Default Stain", defaultColor);
             }
+            else if (instance is IStainableInstance stainable)
+            {
+                Vector4? color = stainable.StainColor;
+                if (color != null)
+                {
+                    ImGui.ColorButton("Stain", color.Value);
+                }
+                else
+                {
+                    ImGui.Text("No Stain");
+                }
+            }
             
             if (instance is ParsedBgPartsInstance bgPart)
             {

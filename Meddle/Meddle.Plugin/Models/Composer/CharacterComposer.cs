@@ -13,7 +13,6 @@ using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
 
 namespace Meddle.Plugin.Models.Composer;
-
 public class CharacterComposer
 {
     public record SkinningContext(List<BoneNodeBuilder> Bones, BoneNodeBuilder? RootBone, Matrix4x4 Transform);
@@ -21,13 +20,27 @@ public class CharacterComposer
     private readonly Configuration config;
     private readonly SqPack pack;
     private readonly ComposerCache composerCache;
+    private readonly Configuration.ExportConfiguration exportConfig;
     private readonly CancellationToken cancellationToken;
     
-    public CharacterComposer(Configuration config, SqPack pack, ComposerCache composerCache, CancellationToken cancellationToken = default)
+    public CharacterComposer(Configuration config, SqPack pack, ComposerCache composerCache, Configuration.ExportConfiguration exportConfig, CancellationToken cancellationToken = default)
     {
         this.config = config;
         this.pack = pack;
         this.composerCache = composerCache;
+        this.exportConfig = exportConfig;
+        this.cancellationToken = cancellationToken;
+    }
+    
+    public CharacterComposer(Configuration config, SqPack pack, Configuration.ExportConfiguration exportConfig, string outDir, CancellationToken cancellationToken = default)
+    {
+        this.config = config;
+        this.pack = pack;
+        this.exportConfig = exportConfig;
+        Directory.CreateDirectory(outDir);
+        var cacheDir = Path.Combine(outDir, "cache");
+        Directory.CreateDirectory(cacheDir);
+        composerCache = new ComposerCache(pack, cacheDir, exportConfig);
         this.cancellationToken = cancellationToken;
     }
     
@@ -180,7 +193,13 @@ public class CharacterComposer
         return rootParented;
     }
 
-    private bool HandleRootAttach(ParsedCharacterInfo characterInfo, SceneBuilder scene, NodeBuilder root, ref BoneNodeBuilder rootBone, ref Matrix4x4 transform)
+    private bool HandleRootAttach(
+        ParsedCharacterInfo characterInfo,
+        SceneBuilder scene,
+        NodeBuilder root,
+        ref BoneNodeBuilder rootBone,
+        ref Matrix4x4 transform,
+        ExportProgress rootProgress)
     {
         bool rootParented = false;
         var rootAttach = characterInfo.Attaches.FirstOrDefault(x => x.Attach.ExecuteType == 0);
@@ -192,68 +211,82 @@ public class CharacterComposer
         {
             Plugin.Logger?.LogWarning("Root attach found");
             // handle root first, then attach this to the root
-            var rootAttachData = ComposeCharacterInfo(rootAttach, null, scene, root);
-            if (rootAttachData != null)
+            var rootAttachProgress = new ExportProgress(rootAttach.Models.Length, "Root attach");
+            rootProgress.Children.Add(rootAttachProgress);
+            try
             {
-                var attachName = rootAttach.Skeleton.PartialSkeletons[characterInfo.Attach.PartialSkeletonIdx]
-                                           .HkSkeleton!
-                                           .BoneNames[(int)characterInfo.Attach.BoneIdx];
-                if (rootBone == null) throw new InvalidOperationException("Root bone not found");
-                var attachRoot = rootAttachData.Value.root;
-                lock (attachLock)
+                var rootAttachData = ComposeCharacterInfo(rootAttach, null, scene, root, rootAttachProgress);
+                if (rootAttachData != null)
                 {
-                    Interlocked.Increment(ref attachSuffix);
-                    attachRoot.SetSuffixRecursively(attachSuffix);
-                }
-
-                if (rootAttach.Attach.OffsetTransform is { } ct)
-                {
-                    attachRoot.WithLocalScale(ct.Scale);
-                    attachRoot.WithLocalRotation(ct.Rotation);
-                    attachRoot.WithLocalTranslation(ct.Translation);
-                    if (attachRoot.AnimationTracksNames.Contains("pose"))
+                    var attachName = rootAttach.Skeleton.PartialSkeletons[characterInfo.Attach.PartialSkeletonIdx]
+                                               .HkSkeleton!
+                                               .BoneNames[(int)characterInfo.Attach.BoneIdx];
+                    if (rootBone == null) throw new InvalidOperationException("Root bone not found");
+                    var attachRoot = rootAttachData.Value.root;
+                    lock (attachLock)
                     {
-                        attachRoot.UseScale().UseTrackBuilder("pose").WithPoint(0, ct.Scale);
-                        attachRoot.UseRotation().UseTrackBuilder("pose").WithPoint(0, ct.Rotation);
-                        attachRoot.UseTranslation().UseTrackBuilder("pose").WithPoint(0, ct.Translation);
+                        Interlocked.Increment(ref attachSuffix);
+                        attachRoot.SetSuffixRecursively(attachSuffix);
                     }
-                }
 
-                var attachPointBone =
-                    rootAttachData.Value.bones.FirstOrDefault(
-                        x => x.BoneName.Equals(attachName, StringComparison.Ordinal));
-                if (attachPointBone == null)
-                {
-                    scene.AddNode(rootBone);
-                    rootParented = true;
-                }
-                else
-                {
-                    attachPointBone.AddNode(rootBone);
-                    rootParented = true;
-                }
+                    if (rootAttach.Attach.OffsetTransform is { } ct)
+                    {
+                        attachRoot.WithLocalScale(ct.Scale);
+                        attachRoot.WithLocalRotation(ct.Rotation);
+                        attachRoot.WithLocalTranslation(ct.Translation);
+                        if (attachRoot.AnimationTracksNames.Contains("pose"))
+                        {
+                            attachRoot.UseScale().UseTrackBuilder("pose").WithPoint(0, ct.Scale);
+                            attachRoot.UseRotation().UseTrackBuilder("pose").WithPoint(0, ct.Rotation);
+                            attachRoot.UseTranslation().UseTrackBuilder("pose").WithPoint(0, ct.Translation);
+                        }
+                    }
 
-                NodeBuilder? c = rootBone;
-                while (c != null)
-                {
-                    transform *= c.LocalMatrix;
-                    c = c.Parent;
-                }
+                    var attachPointBone =
+                        rootAttachData.Value.bones.FirstOrDefault(
+                            x => x.BoneName.Equals(attachName, StringComparison.Ordinal));
+                    if (attachPointBone == null)
+                    {
+                        scene.AddNode(rootBone);
+                        rootParented = true;
+                    }
+                    else
+                    {
+                        attachPointBone.AddNode(rootBone);
+                        rootParented = true;
+                    }
 
-                rootBone = attachRoot;
+                    NodeBuilder? c = rootBone;
+                    while (c != null)
+                    {
+                        transform *= c.LocalMatrix;
+                        c = c.Parent;
+                    }
+
+                    rootBone = attachRoot;
+                }
+            } 
+            finally
+            {
+                rootAttachProgress.IsComplete = true;
             }
         }
         
         return rootParented;
     }
     
-    public (List<BoneNodeBuilder> bones, BoneNodeBuilder root)? ComposeCharacterInfo(ParsedCharacterInfo characterInfo, (ParsedCharacterInfo Owner, List<BoneNodeBuilder> OwnerBones, ParsedAttach Attach)? attachData, SceneBuilder scene, NodeBuilder root)
+    public (List<BoneNodeBuilder> bones, BoneNodeBuilder root)? Compose(ParsedCharacterInfo characterInfo, SceneBuilder scene, NodeBuilder root, ExportProgress progress)
+    {
+        return ComposeCharacterInfo(characterInfo, null, scene, root, progress);
+    }
+    
+    private (List<BoneNodeBuilder> bones, BoneNodeBuilder root)? ComposeCharacterInfo(ParsedCharacterInfo characterInfo, (ParsedCharacterInfo Owner, List<BoneNodeBuilder> OwnerBones, ParsedAttach Attach)? attachData, SceneBuilder scene, NodeBuilder root, ExportProgress rootProgress)
     {
         List<BoneNodeBuilder> bones;
         BoneNodeBuilder? rootBone;
         try
         {
-            bones = SkeletonUtils.GetBoneMap(characterInfo.Skeleton, SkeletonUtils.PoseMode.Local, out rootBone);
+            bones = SkeletonUtils.GetBoneMap(characterInfo.Skeleton, exportConfig.ExportPose ? SkeletonUtils.PoseMode.Local : null, out rootBone);
             if (rootBone == null)
             {
                 Plugin.Logger?.LogWarning("Root bone not found");
@@ -290,7 +323,7 @@ public class CharacterComposer
         {
             try
             {
-                if (HandleRootAttach(characterInfo, scene, root, ref rootBone, ref transform))
+                if (HandleRootAttach(characterInfo, scene, root, ref rootBone, ref transform, rootProgress))
                 {
                     rootParented = true;
                 }
@@ -305,11 +338,9 @@ public class CharacterComposer
         {
             root.AddNode(rootBone);
         }
-
-        for (var i = 0; i < characterInfo.Models.Length; i++)
+        
+        foreach (var t in characterInfo.Models)
         {
-            var t = characterInfo.Models[i];
-            
             try
             {
                 HandleModel(characterInfo, t, 
@@ -324,19 +355,32 @@ public class CharacterComposer
                                                 IncludeFields = true
                                             }));
             }
+            
+            rootProgress.Progress++;
         }
 
-        for (var i = 0; i < characterInfo.Attaches.Length; i++)
+        
+        foreach (var t in characterInfo.Attaches)
         {
+            ExportProgress? attachProgress = null;
             try
             {
-                var attach = characterInfo.Attaches[i];
+                var attach = t;
                 if (attach.Attach.ExecuteType == 0) continue;
-                ComposeCharacterInfo(attach, (characterInfo, bones, attach.Attach), scene, root);
+                attachProgress = new ExportProgress(attach.Models.Length, "Attach Meshes");
+                rootProgress.Children.Add(attachProgress);
+                ComposeCharacterInfo(attach, (characterInfo, bones, attach.Attach), scene, root, attachProgress);
             }
             catch (Exception e)
             {
-                Plugin.Logger?.LogError(e, "Failed to handle attach {Attach}", JsonSerializer.Serialize(characterInfo.Attaches[i], MaterialComposer.JsonOptions));
+                Plugin.Logger?.LogError(e, "Failed to handle attach {Attach}", JsonSerializer.Serialize(t, MaterialComposer.JsonOptions));
+            }
+            finally
+            {
+                if (attachProgress != null)
+                {
+                    attachProgress.IsComplete = true;
+                }
             }
         }
 

@@ -42,6 +42,7 @@ public partial class LayoutWindow : ITab
     private Action? drawExportSettingsCallback;
     private Task exportTask = Task.CompletedTask;
     private InstanceComposer? instanceComposer;
+    private ExportProgress? progress;
 
     private string? lastError;
     private string search = "";
@@ -246,14 +247,35 @@ public partial class LayoutWindow : ITab
         }
         if (instanceComposer == null) return;
         if (exportTask.IsCompleted) return;
-        
-        var progress = instanceComposer.Progress;
-        ImGui.Text($"Exporting {progress.Progress} of {progress.Total}");
-        ImGui.ProgressBar(progress.Progress / (float)progress.Total, new Vector2(-1, 0));
-        
+
+        if (progress != null)
+        {
+            DrawProgressRecursive(progress);
+        }
+
         if (ImGui.Button("Cancel"))
         {
             cancelToken.Cancel();
+        }
+
+        void DrawProgressRecursive(ExportProgress progress)
+        {
+            if (progress.IsComplete) return;
+            ImGui.Text($"Exporting {progress.Progress} of {progress.Total}");
+            ImGui.ProgressBar(progress.Progress / (float)progress.Total, new Vector2(-1, 0), progress.Name ?? "");
+            if (progress.Children.Count > 0)
+            {
+                using var indent = ImRaii.PushIndent();
+                foreach (var child in progress.Children)
+                {
+                    if (child == this.progress)
+                    {
+                        ImGui.Text("Recursive progress detected, skipping");
+                        continue;
+                    }
+                    DrawProgressRecursive(child);
+                }
+            }
         }
     }
 
@@ -393,12 +415,12 @@ public partial class LayoutWindow : ITab
             log.LogDebug("Exporting {count} instances to {path}, current task id: {taskId}", instances.Length, path, Task.CurrentId);
             try
             {
-                var composer = composerFactory.CreateComposer(instances,
-                                                              path,
+                var composer = composerFactory.CreateComposer(path,
                                                               configClone,
                                                               cancellationTokenSource.Token);
                 instanceComposer = composer;
-                composer.Compose();
+                progress = new ExportProgress(instances.Length, "Instances");
+                composer.Compose(instances, progress);
                 Process.Start("explorer.exe", path);
             } 
             finally
