@@ -6,7 +6,6 @@ using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Constants;
 using Meddle.Utils.Export;
-using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
 using Microsoft.Extensions.Logging;
 using SharpGLTF.Materials;
@@ -277,6 +276,7 @@ public class CharacterComposer
     
     public (List<BoneNodeBuilder> bones, BoneNodeBuilder root)? Compose(ParsedCharacterInfo characterInfo, SceneBuilder scene, NodeBuilder root, ExportProgress progress)
     {
+        composerCache.SaveArrayTextures();
         return ComposeCharacterInfo(characterInfo, null, scene, root, progress);
     }
     
@@ -358,18 +358,16 @@ public class CharacterComposer
             
             rootProgress.Progress++;
         }
-
         
         foreach (var t in characterInfo.Attaches)
         {
             ExportProgress? attachProgress = null;
             try
             {
-                var attach = t;
-                if (attach.Attach.ExecuteType == 0) continue;
-                attachProgress = new ExportProgress(attach.Models.Length, "Attach Meshes");
+                if (t.Attach.ExecuteType == 0) continue;
+                attachProgress = new ExportProgress(t.Models.Length, "Attach Meshes");
                 rootProgress.Children.Add(attachProgress);
-                ComposeCharacterInfo(attach, (characterInfo, bones, attach.Attach), scene, root, attachProgress);
+                ComposeCharacterInfo(t, (characterInfo, bones, t.Attach), scene, root, attachProgress);
             }
             catch (Exception e)
             {

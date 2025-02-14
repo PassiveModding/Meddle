@@ -169,7 +169,7 @@ public class InstanceComposer
             Plugin.Logger?.LogError(ex, "Failed to save instance blob\n{Message}", ex.Message);
         }
         
-        SaveArrayTextures();
+        composerCache.SaveArrayTextures();
 
         var instanceGroups = instances.GroupBy(x => x.Type);
         
@@ -179,15 +179,6 @@ public class InstanceComposer
         }
         
         Plugin.Logger?.LogInformation("Finished composing instances");
-    }
-    
-    public void SaveArrayTextures()
-    {
-        Directory.CreateDirectory(cacheDir);
-        ArrayTextureUtil.SaveSphereTextures(pack, cacheDir);
-        ArrayTextureUtil.SaveTileTextures(pack, cacheDir);
-        ArrayTextureUtil.SaveBgSphereTextures(pack, cacheDir);
-        ArrayTextureUtil.SaveBgDetailTextures(pack, cacheDir);
     }
 
     public NodeBuilder? ComposeInstance(ParsedInstance parsedInstance, SceneBuilder scene, ExportProgress rootProgress)
