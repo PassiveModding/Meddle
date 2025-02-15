@@ -8,6 +8,7 @@ using Meddle.Utils;
 using Meddle.Utils.Constants;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files.SqPack;
+using Meddle.Utils.Helpers;
 using Microsoft.Extensions.Logging;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
@@ -104,9 +105,37 @@ public class CharacterComposer
             }
         }
 
+        var enabledAttributes = Model.GetEnabledValues(model.EnabledAttributeMask, model.AttributeMasks).ToArray();
         var meshes = ModelBuilder.BuildMeshes(model, materialBuilders, skinningContext.Bones, deform);
         foreach (var mesh in meshes)
         {
+            var extrasDict = new Dictionary<string, string>
+            {
+                {"modelGamePath", m.Path.GamePath},
+                {"modelFullPath", m.Path.FullPath},
+                {"meshShapes", mesh.Shapes != null ? string.Join(",", mesh.Shapes) : ""},
+                {"modelEnabledAttributes", string.Join(",", enabledAttributes)},
+                {"modelAttributes", string.Join(",", model.AttributeMasks.Select(x => x.name))},
+                {"nodeType", "CharacterMesh"}
+            };
+            
+            if (deform != null)
+            {
+                extrasDict.Add("modelDeformFromName", deform.Value.from.ToString());
+                extrasDict.Add("modelDeformToName", deform.Value.to.ToString());
+                extrasDict.Add("modelDeformFromId", ((int)deform.Value.from).ToString());
+                extrasDict.Add("modelDeformToId", ((int)deform.Value.to).ToString());
+            }
+            else
+            {
+                extrasDict.Add("modelDeformFromName", "");
+                extrasDict.Add("modelDeformToName", "");
+                extrasDict.Add("modelDeformFromId", "");
+                extrasDict.Add("modelDeformToId", "");
+            }
+            
+            mesh.Mesh.Extras = JsonNode.Parse(JsonSerializer.Serialize(extrasDict));
+            
             InstanceBuilder instance;
             if (skinningContext.Bones.Count > 0)
             {
@@ -131,7 +160,6 @@ public class CharacterComposer
             if (mesh.Submesh != null)
             {
                 // Remove subMeshes that are not enabled
-                var enabledAttributes = Model.GetEnabledValues(model.EnabledAttributeMask, model.AttributeMasks);
                 if (!mesh.Submesh.Attributes.All(enabledAttributes.Contains))
                 {
                     instance.Remove();
@@ -281,7 +309,8 @@ public class CharacterComposer
         root.Extras = JsonNode.Parse(JsonSerializer.Serialize(new Dictionary<string, string>
         {
             {"raceCode", ((int)characterInfo.GenderRace).ToString()},
-            {"raceCodeName", characterInfo.GenderRace.ToString() }
+            {"raceCodeName", characterInfo.GenderRace.ToString() },
+            { "nodeType", "CharacterRoot" }
         }));
         return ComposeCharacterInfo(characterInfo, null, scene, root, progress);
     }
