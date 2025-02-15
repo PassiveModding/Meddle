@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Utils;
@@ -277,6 +278,11 @@ public class CharacterComposer
     public (List<BoneNodeBuilder> bones, BoneNodeBuilder root)? Compose(ParsedCharacterInfo characterInfo, SceneBuilder scene, NodeBuilder root, ExportProgress progress)
     {
         composerCache.SaveArrayTextures();
+        root.Extras = JsonNode.Parse(JsonSerializer.Serialize(new Dictionary<string, string>
+        {
+            {"raceCode", ((int)characterInfo.GenderRace).ToString()},
+            {"raceCodeName", characterInfo.GenderRace.ToString() }
+        }));
         return ComposeCharacterInfo(characterInfo, null, scene, root, progress);
     }
     
