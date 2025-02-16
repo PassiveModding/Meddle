@@ -47,7 +47,8 @@ public static class EnumExtensions
     private static string GetSingularDescription(this Enum value)
     {
         var field = value.GetType().GetField(value.ToString());
-        var attribute = (DescriptionAttribute)Attribute.GetCustomAttribute(field, typeof(DescriptionAttribute));
+        if (field == null) return value.ToString();
+        var attribute = (DescriptionAttribute?)Attribute.GetCustomAttribute(field, typeof(DescriptionAttribute));
         return attribute?.Description ?? value.ToString();
     }
     

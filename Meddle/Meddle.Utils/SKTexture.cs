@@ -69,7 +69,7 @@ public sealed class SKTexture
         {
             var info = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
             var bitmapCopy = Bitmap.Copy();
-            var resize = bitmapCopy.Resize(info, SKFilterQuality.High);
+            var resize = bitmapCopy.Resize(info, new SKSamplingOptions(SKCubicResampler.Mitchell));
             
             return new SKTexture(resize);
         }

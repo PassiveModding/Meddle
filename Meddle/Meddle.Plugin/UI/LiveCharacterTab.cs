@@ -853,31 +853,31 @@ public unsafe class LiveCharacterTab : ITab
         
         return;
 
-        void DrawConstantSamplerUnknownSpan(Span<ShaderPackage.ConstantSamplerUnknown> samplers, string type)
-        {
-            using var id = ImRaii.PushId(type);
-            ImGui.Text($"{type} Keys");
-            using var table = ImRaii.Table($"{type}Keys", 3, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable);
-            ImGui.TableSetupColumn("Index", ImGuiTableColumnFlags.WidthFixed, 80);
-            ImGui.TableSetupColumn("Key", ImGuiTableColumnFlags.WidthFixed, 200);
-            ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
-            ImGui.TableHeadersRow();
-            
-            for (var i = 0; i < samplers.Length; i++)
-            {
-                var sampler = samplers[i];
-                var keyString = $"0x{sampler.Id:X8}";
-                var valueString = $"0x{sampler.CRC:X8}";
-                
-                ImGui.TableNextRow();
-                ImGui.TableSetColumnIndex(0);
-                ImGui.Text(i.ToString());
-                ImGui.TableSetColumnIndex(1);
-                ImGui.Text(keyString);
-                ImGui.TableSetColumnIndex(2);
-                ImGui.Text(valueString);
-            }
-        }
+        // void DrawConstantSamplerUnknownSpan(Span<ShaderPackage.ConstantSamplerUnknown> samplers, string type)
+        // {
+        //     using var id = ImRaii.PushId(type);
+        //     ImGui.Text($"{type} Keys");
+        //     using var table = ImRaii.Table($"{type}Keys", 3, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable);
+        //     ImGui.TableSetupColumn("Index", ImGuiTableColumnFlags.WidthFixed, 80);
+        //     ImGui.TableSetupColumn("Key", ImGuiTableColumnFlags.WidthFixed, 200);
+        //     ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
+        //     ImGui.TableHeadersRow();
+        //     
+        //     for (var i = 0; i < samplers.Length; i++)
+        //     {
+        //         var sampler = samplers[i];
+        //         var keyString = $"0x{sampler.Id:X8}";
+        //         var valueString = $"0x{sampler.CRC:X8}";
+        //         
+        //         ImGui.TableNextRow();
+        //         ImGui.TableSetColumnIndex(0);
+        //         ImGui.Text(i.ToString());
+        //         ImGui.TableSetColumnIndex(1);
+        //         ImGui.Text(keyString);
+        //         ImGui.TableSetColumnIndex(2);
+        //         ImGui.Text(valueString);
+        //     }
+        // }
         
         
         void DrawKeyPairs(Span<uint> keys, Span<uint> values, string type)

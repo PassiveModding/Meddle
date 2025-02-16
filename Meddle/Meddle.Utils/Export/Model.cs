@@ -43,10 +43,15 @@ public unsafe class Model
     public Model(string path, MdlFile mdlFile, ShapeAttributeGroup? shapeAttributeGroup)
     {
         HandlePath = path;
-        AttributeMasks = shapeAttributeGroup?.AttributeMasks ?? Array.Empty<(string, short)>();
+        AttributeMasks = shapeAttributeGroup?.AttributeMasks ?? [];
         EnabledAttributeMask = shapeAttributeGroup?.EnabledAttributeMask ?? 0;
-        ShapeMasks = shapeAttributeGroup?.ShapeMasks ?? Array.Empty<(string, short)>();
+        ShapeMasks = shapeAttributeGroup?.ShapeMasks ?? [];
         EnabledShapeMask = shapeAttributeGroup?.EnabledShapeMask ?? 0;
+        
+        // InitFromFile sets these so initializing to null here to avoid compiler warnings
+        Meshes = null!;
+        Shapes = null!;
+        MtrlFileNames = null!;
         
         InitFromFile(mdlFile);
     }
@@ -68,13 +73,13 @@ public unsafe class Model
         if (file.ExtraLods.Length > 0)
         {
             var extraLod = file.ExtraLods[lodIdx];
-            meshRanges.AddRange(new[]
-            {
+            meshRanges.AddRange(
+            [
                 extraLod.LightShaftMeshIndex..(extraLod.LightShaftMeshIndex + extraLod.LightShaftMeshCount),
                 extraLod.GlassMeshIndex..(extraLod.GlassMeshIndex + extraLod.GlassMeshCount),
                 extraLod.MaterialChangeMeshIndex..(extraLod.MaterialChangeMeshIndex + extraLod.MaterialChangeMeshCount),
-                extraLod.CrestChangeMeshIndex..(extraLod.CrestChangeMeshIndex + extraLod.CrestChangeMeshCount),
-            });
+                extraLod.CrestChangeMeshIndex..(extraLod.CrestChangeMeshIndex + extraLod.CrestChangeMeshCount)
+            ]);
         }
         
         // consolidate ranges
