@@ -74,6 +74,14 @@ public class SigUtil : IService, IDisposable
         return layoutWorld;
     }
     
+    public unsafe CameraManager* GetCameraManager()
+    {
+        var manager = CameraManager.Instance();
+        if (manager == null)
+            throw new Exception("Camera manager is null");
+        return manager;
+    }
+    
     public unsafe Camera* GetCamera()
     {
         var manager = CameraManager.Instance();

@@ -1,6 +1,7 @@
 ﻿using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
 using ImGuiNET;
+using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Utils;
 
@@ -25,7 +26,14 @@ public partial class LayoutWindow
         public bool TraceToHovered { get; set; } = true;
         public bool HideOffscreenCharacters { get; set; } = true;
         public int MaxItemCount { get; set; } = 100;
-        // public bool AdjustOrigin { get; set; }
+        public OriginAdjustment OriginAdjustment { get; set; } = OriginAdjustment.Player;
+    }
+    
+    public enum OriginAdjustment
+    {
+        Player,
+        Camera,
+        Origin
     }
     
 
@@ -78,6 +86,14 @@ public partial class LayoutWindow
         if (ImGui.Checkbox("Trace to Hovered", ref traceToHovered))
         {
             config.LayoutConfig.TraceToHovered = traceToHovered;
+            config.Save();
+        }
+
+        ImGui.Text($"Current Origin: (X:{currentPos.X:F2}, Y:{currentPos.Y:F2}, Z{currentPos.Z:F2})");
+        var originAdjustment = config.LayoutConfig.OriginAdjustment;
+        if (EnumExtensions.DrawEnumDropDown("Origin Adjustment", ref originAdjustment))
+        {
+            config.LayoutConfig.OriginAdjustment = originAdjustment;
             config.Save();
         }
         

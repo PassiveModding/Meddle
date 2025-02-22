@@ -171,13 +171,12 @@ public partial class LayoutWindow
         Selected,
         None
     }
-    
+
     private InstanceSelectState DrawInstanceOverlay(ParsedInstance obj, ParsedInstance? parent)
     {
-        var localPos = sigUtil.GetLocalPosition();
-        if (Vector3.Abs(obj.Transform.Translation - localPos).Length() > config.WorldCutoffDistance)
+        if (Vector3.Abs(obj.Transform.Translation - currentPos).Length() > config.WorldCutoffDistance)
             return InstanceSelectState.None;
-        if (!WorldToScreen(obj.Transform.Translation, out var screenPos, out _))
+        if (!WorldToScreen(obj.Transform.Translation, out var screenPos, out var inView))
             return InstanceSelectState.None;
         if (!config.LayoutConfig.DrawTypes.HasFlag(obj.Type))
             return InstanceSelectState.None;

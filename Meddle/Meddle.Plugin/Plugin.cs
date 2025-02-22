@@ -155,6 +155,7 @@ public class Configuration : IPluginConfiguration
     {
         public CacheFileType CacheFileTypes { get; set; }
         public bool ExportPose { get; set; } = true;
+        public bool RemoveAttributeDisabledSubmeshes { get; set; } = true;
         public ExportType ExportType { get; set; } = DefaultExportType;
         
         public ExportConfiguration Clone()
@@ -163,7 +164,8 @@ public class Configuration : IPluginConfiguration
             {
                 CacheFileTypes = CacheFileTypes,
                 ExportPose = ExportPose,
-                ExportType = ExportType
+                ExportType = ExportType,
+                RemoveAttributeDisabledSubmeshes = RemoveAttributeDisabledSubmeshes
             };
         }
     }

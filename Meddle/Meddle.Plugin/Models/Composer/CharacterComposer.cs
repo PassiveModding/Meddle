@@ -160,7 +160,7 @@ public class CharacterComposer
             if (mesh.Submesh != null)
             {
                 // Remove subMeshes that are not enabled
-                if (!mesh.Submesh.Attributes.All(enabledAttributes.Contains))
+                if (!mesh.Submesh.Attributes.All(enabledAttributes.Contains) && exportConfig.RemoveAttributeDisabledSubmeshes)
                 {
                     instance.Remove();
                 }

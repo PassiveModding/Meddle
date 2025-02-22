@@ -9,6 +9,7 @@ using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Services;
+using Meddle.Plugin.Utils;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
 using Microsoft.Extensions.Logging;
@@ -151,7 +152,7 @@ public partial class LayoutWindow : ITab
                   .Where(x => config.LayoutConfig.DrawTypes.HasFlag(x.Type));
         if (config.LayoutConfig.OrderByDistance)
         {
-            set = set.OrderBy(x => Vector3.Distance(x.Transform.Translation, sigUtil.GetLocalPosition()));
+            set = set.OrderBy(x => Vector3.Distance(x.Transform.Translation, currentPos));
         }
 
         if (config.LayoutConfig.HideOffscreenCharacters)
@@ -229,11 +230,26 @@ public partial class LayoutWindow : ITab
         cancelToken.Cancel();
     }
 
-    private void SetupCurrentState()
+    private unsafe void SetupCurrentState()
     {
         layoutService.RequestUpdate = true;
         currentLayout = layoutService.LastState ?? [];
-        currentPos = sigUtil.GetLocalPosition();
+        if (config.LayoutConfig.OriginAdjustment == OriginAdjustment.Player)
+        {
+            currentPos = sigUtil.GetLocalPosition();
+        }
+        else if (config.LayoutConfig.OriginAdjustment == OriginAdjustment.Camera)
+        {
+            currentPos = sigUtil.GetCamera()->Position;
+        }
+        else if (config.LayoutConfig.OriginAdjustment == OriginAdjustment.Origin)
+        {
+            currentPos = Vector3.Zero;
+        }
+        else
+        {
+            currentPos = Vector3.Zero;
+        }
     }
 
 
@@ -366,23 +382,15 @@ public partial class LayoutWindow : ITab
         if (!ImGui.BeginPopup("ExportSettingsPopup", ImGuiWindowFlags.AlwaysAutoResize)) return;
         try
         {
-            var cacheFileTypes = config.ExportConfig.CacheFileTypes;
-            if (EnumExtensions.DrawEnumCombo("Cache Files", ref cacheFileTypes))
+            if (UiUtil.DrawExportConfig(config.ExportConfig, UiUtil.ExportConfigDrawFlags.HideExportPose))
             {
-                config.ExportConfig.CacheFileTypes = cacheFileTypes;
-                config.Save();
-            }
-
-            var exportPose = config.ExportConfig.ExportPose;
-            if (ImGui.Checkbox("Export pose", ref exportPose))
-            {
-                config.ExportConfig.ExportPose = exportPose;
                 config.Save();
             }
 
             if (ImGui.Button("Export"))
             {
                 var configClone = config.ExportConfig.Clone();
+                configClone.ExportPose = true; // Layout should always export pose
                 var defaultName = $"InstanceExport-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
                 cancelToken = new CancellationTokenSource();
                 fileDialog.SaveFolderDialog("Save Instances", defaultName,

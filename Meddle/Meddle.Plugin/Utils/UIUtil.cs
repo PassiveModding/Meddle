@@ -29,6 +29,49 @@ public static class UiUtil
             }
         }
     }
+
+    [Flags]
+    public enum ExportConfigDrawFlags
+    {
+        None = 0,
+        HideExportPose = 1,
+    }
+
+    public static bool DrawExportConfig(Configuration.ExportConfiguration exportConfiguration, ExportConfigDrawFlags flags = ExportConfigDrawFlags.None)
+    {
+        bool changed = false;
+        var cacheFileTypes = exportConfiguration.CacheFileTypes;
+        if (EnumExtensions.DrawEnumCombo("Cache Files", ref cacheFileTypes))
+        {
+            exportConfiguration.CacheFileTypes = cacheFileTypes;
+            changed = true;
+        }
+
+        ImGui.SameLine();
+        HintCircle("Select which files to cache when exporting, this is not needed in most cases");
+        
+        if (!flags.HasFlag(ExportConfigDrawFlags.HideExportPose))
+        {
+            var exportPose = exportConfiguration.ExportPose;
+            if (ImGui.Checkbox("Export pose", ref exportPose))
+            {
+                exportConfiguration.ExportPose = exportPose;
+                changed = true;
+            }
+        }
+        
+        var removeAttributeDisabledSubMeshes = exportConfiguration.RemoveAttributeDisabledSubmeshes;
+        if (ImGui.Checkbox("Remove disabled submeshes", ref removeAttributeDisabledSubMeshes))
+        {
+            exportConfiguration.RemoveAttributeDisabledSubmeshes = removeAttributeDisabledSubMeshes;
+            changed = true;
+        }
+        
+        ImGui.SameLine();
+        HintCircle("Remove submeshes that are disabled by the attribute mask");
+        
+        return changed;
+    }
     
     public static void HintCircle(string text)
     {

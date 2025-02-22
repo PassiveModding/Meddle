@@ -281,17 +281,8 @@ public unsafe class LiveCharacterTab : ITab
         if (!ImGui.BeginPopup("ExportSettingsPopup", ImGuiWindowFlags.AlwaysAutoResize)) return;
         try
         {
-            var cacheFileTypes = config.ExportConfig.CacheFileTypes;
-            if (EnumExtensions.DrawEnumCombo("Cache Files", ref cacheFileTypes))
+            if (UiUtil.DrawExportConfig(config.ExportConfig))
             {
-                config.ExportConfig.CacheFileTypes = cacheFileTypes;
-                config.Save();
-            }
-
-            var exportPose = config.ExportConfig.ExportPose;
-            if (ImGui.Checkbox("Export pose", ref exportPose))
-            {
-                config.ExportConfig.ExportPose = exportPose;
                 config.Save();
             }
             
