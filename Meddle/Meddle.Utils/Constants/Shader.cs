@@ -44,14 +44,14 @@ public static class Names
             AddEnumConstants<TextureMode>();
             AddEnumConstants<SpecularMode>();
             
-            foreach (var constant in KnownConstants)
+            foreach (var constant in FoundConstants)
             {
                 var name = new Name(constant);
                 buffer[name.Crc] = name;
                 foreach (var suffix in KnownSuffixes)
                 {
                     var suffixedName = new Name($"{constant}{suffix}");
-                    buffer[suffixedName.Crc] = suffixedName;
+                    buffer.TryAdd(suffixedName.Crc, suffixedName);
                 }
             }
 
@@ -76,17 +76,24 @@ public static class Names
         return Constants;
     }
     
-    private static readonly IReadOnlyList<string> KnownConstants =
+    private static readonly IReadOnlyList<string> FoundConstants =
         [
             "AddLayer",
             "ApplyAlphaClip",
             "ApplyAttenuation",
             "ApplyConeAttenuation",
+            "ApplyDepth",
+            "ApplyCone",
+            "ApplyAlpha",
+            "ApplyDetail",
+            "ApplyDissolve",
+            "ApplyDither",
             "ApplyDepthWhitecap",
             "ApplyDetailMap",
             "ApplyDissolveColor",
             "ApplyDitherClip",
             "ApplyFog_Table",
+            "ApplyDynamicWave",
             "ApplyLightBufferType_Table",
             "ApplyMaskTexture",
             "ApplyOmniShadow",
@@ -107,10 +114,15 @@ public static class Names
             "Default",
             "DefaultTechnique",
             "Depth",
+            "DrawDepth",
+            "DrawDepthMode",
             "DepthOffsetType_Table",
             "DirectionalLight_Table",
             "DirectionalLightType_Table",
             "DrawOffscreen",
+            "Enable",
+            "EnableLighting",
+            "EnableLightingOff",
             "ForceFarZ_Table",
             "g_AlphaAperture",
             "g_AlphaMultiParam",
@@ -229,12 +241,19 @@ public static class Names
             "GetAmbientLight",
             "GetAmbientOcclusion",
             "GetColor",
+            "GetCrystal",
+            "GetCrystalType",
             "GetCustumizeColorAura",
             "GetDecalColor",
+            "GetDetail",
+            "GetDetailMap",
             "GetDiffuse",
+            "GetDiffuseTex",
             "GetDiffuseMap",
             "GetDirectionalLight",
             "GetFakeSpecular",
+            "GetFade",
+            "GetFadeAlpha",
             "GetHairFlow",
             "GetInstanceData",
             "GetInstancingData_Bush",
@@ -244,12 +263,18 @@ public static class Names
             "GetMaterialValue",
             "GetMulti",
             "GetMultiValues",
+            "GetMultiWhitecap",
             "GetNoInstancingData_Bush",
             "GetNormal",
             "GetNormalMap",
             "GetReflect",
             "GetReflectColor",
+            "GetReflection",
+            "GetReflectionPower",
+            "GetReflectionPowerOn",
+            "GetReflectionPowerOff",
             "GetRefraction",
+            "GetRefractionMask",
             "GetRefractionPower",
             "GetRLR",
             "GetShadow",
@@ -260,9 +285,15 @@ public static class Names
             "GetUnderWaterLighting",
             "GetValue",
             "GetValues",
+            "GetValuesMultiMaterial",
             "GetVelocity",
             "GetVelocityStatic",
+            "GlassBlendMode",
+            "GlassBlend",
             "GetWater",
+            "GetWaterColor",
+            "GetWave",
+            "GetWaveValues",
             "LightClip",
             "Lighting",
             "LightingLow",
@@ -299,6 +330,7 @@ public static class Names
             "SUB_VIEW_ROOF",
             "SUB_VIEW_SHADOW_0",
             "SUB_VIEW_SHADOW_1",
+            // "ToneAdaptedWavelength", - collision on GetMultiValues
             "TextureColor1_CalculateAlpha_Table",
             "TextureColor1_CalculateColor_Table",
             "TextureColor1_ColorToAlpha_Table",
@@ -430,11 +462,16 @@ public static class Names
             "Mask",
             "Material",
             "Mul",
+            "Map",
+            "Multi",
+            "Apply",
+            "Static",
             "MultiMaterial",
             "None",
             "Normal",
             "Off",
             "On",
+            "Static",
             "ParallaxOcclusion",
             "Parameter",
             "Plane",
