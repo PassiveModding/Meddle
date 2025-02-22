@@ -141,6 +141,8 @@ public class MaterialComposer
         }
     }
     
+    public static HashSet<string> FailedConstants = new();
+    
     public MaterialComposer(MtrlFile mtrlFile, string mtrlPath, ShaderPackage shaderPackage)
     {
         this.mtrlFile = mtrlFile;
@@ -164,6 +166,14 @@ public class MaterialComposer
             var valMatch = constants.GetValueOrDefault(value);
             SetProperty(keyMatch != null ? keyMatch.Value : $"0x{category:X8}", 
                         valMatch != null ? valMatch.Value : $"0x{value:X8}");
+            if (keyMatch == null || keyMatch is Names.StubName stubName)
+            {
+                FailedConstants.Add($"0x{category:X8}");
+            }
+            if (valMatch == null || valMatch is Names.StubName stubName2)
+            {
+                FailedConstants.Add($"0x{value:X8}");
+            }
         }
 
         foreach (var (usage, path) in TextureUsageDict)
