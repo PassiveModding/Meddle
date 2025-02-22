@@ -34,16 +34,6 @@ public static class Names
         {
             var buffer = new Dictionary<uint, ICrcPair>();
             
-            AddEnumConstants<MaterialConstant>();
-            AddEnumConstants<ShaderCategory>();
-            AddEnumConstants<BgVertexPaint>();
-            AddEnumConstants<DiffuseAlpha>();
-            AddEnumConstants<SkinType>();
-            AddEnumConstants<HairType>();
-            AddEnumConstants<FlowType>();
-            AddEnumConstants<TextureMode>();
-            AddEnumConstants<SpecularMode>();
-            
             foreach (var constant in FoundConstants)
             {
                 var name = new Name(constant);
@@ -54,6 +44,16 @@ public static class Names
                     buffer.TryAdd(suffixedName.Crc, suffixedName);
                 }
             }
+            
+            AddEnumConstants<MaterialConstant>();
+            AddEnumConstants<ShaderCategory>();
+            AddEnumConstants<BgVertexPaint>();
+            AddEnumConstants<DiffuseAlpha>();
+            AddEnumConstants<SkinType>();
+            AddEnumConstants<HairType>();
+            AddEnumConstants<FlowType>();
+            AddEnumConstants<TextureMode>();
+            AddEnumConstants<SpecularMode>();
 
             Constants = buffer;
             
@@ -68,7 +68,8 @@ public static class Names
                         name = new StubName(value.ToString(), (uint)(object)value);
                     }
                     
-                    buffer[name.Crc] = name;
+                    // Using tryadd because we dont want to override the name if it already exists
+                    buffer.TryAdd(name.Crc, name);
                 }
             }
         }
