@@ -102,13 +102,6 @@ public unsafe class LiveCharacterTab : ITab
     public void Draw()
     {
         LayoutWindow.DrawProgress(exportTask, progress, cancelToken);
-        
-        // Warning text:
-        ImGui.TextWrapped("NOTE: Exported models use a rudimentary approximation of the games pixel shaders, " +
-                          "they will likely not match 1:1 to the in-game appearance.\n" +
-                          "You can get a better result by using the Blender addon.");
-
-        
         commonUi.DrawCharacterSelect(ref selectedCharacter);
         
         DrawSelectedCharacter();
