@@ -1,7 +1,9 @@
 ﻿using System.Numerics;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
+using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
+using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Group;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Layer;
@@ -13,6 +15,7 @@ using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Utils;
 using Microsoft.Extensions.Logging;
 using HousingFurniture = FFXIVClientStructs.FFXIV.Client.Game.HousingFurniture;
+using Object = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Object;
 using Transform = Meddle.Plugin.Models.Transform;
 
 namespace Meddle.Plugin.Services;
@@ -23,17 +26,20 @@ public class LayoutService : IService, IDisposable
     private readonly Dictionary<uint, Stain> stainDict;
     private readonly ILogger<LayoutService> logger;
     private readonly IFramework framework;
+    private readonly Configuration config;
     private readonly SigUtil sigUtil;
 
     public LayoutService(
         SigUtil sigUtil, 
         ILogger<LayoutService> logger,
         IDataManager dataManager,
-        IFramework framework)
+        IFramework framework,
+        Configuration config)
     {
         this.sigUtil = sigUtil;
         this.logger = logger;
         this.framework = framework;
+        this.config = config;
         stainDict = dataManager.GetExcelSheet<Stain>()!.ToDictionary(row => row.RowId, row => row);
         this.framework.Update += Update;
     }
@@ -305,6 +311,7 @@ public class LayoutService : IService, IDisposable
         var gameObjectManager = sigUtil.GetGameObjectManager();
 
         var objects = new List<ParsedInstance>();
+        var mounts = new Dictionary<nint, ParsedCharacterInstance>();
         foreach (var objectPtr in gameObjectManager->Objects.GameObjectIdSorted)
         {
             if (objectPtr == null || objectPtr.Value == null)
@@ -319,8 +326,86 @@ public class LayoutService : IService, IDisposable
             if (drawObject == null)
                 continue;
             
+            var anyVisible = drawObject->IsVisible;
+
+            void AddObject(ParsedCharacterInstance instance)
+            {
+                if (instance.Kind == ObjectKind.Mount)
+                {
+                    mounts.TryAdd(instance.Id, instance);
+                }
+                else
+                {
+                    objects.Add(instance);
+                }
+            }
+            
             var transform = new Transform(drawObject->Position, drawObject->Rotation, drawObject->Scale);
-            objects.Add(new ParsedCharacterInstance((nint)obj, obj->NameString, type, transform, drawObject->IsVisible));
+            var instance = new ParsedCharacterInstance((nint)obj, obj->NameString, type, transform, anyVisible);
+            AddObject(instance);
+            
+            if (drawObject->IsVisible == false)
+            {
+                // want to list children which are visible even if the parent is not.
+                void HandleRecursiveVisibility(Object* childObject)
+                {
+                    if (childObject == null) return;
+                    if (childObject->GetObjectType() == ObjectType.CharacterBase)
+                    {
+                        var cBase = (CharacterBase*)childObject;
+                        if (cBase->DrawObject.IsVisible)
+                        {
+                            var cTransform = new Transform(cBase->DrawObject.Position, cBase->DrawObject.Rotation, cBase->DrawObject.Scale);
+                            var cInstance = new ParsedCharacterInstance((nint)childObject, $"Child of {obj->NameString}", type, cTransform, true,
+                                                                       ParsedCharacterInstance.ParsedCharacterInstanceIdType.CharacterBase)
+                            {
+                                Parent = instance
+                            };
+                            AddObject(cInstance);
+                            return; // skip parsing if visible as item should be covered under attaches to parent
+                        }
+                    }
+                    
+                    foreach (var childOfChild in childObject->ChildObjects)
+                    {
+                        if (childOfChild == null) continue;
+                        HandleRecursiveVisibility(childOfChild);
+                    }
+                }
+                
+                foreach (var childObject in drawObject->ChildObjects.GetEnumerator())
+                {
+                    HandleRecursiveVisibility(childObject);
+                }
+            }
+        }
+
+        // Setup mount parenting
+        var characterAttachedMounts = new Dictionary<nint, ParsedCharacterInstance>();
+        foreach (var characterInstance in objects.OfType<ParsedCharacterInstance>().Where(x => x.IdType == ParsedCharacterInstance.ParsedCharacterInstanceIdType.GameObject))
+        {
+            var gameObjectPtr = (GameObject*)characterInstance.Id;
+            if (gameObjectPtr == null) continue;
+
+            if (ResolverService.IsCharacterKind(gameObjectPtr->ObjectKind))
+            {
+                var characterPtr = (Character*)gameObjectPtr;
+                if (characterPtr->Mount.MountObject != null)
+                {
+                    characterAttachedMounts[(nint)characterPtr->Mount.MountObject] = characterInstance;
+                    characterAttachedMounts[(nint)characterPtr->Mount.MountObject->DrawObject] = characterInstance;
+                }
+            }
+        }
+            
+        foreach (var mount in mounts)
+        {
+            if (characterAttachedMounts.TryGetValue(mount.Key, out var characterInstance))
+            {
+                mount.Value.Parent = characterInstance;
+            }
+            
+            objects.Add(mount.Value);
         }
 
         return objects.ToArray();

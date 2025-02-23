@@ -70,6 +70,17 @@ public static class UiUtil
         ImGui.SameLine();
         HintCircle("Remove submeshes that are disabled by the attribute mask");
         
+        // var rootAttachHandling = exportConfiguration.RootAttachHandling;
+        // if (EnumExtensions.DrawEnumDropDown("Root Attach Handling", ref rootAttachHandling))
+        // {
+        //     exportConfiguration.RootAttachHandling = rootAttachHandling;
+        //     changed = true;
+        // }
+        //
+        // ImGui.SameLine();
+        // HintCircle("PlayerAsAttachChild: If a 'Character' has a root attach (typically a mount), export the player as a child of the root attach\n" +
+        //             "Exclude: Export the root attach separately from the player");
+        
         return changed;
     }
     

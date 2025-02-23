@@ -58,7 +58,7 @@ public class ResolverService : IService
         }).GetAwaiter().GetResult();
     }
     
-    private bool IsCharacterKind(ObjectKind kind)
+    public static bool IsCharacterKind(ObjectKind kind)
     {
         return kind switch
         {
@@ -79,16 +79,25 @@ public class ResolverService : IService
         // check to ensure the character instance is still valid
         if (objects.Any(o => o.Id == characterInstance.Id))
         {
-            var gameObject = (GameObject*)characterInstance.Id;
-            if (IsCharacterKind(gameObject->ObjectKind))
+            if (characterInstance.IdType == ParsedCharacterInstance.ParsedCharacterInstanceIdType.CharacterBase)
             {
-                var characterInfo = ParseCharacter((Character*)gameObject);
+                var cBase = (CharacterBase*)characterInstance.Id;
+                var characterInfo = ParseDrawObject(&cBase->DrawObject);
                 characterInstance.CharacterInfo = characterInfo;
             }
             else
             {
-                var characterInfo = ParseDrawObject(gameObject->DrawObject);
-                characterInstance.CharacterInfo = characterInfo;
+                var gameObject = (GameObject*)characterInstance.Id;
+                if (IsCharacterKind(gameObject->ObjectKind))
+                {
+                    var characterInfo = ParseCharacter((Character*)gameObject);
+                    characterInstance.CharacterInfo = characterInfo;
+                }
+                else
+                {
+                    var characterInfo = ParseDrawObject(gameObject->DrawObject);
+                    characterInstance.CharacterInfo = characterInfo;
+                }
             }
         }
         else

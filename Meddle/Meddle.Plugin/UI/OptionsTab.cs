@@ -70,7 +70,7 @@ public class OptionsTab : ITab
         
         ImGui.Separator();
 
-        DrawExportType();
+        // DrawExportType();
 
         var includePose = config.ExportConfig.ExportPose;
         if (ImGui.Checkbox("Include Pose", ref includePose))
@@ -174,40 +174,40 @@ public class OptionsTab : ITab
     //     }
     // }
     
-    private void DrawExportType()
-    {
-        var exportType = config.ExportConfig.ExportType;
-        if (ImGui.BeginCombo("Export Type", exportType.ToString()))
-        {
-            foreach (var type in Enum.GetValues<ExportType>())
-            {
-                var selected = exportType.HasFlag(type);
-                using var style = ImRaii.PushStyle(ImGuiStyleVar.Alpha, selected ? 1 : 0.5f);
-                if (ImGui.Selectable(type.ToString(), selected, ImGuiSelectableFlags.DontClosePopups))
-                {
-                    if (selected)
-                    {
-                        exportType &= ~type;
-                    }
-                    else
-                    {
-                        exportType |= type;
-                    }
-                }
-            }
-
-            ImGui.EndCombo();
-        }
-        
-        if (exportType == 0)
-        {
-            exportType = Configuration.DefaultExportType;
-        }
-        
-        if (exportType != config.ExportConfig.ExportType)
-        {
-            config.ExportConfig.ExportType = exportType;
-            config.Save();
-        }
-    }
+    // private void DrawExportType()
+    // {
+    //     var exportType = config.ExportConfig.ExportType;
+    //     if (ImGui.BeginCombo("Export Type", exportType.ToString()))
+    //     {
+    //         foreach (var type in Enum.GetValues<ExportType>())
+    //         {
+    //             var selected = exportType.HasFlag(type);
+    //             using var style = ImRaii.PushStyle(ImGuiStyleVar.Alpha, selected ? 1 : 0.5f);
+    //             if (ImGui.Selectable(type.ToString(), selected, ImGuiSelectableFlags.DontClosePopups))
+    //             {
+    //                 if (selected)
+    //                 {
+    //                     exportType &= ~type;
+    //                 }
+    //                 else
+    //                 {
+    //                     exportType |= type;
+    //                 }
+    //             }
+    //         }
+    //
+    //         ImGui.EndCombo();
+    //     }
+    //     
+    //     if (exportType == 0)
+    //     {
+    //         exportType = Configuration.DefaultExportType;
+    //     }
+    //     
+    //     if (exportType != config.ExportConfig.ExportType)
+    //     {
+    //         config.ExportConfig.ExportType = exportType;
+    //         config.Save();
+    //     }
+    // }
 }

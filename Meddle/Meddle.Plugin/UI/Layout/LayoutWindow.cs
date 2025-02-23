@@ -145,6 +145,14 @@ public partial class LayoutWindow : ITab
         var set = currentLayout
                   .Where(x =>
                   {
+                      // if (x is ParsedCharacterInstance characterInstance)
+                      // {
+                      //       if (config.LayoutConfig.ExcludeParented)
+                      //       {
+                      //           return characterInstance.Parent == null;
+                      //       }
+                      // }
+                      
                       // keep terrain regardless of distance
                       if (x is ParsedTerrainInstance) return true;
                       return Vector3.Distance(x.Transform.Translation, currentPos) < config.WorldCutoffDistance;
@@ -382,7 +390,12 @@ public partial class LayoutWindow : ITab
         if (!ImGui.BeginPopup("ExportSettingsPopup", ImGuiWindowFlags.AlwaysAutoResize)) return;
         try
         {
-            if (UiUtil.DrawExportConfig(config.ExportConfig, UiUtil.ExportConfigDrawFlags.HideExportPose))
+            var flags = UiUtil.ExportConfigDrawFlags.None;
+            if (instances.Length > 1)
+            {
+                flags |= UiUtil.ExportConfigDrawFlags.HideExportPose;
+            }
+            if (UiUtil.DrawExportConfig(config.ExportConfig, flags))
             {
                 config.Save();
             }
@@ -390,7 +403,40 @@ public partial class LayoutWindow : ITab
             if (ImGui.Button("Export"))
             {
                 var configClone = config.ExportConfig.Clone();
-                configClone.ExportPose = true; // Layout should always export pose
+                if (flags.HasFlag(UiUtil.ExportConfigDrawFlags.HideExportPose))
+                {
+                    // Force export pose to true if multiple instances are selected
+                    configClone.ExportPose = true;
+                }
+
+                var filteredInstances = new List<ParsedInstance>();
+                foreach (var instance in instances)
+                {
+                    if (instance is ParsedCharacterInstance {Parent: not null} characterInstance)
+                    {
+                        var parentMatch = instances.FirstOrDefault(c => c.Id == characterInstance.Parent.Id);
+                        if (parentMatch != null)
+                        {
+                            string parentName;
+                            if (parentMatch is ParsedCharacterInstance parentCharacter)
+                            {
+                                parentName = parentCharacter.Name;
+                            }
+                            else
+                            {
+                                parentName = parentMatch.Type.ToString();
+                            }
+                            
+                            log.LogWarning("Parented instance {id} is already in the list as a child of {parentName}, skipping", characterInstance.Id, parentName);
+                            continue;
+                        }
+                    }
+                    
+                    filteredInstances.Add(instance);
+                }
+                
+                var filteredInstanceArray = filteredInstances.ToArray();
+                
                 var defaultName = $"InstanceExport-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
                 cancelToken = new CancellationTokenSource();
                 fileDialog.SaveFolderDialog("Save Instances", defaultName,
@@ -402,8 +448,8 @@ public partial class LayoutWindow : ITab
                                                     var composer = composerFactory.CreateComposer(path,
                                                                                                   configClone,
                                                                                                   cancelToken.Token);
-                                                    progress = new ExportProgress(instances.Length, "Instances");
-                                                    composer.Compose(instances, progress);
+                                                    progress = new ExportProgress(filteredInstanceArray.Length, "Instances");
+                                                    composer.Compose(filteredInstanceArray, progress);
                                                     Process.Start("explorer.exe", path);
                                                 }, cancelToken.Token);
                                             }, config.ExportDirectory);

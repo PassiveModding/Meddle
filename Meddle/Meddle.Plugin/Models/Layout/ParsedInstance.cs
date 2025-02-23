@@ -360,16 +360,25 @@ public class ParsedCharacterInfo
 
 public class ParsedCharacterInstance : ParsedInstance, IResolvableInstance, ICharacterInstance, ISearchableInstance
 {
+    public enum ParsedCharacterInstanceIdType
+    {
+        GameObject,
+        CharacterBase
+    }
+    
     public ParsedCharacterInfo? CharacterInfo;
     public string Name;
     public ObjectKind Kind;
     public bool Visible;
+    public readonly ParsedCharacterInstanceIdType IdType;
+    public ParsedCharacterInstance? Parent;
     
-    public ParsedCharacterInstance(nint id, string name, ObjectKind kind, Transform transform, bool visible) : base(id, ParsedInstanceType.Character, transform)
+    public ParsedCharacterInstance(nint id, string name, ObjectKind kind, Transform transform, bool visible, ParsedCharacterInstanceIdType isIdDrawObject = ParsedCharacterInstanceIdType.GameObject) : base(id, ParsedInstanceType.Character, transform)
     {
         Name = name;
         Kind = kind;
         Visible = visible;
+        IdType = isIdDrawObject;
     }
 
     public bool IsResolved { get; private set; }

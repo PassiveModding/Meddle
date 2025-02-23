@@ -25,8 +25,9 @@ public partial class LayoutWindow
         public bool OrderByDistance { get; set; } = true;
         public bool TraceToHovered { get; set; } = true;
         public bool HideOffscreenCharacters { get; set; } = true;
+        public bool ExcludeParented { get; set; } = true;
         public int MaxItemCount { get; set; } = 100;
-        public OriginAdjustment OriginAdjustment { get; set; } = OriginAdjustment.Player;
+        public OriginAdjustment OriginAdjustment { get; set; } = OriginAdjustment.Camera;
     }
     
     public enum OriginAdjustment
@@ -91,11 +92,18 @@ public partial class LayoutWindow
 
         ImGui.Text($"Current Origin: (X:{currentPos.X:F2}, Y:{currentPos.Y:F2}, Z{currentPos.Z:F2})");
         var originAdjustment = config.LayoutConfig.OriginAdjustment;
-        if (EnumExtensions.DrawEnumDropDown("Origin Adjustment", ref originAdjustment))
+        if (EnumExtensions.DrawEnumDropDown("Origin", ref originAdjustment))
         {
             config.LayoutConfig.OriginAdjustment = originAdjustment;
             config.Save();
         }
+        
+        ImGui.SameLine();
+        UiUtil.HintCircle("The origin point for layout item searches\n" +
+                          "Player: The player's position at the time of export\n" +
+                          "Camera: The camera's position at the time of export\n" +
+                          "Origin: The object's origin point\n" +
+                          "NOTE: Recommended selection is Camera, as this will ensure that objects in cutscenes are still within range.");
         
         // var adjustOrigin = config.LayoutConfig.AdjustOrigin;
         // if (ImGui.Checkbox("Adjust Origin", ref adjustOrigin))
@@ -115,6 +123,18 @@ public partial class LayoutWindow
             config.LayoutConfig.HideOffscreenCharacters = hideOffscreenCharacters;
             config.Save();
         }
+        
+        // var excludeParented = config.LayoutConfig.ExcludeParented;
+        // if (ImGui.Checkbox("Exclude Parented", ref excludeParented))
+        // {
+        //     config.LayoutConfig.ExcludeParented = excludeParented;
+        //     config.Save();
+        // }
+        //
+        // ImGui.SameLine();
+        // UiUtil.HintCircle("Excludes objects that are parented to other objects\n" +
+        //                   "For example:\n" +
+        //                   " - Player mounts exist as an attachment to the player as well as a separate object, this will prevent them from being duplicated\n");
         
         var maxItemCount = config.LayoutConfig.MaxItemCount;
         if (ImGui.DragInt("Max Item Count", ref maxItemCount, 1, 1, 50000))
