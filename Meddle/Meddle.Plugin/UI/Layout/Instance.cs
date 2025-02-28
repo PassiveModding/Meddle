@@ -80,7 +80,7 @@ public partial class LayoutWindow
             infoHeader += $" ({childTypes})";
         }
         
-        var distance = Vector3.Distance(instance.Transform.Translation, currentPos);
+        var distance = Vector3.Distance(instance.Transform.Translation, searchOrigin);
         using var displayInner = ImRaii.TreeNode($"[{distance:F1}y] {infoHeader}###{instance.Id}");
         if (displayInner.Success)
         {

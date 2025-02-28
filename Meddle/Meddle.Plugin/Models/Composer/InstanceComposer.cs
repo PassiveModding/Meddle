@@ -62,17 +62,14 @@ public class InstanceComposer
         this.composerCache = new ComposerCache(pack, cacheDir, exportConfig);
     }
 
-    private void SaveScene(SceneBuilder scene, string path)
+    private void SaveScene(SceneBuilder scene, string name)
     {
+        var path = outDir;
         try
         {
             Plugin.Logger?.LogInformation("Saving scene to {Path}", path);
             var modelRoot = scene.ToGltf2();
-            modelRoot.SaveGLTF(path, new WriteSettings
-            {
-                Validation = ValidationMode.TryFix,
-                JsonIndented = false,
-            });
+            ExportUtil.SaveAsType(modelRoot, exportConfig.ExportType, path, name);
         }
         catch (Exception ex)
         {
@@ -86,7 +83,7 @@ public class InstanceComposer
         {
             if (stats is {Saved: false, Instances: > 0})
             {
-                SaveScene(sceneBuilder, Path.Combine(outDir, $"{groupKey}_{lastSceneIdx:D4}-{totalInstances:D4}.gltf"));
+                SaveScene(sceneBuilder, $"{groupKey}_{lastSceneIdx:D4}-{totalInstances:D4}");
                 stats.Saved = true;
             }
         }
@@ -121,7 +118,7 @@ public class InstanceComposer
                     {
                         Plugin.Logger?.LogDebug("Saving scene {key} {startIdx:D4}-{endIdx:D4} Instances: {instances} Nodes: {nodes}", 
                                                 group.Key, lastSceneIdx, i, stats.Instances, scene.Instances.Count);
-                        SaveScene(scene, Path.Combine(outDir, $"{group.Key}_{lastSceneIdx:D4}-{i:D4}.gltf"));
+                        SaveScene(scene, $"{group.Key}_{lastSceneIdx:D4}-{i:D4}");
                         scenes[scene].Saved = true;
                         lastSceneIdx = i;
         

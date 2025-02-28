@@ -1,22 +1,29 @@
 ﻿using System.Numerics;
 using Meddle.Plugin.Models;
 using SharpGLTF.Schema2;
+using SharpGLTF.Validation;
 using SkiaSharp;
 
 namespace Meddle.Plugin.Utils;
 
 public static class ExportUtil
 {
+    private static readonly WriteSettings WriteSettings = new WriteSettings
+    {
+        Validation = ValidationMode.TryFix,
+        JsonIndented = false,
+    };
+    
     public static void SaveAsType(this ModelRoot? gltf, ExportType typeFlags, string path, string name)
     {
         if (typeFlags.HasFlag(ExportType.GLTF))
         {
-            gltf?.SaveGLTF(Path.Combine(path, name + ".gltf"));
+            gltf?.SaveGLTF(Path.Combine(path, name + ".gltf"), WriteSettings);
         }
         
         if (typeFlags.HasFlag(ExportType.GLB))
         {
-            gltf?.SaveGLB(Path.Combine(path, name + ".glb"));
+            gltf?.SaveGLB(Path.Combine(path, name + ".glb"), WriteSettings);
         }
         
         if (typeFlags.HasFlag(ExportType.OBJ))

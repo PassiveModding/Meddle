@@ -41,7 +41,7 @@ public static class UiUtil
     {
         bool changed = false;
         var cacheFileTypes = exportConfiguration.CacheFileTypes;
-        if (EnumExtensions.DrawEnumCombo("Cache Files", ref cacheFileTypes))
+        if (EnumExtensions.DrawEnumCombo("Extra Cache Files", ref cacheFileTypes))
         {
             exportConfiguration.CacheFileTypes = cacheFileTypes;
             changed = true;
@@ -49,6 +49,30 @@ public static class UiUtil
 
         ImGui.SameLine();
         HintCircle("Select which files to cache when exporting, this is not needed in most cases");
+        
+        var exportType = exportConfiguration.ExportType;
+        if (EnumExtensions.DrawEnumCombo("Export type", ref exportType))
+        {
+            exportConfiguration.ExportType = exportType;
+            if (exportType == 0)
+            {
+                exportConfiguration.ExportType = Configuration.DefaultExportType;
+            }
+            
+            changed = true;
+        }
+        
+        var textureMode = exportConfiguration.TextureMode;
+        if (EnumExtensions.DrawEnumDropDown("Texture Mode", ref textureMode))
+        {
+            exportConfiguration.TextureMode = textureMode;
+            changed = true;
+        }
+        
+        if (textureMode == TextureMode.Bake)
+        {
+            ImGui.TextColored(new Vector4(1, 0, 0, 1), "Baking textures is deprecated, use Raw mode with the MeddleTools Blender addon");
+        }
         
         if (!flags.HasFlag(ExportConfigDrawFlags.HideExportPose))
         {

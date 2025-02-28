@@ -154,17 +154,18 @@ public class Configuration : IPluginConfiguration
     public class ExportConfiguration
     {
         public CacheFileType CacheFileTypes { get; set; }
+        public ExportType ExportType { get; set; } = DefaultExportType;
+        public TextureMode TextureMode { get; set; } = TextureMode.Raw;
         public bool ExportPose { get; set; } = true;
         public bool RemoveAttributeDisabledSubmeshes { get; set; } = true;
-        //public ExportType ExportType { get; set; } = DefaultExportType;
 
-        public enum ExportRootAttachHandling
-        {
-            PlayerAsAttachChild,
-            Exclude,
-        }
+        // public enum ExportRootAttachHandling
+        // {
+        //     PlayerAsAttachChild,
+        //     Exclude,
+        // }
         
-        public ExportRootAttachHandling RootAttachHandling { get; set; } = ExportRootAttachHandling.Exclude;
+        // public ExportRootAttachHandling RootAttachHandling { get; set; } = ExportRootAttachHandling.Exclude;
         
         public ExportConfiguration Clone()
         {
@@ -172,9 +173,10 @@ public class Configuration : IPluginConfiguration
             {
                 CacheFileTypes = CacheFileTypes,
                 ExportPose = ExportPose,
-                //ExportType = ExportType,
+                ExportType = ExportType,
+                TextureMode = TextureMode,
                 RemoveAttributeDisabledSubmeshes = RemoveAttributeDisabledSubmeshes,
-                RootAttachHandling = RootAttachHandling
+                // RootAttachHandling = RootAttachHandling
             };
         }
     }

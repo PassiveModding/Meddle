@@ -30,14 +30,7 @@ public partial class LayoutWindow
                      screenPos.Y > windowPos.Y && screenPos.Y < windowPos.Y + height;
 
         return inView;
-        
-        // return IsOnScreen(new Vector3(pCoords.X, pCoords.Y, pCoords.Z));
-        //
-        // static bool IsOnScreen(Vector3 pos) {
-        //     return -1.0 <= pos.X && pos.X <= 1.0 && -1.0 <= pos.Y && pos.Y <= 1.0 && pos.Z <= 1.0 && 0.0 <= pos.Z;
-        // }
     }
-    
 
     public unsafe bool WorldToScreen(Vector3 worldPos, out Vector2 screenPos, out bool inView)
     {

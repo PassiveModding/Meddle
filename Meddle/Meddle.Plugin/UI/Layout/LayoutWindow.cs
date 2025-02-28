@@ -39,7 +39,8 @@ public partial class LayoutWindow : ITab
     private readonly ITextureProvider textureProvider;
     private CancellationTokenSource cancelToken = new();
     private ParsedInstance[] currentLayout = [];
-    private Vector3 currentPos;
+    private Vector3 searchOrigin;
+    private Vector3 playerPosition;
     private Action? drawExportSettingsCallback;
     private Task exportTask = Task.CompletedTask;
     private ExportProgress? progress;
@@ -155,12 +156,12 @@ public partial class LayoutWindow : ITab
                       
                       // keep terrain regardless of distance
                       if (x is ParsedTerrainInstance) return true;
-                      return Vector3.Distance(x.Transform.Translation, currentPos) < config.WorldCutoffDistance;
+                      return Vector3.Distance(x.Transform.Translation, searchOrigin) < config.WorldCutoffDistance;
                   })
                   .Where(x => config.LayoutConfig.DrawTypes.HasFlag(x.Type));
         if (config.LayoutConfig.OrderByDistance)
         {
-            set = set.OrderBy(x => Vector3.Distance(x.Transform.Translation, currentPos));
+            set = set.OrderBy(x => Vector3.Distance(x.Transform.Translation, searchOrigin));
         }
 
         if (config.LayoutConfig.HideOffscreenCharacters)
@@ -242,21 +243,22 @@ public partial class LayoutWindow : ITab
     {
         layoutService.RequestUpdate = true;
         currentLayout = layoutService.LastState ?? [];
+        playerPosition = sigUtil.GetLocalPosition();
         if (config.LayoutConfig.OriginAdjustment == OriginAdjustment.Player)
         {
-            currentPos = sigUtil.GetLocalPosition();
+            searchOrigin = playerPosition;
         }
         else if (config.LayoutConfig.OriginAdjustment == OriginAdjustment.Camera)
         {
-            currentPos = sigUtil.GetCamera()->Position;
+            searchOrigin = sigUtil.GetCamera()->Position;
         }
         else if (config.LayoutConfig.OriginAdjustment == OriginAdjustment.Origin)
         {
-            currentPos = Vector3.Zero;
+            searchOrigin = Vector3.Zero;
         }
         else
         {
-            currentPos = Vector3.Zero;
+            searchOrigin = Vector3.Zero;
         }
     }
 

@@ -282,7 +282,7 @@ public unsafe class LiveCharacterTab : ITab
             if (ImGui.Button("Export"))
             {
                 var configClone = config.ExportConfig.Clone();
-                var defaultName = $"InstanceExport-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
+                var defaultName = $"Character-{name}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
                 cancelToken = new CancellationTokenSource();
                 fileDialog.SaveFolderDialog("Save Instances", defaultName,
                                             (result, path) =>
@@ -297,13 +297,7 @@ public unsafe class LiveCharacterTab : ITab
                                                     progress = new ExportProgress(characterInfo.Models.Length, "Character");
                                                     composer.Compose(characterInfo, scene, characterRoot, progress);
                                                     var modelRoot = scene.ToGltf2();
-                                                    var outFileName = Path.Combine(path, "character.gltf");
-                                                    modelRoot.SaveGLTF(outFileName, new WriteSettings
-                                                    {
-                                                        Validation = ValidationMode.TryFix,
-                                                        JsonIndented = false,
-                                                    });
-                                                    
+                                                    ExportUtil.SaveAsType(modelRoot, configClone.ExportType, path, name);
                                                     Process.Start("explorer.exe", path);
                                                 });
                                             }, config.ExportDirectory);
