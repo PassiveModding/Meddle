@@ -65,7 +65,7 @@ public static class ModelBuilder
             if (mesh.SubMeshes.Count == 0)
             {
                 var mb = meshBuilder.BuildMesh();
-                mb.Name = $"{modelPathName}_{mesh.MeshIdx}_{mesh.MaterialIdx}";
+                mb.Name = material.Name;
                 meshes.Add(new MeshExport(mb, null, null));
                 continue;
             }
@@ -74,7 +74,7 @@ public static class ModelBuilder
             {
                 var modelSubMesh = mesh.SubMeshes[i];
                 var subMesh = meshBuilder.BuildSubMesh(modelSubMesh);
-                subMesh.Name = $"{modelPathName}_{mesh.MeshIdx}_{mesh.MaterialIdx}.{i}";
+                subMesh.Name = $"{material.Name}.{i}";
                 if (modelSubMesh.Attributes.Count > 0)
                 {
                     subMesh.Name += $";{string.Join(";", modelSubMesh.Attributes)}";

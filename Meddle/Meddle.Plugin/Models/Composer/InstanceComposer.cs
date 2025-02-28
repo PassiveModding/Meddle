@@ -287,11 +287,9 @@ public class InstanceComposer
         var meshes = ModelBuilder.BuildMeshes(model, materialBuilders, [], null);
         
         var root = new NodeBuilder($"{bgPartsInstance.Type}_{bgPartsInstance.Path.GamePath}");
-        for (var meshIdx = 0; meshIdx < meshes.Count; meshIdx++)
+        foreach (var mesh in meshes)
         {
-            var mesh = meshes[meshIdx];
-            mesh.Mesh.Name = $"{bgPartsInstance.Path.GamePath}_{meshIdx}";
-            scene.AddRigidMesh(mesh.Mesh, root, Matrix4x4.Identity);
+            scene.AddRigidMesh(mesh.Mesh, root);
         }
         
         root.SetLocalTransform(bgPartsInstance.Transform.AffineTransform, true);
@@ -336,7 +334,6 @@ public class InstanceComposer
             for (var meshIdx = 0; meshIdx < meshes.Count; meshIdx++)
             {
                 var mesh = meshes[meshIdx];
-                mesh.Mesh.Name = $"{mdlPath}_{meshIdx}";
                 scene.AddRigidMesh(mesh.Mesh, plateRoot);
             }
 
