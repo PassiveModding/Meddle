@@ -34,7 +34,7 @@ public static class ModelBuilder
                                          model.HandlePath,
                                          mesh.MeshIdx,
                                          mesh.MaterialIdx);
-                material = new MaterialBuilder($"{modelPathName}_{mesh.MeshIdx}_{mesh.MaterialIdx}");
+                material = materials.LastOrDefault(new MaterialBuilder($"{modelPathName}_{mesh.MeshIdx}_{mesh.MaterialIdx}_fallback"));
             }
             else
             {
