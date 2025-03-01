@@ -372,7 +372,7 @@ public class InstanceComposer
                 lightBuilder = new LightBuilder.Directional
                 {
                     Color = light.Color.Rgb,
-                    Intensity = LuxIntensity(light.Color.HdrIntensity),
+                    Intensity = light.Color.HdrIntensity,
                     Name = root.Name,
                 };
                 break;
@@ -383,7 +383,7 @@ public class InstanceComposer
                 lightBuilder = new LightBuilder.Point
                 {
                     Color = light.Color.Rgb,
-                    Intensity = CandelaIntensity(light.Color.HdrIntensity),
+                    Intensity = light.Color.HdrIntensity,
                     Range = light.Range,
                     Name = root.Name
                 };
@@ -396,7 +396,7 @@ public class InstanceComposer
                 lightBuilder = new LightBuilder.Spot
                 {
                     Color = light.Color.Rgb,
-                    Intensity = CandelaIntensity(light.Color.HdrIntensity),
+                    Intensity = light.Color.HdrIntensity,
                     Range = light.Range,
                     InnerConeAngle = innerConeAngle,
                     OuterConeAngle = outerConeAngle,
@@ -412,7 +412,7 @@ public class InstanceComposer
         {
             { "LightType", light.LightType.ToString() },
             { "Range", light.Range },
-            { "FalloffType", light.FalloffType },
+            { "FalloffType", light.FalloffType.ToString() },
             { "Falloff", light.Falloff },
             { "ShadowFar", light.ShadowFar },
             { "ShadowNear", light.ShadowNear },
@@ -423,6 +423,7 @@ public class InstanceComposer
             { "ColorHDR", light.Color._vec3 },
             { "ColorRGB", light.Color.Rgb },
             { "Intensity", light.Color.Intensity },
+            { "HDRIntensity", light.Color.HdrIntensity },
             { "BoundsMin", light.Bounds.Min },
             { "BoundsMax", light.Bounds.Max },
             { "Flags", light.Flags },

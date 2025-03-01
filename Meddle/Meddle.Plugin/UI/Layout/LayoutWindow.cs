@@ -19,6 +19,7 @@ namespace Meddle.Plugin.UI.Layout;
 public partial class LayoutWindow : ITab
 {
     private readonly ComposerFactory composerFactory;
+    private readonly MdlMaterialTab mdlMaterialTab;
     private readonly Configuration config;
     private readonly SqPack dataManager;
 
@@ -69,6 +70,7 @@ public partial class LayoutWindow : ITab
         this.textureProvider = textureProvider;
         this.resolverService = resolverService;
         this.composerFactory = composerFactory;
+        this.mdlMaterialTab = mdlMaterialTab;
         this.dataManager = dataManager;
     }
 

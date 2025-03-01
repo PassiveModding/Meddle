@@ -5,9 +5,11 @@ using Dalamud.Interface.Textures;
 using Dalamud.Interface.Utility.Raii;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.Graphics;
+using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Layer;
 using FFXIVClientStructs.Interop;
 using ImGuiNET;
+using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Models.Structs;
@@ -133,7 +135,8 @@ public partial class LayoutWindow
             
             if (instance is ParsedBgPartsInstance bgPart)
             {
-                DrawCache(bgPart);
+                // DrawCache(bgPart);
+                DrawBgObject(bgPart);
             }
 
             if (instance is ParsedCharacterInstance character)
@@ -155,6 +158,21 @@ public partial class LayoutWindow
             foreach (var obj in childShared.Children)
             {
                 DrawInstance(obj, stack, additionalOptions);
+            }
+        }
+    }
+
+    private unsafe void DrawBgObject(ParsedBgPartsInstance bg)
+    {
+        BgPartsLayoutInstance* bgPartLayout = (BgPartsLayoutInstance*)bg.Id;
+
+        if (bgPartLayout->GraphicsObject != null)
+        {
+            BgObject* drawObject = (BgObject*)bgPartLayout->GraphicsObject;
+            UiUtil.Text($"Graphics Object {(nint)drawObject:X8}", $"{(nint)drawObject:X8}");
+            if (ImGui.Button("Export to Material parameters tab"))
+            {
+                MdlMaterialTab.SetModel(drawObject->ModelResourceHandle);
             }
         }
     }

@@ -697,7 +697,7 @@ public unsafe class LiveCharacterTab : ITab
 
         using var materialId = ImRaii.PushId($"{(nint)material}");
         var materialFileName = material->MaterialResourceHandle->FileName.ParseString();
-        var materialName = ((ModelResourceHandle*)model->ModelResourceHandle)->GetMaterialFileName((uint)materialIdx);
+        var materialName = model->ModelResourceHandle->GetMaterialFileNameBySlotAsString((uint)materialIdx);
 
         // in same row as model export button, draw button for export material
         ImGui.TableNextRow();

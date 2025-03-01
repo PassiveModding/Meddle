@@ -1,9 +1,13 @@
 ﻿using Dalamud.Memory;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Render;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
+using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using FFXIVClientStructs.Interop;
 using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Models.Structs;
+using Meddle.Plugin.Utils;
+using Meddle.Utils.Files;
+using Meddle.Utils.Files.Structs.Model;
 using PartialSkeleton = FFXIVClientStructs.FFXIV.Client.Graphics.Render.PartialSkeleton;
 using Skeleton = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Skeleton;
 
@@ -18,6 +22,16 @@ public static class StructExtensions
 
     public const int PartialSkeletonFlagsOffset = 0x8; // PartialSkeleton + 0x8 -> Flags
 
+    public static unsafe Span<Pointer<MaterialResourceHandle>> GetMaterials(this Pointer<ModelResourceHandle> model)
+    {
+        if (model == null) throw new ArgumentNullException(nameof(model));
+        if (model.Value == null) throw new ArgumentNullException(nameof(model));
+        var ext = (ModelResourceHandleExt*)model.Value;
+        var headerData = new ModelResourceHandleData(ext->StringTable);
+        var materialCount = headerData.ModelHeader.MaterialCount;
+        return new Span<Pointer<MaterialResourceHandle>>(ext->MaterialResourceHandles, materialCount);
+    }
+    
     public static unsafe Attach GetAttach(this Pointer<CharacterBase> character)
     {
         if (character == null) throw new ArgumentNullException(nameof(character));

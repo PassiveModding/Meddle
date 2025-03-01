@@ -228,7 +228,7 @@ public class ShpkFile
         public byte[] Blob;
     }
 
-    public struct MaterialParam
+    public record struct MaterialParam
     {
         public uint   Id;
         public ushort ByteOffset;

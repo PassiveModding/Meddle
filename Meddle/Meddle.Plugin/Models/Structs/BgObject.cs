@@ -10,7 +10,7 @@ public struct BgObject
     
     // if (DrawObjectFlags2 & 0xF) == 3,
     [FieldOffset(0x89)] public byte DrawObjectFlags2; // indicates model relations?
-    [FieldOffset(0x90)] public unsafe ModelResourceHandle* ModelResourceHandle;
+    [FieldOffset(0x90)] public unsafe FFXIVClientStructs.FFXIV.Client.System.Resource.Handle.ModelResourceHandle* ModelResourceHandle;
     
     // meshCount         -> 0x98 |= 1u, unkCount = 1
     // waterMeshCount    -> 0x98 |= 2 << (4 * unkCount), unkCount++
