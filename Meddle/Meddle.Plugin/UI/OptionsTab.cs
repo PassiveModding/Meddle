@@ -67,22 +67,15 @@ public class OptionsTab : ITab
             config.OpenDebugMenuOnLoad = debug;
             config.Save();
         }
-
-        // var test = config.OpenLayoutMenuOnLoad;
-        // if (ImGui.Checkbox("Open Layout Window on Load", ref test))
-        // {
-        //     config.OpenLayoutMenuOnLoad = test;
-        //     config.Save();
-        // }
         
         ImGui.Separator();
 
-        DrawExportType();
+        // DrawExportType();
 
-        var includePose = config.IncludePose;
+        var includePose = config.ExportConfig.ExportPose;
         if (ImGui.Checkbox("Include Pose", ref includePose))
         {
-            config.IncludePose = includePose;
+            config.ExportConfig.ExportPose = includePose;
             config.Save();
         }
         
@@ -100,8 +93,7 @@ public class OptionsTab : ITab
         }
         
         // DrawPoseMode();
-        
-        DrawCharacterTextureMode();
+        // DrawCharacterTextureMode();
         
         ImGui.Separator();
         
@@ -157,17 +149,17 @@ public class OptionsTab : ITab
             config.Save();
         }
     }
-
-    // private void DrawPoseMode()
+    
+    // private void DrawCharacterTextureMode()
     // {
-    //     var poseMode = config.PoseMode;
-    //     if (ImGui.BeginCombo("Pose Mode", poseMode.ToString()))
+    //     var characterTexture = config.ExportConfig.TextureMode;
+    //     if (ImGui.BeginCombo("Character Texture Mode", characterTexture.ToString()))
     //     {
-    //         foreach (var mode in Enum.GetValues<SkeletonUtils.PoseMode>())
+    //         foreach (var mode in Enum.GetValues<TextureMode>())
     //         {
-    //             if (ImGui.Selectable(mode.ToString(), mode == poseMode))
+    //             if (ImGui.Selectable(mode.ToString(), mode == characterTexture))
     //             {
-    //                 config.PoseMode = mode;
+    //                 config.ExportConfig.TextureMode = mode;
     //                 config.Save();
     //             }
     //         }
@@ -175,71 +167,47 @@ public class OptionsTab : ITab
     //         ImGui.EndCombo();
     //     }
     //     
-    //     if (!Enum.IsDefined(typeof(SkeletonUtils.PoseMode), config.PoseMode))
+    //     if (!Enum.IsDefined(typeof(TextureMode), config.ExportConfig.TextureMode))
     //     {
-    //         config.PoseMode = Configuration.DefaultPoseMode;
+    //         config.ExportConfig.TextureMode = TextureMode.Bake;
     //         config.Save();
     //     }
     // }
     
-    private void DrawCharacterTextureMode()
-    {
-        var characterTexture = config.TextureMode;
-        if (ImGui.BeginCombo("Character Texture Mode", characterTexture.ToString()))
-        {
-            foreach (var mode in Enum.GetValues<TextureMode>())
-            {
-                if (ImGui.Selectable(mode.ToString(), mode == characterTexture))
-                {
-                    config.TextureMode = mode;
-                    config.Save();
-                }
-            }
-
-            ImGui.EndCombo();
-        }
-        
-        if (!Enum.IsDefined(typeof(TextureMode), config.TextureMode))
-        {
-            config.TextureMode = TextureMode.Bake;
-            config.Save();
-        }
-    }
-    
-    private void DrawExportType()
-    {
-        var exportType = config.ExportType;
-        if (ImGui.BeginCombo("Export Type", exportType.ToString()))
-        {
-            foreach (var type in Enum.GetValues<ExportType>())
-            {
-                var selected = exportType.HasFlag(type);
-                using var style = ImRaii.PushStyle(ImGuiStyleVar.Alpha, selected ? 1 : 0.5f);
-                if (ImGui.Selectable(type.ToString(), selected, ImGuiSelectableFlags.DontClosePopups))
-                {
-                    if (selected)
-                    {
-                        exportType &= ~type;
-                    }
-                    else
-                    {
-                        exportType |= type;
-                    }
-                }
-            }
-
-            ImGui.EndCombo();
-        }
-        
-        if (exportType == 0)
-        {
-            exportType = Configuration.DefaultExportType;
-        }
-        
-        if (exportType != config.ExportType)
-        {
-            config.ExportType = exportType;
-            config.Save();
-        }
-    }
+    // private void DrawExportType()
+    // {
+    //     var exportType = config.ExportConfig.ExportType;
+    //     if (ImGui.BeginCombo("Export Type", exportType.ToString()))
+    //     {
+    //         foreach (var type in Enum.GetValues<ExportType>())
+    //         {
+    //             var selected = exportType.HasFlag(type);
+    //             using var style = ImRaii.PushStyle(ImGuiStyleVar.Alpha, selected ? 1 : 0.5f);
+    //             if (ImGui.Selectable(type.ToString(), selected, ImGuiSelectableFlags.DontClosePopups))
+    //             {
+    //                 if (selected)
+    //                 {
+    //                     exportType &= ~type;
+    //                 }
+    //                 else
+    //                 {
+    //                     exportType |= type;
+    //                 }
+    //             }
+    //         }
+    //
+    //         ImGui.EndCombo();
+    //     }
+    //     
+    //     if (exportType == 0)
+    //     {
+    //         exportType = Configuration.DefaultExportType;
+    //     }
+    //     
+    //     if (exportType != config.ExportConfig.ExportType)
+    //     {
+    //         config.ExportConfig.ExportType = exportType;
+    //         config.Save();
+    //     }
+    // }
 }

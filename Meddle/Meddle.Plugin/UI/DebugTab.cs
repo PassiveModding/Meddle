@@ -11,9 +11,11 @@ using FFXIVClientStructs.Havok.Animation.Rig;
 using ImGuiNET;
 using Lumina.Excel.Sheets;
 using Meddle.Plugin.Models;
+using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.Services.UI;
 using Meddle.Plugin.Utils;
+using Meddle.Utils.Constants;
 using Meddle.Utils.Files.SqPack;
 
 namespace Meddle.Plugin.UI;
@@ -94,6 +96,29 @@ public class DebugTab : ITab
         {
             var cofigJson = JsonSerializer.Serialize(config, jsonOptions);
             ImGui.TextWrapped(cofigJson);
+        }
+
+        if (ImGui.CollapsingHeader("Constants"))
+        {
+            if (ImGui.CollapsingHeader("Constant Cache"))
+            { 
+                var constants = Names.GetConstants();
+                foreach (var (key, value) in constants)
+                {
+                    if (value is Names.StubName stubName)
+                    {
+                        ImGui.Text($"{key}: {stubName.Value} (stubName)");
+                    }
+                    else if (value is Names.Name name)
+                    {
+                        ImGui.Text($"{key}: {name.Value}");
+                    }
+                }
+            }
+
+
+            var buf = string.Join("\n", MaterialComposer.FailedConstants);
+            ImGui.InputTextMultiline("Failed Constants", ref buf, 100000, new Vector2(0, 0), ImGuiInputTextFlags.ReadOnly);
         }
 
         if (ImGui.CollapsingHeader("Object Table"))

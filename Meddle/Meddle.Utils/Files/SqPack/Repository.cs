@@ -47,7 +47,7 @@ public class Repository : IDisposable
         {
             return int.Parse(info.Name[2..]);
         }
-        catch (FormatException e)
+        catch (FormatException)
         {
             return null;
         }

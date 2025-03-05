@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using FFXIVClientStructs.Interop;
 
@@ -18,17 +19,16 @@ public unsafe struct SgbFile
     
     public Pointer<HousingSettings> GetHousingSettings()
     {
-        var chunk = SgbData->SceneChunkHeader;
+        var chunk = SgbData->SceneChunkDefinition;
         var housingOffset = chunk.HousingOffset;
         
         if (housingOffset == 0) return null;
-        const int layerGroupOffset = 0x08;
-        const int sceneChunkHeader = 0x0C;
-        
-        var ptr = (byte*)SgbData
-                  + sceneChunkHeader
-                  + layerGroupOffset;
-        var housingSettings = (HousingSettings*)(ptr + housingOffset);
+
+        var housingPosition = (nint)SgbData + 
+                              Unsafe.SizeOf<SgbFileHeader>() + 
+                              Unsafe.SizeOf<SceneChunkHeader>() + 
+                              housingOffset;
+        var housingSettings = (HousingSettings*)housingPosition;
         return housingSettings;
     }
 }
@@ -36,18 +36,31 @@ public unsafe struct SgbFile
 [StructLayout(LayoutKind.Explicit, Size = 0x10)]
 public unsafe struct SgbData
 {
-    [FieldOffset(0x00)] public fixed byte FileId[4];
-    [FieldOffset(0x04)] public uint FileSize;
-    [FieldOffset(0x08)] public uint TotalChunkCount;
-    [FieldOffset(0x0C)] public SceneChunkHeader SceneChunkHeader;
+    [FieldOffset(0x00)] public SgbFileHeader FileHeader;
+    [FieldOffset(0x0C)] public SceneChunkDefinition SceneChunkDefinition;
     // ... rest of the layer data
 }
 
-[StructLayout(LayoutKind.Explicit, Size = 0x48)]
+[StructLayout(LayoutKind.Explicit, Size = 0x0C)]
+public unsafe struct SgbFileHeader
+{
+    
+    [FieldOffset(0x00)] public fixed byte FileId[4];
+    [FieldOffset(0x04)] public uint FileSize;
+    [FieldOffset(0x08)] public uint TotalChunkCount;
+}
+
+[StructLayout(LayoutKind.Explicit, Size = 0x08)]
 public unsafe struct SceneChunkHeader
 {
     [FieldOffset(0x00)] public fixed byte ChunkId[4];
     [FieldOffset(0x04)] public uint ChunkSize;
+}
+
+[StructLayout(LayoutKind.Explicit, Size = 0x48)]
+public unsafe struct SceneChunkDefinition
+{
+    [FieldOffset(0x00)] public SceneChunkHeader Header;
     [FieldOffset(0x08)] public uint LayerGroupOffset;
     [FieldOffset(0x0C)] public uint LayerGroupCount;
     

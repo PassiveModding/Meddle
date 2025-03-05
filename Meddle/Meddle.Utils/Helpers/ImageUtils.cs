@@ -169,7 +169,7 @@ public static class ImageUtils
     {
         if (img.Format != DXGIFormat.R8G8B8A8UNorm)
             throw new ArgumentException("Image must be in RGBA format.", nameof(img));
-        // assum RGBA
+        // assume RGBA
         var data = img.Span;
         var bitmap = new SKBitmap(img.Width, img.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
         fixed (byte* ptr = data)
@@ -179,7 +179,8 @@ public static class ImageUtils
         
         if (resize != null)
         {
-            bitmap = bitmap.Resize(new SKImageInfo((int)resize.Value.X, (int)resize.Value.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul), SKFilterQuality.High);
+            bitmap = bitmap.Resize(new SKImageInfo((int)resize.Value.X, (int)resize.Value.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul),
+                                   new SKSamplingOptions(SKCubicResampler.Mitchell));
         }
         
         return new SKTexture(bitmap);
@@ -193,7 +194,8 @@ public static class ImageUtils
         }
         
         var bitmap = resource.ToBitmap();
-        bitmap = bitmap.Resize(new SKImageInfo((int)size.X, (int)size.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul), SKFilterQuality.High);
+        bitmap = bitmap.Resize(new SKImageInfo((int)size.X, (int)size.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul), 
+                               new SKSamplingOptions(SKCubicResampler.Mitchell));
         return new SKTexture(bitmap);
     }
     
@@ -203,7 +205,8 @@ public static class ImageUtils
         
         if (resize != null)
         {
-            bitmap = bitmap.Resize(new SKImageInfo(resize.Value.width, resize.Value.height, SKColorType.Rgba8888, SKAlphaType.Unpremul), SKFilterQuality.High);
+            bitmap = bitmap.Resize(new SKImageInfo(resize.Value.width, resize.Value.height, SKColorType.Rgba8888, SKAlphaType.Unpremul), 
+                                   new SKSamplingOptions(SKCubicResampler.Mitchell));
         }
         
         return new SKTexture(bitmap);

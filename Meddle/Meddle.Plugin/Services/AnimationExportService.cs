@@ -30,7 +30,7 @@ public class AnimationExportService : IDisposable, IService
     {
         try
         {
-            var boneSets = SkeletonUtils.GetAnimatedBoneMap(frames.ToArray(), configuration.PoseMode);
+            var boneSets = SkeletonUtils.GetAnimatedBoneMap(frames.ToArray());
             var startTime = frames.Min(x => x.Item1);
             //var folder = GetPathForOutput();
             var folder = path;

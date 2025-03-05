@@ -5,9 +5,11 @@ using Dalamud.Interface.Textures;
 using Dalamud.Interface.Utility.Raii;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.Graphics;
+using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Layer;
 using FFXIVClientStructs.Interop;
 using ImGuiNET;
+using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Models.Structs;
@@ -80,7 +82,7 @@ public partial class LayoutWindow
             infoHeader += $" ({childTypes})";
         }
         
-        var distance = Vector3.Distance(instance.Transform.Translation, sigUtil.GetLocalPosition());
+        var distance = Vector3.Distance(instance.Transform.Translation, searchOrigin);
         using var displayInner = ImRaii.TreeNode($"[{distance:F1}y] {infoHeader}###{instance.Id}");
         if (displayInner.Success)
         {
@@ -118,10 +120,23 @@ public partial class LayoutWindow
                 Vector4 defaultColor = ImGui.ColorConvertU32ToFloat4(ho.DefaultStain.Color);
                 ImGui.ColorButton("Default Stain", defaultColor);
             }
+            else if (instance is IStainableInstance stainable)
+            {
+                Vector4? color = stainable.StainColor;
+                if (color != null)
+                {
+                    ImGui.ColorButton("Stain", color.Value);
+                }
+                else
+                {
+                    ImGui.Text("No Stain");
+                }
+            }
             
             if (instance is ParsedBgPartsInstance bgPart)
             {
-                DrawCache(bgPart);
+                // DrawCache(bgPart);
+                DrawBgObject(bgPart);
             }
 
             if (instance is ParsedCharacterInstance character)
@@ -143,6 +158,21 @@ public partial class LayoutWindow
             foreach (var obj in childShared.Children)
             {
                 DrawInstance(obj, stack, additionalOptions);
+            }
+        }
+    }
+
+    private unsafe void DrawBgObject(ParsedBgPartsInstance bg)
+    {
+        BgPartsLayoutInstance* bgPartLayout = (BgPartsLayoutInstance*)bg.Id;
+
+        if (bgPartLayout->GraphicsObject != null)
+        {
+            BgObject* drawObject = (BgObject*)bgPartLayout->GraphicsObject;
+            UiUtil.Text($"Graphics Object {(nint)drawObject:X8}", $"{(nint)drawObject:X8}");
+            if (ImGui.Button("Export to Material parameters tab"))
+            {
+                MdlMaterialTab.SetModel(drawObject->ModelResourceHandle);
             }
         }
     }
@@ -301,32 +331,32 @@ public partial class LayoutWindow
                 continue;
             }
 
-            var materialSet = new MaterialSet(cachedMtrl, mtrlName, cachedShpk, cachedMtrl.GetShaderPackageName(), null, null);
-            using (var shpkContentNode = ImRaii.TreeNode("Shpk Constants"))
-            {
-                if (shpkContentNode.Success)
-                {
-                    foreach (var constant in materialSet.ShpkConstants)
-                    {
-                        ImGui.Text(Enum.IsDefined(constant.Key)
-                                       ? $"{constant.Key}: {string.Join(", ", constant.Value)}"
-                                       : $"{(uint)constant.Key:X8}: {string.Join(", ", constant.Value)}");
-                    }
-                }
-            }
-            
-            using (var mtrlContentNode = ImRaii.TreeNode("Mtrl Constants"))
-            {
-                if (mtrlContentNode.Success)
-                {
-                    foreach (var constant in materialSet.MtrlConstants)
-                    {
-                        ImGui.Text(Enum.IsDefined(constant.Key)
-                                       ? $"{constant.Key}: {string.Join(", ", constant.Value)}"
-                                       : $"{(uint)constant.Key:X8}: {string.Join(", ", constant.Value)}");
-                    }
-                }
-            }
+            // var materialSet = new MaterialSet(cachedMtrl, mtrlName, cachedShpk, cachedMtrl.GetShaderPackageName(), null, null);
+            // using (var shpkContentNode = ImRaii.TreeNode("Shpk Constants"))
+            // {
+            //     if (shpkContentNode.Success)
+            //     {
+            //         foreach (var constant in materialSet.ShpkConstants)
+            //         {
+            //             ImGui.Text(Enum.IsDefined(constant.Key)
+            //                            ? $"{constant.Key}: {string.Join(", ", constant.Value)}"
+            //                            : $"{(uint)constant.Key:X8}: {string.Join(", ", constant.Value)}");
+            //         }
+            //     }
+            // }
+            //
+            // using (var mtrlContentNode = ImRaii.TreeNode("Mtrl Constants"))
+            // {
+            //     if (mtrlContentNode.Success)
+            //     {
+            //         foreach (var constant in materialSet.MtrlConstants)
+            //         {
+            //             ImGui.Text(Enum.IsDefined(constant.Key)
+            //                            ? $"{constant.Key}: {string.Join(", ", constant.Value)}"
+            //                            : $"{(uint)constant.Key:X8}: {string.Join(", ", constant.Value)}");
+            //         }
+            //     }
+            // }
             
             TreeNode("Shader Keys", () =>
             {

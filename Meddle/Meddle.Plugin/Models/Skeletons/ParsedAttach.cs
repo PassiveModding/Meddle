@@ -4,6 +4,12 @@ namespace Meddle.Plugin.Models.Skeletons;
 
 public unsafe class ParsedAttach
 {
+    public ParsedAttach()
+    {
+        ExecuteType = 0;
+        AttachmentCount = 0;
+    }
+    
     public ParsedAttach(Attach attach)
     {
         // 0 => Root

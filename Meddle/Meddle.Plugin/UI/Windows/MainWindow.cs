@@ -92,6 +92,21 @@ public sealed class MainWindow : MeddleWindowBase
 
             ImGui.EndMenuBar();
         }
+        
+        // warn color
+        using (var colours = ImRaii.PushColor(ImGuiCol.Text, new Vector4(1, 0, 0, 1)))
+        {
+            ImGui.Text("This is a TEST release of Meddle, many things have changed. Release notes may be found on the github release page.");
+            ImGui.Text("Please report any issues you find on the github issue tracker.");
+            ImGui.Text("For MeddleTools Blender Addon, version 0.0.23 is in pre-release, older versions may not support this version.");
+        }
+        if (ImGui.Button("MeddleTools Blender Addon v0.0.23"))
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "https://github.com/PassiveModding/MeddleTools/releases/tag/0.0.23", UseShellExecute = true
+            });
+        }
     }
     
     protected override ITab[] GetTabs()

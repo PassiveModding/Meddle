@@ -1,4 +1,6 @@
-﻿namespace Meddle.Plugin.Models;
+﻿using System.ComponentModel;
+
+namespace Meddle.Plugin.Models;
 
 public enum MenuType
 {
@@ -21,4 +23,19 @@ public enum TextureMode
 {
     Bake,
     Raw
+}
+
+[Flags]
+public enum CacheFileType
+{
+    [Description(".tex")]
+    Tex = 1,
+    [Description(".mtrl")]
+    Mtrl = 2,
+    [Description(".mdl")]
+    Mdl = 4,
+    [Description(".shpk")]
+    Shpk = 8,
+    [Description(".pbd")]
+    Pbd = 16
 }

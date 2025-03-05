@@ -7,7 +7,7 @@ namespace Meddle.Utils;
 public class BoneNodeBuilder(string name) : NodeBuilder(name)
 {
     public string BoneName { get; } = name;
-    public string PartialSkeletonHandle { get; set; }
+    public string? PartialSkeletonHandle { get; set; }
     public int BoneIndex { get; set; }
     public int PartialSkeletonIndex { get; set; }
     

@@ -171,13 +171,12 @@ public partial class LayoutWindow
         Selected,
         None
     }
-    
+
     private InstanceSelectState DrawInstanceOverlay(ParsedInstance obj, ParsedInstance? parent)
     {
-        var localPos = sigUtil.GetLocalPosition();
-        if (Vector3.Abs(obj.Transform.Translation - localPos).Length() > config.WorldCutoffDistance)
+        if (Vector3.Abs(obj.Transform.Translation - searchOrigin).Length() > config.WorldCutoffDistance)
             return InstanceSelectState.None;
-        if (!WorldToScreen(obj.Transform.Translation, out var screenPos, out _))
+        if (!WorldToScreen(obj.Transform.Translation, out var screenPos, out var inView))
             return InstanceSelectState.None;
         if (!config.LayoutConfig.DrawTypes.HasFlag(obj.Type))
             return InstanceSelectState.None;
@@ -189,15 +188,15 @@ public partial class LayoutWindow
             if (!searchable.Search(search))
                 return InstanceSelectState.None;
         }
-        
+
         if (obj is ParsedSharedInstance sharedInstance)
         {
-            var flattened = sharedInstance.Flatten();
+            var objArr = sharedInstance.Flatten();
             // if none of the children are in drawTypes, return
-            if (!flattened.Where(x => x is not ParsedSharedInstance).Any(x => config.LayoutConfig.DrawTypes.HasFlag(x.Type)))
+            if (!objArr.Where(x => x is not ParsedSharedInstance).Any(x => config.LayoutConfig.DrawTypes.HasFlag(x.Type)))
                 return InstanceSelectState.None;
         }
-        
+
         var screenPosVec = new Vector2(screenPos.X, screenPos.Y);
         var bg = ImGui.GetBackgroundDrawList();
 
@@ -230,7 +229,7 @@ public partial class LayoutWindow
         {
             if (config.LayoutConfig.TraceToHovered)
             {
-                if (WorldToScreen(currentPos, out var currentScreenPos, out _))
+                if (WorldToScreen(playerPosition, out var currentScreenPos, out _))
                 {
                     bg.AddLine(currentScreenPos, screenPos, ImGui.GetColorU32(config.WorldDotColor), 2);
                 }

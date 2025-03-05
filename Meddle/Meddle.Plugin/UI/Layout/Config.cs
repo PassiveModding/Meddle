@@ -1,6 +1,8 @@
-﻿using Dalamud.Interface;
+﻿using System.Numerics;
+using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
 using ImGuiNET;
+using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Utils;
 
@@ -17,15 +19,25 @@ public partial class LayoutWindow
 
     public class LayoutConfig
     {
+        // Overlay options
         public ParsedInstanceType DrawTypes { get; set; } = DefaultDrawTypes;
         public bool DrawOverlay { get; set; } = true;
         public bool DrawChildren { get; set; }
         public bool TraceToParent { get; set; } = true;
         public bool OrderByDistance { get; set; } = true;
         public bool TraceToHovered { get; set; } = true;
+        
+        // Search Options
         public bool HideOffscreenCharacters { get; set; } = true;
         public int MaxItemCount { get; set; } = 100;
-        public bool AdjustOrigin { get; set; }
+        public OriginAdjustment OriginAdjustment { get; set; } = OriginAdjustment.Camera;
+    }
+    
+    public enum OriginAdjustment
+    {
+        Player,
+        Camera,
+        Origin
     }
     
 
@@ -67,43 +79,30 @@ public partial class LayoutWindow
             config.Save();
         }
         
-        var orderByDistance = config.LayoutConfig.OrderByDistance;
-        if (ImGui.Checkbox("Order by Distance", ref orderByDistance))
-        {
-            config.LayoutConfig.OrderByDistance = orderByDistance;
-            config.Save();
-        }
-        
         var traceToHovered = config.LayoutConfig.TraceToHovered;
         if (ImGui.Checkbox("Trace to Hovered", ref traceToHovered))
         {
             config.LayoutConfig.TraceToHovered = traceToHovered;
             config.Save();
         }
-        
-        var adjustOrigin = config.LayoutConfig.AdjustOrigin;
-        if (ImGui.Checkbox("Adjust Origin", ref adjustOrigin))
+
+        ImGui.Text($"Current Origin: (X:{searchOrigin.X:F2}, Y:{searchOrigin.Y:F2}, Z{searchOrigin.Z:F2})");
+        var originAdjustment = config.LayoutConfig.OriginAdjustment;
+        if (EnumExtensions.DrawEnumDropDown("Origin", ref originAdjustment))
         {
-            config.LayoutConfig.AdjustOrigin = adjustOrigin;
+            config.LayoutConfig.OriginAdjustment = originAdjustment;
             config.Save();
         }
+        
         ImGui.SameLine();
-        UiUtil.HintCircle("Subtracts the players position at the time of export from the position of the object, this will mean " +
-                          "that the object will be centered around the player when exported, " +
-                          "but may cause issues if exporting multiple components separately if the player moves between exports");
-        
-        var hideOffscreenCharacters = config.LayoutConfig.HideOffscreenCharacters;
-        if (ImGui.Checkbox("Hide Offscreen Characters", ref hideOffscreenCharacters))
+        UiUtil.HintCircle("The origin point for layout display (does not affect exports)\n" +
+                          "Player: The player's position\n" +
+                          "Camera: The camera's position\n" +
+                          "Origin: 0,0,0");
+
+        if (config.LayoutConfig.OriginAdjustment != OriginAdjustment.Camera)
         {
-            config.LayoutConfig.HideOffscreenCharacters = hideOffscreenCharacters;
-            config.Save();
-        }
-        
-        var maxItemCount = config.LayoutConfig.MaxItemCount;
-        if (ImGui.DragInt("Max Item Count", ref maxItemCount, 1, 1, 50000))
-        {
-            config.LayoutConfig.MaxItemCount = maxItemCount;
-            config.Save();
+            ImGui.TextColored(new Vector4(1, 0, 0, 1), "WARNING: Using Player or Origin as the origin point may cause issues with cutscenes");
         }
         
         var drawTypes = config.LayoutConfig.DrawTypes;
@@ -137,6 +136,31 @@ public partial class LayoutWindow
         if (drawTypes != config.LayoutConfig.DrawTypes)
         {
             config.LayoutConfig.DrawTypes = drawTypes;
+            config.Save();
+        }
+        
+        // Search options
+        
+        ImGui.Separator();
+        
+        var hideOffscreenCharacters = config.LayoutConfig.HideOffscreenCharacters;
+        if (ImGui.Checkbox("Hide Offscreen Characters", ref hideOffscreenCharacters))
+        {
+            config.LayoutConfig.HideOffscreenCharacters = hideOffscreenCharacters;
+            config.Save();
+        }
+        
+        var orderByDistance = config.LayoutConfig.OrderByDistance;
+        if (ImGui.Checkbox("Order by Distance", ref orderByDistance))
+        {
+            config.LayoutConfig.OrderByDistance = orderByDistance;
+            config.Save();
+        }
+
+        var maxItemCount = config.LayoutConfig.MaxItemCount;
+        if (ImGui.DragInt("Max Item Count", ref maxItemCount, 1, 1, 50000))
+        {
+            config.LayoutConfig.MaxItemCount = maxItemCount;
             config.Save();
         }
     }

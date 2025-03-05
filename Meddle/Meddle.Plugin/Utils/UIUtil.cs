@@ -29,6 +29,84 @@ public static class UiUtil
             }
         }
     }
+
+    [Flags]
+    public enum ExportConfigDrawFlags
+    {
+        None = 0,
+        HideExportPose = 1,
+    }
+
+    public static bool DrawExportConfig(Configuration.ExportConfiguration exportConfiguration, ExportConfigDrawFlags flags = ExportConfigDrawFlags.None)
+    {
+        bool changed = false;
+        var cacheFileTypes = exportConfiguration.CacheFileTypes;
+        if (EnumExtensions.DrawEnumCombo("Extra Cache Files", ref cacheFileTypes))
+        {
+            exportConfiguration.CacheFileTypes = cacheFileTypes;
+            changed = true;
+        }
+
+        ImGui.SameLine();
+        HintCircle("Select which files to cache when exporting, this is not needed in most cases");
+        
+        var exportType = exportConfiguration.ExportType;
+        if (EnumExtensions.DrawEnumCombo("Export type", ref exportType))
+        {
+            exportConfiguration.ExportType = exportType;
+            if (exportType == 0)
+            {
+                exportConfiguration.ExportType = Configuration.DefaultExportType;
+            }
+            
+            changed = true;
+        }
+        
+        var textureMode = exportConfiguration.TextureMode;
+        if (EnumExtensions.DrawEnumDropDown("Texture Mode", ref textureMode))
+        {
+            exportConfiguration.TextureMode = textureMode;
+            changed = true;
+        }
+        
+        if (textureMode == TextureMode.Bake)
+        {
+            ImGui.TextColored(new Vector4(1, 0, 0, 1), "Baking textures is deprecated, use Raw mode with the MeddleTools Blender addon");
+        }
+        
+        if (!flags.HasFlag(ExportConfigDrawFlags.HideExportPose))
+        {
+            var exportPose = exportConfiguration.ExportPose;
+            if (ImGui.Checkbox("Export pose", ref exportPose))
+            {
+                exportConfiguration.ExportPose = exportPose;
+                changed = true;
+            }
+        }
+        
+        var removeAttributeDisabledSubMeshes = exportConfiguration.RemoveAttributeDisabledSubmeshes;
+        if (ImGui.Checkbox("Remove disabled submeshes", ref removeAttributeDisabledSubMeshes))
+        {
+            exportConfiguration.RemoveAttributeDisabledSubmeshes = removeAttributeDisabledSubMeshes;
+            changed = true;
+        }
+        
+        ImGui.SameLine();
+        HintCircle("Remove submeshes that are disabled by the attribute mask");
+        
+        // var rootAttachHandling = exportConfiguration.RootAttachHandling;
+        // if (EnumExtensions.DrawEnumDropDown("Root Attach Handling", ref rootAttachHandling))
+        // {
+        //     exportConfiguration.RootAttachHandling = rootAttachHandling;
+        //     changed = true;
+        // }
+        //
+        // ImGui.SameLine();
+        // HintCircle("PlayerAsAttachChild: If a 'Character' has a root attach (typically a mount), export the player as a child of the root attach\n" +
+        //             "Exclude: Export the root attach separately from the player");
+        
+        return changed;
+    }
     
     public static void HintCircle(string text)
     {
@@ -60,13 +138,13 @@ public static class UiUtil
         {
             ImGui.Text(FontAwesomeIcon.QuestionCircle.ToIconString());
         }
-        if (ImGui.IsItemHovered())
-        {
-            ImGui.BeginTooltip();
-            ImGui.Text("Right Eye Color will not apply to baked textures as it is " +
-                       "selected using the vertex shaders");
-            ImGui.EndTooltip();
-        }
+        // if (ImGui.IsItemHovered())
+        // {
+        //     ImGui.BeginTooltip();
+        //     ImGui.Text("Right Eye Color will not apply to baked textures as it is " +
+        //                "selected using the vertex shaders");
+        //     ImGui.EndTooltip();
+        // }
 
         ImGui.ColorEdit3("Option Color", ref customize.OptionColor);
     }

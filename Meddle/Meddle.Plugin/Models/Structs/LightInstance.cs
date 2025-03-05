@@ -83,6 +83,42 @@ public struct RenderLight {
     [FieldOffset(0x90)] public float CharaShadowRange;
 }
 
+public class ParsedRenderLight {
+    public LightFlags Flags;
+    public LightType LightType;
+    public Transform Transform;
+    public ColorHdr Color;
+    public LightBounds Bounds;
+    public float ShadowNear;
+    public float ShadowFar;
+    public FalloffType FalloffType;
+    public Vector2 AreaAngle;
+    public float Falloff;
+    public float LightAngle;
+    public float FalloffAngle;
+    public float Range;
+    public float CharaShadowRange;
+
+    public ParsedRenderLight() { }
+    
+    public unsafe ParsedRenderLight(RenderLight* light) {
+        Flags = light->Flags;
+        LightType = light->LightType;
+        Transform = *light->Transform;
+        Color = light->Color;
+        Bounds = light->Bounds;
+        ShadowNear = light->ShadowNear;
+        ShadowFar = light->ShadowFar;
+        FalloffType = light->FalloffType;
+        AreaAngle = light->AreaAngle;
+        Falloff = light->Falloff;
+        LightAngle = light->LightAngle;
+        FalloffAngle = light->FalloffAngle;
+        Range = light->Range;
+        CharaShadowRange = light->CharaShadowRange;
+    }
+}
+
 [StructLayout(LayoutKind.Explicit, Size = sizeof(float) * 4)]
 public struct ColorHdr {
     [FieldOffset(0x00)] public Vector3 _vec3;

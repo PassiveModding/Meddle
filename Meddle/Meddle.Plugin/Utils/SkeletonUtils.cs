@@ -107,7 +107,9 @@ public static class SkeletonUtils
     }
 
     private static void ApplyPose(Transform rootTransform,
-        BoneNodeBuilder bone, IReadOnlyList<ParsedPartialSkeleton> partialSkeletons, PoseMode poseMode, float time)
+        BoneNodeBuilder bone, IReadOnlyList<ParsedPartialSkeleton> partialSkeletons, 
+        PoseMode poseMode, 
+        float time)
     {
         var partial = partialSkeletons[bone.PartialSkeletonIndex];
         if (partial.Poses.Count == 0)
@@ -119,6 +121,7 @@ public static class SkeletonUtils
 
         switch (poseMode)
         {
+            // NOTE: PoseMode.Model does not work in many scenarios and is not recommended
             case PoseMode.Model when bone.Parent is BoneNodeBuilder parent:
             {
                 var boneMatrix = pose.HkModelSpaceMatrices[bone.BoneIndex];
@@ -127,7 +130,7 @@ public static class SkeletonUtils
                     Plugin.Logger?.LogWarning("Parent pose not found for {BoneName} parent {ParentName}", bone.BoneName, parent.BoneName);
                     return;
                 }
-
+            
                 var parentMatrix = partialSkeletons[parent.PartialSkeletonIndex].Poses[0].HkModelSpaceMatrices[parent.BoneIndex];
                 var boneAffine = new AffineTransform(boneMatrix);
                 var parentAffine = new AffineTransform(parentMatrix);
@@ -143,7 +146,7 @@ public static class SkeletonUtils
                     Plugin.Logger?.LogWarning("Failed to decompose affine for {BoneName} parent {ParentName}", bone.BoneName, parent.BoneName);
                     return;
                 }
-
+            
                 bone.UseScale().UseTrackBuilder("pose").WithPoint(time, scale);
                 bone.UseRotation().UseTrackBuilder("pose").WithPoint(time, rotation);
                 bone.UseTranslation().UseTrackBuilder("pose").WithPoint(time, translation);
@@ -206,7 +209,7 @@ public static class SkeletonUtils
     }
 
     public record AttachGrouping(List<BoneNodeBuilder> Bones, BoneNodeBuilder? Root, List<(DateTime Time, AttachSet Attach)> Timeline);
-    public static Dictionary<string, AttachGrouping> GetAnimatedBoneMap((DateTime Time, AttachSet[] Attaches)[] frames, PoseMode poseMode)
+    public static Dictionary<string, AttachGrouping> GetAnimatedBoneMap((DateTime Time, AttachSet[] Attaches)[] frames)
     {
         var attachDict = new Dictionary<string, AttachGrouping>();
         var attachTimelines = new Dictionary<string, List<(DateTime Time, AttachSet Attach)>>();
@@ -261,7 +264,7 @@ public static class SkeletonUtils
                         bone = attachBone;
                     }
 
-                    ApplyPose(frame.Attach.Skeleton.Transform, bone, frame.Attach.Skeleton.PartialSkeletons, poseMode, frameTime);
+                    ApplyPose(frame.Attach.Skeleton.Transform, bone, frame.Attach.Skeleton.PartialSkeletons, PoseMode.Local, frameTime);
                 }
 
                 var firstTranslation = firstAttach.Transform.Translation;

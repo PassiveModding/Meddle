@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using Meddle.Utils.Constants;
 using Meddle.Utils.Export;
+using Meddle.Utils.Helpers;
 using Microsoft.Extensions.Logging;
 using SharpGLTF.Geometry;
 using SharpGLTF.Materials;
@@ -22,6 +23,7 @@ public static class ModelBuilder
     {
         var meshes = new List<MeshExport>();
 
+        var modelPathName = Path.GetFileNameWithoutExtension(model.HandlePath.TrimHandlePath());
         foreach (var mesh in model.Meshes)
         {
             MeshBuilder meshBuilder;
@@ -29,10 +31,10 @@ public static class ModelBuilder
             if (mesh.MaterialIdx >= materials.Count)
             {
                 Global.Logger.LogWarning("[{Path}] Mesh {MeshIdx} has invalid material index {MaterialIdx}",
-                                         model.Path,
+                                         model.HandlePath,
                                          mesh.MeshIdx,
                                          mesh.MaterialIdx);
-                material = new MaterialBuilder($"{model.Path}_{mesh.MeshIdx}_{mesh.MaterialIdx}");
+                material = materials.LastOrDefault(new MaterialBuilder($"{modelPathName}_{mesh.MeshIdx}_{mesh.MaterialIdx}_fallback"));
             }
             else
             {
@@ -49,7 +51,7 @@ public static class ModelBuilder
             }
 
             Global.Logger.LogDebug("[{Path}] Building mesh {MeshIdx}\n{Mesh}",
-                                   model.Path,
+                                   model.HandlePath,
                                    mesh.MeshIdx,
                                    JsonSerializer.Serialize(new
                                    {
@@ -60,12 +62,10 @@ public static class ModelBuilder
                                        Vertex = (Vertex?)(mesh.Vertices.Count == 0 ? null : mesh.Vertices[0]),
                                    }, SerializerOptions));
             
-            var modelPathName = Path.GetFileNameWithoutExtension(model.Path);
-
             if (mesh.SubMeshes.Count == 0)
             {
                 var mb = meshBuilder.BuildMesh();
-                mb.Name = $"{modelPathName}_{mesh.MeshIdx}_{material.Name}";
+                mb.Name = material.Name;
                 meshes.Add(new MeshExport(mb, null, null));
                 continue;
             }
@@ -74,7 +74,7 @@ public static class ModelBuilder
             {
                 var modelSubMesh = mesh.SubMeshes[i];
                 var subMesh = meshBuilder.BuildSubMesh(modelSubMesh);
-                subMesh.Name = $"{modelPathName}_{mesh.MeshIdx}_{material.Name}.{i}";
+                subMesh.Name = $"{material.Name}.{i}";
                 if (modelSubMesh.Attributes.Count > 0)
                 {
                     subMesh.Name += $";{string.Join(";", modelSubMesh.Attributes)}";

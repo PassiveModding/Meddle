@@ -13,6 +13,7 @@ using ImGuiNET;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Layout;
+using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.Services.UI;
@@ -27,6 +28,7 @@ using Meddle.Utils.Helpers;
 using Microsoft.Extensions.Logging;
 using SharpGLTF.Scenes;
 using SharpGLTF.Schema2;
+using SharpGLTF.Validation;
 using SkiaSharp;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
 using CSCharacterBase = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.CharacterBase;
@@ -34,6 +36,7 @@ using CSHuman = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Human;
 using CustomizeParameter = Meddle.Utils.Export.CustomizeParameter;
 using CSMaterial = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Material;
 using CSModel = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Model;
+using ShaderPackage = FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.ShaderPackage;
 
 namespace Meddle.Plugin.UI;
 
@@ -58,12 +61,15 @@ public unsafe class LiveCharacterTab : ITab
     private readonly ResolverService resolverService;
     private readonly ITextureProvider textureProvider;
     private Task exportTask = Task.CompletedTask;
-    private CancellationTokenSource exportCancelTokenSource = new();
+    private CancellationTokenSource cancelToken = new();
     private bool cacheHumanCustomizeData;
 
     private readonly Dictionary<Pointer<CSHuman>, (CustomizeData, CustomizeParameter)> humanCustomizeData = new();
     private ICharacter? selectedCharacter;
-
+    private ExportProgress? progress;
+    private bool requestedPopup;
+    private Action? drawExportSettingsCallback;
+    
     public LiveCharacterTab(
         ILogger<LiveCharacterTab> log,
         ITextureProvider textureProvider,
@@ -87,20 +93,6 @@ public unsafe class LiveCharacterTab : ITab
         this.config = config;
         this.composerFactory = composerFactory;
     }
-
-
-    private readonly Dictionary<int, ProgressEvent> progressEvents = new();
-    private void HandleProgressEvent(ProgressEvent progressEvent)
-    {
-        if (progressEvent.Progress == progressEvent.Total)
-        {
-            progressEvents.Remove(progressEvent.ContextHash);
-        }
-        else
-        {
-            progressEvents[progressEvent.ContextHash] = progressEvent;
-        }
-    }
     
     private bool IsDisposed { get; set; }
 
@@ -109,37 +101,21 @@ public unsafe class LiveCharacterTab : ITab
 
     public void Draw()
     {
-        // Warning text:
-        ImGui.TextWrapped("NOTE: Exported models use a rudimentary approximation of the games pixel shaders, " +
-                          "they will likely not match 1:1 to the in-game appearance.\n" +
-                          "You can get a better result by using the Blender addon.");
-
-        if (!exportTask.IsCompleted)
-        {
-            ImGui.Text("Exporting...");
-            if (ImGui.Button("Cancel Export"))
-            {
-                exportCancelTokenSource.Cancel();
-            }
-
-            foreach (var progressEvent in progressEvents)
-            {
-                if (progressEvent.Value.Progress != progressEvent.Value.Total)
-                {
-                    ImGui.Text(progressEvent.Value.Name);
-                    ImGui.ProgressBar(progressEvent.Value.Progress / (float)progressEvent.Value.Total, new Vector2(-1, 0), $"{progressEvent.Value.Progress}/{progressEvent.Value.Total}");
-                }
-            }
-        }
-        else
-        {
-            progressEvents.Clear();
-        }
-        
+        LayoutWindow.DrawProgress(exportTask, progress, cancelToken);
         commonUi.DrawCharacterSelect(ref selectedCharacter);
         
         DrawSelectedCharacter();
         fileDialog.Draw();
+        if (requestedPopup)
+        {
+            ImGui.OpenPopup("ExportSettingsPopup");
+            requestedPopup = false;
+        }
+        
+        if (drawExportSettingsCallback != null)
+        {
+            drawExportSettingsCallback();
+        }
     }
     
     public void Dispose()
@@ -163,11 +139,6 @@ public unsafe class LiveCharacterTab : ITab
 
         var charPtr = (CSCharacter*)selectedCharacter.Address;
         DrawCharacter(charPtr, "Character");
-    }
-
-    private bool CanExport()
-    {
-        return exportTask.IsCompleted;
     }
 
     private void DrawCharacter(CSCharacter* character, string name, int depth = 0)
@@ -204,13 +175,26 @@ public unsafe class LiveCharacterTab : ITab
         if (modelType == CSCharacterBase.ModelType.Human)
         {
             DrawHumanCharacter((CSHuman*)cBase, out customizeData, out customizeParams, out genderRace);
-            using (ImRaii.Disabled(!CanExport()))
+            ExportButton("Export All Models With Attaches", () =>
             {
-                if (ImGui.Button("Export All Models With Attaches"))
+                var info = resolverService.ParseCharacter(character);
+                if (info == null)
                 {
-                    ExportAllModelsWithAttaches(character, customizeParams, customizeData);
+                    throw new Exception("Failed to get character info from draw object");
                 }
-            }
+
+                if (customizeParams != null)
+                {
+                    info.CustomizeParameter = customizeParams;
+                }
+
+                if (customizeData != null)
+                {
+                    info.CustomizeData = customizeData;
+                }
+
+                return info;
+            }, $"{character->NameString}");
         }
         else
         {
@@ -219,7 +203,7 @@ public unsafe class LiveCharacterTab : ITab
             genderRace = GenderRace.Unknown;
         }
         
-        DrawDrawObject(drawObject, customizeData, customizeParams, genderRace);
+        DrawDrawObject(drawObject, $"{character->NameString}", customizeData, customizeParams, genderRace);
 
         try
         {
@@ -248,7 +232,7 @@ public unsafe class LiveCharacterTab : ITab
                 {
                     ImGui.Separator();
                     ImGui.Text($"Weapon {weaponIdx}");
-                    DrawDrawObject(weaponData.DrawObject, null, null, GenderRace.Unknown);
+                    DrawDrawObject(weaponData.DrawObject, $"{character->NameString}_Weapon", null, null, GenderRace.Unknown);
                 }
             }
         }
@@ -258,7 +242,84 @@ public unsafe class LiveCharacterTab : ITab
         }
     }
 
-    private void DrawDrawObject(DrawObject* drawObject, CustomizeData? customizeData, CustomizeParameter? customizeParams, GenderRace genderRace)
+    private void ExportButton(string text, Func<ParsedCharacterInfo> resolve, string name)
+    {
+        using var disabled = ImRaii.Disabled(!exportTask.IsCompleted);
+        if (ImGui.Button(text))
+        {
+            requestedPopup = true;
+            var parsedCharacterInfo = resolve();
+            drawExportSettingsCallback = () => DrawExportSettings(parsedCharacterInfo, name);
+        }
+    }
+    
+    private void ExportMenuItem(string text, Func<ParsedCharacterInfo> resolve, string name)
+    {
+        if (ImGui.MenuItem(text))
+        {
+            requestedPopup = true;
+            var parsedCharacterInfo = resolve();
+            drawExportSettingsCallback = () => DrawExportSettings(parsedCharacterInfo, name);
+        }
+    }
+    
+    private void DrawExportSettings(ParsedCharacterInfo characterInfo, string name)
+    {
+        if (!exportTask.IsCompleted)
+        {
+            log.LogWarning("Export task already running");
+            return;
+        }
+        
+        if (!ImGui.BeginPopup("ExportSettingsPopup", ImGuiWindowFlags.AlwaysAutoResize)) return;
+        try
+        {
+            if (UiUtil.DrawExportConfig(config.ExportConfig))
+            {
+                config.Save();
+            }
+            
+            if (ImGui.Button("Export"))
+            {
+                var configClone = config.ExportConfig.Clone();
+                var defaultName = $"Character-{name}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
+                cancelToken = new CancellationTokenSource();
+                fileDialog.SaveFolderDialog("Save Instances", defaultName,
+                                            (result, path) =>
+                                            {
+                                                if (!result) return;
+                                                exportTask = Task.Run(() =>
+                                                {
+                                                    var composer = composerFactory.CreateCharacterComposer(path, configClone, cancelToken.Token);
+                                                    var scene = new SceneBuilder();
+                                                    var characterRoot = new NodeBuilder($"Character-{name}");
+                                                    scene.AddNode(characterRoot);
+                                                    progress = new ExportProgress(characterInfo.Models.Length, "Character");
+                                                    composer.Compose(characterInfo, scene, characterRoot, progress);
+                                                    var modelRoot = scene.ToGltf2();
+                                                    ExportUtil.SaveAsType(modelRoot, configClone.ExportType, path, name);
+                                                    Process.Start("explorer.exe", path);
+                                                });
+                                            }, config.ExportDirectory);
+
+                drawExportSettingsCallback = null;
+                ImGui.CloseCurrentPopup();
+            }
+            
+            ImGui.SameLine();
+            if (ImGui.Button("Cancel"))
+            {
+                drawExportSettingsCallback = null;
+                ImGui.CloseCurrentPopup();
+            }
+        }
+        finally
+        {
+            ImGui.EndPopup();
+        }
+    }
+
+    private void DrawDrawObject(DrawObject* drawObject, string name, CustomizeData? customizeData, CustomizeParameter? customizeParams, GenderRace genderRace)
     {
         if (drawObject == null)
         {
@@ -275,13 +336,27 @@ public unsafe class LiveCharacterTab : ITab
 
         using var drawObjectId = ImRaii.PushId($"{(nint)drawObject}");
         var cBase = (CSCharacterBase*)drawObject;
-        using (ImRaii.Disabled(!CanExport()))
+
+        ExportButton("Export All Models", () =>
         {
-            if (ImGui.Button("Export All Models"))
+            var info = resolverService.ParseDrawObject((DrawObject*)cBase);
+            if (info == null)
             {
-                ExportAllModels(cBase, customizeParams, customizeData);
+                throw new Exception("Failed to get character info from draw object");
             }
-        }
+
+            if (customizeParams != null)
+            {
+                info.CustomizeParameter = customizeParams;
+            }
+
+            if (customizeData != null)
+            {
+                info.CustomizeData = customizeData;
+            }
+
+            return info;
+        }, name);
 
         ImGui.SameLine();
         var currentSelectedModels = cBase->ModelsSpan.ToArray().Where(modelPtr =>
@@ -289,9 +364,10 @@ public unsafe class LiveCharacterTab : ITab
             if (modelPtr == null) return false;
             return selectedModels.ContainsKey((nint)modelPtr.Value) && selectedModels[(nint)modelPtr.Value];
         }).ToArray();
-        using (ImRaii.Disabled(currentSelectedModels.Length == 0 || !CanExport()))
+        using (ImRaii.Disabled(currentSelectedModels.Length == 0))
         {
-            if (ImGui.Button($"Export Selected Models ({currentSelectedModels.Length})") && currentSelectedModels.Length > 0)
+            var label = $"Export Selected Models ({currentSelectedModels.Length})";
+            ExportButton(label, () =>
             {
                 var colorTableTextures = parseService.ParseColorTableTextures(cBase);
                 var models = new List<ParsedModelInfo>();
@@ -306,29 +382,10 @@ public unsafe class LiveCharacterTab : ITab
                         models.Add(modelInfo);
                     }
                 }
-                
-                var folder = $"Models-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
-                fileDialog.SaveFolderDialog("Save Model", folder,
-                                            (result, path) =>
-                                            {
-                                                if (!result) return;
-                                                if (!CanExport()) return;
-                                                exportCancelTokenSource = new CancellationTokenSource();
-                                                exportTask = Task.Run(() =>
-                                                {
-                                                    var exportType = config.ExportType;
-                                                    var composer = composerFactory.CreateCharacterComposer(Path.Combine(path, "cache"), HandleProgressEvent, exportCancelTokenSource.Token);
-                                                    var scene = new SceneBuilder();
-                                                    var root = new NodeBuilder();
-                                                    composer.ComposeModels(models.ToArray(), genderRace, customizeParams, 
-                                                                           customizeData, skeleton, scene, root);
-                                                    scene.AddNode(root);
-                                                    var gltf = scene.ToGltf2();
-                                                    gltf.SaveAsType(exportType, path, "models");
-                                                    Process.Start("explorer.exe", path);
-                                                }, exportCancelTokenSource.Token);
-                                            }, config.ExportDirectory);
-            }
+
+                var info = new ParsedCharacterInfo(models.ToArray(), skeleton, new ParsedAttach(), customizeData, customizeParams, genderRace);
+                return info;
+            }, name);
         }
 
         using var modelTable = ImRaii.Table("##Models", 2, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable);
@@ -346,102 +403,7 @@ public unsafe class LiveCharacterTab : ITab
             DrawModel(cBase, modelPtr.Value, customizeParams, customizeData);
         }
     }
-
-    private void ExportAllModelsWithAttaches(CSCharacter* character, CustomizeParameter? customizeParams, CustomizeData? customizeData)
-    {
-        var info = resolverService.ParseCharacter(character);
-        if (info == null)
-        {
-            log.LogError("Failed to get character info from draw object");
-            return;
-        }
-        
-        if (customizeParams != null)
-        {
-            info.CustomizeParameter = customizeParams;
-        }
-        
-        if (customizeData != null)
-        {
-            info.CustomizeData = customizeData;
-        }
-        
-        var folderName = $"Character-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
-        fileDialog.SaveFolderDialog("Save Model", folderName,
-                                    (result, path) =>
-                                    {
-                                        if (!result) return;
-                                        if (!CanExport()) return;
-                                        exportCancelTokenSource = new CancellationTokenSource();
-                                        exportTask = Task.Run(() =>
-                                        {
-                                            var exportType = config.ExportType;
-                                            var composer = composerFactory.CreateCharacterComposer(Path.Combine(path, "cache"), HandleProgressEvent, exportCancelTokenSource.Token);
-                                            var scene = new SceneBuilder();
-                                            var root = new NodeBuilder();
-                                            composer.ComposeCharacterInfo(info, null, scene, root);
-                                            scene.AddNode(root);
-                                            var gltf = scene.ToGltf2();
-                                            gltf.SaveAsType(exportType, path, "character");
-                                            Process.Start("explorer.exe", path);
-                                        }, exportCancelTokenSource.Token);
-                                    }, config.ExportDirectory);
-    }
     
-    private void ExportAllModels(CSCharacterBase* cBase, CustomizeParameter? customizeParams, CustomizeData? customizeData)
-    {
-        var info = resolverService.ParseDrawObject((DrawObject*)cBase);
-        if (info == null)
-        {
-            log.LogError("Failed to get character info from draw object");
-            return;
-        }
-
-        if (customizeParams != null)
-        {
-            info.CustomizeParameter = customizeParams;
-        }
-        
-        if (customizeData != null)
-        {
-            info.CustomizeData = customizeData;
-        }
-        
-        var folderName = $"Character-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
-        fileDialog.SaveFolderDialog("Save Model", folderName,
-                                    (result, path) =>
-                                    {
-                                        if (!result) return;
-                                        if (!CanExport()) return;
-                                        exportCancelTokenSource = new CancellationTokenSource();
-                                        exportTask = Task.Run(() =>
-                                        {
-                                            var exportType = config.ExportType;
-                                            var composer = composerFactory.CreateCharacterComposer(Path.Combine(path, "cache"), HandleProgressEvent, exportCancelTokenSource.Token);
-                                            var scene = new SceneBuilder();
-                                            var root = new NodeBuilder();
-                                            composer.ComposeCharacterInfo(info, null, scene, root);
-                                            scene.AddNode(root);
-                                            var gltf = scene.ToGltf2();
-                                            if (exportType.HasFlag(ExportType.GLTF))
-                                            {
-                                                gltf.SaveGLTF(Path.Combine(path, "character.gltf"));
-                                            }
-                                            
-                                            if (exportType.HasFlag(ExportType.GLB))
-                                            {
-                                                gltf.SaveGLB(Path.Combine(path, "character.glb"));
-                                            }
-                                            
-                                            if (exportType.HasFlag(ExportType.OBJ))
-                                            {
-                                                gltf.SaveAsWavefront(Path.Combine(path, "character.obj"));
-                                            }
-                                            Process.Start("explorer.exe", path);
-                                        }, exportCancelTokenSource.Token);
-                                    }, config.ExportDirectory);
-    }
-
     private void DrawModel(Pointer<CharacterBase> cPtr, Pointer<CSModel> mPtr, CustomizeParameter? customizeParams,
                            CustomizeData? customizeData)
     {
@@ -488,9 +450,10 @@ public unsafe class LiveCharacterTab : ITab
         // popup for export options
         if (ImGui.BeginPopupContextItem("ExportModelPopup"))
         {
+            var defaultFileName = Path.GetFileName(fileName);
+            
             if (ImGui.MenuItem("Export as mdl"))
             {
-                var defaultFileName = Path.GetFileName(fileName);
                 fileDialog.SaveFileDialog("Save Model", "Model File{.mdl}", defaultFileName, ".mdl",
                                           (result, path) =>
                                           {
@@ -505,80 +468,36 @@ public unsafe class LiveCharacterTab : ITab
                                               }
 
                                               File.WriteAllBytes(path, data);
-                                          });
+                                          }, config.ExportDirectory);
             }
 
-            using (ImRaii.Disabled(!CanExport()))
+            ExportMenuItem("Export as gLTF", () =>
             {
-                if (ImGui.MenuItem("Export as glTF"))
+                var info = resolverService.ParseDrawObject((DrawObject*)cBase);
+                if (info == null)
                 {
-                    var folderName = Path.GetFileNameWithoutExtension(fileName);
-                    var characterInfo = resolverService.ParseDrawObject((DrawObject*)cBase);
-                    if (characterInfo == null)
-                    {
-                        log.LogError("Failed to get character info from draw object");
-                        return;
-                    }
-
-                    var colorTableTextures = parseService.ParseColorTableTextures(cBase);
-                    if (customizeParams != null)
-                    {
-                        characterInfo.CustomizeParameter = customizeParams;
-                    }
-
-                    if (customizeData != null)
-                    {
-                        characterInfo.CustomizeData = customizeData;
-                    }
-
-                    var modelData = resolverService.ParseModel(cBase, model, colorTableTextures);
-                    if (modelData == null)
-                    {
-                        log.LogError("Failed to get model data for {FileName}", fileName);
-                        return;
-                    }
-
-                    fileDialog.SaveFolderDialog("Save Model", folderName,
-                                                (result, path) =>
-                                                {
-                                                    if (!result) return;
-                                                    if (!CanExport()) return;
-                                                    exportCancelTokenSource = new CancellationTokenSource();
-                                                    exportTask = Task.Run(() =>
-                                                    {
-                                                        var exportType = config.ExportType;
-                                                        var composer =
-                                                            composerFactory.CreateCharacterComposer(
-                                                                Path.Combine(path, "cache"), HandleProgressEvent,
-                                                                exportCancelTokenSource.Token);
-                                                        var scene = new SceneBuilder();
-                                                        var root = new NodeBuilder();
-                                                        composer.ComposeModels(
-                                                            [modelData], characterInfo.GenderRace,
-                                                            characterInfo.CustomizeParameter,
-                                                            characterInfo.CustomizeData, characterInfo.Skeleton, scene,
-                                                            root);
-                                                        scene.AddNode(root);
-                                                        var gltf = scene.ToGltf2();
-                                                        if (exportType.HasFlag(ExportType.GLTF))
-                                                        {
-                                                            gltf.SaveGLTF(Path.Combine(path, "model.gltf"));
-                                                        }
-                                            
-                                                        if (exportType.HasFlag(ExportType.GLB))
-                                                        {
-                                                            gltf.SaveGLB(Path.Combine(path, "model.glb"));
-                                                        }
-                                            
-                                                        if (exportType.HasFlag(ExportType.OBJ))
-                                                        {
-                                                            gltf.SaveAsWavefront(Path.Combine(path, "model.obj"));
-                                                        }
-                                                        Process.Start("explorer.exe", path);
-                                                    }, exportCancelTokenSource.Token);
-                                                }, config.ExportDirectory);
+                    throw new Exception("Failed to get character info from draw object");
                 }
-            }
+                
+                var colorTableTextures = parseService.ParseColorTableTextures(cBase);
+                if (customizeParams != null)
+                {
+                    info.CustomizeParameter = customizeParams;
+                }
+                
+                if (customizeData != null)
+                {
+                    info.CustomizeData = customizeData;
+                }
+                
+                var modelData = resolverService.ParseModel(cBase, model, colorTableTextures);
+                if (modelData == null)
+                {
+                    throw new Exception($"Failed to get model data for {fileName}");
+                }
+                
+                return new ParsedCharacterInfo([modelData], info.Skeleton, new ParsedAttach(), info.CustomizeData, info.CustomizeParameter, info.GenderRace);
+            }, $"{defaultFileName}");
 
             ImGui.EndPopup();
         }
@@ -690,7 +609,7 @@ public unsafe class LiveCharacterTab : ITab
                 throw new Exception($"Failed to load {shpkPath}");
             }
         }
-        
+
         var orderedMaterialParams = shpk.MaterialParams.Select((x, idx) => (x, idx))
                                         .OrderBy(x => x.idx).ToArray();
         var availWidth = ImGui.GetContentRegionAvail().X;
@@ -717,6 +636,7 @@ public unsafe class LiveCharacterTab : ITab
 
             foreach (var (materialParam, i) in orderedMaterialParams)
             {
+                // TODO: This should exist on the in-memory shpk, would be nicer to parse it from there instead of loading the files.
                 var shpkDefaults = shpk.MaterialParamDefaults
                                        .Skip(materialParam.ByteOffset / 4)
                                        .Take(materialParam.ByteSize / 4).ToArray();
@@ -777,7 +697,7 @@ public unsafe class LiveCharacterTab : ITab
 
         using var materialId = ImRaii.PushId($"{(nint)material}");
         var materialFileName = material->MaterialResourceHandle->FileName.ParseString();
-        var materialName = ((ModelResourceHandle*)model->ModelResourceHandle)->GetMaterialFileName((uint)materialIdx);
+        var materialName = model->ModelResourceHandle->GetMaterialFileNameBySlotAsString((uint)materialIdx);
 
         // in same row as model export button, draw button for export material
         ImGui.TableNextRow();
@@ -795,8 +715,7 @@ public unsafe class LiveCharacterTab : ITab
         {
             if (ImGui.MenuItem("Export as mtrl"))
             {
-                var defaultFileName = Path.GetFileName(materialName);
-                fileDialog.SaveFileDialog("Save Material", "Material File{.mtrl}", defaultFileName, ".mtrl",
+                fileDialog.SaveFileDialog("Save Material", "Material File{.mtrl}", Path.GetFileName(materialFileName), ".mtrl",
                                           (result, path) =>
                                           {
                                               if (!result) return;
@@ -810,7 +729,7 @@ public unsafe class LiveCharacterTab : ITab
                                               }
 
                                               File.WriteAllBytes(path, data);
-                                          });
+                                          }, config.ExportDirectory);
             }
 
             if (ImGui.MenuItem("Export raw textures as pngs"))
@@ -833,18 +752,20 @@ public unsafe class LiveCharacterTab : ITab
                     }
                 }
 
-                var materialNameNoExt = Path.GetFileNameWithoutExtension(materialFileName);
-                fileDialog.SaveFolderDialog("Save Textures", materialNameNoExt,
+                fileDialog.SaveFolderDialog("Save Textures", Path.GetFileNameWithoutExtension(materialFileName),
                                             (result, path) =>
                                             {
                                                 if (!result) return;
                                                 Directory.CreateDirectory(path);
-
-                                                foreach (var (name, texture) in textureBuffer)
+                                                
+                                                foreach (var (name, tex) in textureBuffer)
                                                 {
                                                     var fileName = Path.GetFileNameWithoutExtension(name);
                                                     var filePath = Path.Combine(path, $"{fileName}.png");
-                                                    DataProvider.SaveTextureToDisk(texture, filePath);
+                                                    using var memoryStream = new MemoryStream();
+                                                    tex.Bitmap.Encode(memoryStream, SKEncodedImageFormat.Png, 100);
+                                                    var textureBytes = memoryStream.ToArray();
+                                                    File.WriteAllBytes(filePath, textureBytes);
                                                 }
                                                 Process.Start("explorer.exe", path);
                                             }, config.ExportDirectory);
@@ -874,16 +795,103 @@ public unsafe class LiveCharacterTab : ITab
                 var colorTable = parseService.ParseColorTableTexture(colorTableTexture);
                 UiUtil.DrawColorTable(colorTable);
             }
-            
+
             if (ImGui.CollapsingHeader("Constants"))
             {
                 DrawConstantsTable(mtPtr);
+            }
+
+            if (ImGui.CollapsingHeader("Keys"))
+            {
+                DrawKeys(mtPtr);
             }
 
             for (var texIdx = 0; texIdx < material->TextureCount; texIdx++)
             {
                 var textureEntry = material->TexturesSpan[texIdx];
                 DrawTexture(material, textureEntry, texIdx);
+            }
+        }
+    }
+
+    private void DrawKeys(CSMaterial* material)
+    {
+        var constants = Names.GetConstants();
+        var shaderPackage = material->MaterialResourceHandle->ShaderPackageResourceHandle->ShaderPackage;
+        var shaderPackageKeys = ShaderPackageKeys.FromShaderPackage(shaderPackage);
+        DrawKeyPairs(shaderPackageKeys->MaterialKeysSpan, shaderPackageKeys->MaterialValuesSpan, "Material (Shpk)");
+        DrawKeyPairs(shaderPackageKeys->MaterialKeysSpan, material->ShaderKeyValuesSpan, "Material (Mtrl)");
+        
+        // DrawKeyPairs(shaderPackageKeys->SceneKeysSpan, shaderPackageKeys->SceneValuesSpan, "Scene");
+        // var unknowns2Span = new Span<ShaderPackage.ConstantSamplerUnknown>(shaderPackage->Unknowns2, shaderPackage->Unk2Count);
+        // DrawConstantSamplerUnknownSpan(shaderPackage->SamplersSpan, "Sampler");
+        // DrawConstantSamplerUnknownSpan(shaderPackage->ConstantsSpan, "Constant");
+        // DrawConstantSamplerUnknownSpan(shaderPackage->UnknownsSpan, "Unknown");
+        // DrawConstantSamplerUnknownSpan(unknowns2Span, "Unknown2");
+        
+        return;
+
+        // void DrawConstantSamplerUnknownSpan(Span<ShaderPackage.ConstantSamplerUnknown> samplers, string type)
+        // {
+        //     using var id = ImRaii.PushId(type);
+        //     ImGui.Text($"{type} Keys");
+        //     using var table = ImRaii.Table($"{type}Keys", 3, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable);
+        //     ImGui.TableSetupColumn("Index", ImGuiTableColumnFlags.WidthFixed, 80);
+        //     ImGui.TableSetupColumn("Key", ImGuiTableColumnFlags.WidthFixed, 200);
+        //     ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
+        //     ImGui.TableHeadersRow();
+        //     
+        //     for (var i = 0; i < samplers.Length; i++)
+        //     {
+        //         var sampler = samplers[i];
+        //         var keyString = $"0x{sampler.Id:X8}";
+        //         var valueString = $"0x{sampler.CRC:X8}";
+        //         
+        //         ImGui.TableNextRow();
+        //         ImGui.TableSetColumnIndex(0);
+        //         ImGui.Text(i.ToString());
+        //         ImGui.TableSetColumnIndex(1);
+        //         ImGui.Text(keyString);
+        //         ImGui.TableSetColumnIndex(2);
+        //         ImGui.Text(valueString);
+        //     }
+        // }
+        
+        
+        void DrawKeyPairs(Span<uint> keys, Span<uint> values, string type)
+        {
+            if (keys.Length != values.Length)
+            {
+                ImGui.Text("Key and value count mismatch");
+                return;
+            }
+            
+            using var id = ImRaii.PushId(type);
+            
+            ImGui.Text($"{type} Keys");
+            
+            using var table = ImRaii.Table($"{type}Keys", 3, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable);
+            ImGui.TableSetupColumn("Index", ImGuiTableColumnFlags.WidthFixed, 80);
+            ImGui.TableSetupColumn("Key", ImGuiTableColumnFlags.WidthFixed, 200);
+            ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
+            
+            ImGui.TableHeadersRow();
+            
+            for (int i = 0; i < keys.Length; i++)
+            {
+                var key = keys[i];
+                var value = values[i];
+                var match = constants.GetValueOrDefault(key);
+                var valueMatch = constants.GetValueOrDefault(value);
+                var keyString = match != null ? $"{match.Value} (0x{key:X8})" : $"0x{key:X8}";
+                var valueString = valueMatch != null ? $"{valueMatch.Value} (0x{value:X8})" : $"0x{value:X8}";
+                ImGui.TableNextRow();
+                ImGui.TableSetColumnIndex(0);
+                ImGui.Text(i.ToString());
+                ImGui.TableSetColumnIndex(1);
+                ImGui.Text(keyString);
+                ImGui.TableSetColumnIndex(2);
+                ImGui.Text(valueString);
             }
         }
     }
@@ -919,12 +927,15 @@ public unsafe class LiveCharacterTab : ITab
                 defaultFileName = Path.ChangeExtension(defaultFileName, ".png");
                 var gpuTex = DXHelper.ExportTextureResource(textureEntry.Texture->Texture);
                 var textureData = gpuTex.Resource.ToTexture();
-
+                using var memoryStream = new MemoryStream();
+                textureData.Bitmap.Encode(memoryStream, SKEncodedImageFormat.Png, 100);
+                var textureBytes = memoryStream.ToArray();
+                
                 fileDialog.SaveFileDialog("Save Texture", "PNG Image{.png}", defaultFileName, ".png",
                                           (result, path) =>
                                           {
-                                              if (!result) return;
-                                              DataProvider.SaveTextureToDisk(textureData, path);
+                                                if (!result) return;
+                                                File.WriteAllBytes(path, textureBytes);
                                           }, config.ExportDirectory);
             }
 

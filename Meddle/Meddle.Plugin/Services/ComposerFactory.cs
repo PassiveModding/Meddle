@@ -1,6 +1,7 @@
 ﻿using System.Numerics;
 using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Layout;
+using Meddle.Plugin.UI.Layout;
 using Meddle.Utils.Files.SqPack;
 using Microsoft.Extensions.Logging;
 
@@ -19,41 +20,19 @@ public class ComposerFactory : IService
         this.configuration = configuration;
     }
     
-    private DataProvider CreateDataProvider(string cacheDir, CancellationToken cancellationToken)
-    {
-        return new DataProvider(cacheDir, pack, loggerProvider.CreateLogger<DataProvider>(), cancellationToken);
-    }
-    
-    public InstanceComposer CreateComposer(ParsedInstance[] instances, 
-                                           Vector3 origin,
-                                           string? cacheDir = null,
-                                           Action<ProgressEvent>? progressEvent = null, 
+    public InstanceComposer CreateComposer(string outDir,
+                                           Configuration.ExportConfiguration exportConfig,
                                            CancellationToken cancellationToken = default)
     {
-        cacheDir ??= Path.Combine(Path.GetTempPath(), "Meddle", "Cache");
-        Directory.CreateDirectory(cacheDir);
-        
-        var dataProvider = CreateDataProvider(cacheDir, cancellationToken);
-        return new InstanceComposer(configuration,
-                                    instances,
-                                    progressEvent,
-                                    cancellationToken,
-                                    CreateCharacterComposer(dataProvider),
-                                    dataProvider,
-            origin);
+        return new InstanceComposer(configuration, pack, exportConfig,
+                                  outDir, cancellationToken);
+
     }
     
-    public CharacterComposer CreateCharacterComposer(string? cacheDir = null, Action<ProgressEvent>? progress = null, CancellationToken cancellationToken = default)
+    public CharacterComposer CreateCharacterComposer(string outDir,
+                                                     Configuration.ExportConfiguration exportConfig,
+                                                     CancellationToken cancellationToken = default)
     {
-        cacheDir ??= Path.Combine(Path.GetTempPath(), "Meddle", "Cache");
-        Directory.CreateDirectory(cacheDir);
-        
-        var dataProvider = CreateDataProvider(cacheDir, cancellationToken);
-        return new CharacterComposer(dataProvider, configuration, progress);
-    }
-    
-    public CharacterComposer CreateCharacterComposer(DataProvider dataProvider)
-    {
-        return new CharacterComposer(dataProvider, configuration);
+        return new CharacterComposer(configuration, pack, exportConfig, outDir, cancellationToken);
     }
 }
