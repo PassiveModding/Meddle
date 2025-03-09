@@ -18,6 +18,7 @@ using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.Services.UI;
 using Meddle.Plugin.UI.Layout;
+using Meddle.Plugin.UI.Windows;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Constants;
@@ -44,6 +45,7 @@ public unsafe class LiveCharacterTab : ITab
 {
     private readonly CommonUi commonUi;
     private readonly Configuration config;
+    private readonly MdlMaterialWindowManager mdlMaterialWindowManager;
     private readonly ComposerFactory composerFactory;
     public MenuType MenuType => MenuType.Default;
 
@@ -80,6 +82,7 @@ public unsafe class LiveCharacterTab : ITab
         PbdHooks pbd,
         CommonUi commonUi,
         Configuration config,
+        MdlMaterialWindowManager mdlMaterialWindowManager,
         ComposerFactory composerFactory)
     {
         this.log = log;
@@ -91,6 +94,7 @@ public unsafe class LiveCharacterTab : ITab
         this.pbd = pbd;
         this.commonUi = commonUi;
         this.config = config;
+        this.mdlMaterialWindowManager = mdlMaterialWindowManager;
         this.composerFactory = composerFactory;
     }
     
@@ -521,6 +525,15 @@ public unsafe class LiveCharacterTab : ITab
             else
             {
                 ImGui.Text("No deformer info found");
+            }
+            
+            using (var disableMatParam = ImRaii.Disabled(mdlMaterialWindowManager.HasWindow(mPtr.Value->ModelResourceHandle)))
+            {
+                // Note; since character materials are stored in model->Materials instead of model->ModelResourceHandle->Materials, 
+                if (ImGui.Button("Open Material Window"))
+                {
+                    mdlMaterialWindowManager.AddMaterialWindow(model);
+                }
             }
 
             var modelShapeAttributes = StructExtensions.ParseModelShapeAttributes(model);

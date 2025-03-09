@@ -170,7 +170,8 @@ public partial class LayoutWindow
         {
             BgObject* drawObject = (BgObject*)bgPartLayout->GraphicsObject;
             UiUtil.Text($"Graphics Object {(nint)drawObject:X8}", $"{(nint)drawObject:X8}");
-            if (ImGui.Button($"Preview Materials##{(nint)drawObject:X8}"))
+            using var disabled = ImRaii.Disabled( mdlMaterialWindowManager.HasWindow(drawObject->ModelResourceHandle));
+            if (ImGui.Button("Open Material Window"))
             {
                 mdlMaterialWindowManager.AddMaterialWindow(drawObject->ModelResourceHandle);
             }

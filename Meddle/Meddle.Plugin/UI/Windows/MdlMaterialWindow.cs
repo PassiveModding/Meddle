@@ -1,6 +1,7 @@
 ﻿using System.Numerics;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
+using FFXIVClientStructs.FFXIV.Client.Graphics.Render;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using FFXIVClientStructs.Interop;
 using ImGuiNET;
@@ -8,28 +9,47 @@ using Meddle.Plugin.Models;
 using Meddle.Plugin.Utils;
 using Meddle.Utils.Constants;
 using Meddle.Utils.Files;
-using Meddle.Utils.Files.SqPack;
+using Microsoft.Extensions.Logging;
 
 namespace Meddle.Plugin.UI.Windows;
 
 public class MdlMaterialWindow : Window
 {
-    private readonly SqPack pack;
     private readonly MdlMaterialWindowManager windowManager;
     private readonly Pointer<ModelResourceHandle> model;
-    private readonly Dictionary<string, ShpkFile> shpkCache = new();
+    private readonly Pointer<Model> model1;
     public readonly string Id;
 
-    public unsafe MdlMaterialWindow(SqPack pack, MdlMaterialWindowManager windowManager, Pointer<ModelResourceHandle> model) : base("Material Editor", ImGuiWindowFlags.None)
+    public unsafe MdlMaterialWindow(MdlMaterialWindowManager windowManager, Pointer<ModelResourceHandle> model) : 
+        base("Material Editor")
     {
-        this.pack = pack;
         this.windowManager = windowManager;
         this.model = model;
-        WindowName = $"Material Editor {model.Value->FileName.ParseString()}";
         Id = $"{(nint)this.model.Value:X8}";
+        WindowName = $"Material Editor {model.Value->FileName.ParseString()}###{Id}";
+        SizeConstraints = new WindowSizeConstraints
+        {
+            MinimumSize = new Vector2(375, 350),
+            MaximumSize = new Vector2(1200, 1000)
+        };
+    }
+    
+    public unsafe MdlMaterialWindow(MdlMaterialWindowManager windowManager, Pointer<Model> model) :
+        base("Material Editor")
+    {        
+        this.windowManager = windowManager;
+        this.model1 = model;
+        Id = $"{(nint)this.model.Value:X8}";
+        WindowName = $"Material Editor {model.Value->ModelResourceHandle->FileName.ParseString()}###{Id}";
+        SizeConstraints = new WindowSizeConstraints
+        {
+            MinimumSize = new Vector2(375, 350),
+            MaximumSize = new Vector2(1200, 1000)
+        };
     }
 
-    public override void OnClose()
+
+    public override unsafe void OnClose()
     {
         windowManager.RemoveMaterialWindow(this);
         base.OnClose();
@@ -37,7 +57,53 @@ public class MdlMaterialWindow : Window
 
     public override void Draw()
     {
-        DrawModel(model);
+        if (model1 != null)
+        {
+            DrawModel(model1);
+        }
+        else
+        {
+            DrawModel(model);
+        }
+    }
+    private unsafe void DrawModel(Pointer<Model> modelPtr)
+    {
+        if (modelPtr == null || modelPtr.Value == null)
+        {
+            ImGui.Text("Model data is null.");
+            return;
+        }
+
+        var modelName = modelPtr.Value->ModelResourceHandle->FileName.ParseString();
+        using var modelId = ImRaii.PushId(modelName);
+        
+        ImGui.Text($"Model: {modelName}");
+
+        var materials = modelPtr.Value->MaterialsSpan;
+        ImGui.Text($"Material Count: {materials.Length}");
+
+        for (var i = 0; i < materials.Length; i++)
+        {
+            var material = materials[i];
+            if (material == null || material.Value == null || material.Value->MaterialResourceHandle == null) continue;
+            using var materialId = ImRaii.PushId(i);
+            var shpkName = material.Value->MaterialResourceHandle->ShpkNameString;
+            using var materialNode = ImRaii.TreeNode($"[{shpkName}]Material {i}: {material.Value->MaterialResourceHandle->FileName.ParseString()}");
+            if (!materialNode.Success) continue;
+            DrawMtrl(material.Value->MaterialResourceHandle);
+            // DrawMtrlTextures(material.Value->MaterialResourceHandle);
+            // using var materialParamNode = ImRaii.TreeNode("Material Parameters");
+            // if (materialParamNode.Success)
+            // {
+            //     DrawMtrl(material.Value->MaterialResourceHandle);
+            // }
+            //
+            // using var materialTexturesNode = ImRaii.TreeNode("Material Textures");
+            // if (materialTexturesNode.Success)
+            // {
+            //     DrawMtrlTextures(material.Value->MaterialResourceHandle);
+            // }
+        }
     }
 
     private unsafe void DrawModel(Pointer<ModelResourceHandle> modelPtr)
@@ -65,10 +131,59 @@ public class MdlMaterialWindow : Window
             using var materialNode = ImRaii.TreeNode($"[{shpkName}]Material {i}: {material.Value->FileName.ParseString()}");
             if (!materialNode.Success) continue;
             DrawMtrl(material);
+            // using var materialParamNode = ImRaii.TreeNode("Material Parameters");
+            // if (materialParamNode.Success)
+            // {
+            //     DrawMtrl(material);
+            // }
+            //
+            // using var materialTexturesNode = ImRaii.TreeNode("Material Textures");
+            // if (materialTexturesNode.Success)
+            // {
+            //     DrawMtrlTextures(material);
+            // }
         }
     }
     
-    private Dictionary<nint, float[]> materialParamsCache = new();
+    private readonly Dictionary<nint, float[]> materialParamsCache = new();
+
+    public unsafe void DrawMtrlTextures(Pointer<MaterialResourceHandle> mtrlPtr)
+    {
+        if (mtrlPtr == null || mtrlPtr.Value == null)
+        {
+            return;
+        }
+
+        var textures = mtrlPtr.Value->TexturesSpan;
+        if (textures.Length == 0)
+        {
+            ImGui.Text("No textures.");
+            return;
+        }
+        
+        var availWidth = ImGui.GetContentRegionAvail().X;
+        using var table = ImRaii.Table("MaterialTextures", 3, ImGuiTableFlags.Borders |
+                                                            ImGuiTableFlags.RowBg |
+                                                            ImGuiTableFlags.Hideable |
+                                                            ImGuiTableFlags.Resizable);
+        
+        ImGui.TableSetupColumn("ID", ImGuiTableColumnFlags.WidthFixed, availWidth * 0.05f);
+        ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthFixed, availWidth * 0.2f);
+        ImGui.TableSetupColumn("Path", ImGuiTableColumnFlags.WidthStretch);
+        ImGui.TableHeadersRow();
+        
+        for (var i = 0; i < textures.Length; i++)
+        {
+            var texture = textures[i];
+            if (texture.TextureResourceHandle == null) continue;
+            using var textureId = ImRaii.PushId(i);
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
+            ImGui.Text(i.ToString());
+            ImGui.TableNextColumn();
+            ImGui.Text(texture.TextureResourceHandle->FileName.ParseString());
+        }
+    }
     
     public unsafe void DrawMtrl(Pointer<MaterialResourceHandle> mtrlPtr)
     {
@@ -89,19 +204,7 @@ public class MdlMaterialWindow : Window
 
         var shpkName = mtrlPtr.Value->ShpkNameString;
         var shpkPath = $"shader/sm5/shpk/{shpkName}";
-        if (!shpkCache.TryGetValue(shpkPath, out var shpk))
-        {
-            var shpkData = pack.GetFileOrReadFromDisk(shpkPath);
-            if (shpkData != null)
-            {
-                shpk = new ShpkFile(shpkData);
-                shpkCache[shpkPath] = shpk;
-            }
-            else
-            {
-                throw new Exception($"Failed to load {shpkPath}");
-            }
-        }
+        var shpk = windowManager.GetShpkFile(shpkPath);
         
         ImGui.Text($"Shader Package: {shpkName}");
         var orderedMaterialParams = shpk.MaterialParams.Select((x, idx) => (x, idx))
