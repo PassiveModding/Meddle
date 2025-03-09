@@ -61,7 +61,7 @@ public sealed class Plugin : IDalamudPlugin
             app = host.Build();
             log = app.Services.GetRequiredService<ILogger<Plugin>>();
             Logger = log;
-            Meddle.Utils.Global.Logger = log;
+            Meddle.Utils.Global.Logger = app.Services.GetRequiredService<ILogger<Meddle.Utils.Global>>();
             NativeDll.Initialize(app.Services.GetRequiredService<IDalamudPluginInterface>().AssemblyLocation.DirectoryName);
 
             app.Start();
