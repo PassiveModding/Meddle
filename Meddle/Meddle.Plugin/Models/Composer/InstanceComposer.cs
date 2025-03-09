@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
 using SharpGLTF.Schema2;
+using SharpGLTF.Transforms;
 using SharpGLTF.Validation;
 
 namespace Meddle.Plugin.Models.Composer;
@@ -254,7 +255,16 @@ public class InstanceComposer
             }
         
             if (!validChild) return null;
-            root.SetLocalTransform(instance.Transform.AffineTransform, true);
+            root.SetLocalTransform(instance.Transform.AffineTransform
+                                           .WithScale(Vector3.One), true);
+            if (instance.Transform.Scale != Vector3.One)
+            {
+                Plugin.Logger?.LogWarning("Shared group {InstanceId} has non-unity scale {Scale}", instance.Id, instance.Transform.Scale);
+                root.Extras = JsonNode.Parse(JsonSerializer.Serialize(new
+                {
+                    RealScale = instance.Transform.Scale
+                }, MaterialComposer.JsonOptions));
+            }
             return root;
         } 
         finally
