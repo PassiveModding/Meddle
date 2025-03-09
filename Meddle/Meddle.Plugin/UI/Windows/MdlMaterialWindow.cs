@@ -1,53 +1,59 @@
 ﻿using System.Numerics;
 using Dalamud.Interface.Utility.Raii;
+using Dalamud.Interface.Windowing;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using FFXIVClientStructs.Interop;
 using ImGuiNET;
 using Meddle.Plugin.Models;
-using Meddle.Plugin.Services.UI;
 using Meddle.Plugin.Utils;
 using Meddle.Utils.Constants;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
 
-namespace Meddle.Plugin.UI;
+namespace Meddle.Plugin.UI.Windows;
 
-public class MdlMaterialTab : ITab
+public class MdlMaterialWindow : Window
 {
     private readonly SqPack pack;
-    private static Pointer<ModelResourceHandle> ModelPtr { get; set; }
+    private readonly MdlMaterialWindowManager windowManager;
+    private readonly Pointer<ModelResourceHandle> model;
     private readonly Dictionary<string, ShpkFile> shpkCache = new();
-    
-    public MenuType MenuType => MenuType.Debug;
-    
-    public int Order => 3;
-    
-    public string Name => "Model Material Parameters";
+    public readonly string Id;
 
-    public MdlMaterialTab(SqPack pack)
+    public unsafe MdlMaterialWindow(SqPack pack, MdlMaterialWindowManager windowManager, Pointer<ModelResourceHandle> model) : base("Material Editor", ImGuiWindowFlags.None)
     {
         this.pack = pack;
-    }
-    
-    public static void SetModel(Pointer<ModelResourceHandle> modelPtr)
-    {
-        ModelPtr = modelPtr;
+        this.windowManager = windowManager;
+        this.model = model;
+        WindowName = $"Material Editor {model.Value->FileName.ParseString()}";
+        Id = $"{(nint)this.model.Value:X8}";
     }
 
-    public unsafe void Draw()
+    public override void OnClose()
     {
-        if (ModelPtr == null || ModelPtr.Value == null)
+        windowManager.RemoveMaterialWindow(this);
+        base.OnClose();
+    }
+
+    public override void Draw()
+    {
+        DrawModel(model);
+    }
+
+    private unsafe void DrawModel(Pointer<ModelResourceHandle> modelPtr)
+    {
+        if (modelPtr == null || modelPtr.Value == null)
         {
-            ImGui.Text("No model selected.");
+            ImGui.Text("Model data is null.");
             return;
         }
 
-        var modelName = ModelPtr.Value->FileName.ParseString();
+        var modelName = modelPtr.Value->FileName.ParseString();
         using var modelId = ImRaii.PushId(modelName);
         
         ImGui.Text($"Model: {modelName}");
         
-        var materials = StructExtensions.GetMaterials(ModelPtr.Value);
+        var materials = StructExtensions.GetMaterials(modelPtr.Value);
         ImGui.Text($"Material Count: {materials.Length}");
 
         for (var i = 0; i < materials.Length; i++)
@@ -233,7 +239,4 @@ public class MdlMaterialTab : ITab
             }
         }
     }
-    
-    public void Dispose()
-    {}
 }

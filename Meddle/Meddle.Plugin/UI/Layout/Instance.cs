@@ -170,9 +170,9 @@ public partial class LayoutWindow
         {
             BgObject* drawObject = (BgObject*)bgPartLayout->GraphicsObject;
             UiUtil.Text($"Graphics Object {(nint)drawObject:X8}", $"{(nint)drawObject:X8}");
-            if (ImGui.Button("Export to Material parameters tab"))
+            if (ImGui.Button($"Preview Materials##{(nint)drawObject:X8}"))
             {
-                MdlMaterialTab.SetModel(drawObject->ModelResourceHandle);
+                mdlMaterialWindowManager.AddMaterialWindow(drawObject->ModelResourceHandle);
             }
         }
     }

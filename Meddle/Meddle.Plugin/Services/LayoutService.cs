@@ -310,7 +310,7 @@ public class LayoutService : IService, IDisposable
     {
         var gameObjectManager = sigUtil.GetGameObjectManager();
 
-        var objects = new List<ParsedInstance>();
+        var objects = new Dictionary<nint, ParsedInstance>();
         var mounts = new Dictionary<nint, ParsedCharacterInstance>();
         foreach (var objectPtr in gameObjectManager->Objects.GameObjectIdSorted)
         {
@@ -318,9 +318,9 @@ public class LayoutService : IService, IDisposable
                 continue;
 
             var obj = objectPtr.Value;
-            if (objects.Any(o => o.Id == (nint)obj))
+            if (objects.ContainsKey((nint)obj))
                 continue;
-
+            
             var type = obj->GetObjectKind();
             var drawObject = obj->DrawObject;
             if (drawObject == null)
@@ -336,7 +336,7 @@ public class LayoutService : IService, IDisposable
                 }
                 else
                 {
-                    objects.Add(instance);
+                    objects.TryAdd(instance.Id, instance);
                 }
             }
             
@@ -382,7 +382,7 @@ public class LayoutService : IService, IDisposable
 
         // Setup mount parenting
         var characterAttachedMounts = new Dictionary<nint, ParsedCharacterInstance>();
-        foreach (var characterInstance in objects.OfType<ParsedCharacterInstance>().Where(x => x.IdType == ParsedCharacterInstance.ParsedCharacterInstanceIdType.GameObject))
+        foreach (var characterInstance in objects.Values.OfType<ParsedCharacterInstance>().Where(x => x.IdType == ParsedCharacterInstance.ParsedCharacterInstanceIdType.GameObject))
         {
             var gameObjectPtr = (GameObject*)characterInstance.Id;
             if (gameObjectPtr == null) continue;
@@ -405,10 +405,10 @@ public class LayoutService : IService, IDisposable
                 mount.Value.Parent = characterInstance;
             }
             
-            objects.Add(mount.Value);
+            objects.TryAdd(mount.Key, mount.Value);
         }
 
-        return objects.ToArray();
+        return objects.Values.ToArray();
     }
 
     private unsafe Furniture[] ParseTerritoryFurniture(HousingTerritory* territory)

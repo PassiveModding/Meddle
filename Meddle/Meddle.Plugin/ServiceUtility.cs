@@ -22,11 +22,11 @@ public static class ServiceUtility
             services.AddSingleton(typeof(ITab), tabType);
         }
 
-        
         return services
                .AddSingleton<MainWindow>()
                .AddSingleton<DebugWindow>()
                .AddSingleton<LayoutWindow>()
+               .AddSingleton<MdlMaterialWindowManager>()
                .AddSingleton(new WindowSystem("Meddle"))
                .AddHostedService<WindowManager>();
     }

@@ -9,6 +9,7 @@ using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Services;
+using Meddle.Plugin.UI.Windows;
 using Meddle.Plugin.Utils;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
@@ -19,7 +20,7 @@ namespace Meddle.Plugin.UI.Layout;
 public partial class LayoutWindow : ITab
 {
     private readonly ComposerFactory composerFactory;
-    private readonly MdlMaterialTab mdlMaterialTab;
+    private readonly MdlMaterialWindowManager mdlMaterialWindowManager;
     private readonly Configuration config;
     private readonly SqPack dataManager;
 
@@ -60,6 +61,7 @@ public partial class LayoutWindow : ITab
         ITextureProvider textureProvider,
         ResolverService resolverService,
         ComposerFactory composerFactory,
+        MdlMaterialWindowManager mdlMaterialWindowManager,
         SqPack dataManager)
     {
         this.layoutService = layoutService;
@@ -70,7 +72,7 @@ public partial class LayoutWindow : ITab
         this.textureProvider = textureProvider;
         this.resolverService = resolverService;
         this.composerFactory = composerFactory;
-        this.mdlMaterialTab = mdlMaterialTab;
+        this.mdlMaterialWindowManager = mdlMaterialWindowManager;
         this.dataManager = dataManager;
     }
 

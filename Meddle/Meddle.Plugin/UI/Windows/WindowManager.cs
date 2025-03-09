@@ -41,9 +41,7 @@ public class WindowManager : IHostedService, IDisposable
         this.layoutWindow = layoutWindow;
         this.windowSystem = windowSystem;
     }
-
-
-
+    
     public void Dispose()
     {
         if (!disposed)
@@ -64,7 +62,6 @@ public class WindowManager : IHostedService, IDisposable
     {
         windowSystem.AddWindow(mainWindow);
         windowSystem.AddWindow(debugWindow);
-        //windowSystem.AddWindow(layoutWindow);
 
         config.OnConfigurationSaved += OnSave;
         pluginInterface.UiBuilder.Draw += windowSystem.Draw;
