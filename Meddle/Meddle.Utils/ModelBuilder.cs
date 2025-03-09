@@ -30,11 +30,18 @@ public static class ModelBuilder
             MaterialBuilder material;
             if (mesh.MaterialIdx >= materials.Count)
             {
-                Global.Logger.LogWarning("[{Path}] Mesh {MeshIdx} has invalid material index {MaterialIdx}",
-                                         model.HandlePath,
-                                         mesh.MeshIdx,
-                                         mesh.MaterialIdx);
-                material = materials.LastOrDefault(new MaterialBuilder($"{modelPathName}_{mesh.MeshIdx}_{mesh.MaterialIdx}_fallback"));
+                if (materials.Count != 0)
+                {
+                    Global.Logger.LogWarning("[{Path}] Mesh {MeshIdx} has invalid material index {MaterialIdx}",
+                                             model.HandlePath,
+                                             mesh.MeshIdx,
+                                             mesh.MaterialIdx);
+                    material = materials.LastOrDefault(new MaterialBuilder($"{modelPathName}_{mesh.MeshIdx}_{mesh.MaterialIdx}_fallback"));
+                }
+                else
+                {
+                    material = new MaterialBuilder($"{modelPathName}_{mesh.MeshIdx}_{mesh.MaterialIdx}_empty");
+                }
             }
             else
             {
