@@ -8,8 +8,8 @@ namespace Meddle.Utils.Files.Structs.Material;
 /// <code>
 /// #       |    X (+0)    |    |    Y (+1)    |    |    Z (+2)   |    |   W (+3)    |
 /// --------------------------------------------------------------------------------------
-/// 0 (+ 0) |    Diffuse.R |  0 |    Diffuse.G |  0 |   Diffuse.B |  0 |         Unk |  
-/// 1 (+ 4) |   Specular.R |  1 |   Specular.G |  1 |  Specular.B |  1 |         Unk |
+/// 0 (+ 0) |    Diffuse.R |  0 |    Diffuse.G |  0 |   Diffuse.B |  0 |    (L)Gloss |  
+/// 1 (+ 4) |   Specular.R |  1 |   Specular.G |  1 |  Specular.B |  1 | (L)Spec Str |
 /// 2 (+ 8) |   Emissive.R |  2 |   Emissive.G |  2 |  Emissive.B |  2 |         Unk |  3
 /// 3 (+12) |   Sheen Rate |  6 |   Sheen Tint |  7 |  Sheen Apt. |  8 |         Unk |
 /// 4 (+16) |   Rougnhess? |  5 |              |    |  Metalness? |  4 |  Anisotropy |  9
@@ -55,6 +55,12 @@ public struct ColorTableRow
             _diffuse.Z = FromFloat(value.Z);
         }
     }
+
+    public float GlossStrength
+    {
+        readonly get => ToFloat(_diffuse.W);
+        set => _diffuse.W = FromFloat(value);
+    }
     
     public Vector3 Specular
     {
@@ -65,6 +71,12 @@ public struct ColorTableRow
             _specular.Y = FromFloat(value.Y);
             _specular.Z = FromFloat(value.Z);
         }
+    }
+    
+    public float SpecularStrength
+    {
+        readonly get => ToFloat(_specular.W);
+        set => _specular.W = FromFloat(value);
     }
 
     public Vector3 Emissive

@@ -221,32 +221,36 @@ public readonly struct ColorTable
                 r.TileAlpha,
                 r.SphereIndex,
                 r.TileMatrix,
+                r.GlossStrength,
+                r.SpecularStrength,
             }).ToArray()
         };
     }
     
-    public ColorTableRow GetBlendedPair(int weight, int blend)
-    {
-        var (row0, row1) = GetPair(weight);
-        var prioRow = weight < 128 ? row1 : row0;
-
-        var blendAmount = blend / 255f;
-        var row = new ColorTableRow
-        {
-            Diffuse = Vector3.Clamp(Vector3.Lerp(row1.Diffuse, row0.Diffuse, blendAmount), Vector3.Zero, Vector3.One),
-            Specular = Vector3.Clamp(Vector3.Lerp(row1.Specular, row0.Specular, blendAmount), Vector3.Zero, Vector3.One),
-            Emissive = Vector3.Clamp(Vector3.Lerp(row1.Emissive, row0.Emissive, blendAmount), Vector3.Zero, Vector3.One),
-            SheenRate = float.Lerp(row1.SheenRate, row0.SheenRate, blendAmount),
-            SheenTint = float.Lerp(row1.SheenTint, row0.SheenTint, blendAmount),
-            SheenAptitude = float.Lerp(row1.SheenAptitude, row0.SheenAptitude, blendAmount),
-            Roughness = float.Lerp(row1.Roughness, row0.Roughness, blendAmount),
-            Metalness = float.Lerp(row1.Metalness, row0.Metalness, blendAmount),
-            Anisotropy = float.Lerp(row1.Anisotropy, row0.Anisotropy, blendAmount),
-            SphereMask = float.Lerp(row1.SphereMask, row0.SphereMask, blendAmount),
-            
-            TileIndex = prioRow.TileIndex
-        };
-
-        return row;
-    }
+    // public ColorTableRow GetBlendedPair(int weight, int blend)
+    // {
+    //     var (row0, row1) = GetPair(weight);
+    //     var prioRow = weight < 128 ? row1 : row0;
+    //
+    //     var blendAmount = blend / 255f;
+    //     var row = new ColorTableRow
+    //     {
+    //         Diffuse = Vector3.Clamp(Vector3.Lerp(row1.Diffuse, row0.Diffuse, blendAmount), Vector3.Zero, Vector3.One),
+    //         Specular = Vector3.Clamp(Vector3.Lerp(row1.Specular, row0.Specular, blendAmount), Vector3.Zero, Vector3.One),
+    //         Emissive = Vector3.Clamp(Vector3.Lerp(row1.Emissive, row0.Emissive, blendAmount), Vector3.Zero, Vector3.One),
+    //         SheenRate = float.Lerp(row1.SheenRate, row0.SheenRate, blendAmount),
+    //         SheenTint = float.Lerp(row1.SheenTint, row0.SheenTint, blendAmount),
+    //         SheenAptitude = float.Lerp(row1.SheenAptitude, row0.SheenAptitude, blendAmount),
+    //         Roughness = float.Lerp(row1.Roughness, row0.Roughness, blendAmount),
+    //         Metalness = float.Lerp(row1.Metalness, row0.Metalness, blendAmount),
+    //         Anisotropy = float.Lerp(row1.Anisotropy, row0.Anisotropy, blendAmount),
+    //         SphereMask = float.Lerp(row1.SphereMask, row0.SphereMask, blendAmount),
+    //         GlossStrength = float.Lerp(row1.GlossStrength, row0.GlossStrength, blendAmount),
+    //         SpecularStrength = float.Lerp(row1.SpecularStrength, row0.SpecularStrength, blendAmount),
+    //         
+    //         TileIndex = prioRow.TileIndex
+    //     };
+    //
+    //     return row;
+    // }
 }

@@ -8,7 +8,6 @@ using ImGuiNET;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Skeletons;
 using Meddle.Utils.Files.Structs.Material;
-using Microsoft.Extensions.Logging;
 using SharpGLTF.Transforms;
 using CustomizeData = Meddle.Utils.Export.CustomizeData;
 using CustomizeParameter = Meddle.Utils.Export.CustomizeParameter;
@@ -49,7 +48,7 @@ public static class UiUtil
 
         ImGui.SameLine();
         HintCircle("Select which files to cache when exporting, this is not needed in most cases");
-        
+
         var exportType = exportConfiguration.ExportType;
         if (EnumExtensions.DrawEnumCombo("Export type", ref exportType))
         {
@@ -58,22 +57,22 @@ public static class UiUtil
             {
                 exportConfiguration.ExportType = Configuration.DefaultExportType;
             }
-            
+
             changed = true;
         }
-        
+
         var textureMode = exportConfiguration.TextureMode;
         if (EnumExtensions.DrawEnumDropDown("Texture Mode", ref textureMode))
         {
             exportConfiguration.TextureMode = textureMode;
             changed = true;
         }
-        
+
         if (textureMode == TextureMode.Bake)
         {
             ImGui.TextColored(new Vector4(1, 0, 0, 1), "Baking textures is deprecated, use Raw mode with the MeddleTools Blender addon");
         }
-        
+
         if (!flags.HasFlag(ExportConfigDrawFlags.HideExportPose))
         {
             var exportPose = exportConfiguration.ExportPose;
@@ -83,17 +82,17 @@ public static class UiUtil
                 changed = true;
             }
         }
-        
+
         var removeAttributeDisabledSubMeshes = exportConfiguration.RemoveAttributeDisabledSubmeshes;
         if (ImGui.Checkbox("Remove disabled submeshes", ref removeAttributeDisabledSubMeshes))
         {
             exportConfiguration.RemoveAttributeDisabledSubmeshes = removeAttributeDisabledSubMeshes;
             changed = true;
         }
-        
+
         ImGui.SameLine();
         HintCircle("Remove submeshes that are disabled by the attribute mask");
-        
+
         // var rootAttachHandling = exportConfiguration.RootAttachHandling;
         // if (EnumExtensions.DrawEnumDropDown("Root Attach Handling", ref rootAttachHandling))
         // {
@@ -104,10 +103,10 @@ public static class UiUtil
         // ImGui.SameLine();
         // HintCircle("PlayerAsAttachChild: If a 'Character' has a root attach (typically a mount), export the player as a child of the root attach\n" +
         //             "Exclude: Export the root attach separately from the player");
-        
+
         return changed;
     }
-    
+
     public static void HintCircle(string text)
     {
         using (ImRaii.PushFont(UiBuilder.IconFont))
@@ -166,165 +165,113 @@ public static class UiUtil
             ImGui.Text("Unsupported ColorTableSet");
         }
     }
-    
+
     public static void DrawColorTable(ColorTable table, ColorDyeTable? dyeTable = null)
     {
         DrawColorTable(table.Rows, dyeTable);
     }
 
+    private static readonly (string ColumnName, int ColumnWidth, ImGuiTableColumnFlags ColumnFlags, Action<int, ColorTableRow, ColorDyeTableRow?> Draw)[] ColumnDefs =
+    [
+        ("Row", 50, ImGuiTableColumnFlags.WidthFixed, (i, _, _) =>
+            {
+                ImGui.Text($"{i}");
+            }),
+        ("Diffuse", 50, ImGuiTableColumnFlags.WidthFixed, (_, row, _) =>
+            {
+                ImGui.ColorButton("##rowdiff", new Vector4(row.Diffuse, 1f), ImGuiColorEditFlags.NoAlpha);
+            }),
+        ("Specular", 50, ImGuiTableColumnFlags.WidthFixed, (_, row, _) =>
+            {
+                ImGui.ColorButton("##rowspec", new Vector4(row.Specular, 1f), ImGuiColorEditFlags.NoAlpha);
+            }),
+        ("Emissive", 50, ImGuiTableColumnFlags.WidthFixed, (_, row, _) =>
+            {
+                ImGui.ColorButton("##rowemm", new Vector4(row.Emissive, 1f), ImGuiColorEditFlags.NoAlpha);
+            }),
+        ("Sheen Rate", 50, ImGuiTableColumnFlags.WidthFixed, (_, row, _) =>
+            {
+                ImGui.Text($"{row.SheenRate:0.##}");
+            }),
+        ("Sheen Tint", 50, ImGuiTableColumnFlags.WidthFixed, (_, row, _) =>
+            {
+                ImGui.Text($"{row.SheenTint:0.##}");
+            }),
+        ("Sheen Apt.", 50, ImGuiTableColumnFlags.WidthFixed, (_, row, _) =>
+            {
+                ImGui.Text($"{row.SheenAptitude:0.##}");
+            }),
+        ("Roughness", 50, ImGuiTableColumnFlags.WidthFixed, (_, row, _) =>
+            {
+                ImGui.Text($"{row.Roughness:0.##}");
+            }),
+        ("Metalness", 50, ImGuiTableColumnFlags.WidthFixed, (_, row, _) =>
+            {
+                ImGui.Text($"{row.Metalness:0.##}");
+            }),
+        ("Anisotropy", 50, ImGuiTableColumnFlags.WidthFixed, (_, row, _) =>
+            {
+                ImGui.Text($"{row.Anisotropy:0.##}");
+            }),
+        ("Sphere Mask", 50, ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.DefaultHide, (_, row, _) =>
+            {
+                ImGui.Text($"{row.SphereMask:0.##}");
+            }),
+        ("Sphere Idx", 50, ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.DefaultHide, (_, row, _) =>
+            {
+                ImGui.Text($"{row.SphereIndex}");
+            }),
+        ("Shader Idx", 50, ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.DefaultHide, (_, row, _) =>
+            {
+                ImGui.Text($"{row.ShaderId}");
+            }),
+        ("(L)Gloss", 50, ImGuiTableColumnFlags.WidthFixed, (_, row, _) =>
+            {
+                ImGui.Text($"{row.GlossStrength:0.##}");
+            }),
+        ("(L)Spec Str", 50, ImGuiTableColumnFlags.WidthFixed, (_, row, _) =>
+            {
+                ImGui.Text($"{row.SpecularStrength:0.##}");
+            }),
+        ("Tile Matrix", 100, ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.DefaultHide, (_, row, _) =>
+            {
+                ImGui.Text($"UU: {row.TileMatrix.UU:0.##}, UV: {row.TileMatrix.UV:0.##}, VU: {row.TileMatrix.VU:0.##}, VV: {row.TileMatrix.VV:0.##}");
+            }),
+        ("Tile Idx", 50, ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.DefaultHide, (_, row, _) =>
+            {
+                ImGui.Text($"{row.TileIndex}");
+            }),
+        ("Tile Alpha", 50, ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.DefaultHide, (_, row, _) =>
+            {
+                ImGui.Text($"{row.TileAlpha:0.##}");
+            }),
+    ];
+
     public static void DrawColorTable(ReadOnlySpan<ColorTableRow> tableRows, ColorDyeTable? dyeTable = null)
     {
-        if (ImGui.BeginTable("ColorTable", 16, ImGuiTableFlags.Borders |
-                                               ImGuiTableFlags.Resizable | 
-                                               ImGuiTableFlags.SizingFixedFit |
-                                               ImGuiTableFlags.Hideable))
-        {
-            ImGui.TableSetupColumn("Row", ImGuiTableColumnFlags.WidthFixed, 50);
-            ImGui.TableSetupColumn("Diffuse", ImGuiTableColumnFlags.WidthFixed, 100);
-            ImGui.TableSetupColumn("Specular", ImGuiTableColumnFlags.WidthFixed, 100);
-            ImGui.TableSetupColumn("Emissive", ImGuiTableColumnFlags.WidthFixed, 100);
-            ImGui.TableSetupColumn("Sheen Rate", ImGuiTableColumnFlags.WidthFixed, 50);
-            ImGui.TableSetupColumn("Sheen Tint", ImGuiTableColumnFlags.WidthFixed, 50);
-            ImGui.TableSetupColumn("Sheen Apt.", ImGuiTableColumnFlags.WidthFixed, 50);
-            ImGui.TableSetupColumn("Roughness", ImGuiTableColumnFlags.WidthFixed, 50);
-            ImGui.TableSetupColumn("Metalness", ImGuiTableColumnFlags.WidthFixed, 50);
-            ImGui.TableSetupColumn("Anisotropy", ImGuiTableColumnFlags.WidthFixed, 50);
-            ImGui.TableSetupColumn("Tile Matrix", ImGuiTableColumnFlags.WidthFixed, 100);
-            ImGui.TableSetupColumn("Sphere Mask", ImGuiTableColumnFlags.WidthFixed, 50);
-            ImGui.TableSetupColumn("Sphere Idx", ImGuiTableColumnFlags.WidthFixed, 50);
-            ImGui.TableSetupColumn("Shader Idx", ImGuiTableColumnFlags.WidthFixed, 50);
-            ImGui.TableSetupColumn("Tile Index", ImGuiTableColumnFlags.WidthFixed, 50);
-            ImGui.TableSetupColumn("Tile Alpha", ImGuiTableColumnFlags.WidthFixed, 50);
-            ImGui.TableHeadersRow();
+        using var mainTable = ImRaii.Table("ColorTable", ColumnDefs.Length, ImGuiTableFlags.Resizable |
+                                                                            ImGuiTableFlags.Reorderable | ImGuiTableFlags.Hideable);
 
-            for (var i = 0; i < tableRows.Length; i++)
+        foreach (var (name, width, flags, _) in ColumnDefs)
+        {
+            ImGui.TableSetupColumn(name, flags, width);
+        }
+
+        ImGui.TableHeadersRow();
+
+        for (var i = 0; i < tableRows.Length; i++)
+        {
+            var row = tableRows[i];
+            var dye = dyeTable?.Rows[i];
+            ImGui.TableNextRow();
+            for (var j = 0; j < ColumnDefs.Length; j++)
             {
-                DrawRow(i, tableRows[i], dyeTable);
+                ImGui.TableSetColumnIndex(j);
+                ColumnDefs[j].Draw(i, row, dye);
             }
-
-            ImGui.EndTable();
         }
     }
-
-    private static void DrawRow(int i, ColorTableRow row, ColorDyeTable? dyeTable)
-    {
-        using var rowId = ImRaii.PushId(i);
-        ImGui.TableNextRow();
-        ImGui.TableSetColumnIndex(0);
-        ImGui.Text($"{i}");
-        ImGui.TableSetColumnIndex(1);
-        ImGui.ColorButton("##rowdiff", new Vector4(row.Diffuse, 1f), ImGuiColorEditFlags.NoAlpha);
-        
-        if (dyeTable != null)
-        {
-            ImGui.SameLine();
-            var diff = dyeTable.Value.Rows[i].DiffuseColor;
-            ImGui.Checkbox("##rowdiffcheck", ref diff);
-        }
-
-        ImGui.TableSetColumnIndex(2);
-        ImGui.ColorButton("##rowspec", new Vector4(row.Specular, 1f), ImGuiColorEditFlags.NoAlpha);
-        if (dyeTable != null)
-        {
-            ImGui.SameLine();
-            var spec = dyeTable.Value.Rows[i].SpecularColor;
-            ImGui.Checkbox("##rowspeccheck", ref spec);
-        }
-
-        ImGui.TableSetColumnIndex(3);
-        ImGui.ColorButton("##rowemm", new Vector4(row.Emissive, 1f), ImGuiColorEditFlags.NoAlpha);
-        if (dyeTable != null)
-        {
-            ImGui.SameLine();
-            var emm = dyeTable.Value.Rows[i].EmissiveColor;
-            ImGui.Checkbox("##rowemmcheck", ref emm);
-        }
-
-        ImGui.TableSetColumnIndex(4);
-        ImGui.Text($"{row.SheenRate}");
-        if (dyeTable != null)
-        {
-            ImGui.SameLine();
-            var sheenRate = dyeTable.Value.Rows[i].SheenRate;
-            ImGui.Checkbox("##rowsheenrate", ref sheenRate);
-        }
-        
-        ImGui.TableSetColumnIndex(5);
-        ImGui.Text($"{row.SheenTint}");
-        if (dyeTable != null)
-        {
-            ImGui.SameLine();
-            var sheenTint = dyeTable.Value.Rows[i].SheenTintRate;
-            ImGui.Checkbox("##rowsheentint", ref sheenTint);
-        }
-        
-        ImGui.TableSetColumnIndex(6);
-        ImGui.Text($"{row.SheenAptitude}");
-        if (dyeTable != null)
-        {
-            ImGui.SameLine();
-            var sheenApt = dyeTable.Value.Rows[i].SheenAperture;
-            ImGui.Checkbox("##rowsheenapt", ref sheenApt);
-        }
-        
-        ImGui.TableSetColumnIndex(7);
-        ImGui.Text($"{row.Roughness}");
-        if (dyeTable != null)
-        {
-            ImGui.SameLine();
-            var rough = dyeTable.Value.Rows[i].Roughness;
-            ImGui.Checkbox("##rowrough", ref rough);
-        }
-        
-        ImGui.TableSetColumnIndex(8);
-        ImGui.Text($"{row.Metalness}");
-        if (dyeTable != null)
-        {
-            ImGui.SameLine();
-            var metal = dyeTable.Value.Rows[i].Metalness;
-            ImGui.Checkbox("##rowmetal", ref metal);
-        }
-        
-        ImGui.TableSetColumnIndex(9);
-        ImGui.Text($"{row.Anisotropy}");
-        if (dyeTable != null)
-        {
-            ImGui.SameLine();
-            var aniso = dyeTable.Value.Rows[i].Anisotropy;
-            ImGui.Checkbox("##rowaniso", ref aniso);
-        }
-        
-        ImGui.TableSetColumnIndex(10);
-        ImGui.Text($"UU: {row.TileMatrix.UU}, UV: {row.TileMatrix.UV}, VU: {row.TileMatrix.VU}, VV: {row.TileMatrix.VV}");
-        
-        ImGui.TableSetColumnIndex(11);
-        ImGui.Text($"{row.SphereMask}");
-        if (dyeTable != null)
-        {
-            ImGui.SameLine();
-            var sphereMask = dyeTable.Value.Rows[i].SphereMapMask;
-            ImGui.Checkbox("##rowspheremask", ref sphereMask);
-        }
-        
-        ImGui.TableSetColumnIndex(12);
-        ImGui.Text($"{row.SphereIndex}");
-        if (dyeTable != null)
-        {
-            ImGui.SameLine();
-            var sphereIdx = dyeTable.Value.Rows[i].SphereMapIndex;
-            ImGui.Checkbox("##rowsphereidx", ref sphereIdx);
-        }
-        
-        ImGui.TableSetColumnIndex(13);
-        ImGui.Text($"{row.ShaderId}");
-        
-        ImGui.TableSetColumnIndex(14);
-        ImGui.Text($"{row.TileIndex}");
-        
-        ImGui.TableSetColumnIndex(15);
-        ImGui.Text($"{row.TileAlpha}");
-    }
-
+    
     public static unsafe void DrawCharacterAttaches(Pointer<Character> characterPointer)
     {
         if (characterPointer == null || characterPointer.Value == null)
@@ -352,7 +299,7 @@ public static class UiUtil
         ImGui.TableSetupColumn("Model Type", ImGuiTableColumnFlags.WidthFixed, 100);
         ImGui.TableSetupColumn("Skeleton");
         ImGui.TableHeadersRow();
-        
+
         var cBase = (CharacterBase*)characterPointer.Value->GameObject.DrawObject;
         DrawCharacterBase(cBase, "Main");
         DrawOrnamentContainer(characterPointer.Value->OrnamentData);
@@ -500,7 +447,7 @@ public static class UiUtil
             4 => "Skeleton Attach",
             _ => "Unknown"
         };
-        
+
 
         ImGui.TableNextRow();
         ImGui.TableSetColumnIndex(0);
@@ -508,7 +455,7 @@ public static class UiUtil
         ImGui.TableSetColumnIndex(1);
         ImGui.Text(modelType.ToString());
         ImGui.TableSetColumnIndex(2);
-        
+
         string attachHeader;
         if (attachPoint.ExecuteType != 0)
         {
@@ -625,7 +572,7 @@ public static class UiUtil
                                 roots.Add(j);
                             }
                         }
-                        
+
                         foreach (var root in roots)
                         {
                             using var rootId = ImRaii.PushId(root);
@@ -641,7 +588,7 @@ public static class UiUtil
     {
         var boneName = partial.HkSkeleton?.BoneNames[root] ?? "Bone";
         var transform = pose.Pose[root];
-                
+
         var children = new List<int>();
         for (var i = 0; i < partial.HkSkeleton!.BoneParents.Count; i++)
         {
@@ -650,26 +597,26 @@ public static class UiUtil
                 children.Add(i);
             }
         }
-        
+
         var flags = ImGuiTreeNodeFlags.OpenOnArrow;
         if (children.Count == 0)
         {
             flags |= ImGuiTreeNodeFlags.Leaf;
         }
-        
+
         if (!ImGui.TreeNodeEx($"[{root}] {boneName} {transform}###{root}", flags))
         {
             return;
         }
-        
+
         foreach (var child in children)
         {
             DrawBoneTree(partial, pose, child);
         }
-        
+
         ImGui.TreePop();
     }
-    
+
     // public static Vector4 ConvertU32ColorToVector4(uint color)
     // {
     //     var r = (color & 0xFF) / 255f;
@@ -678,7 +625,7 @@ public static class UiUtil
     //     var a = ((color >> 24) & 0xFF) / 255f;
     //     return new Vector4(r, g, b, a);
     // }
-    
+
     /// <summary> Square stores its colors as BGR values so R and B need to be shuffled and Alpha set to max. </summary>
     public static uint SeColorToRgba(uint color)
         => ((color & 0xFF) << 16) | ((color >> 16) & 0xFF) | (color & 0xFF00) | 0xFF000000;
