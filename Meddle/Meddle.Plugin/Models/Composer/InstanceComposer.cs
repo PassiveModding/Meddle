@@ -453,19 +453,7 @@ public class InstanceComposer
         root.SetLocalTransform(transform.AffineTransform, true);
         
         return root;
-        
-        // directional lights use illuminance in lux (lm/ m2)
-        float LuxIntensity(float intensity)
-        {
-            return intensity;
-        }
-    
-        // Point and spot lights use luminous intensity in candela (lm/ sr)
-        float CandelaIntensity(float intensity)
-        {
-            return intensity * 100f;
-        }
-    
+
         float DegreesToRadians(float degrees)
         {
             return degrees * (MathF.PI / 180f);
