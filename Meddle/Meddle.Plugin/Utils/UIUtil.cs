@@ -218,7 +218,7 @@ public static class UiUtil
         if (dyeTable != null)
         {
             ImGui.SameLine();
-            var diff = dyeTable.Value.Rows[i].Diffuse;
+            var diff = dyeTable.Value.Rows[i].DiffuseColor;
             ImGui.Checkbox("##rowdiffcheck", ref diff);
         }
 
@@ -227,7 +227,7 @@ public static class UiUtil
         if (dyeTable != null)
         {
             ImGui.SameLine();
-            var spec = dyeTable.Value.Rows[i].Specular;
+            var spec = dyeTable.Value.Rows[i].SpecularColor;
             ImGui.Checkbox("##rowspeccheck", ref spec);
         }
 
@@ -236,36 +236,84 @@ public static class UiUtil
         if (dyeTable != null)
         {
             ImGui.SameLine();
-            var emm = dyeTable.Value.Rows[i].Emissive;
+            var emm = dyeTable.Value.Rows[i].EmissiveColor;
             ImGui.Checkbox("##rowemmcheck", ref emm);
         }
 
         ImGui.TableSetColumnIndex(4);
         ImGui.Text($"{row.SheenRate}");
+        if (dyeTable != null)
+        {
+            ImGui.SameLine();
+            var sheenRate = dyeTable.Value.Rows[i].SheenRate;
+            ImGui.Checkbox("##rowsheenrate", ref sheenRate);
+        }
         
         ImGui.TableSetColumnIndex(5);
         ImGui.Text($"{row.SheenTint}");
+        if (dyeTable != null)
+        {
+            ImGui.SameLine();
+            var sheenTint = dyeTable.Value.Rows[i].SheenTintRate;
+            ImGui.Checkbox("##rowsheentint", ref sheenTint);
+        }
         
         ImGui.TableSetColumnIndex(6);
         ImGui.Text($"{row.SheenAptitude}");
+        if (dyeTable != null)
+        {
+            ImGui.SameLine();
+            var sheenApt = dyeTable.Value.Rows[i].SheenAperture;
+            ImGui.Checkbox("##rowsheenapt", ref sheenApt);
+        }
         
         ImGui.TableSetColumnIndex(7);
         ImGui.Text($"{row.Roughness}");
+        if (dyeTable != null)
+        {
+            ImGui.SameLine();
+            var rough = dyeTable.Value.Rows[i].Roughness;
+            ImGui.Checkbox("##rowrough", ref rough);
+        }
         
         ImGui.TableSetColumnIndex(8);
         ImGui.Text($"{row.Metalness}");
+        if (dyeTable != null)
+        {
+            ImGui.SameLine();
+            var metal = dyeTable.Value.Rows[i].Metalness;
+            ImGui.Checkbox("##rowmetal", ref metal);
+        }
         
         ImGui.TableSetColumnIndex(9);
         ImGui.Text($"{row.Anisotropy}");
+        if (dyeTable != null)
+        {
+            ImGui.SameLine();
+            var aniso = dyeTable.Value.Rows[i].Anisotropy;
+            ImGui.Checkbox("##rowaniso", ref aniso);
+        }
         
         ImGui.TableSetColumnIndex(10);
         ImGui.Text($"UU: {row.TileMatrix.UU}, UV: {row.TileMatrix.UV}, VU: {row.TileMatrix.VU}, VV: {row.TileMatrix.VV}");
         
         ImGui.TableSetColumnIndex(11);
         ImGui.Text($"{row.SphereMask}");
+        if (dyeTable != null)
+        {
+            ImGui.SameLine();
+            var sphereMask = dyeTable.Value.Rows[i].SphereMapMask;
+            ImGui.Checkbox("##rowspheremask", ref sphereMask);
+        }
         
         ImGui.TableSetColumnIndex(12);
         ImGui.Text($"{row.SphereIndex}");
+        if (dyeTable != null)
+        {
+            ImGui.SameLine();
+            var sphereIdx = dyeTable.Value.Rows[i].SphereMapIndex;
+            ImGui.Checkbox("##rowsphereidx", ref sphereIdx);
+        }
         
         ImGui.TableSetColumnIndex(13);
         ImGui.Text($"{row.ShaderId}");
@@ -622,12 +670,16 @@ public static class UiUtil
         ImGui.TreePop();
     }
     
-    public static Vector4 ConvertU32ColorToVector4(uint color)
-    {
-        var r = (color & 0xFF) / 255f;
-        var g = ((color >> 8) & 0xFF) / 255f;
-        var b = ((color >> 16) & 0xFF) / 255f;
-        var a = ((color >> 24) & 0xFF) / 255f;
-        return new Vector4(r, g, b, a);
-    }
+    // public static Vector4 ConvertU32ColorToVector4(uint color)
+    // {
+    //     var r = (color & 0xFF) / 255f;
+    //     var g = ((color >> 8) & 0xFF) / 255f;
+    //     var b = ((color >> 16) & 0xFF) / 255f;
+    //     var a = ((color >> 24) & 0xFF) / 255f;
+    //     return new Vector4(r, g, b, a);
+    // }
+    
+    /// <summary> Square stores its colors as BGR values so R and B need to be shuffled and Alpha set to max. </summary>
+    public static uint SeColorToRgba(uint color)
+        => ((color & 0xFF) << 16) | ((color >> 16) & 0xFF) | (color & 0xFF00) | 0xFF000000;
 }

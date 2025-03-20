@@ -2,6 +2,7 @@
 
 namespace Meddle.Utils.Files.Structs.Material;
 
+// https://github.com/Ottermandias/Penumbra.GameData/blob/757aaa39ac4aa988d0b8597ff088641a0f4f49fd/Files/MaterialStructs/ColorDyeTableRow.cs
 [StructLayout(LayoutKind.Explicit, Size = 4)]
 public struct ColorDyeTableRow
 {
@@ -10,38 +11,86 @@ public struct ColorDyeTableRow
     
     public ushort Template
     {
-        get => (ushort)(Data >> 5);
-        set => Data = (Data & 0x1Fu) | ((uint)value << 5);
+        readonly get => (ushort)((Data >> 16) & 0x7FF);
+        set => Data = (Data & ~0x7FF0000u) | ((uint)(value & 0x7FF) << 16);
     }
     
-    public bool Diffuse
+    public byte Channel
     {
-        get => (Data & 0x01) != 0;
-        set => Data = value ? Data | 0x01u : Data & 0xFFFEu;
+        readonly get => (byte)((Data >> 27) & 0x3);
+        set => Data = (Data & ~0x18000000u) | ((uint)(value & 0x3) << 27);
     }
-    
-    public bool Specular
+
+    public bool DiffuseColor
     {
-        get => (Data & 0x02) != 0;
-        set => Data = value ? Data | 0x02u : Data & 0xFFFDu;
+        readonly get => (Data & 0x0001) != 0;
+        set => Data = value ? Data | 0x0001u : Data & ~0x0001u;
     }
-    
-    public bool Emissive
+
+    public bool SpecularColor
     {
-        get => (Data & 0x04) != 0;
-        set => Data = value ? Data | 0x04u : Data & 0xFFFBu;
+        readonly get => (Data & 0x0002) != 0;
+        set => Data = value ? Data | 0x0002u : Data & ~0x0002u;
     }
-    
-    public bool Gloss
+
+    public bool EmissiveColor
     {
-        get => (Data & 0x08) != 0;
-        set => Data = value ? Data | 0x08u : Data & 0xFFF7u;
+        readonly get => (Data & 0x0004) != 0;
+        set => Data = value ? Data | 0x0004u : Data & ~0x0004u;
     }
-    
-    public bool SpecularStrength
+
+    public bool Scalar3
     {
-        get => (Data & 0x10) != 0;
-        set => Data = value ? Data | 0x10u : Data & 0xFFEFu;
+        readonly get => (Data & 0x0008) != 0;
+        set => Data = value ? Data | 0x0008u : Data & ~0x0008u;
+    }
+
+    public bool Metalness
+    {
+        readonly get => (Data & 0x0010) != 0;
+        set => Data = value ? Data | 0x0010u : Data & ~0x0010u;
+    }
+
+    public bool Roughness
+    {
+        readonly get => (Data & 0x0020) != 0;
+        set => Data = value ? Data | 0x0020u : Data & ~0x0020u;
+    }
+
+    public bool SheenRate
+    {
+        readonly get => (Data & 0x0040) != 0;
+        set => Data = value ? Data | 0x0040u : Data & ~0x0040u;
+    }
+
+    public bool SheenTintRate
+    {
+        readonly get => (Data & 0x0080) != 0;
+        set => Data = value ? Data | 0x0080u : Data & ~0x0080u;
+    }
+
+    public bool SheenAperture
+    {
+        readonly get => (Data & 0x0100) != 0;
+        set => Data = value ? Data | 0x0100u : Data & ~0x0100u;
+    }
+
+    public bool Anisotropy
+    {
+        readonly get => (Data & 0x0200) != 0;
+        set => Data = value ? Data | 0x0200u : Data & ~0x0200u;
+    }
+
+    public bool SphereMapIndex
+    {
+        readonly get => (Data & 0x0400) != 0;
+        set => Data = value ? Data | 0x0400u : Data & ~0x0400u;
+    }
+
+    public bool SphereMapMask
+    {
+        readonly get => (Data & 0x0800) != 0;
+        set => Data = value ? Data | 0x0800u : Data & ~0x0200u;
     }
 }
 
@@ -57,31 +106,31 @@ public struct LegacyColorDyeTableRow
         set => Data = (ushort)((Data & 0x1F) | (value << 5));
     }
     
-    public bool Diffuse
+    public bool DiffuseColor
     {
         get => (Data & 0x01) != 0;
         set => Data = (ushort)(value ? Data | 0x01 : Data & 0xFFFE);
     }
     
-    public bool Specular
+    public bool SpecularColor
     {
         get => (Data & 0x02) != 0;
         set => Data = (ushort)(value ? Data | 0x02 : Data & 0xFFFD);
     }
     
-    public bool Emissive
+    public bool EmissiveColor
     {
         get => (Data & 0x04) != 0;
         set => Data = (ushort)(value ? Data | 0x04 : Data & 0xFFFB);
     }
     
-    public bool Gloss
+    public bool Shininess
     {
         get => (Data & 0x08) != 0;
         set => Data = (ushort)(value ? Data | 0x08 : Data & 0xFFF7);
     }
     
-    public bool SpecularStrength
+    public bool SpecularMask
     {
         get => (Data & 0x10) != 0;
         set => Data = (ushort)(value ? Data | 0x10 : Data & 0xFFEF);

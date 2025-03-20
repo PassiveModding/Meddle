@@ -53,11 +53,11 @@ public readonly struct LegacyColorDyeTable
             Rows = Rows.ToArray().Select(r => new
             {
                 Template = r.Template,
-                Diffuse = r.Diffuse,
-                Specular = r.Specular,
-                Emissive = r.Emissive,
-                Gloss = r.Gloss,
-                SpecularStrength = r.SpecularStrength,
+                Diffuse = r.DiffuseColor,
+                Specular = r.SpecularColor,
+                Emissive = r.EmissiveColor,
+                Gloss = r.Shininess,
+                SpecularStrength = r.SpecularMask,
                 
             }).ToArray()
         };
@@ -81,12 +81,19 @@ public readonly struct ColorDyeTable
             Rows = Rows.ToArray().Select(r => new
             {
                 Template = r.Template,
-                Diffuse = r.Diffuse,
-                Specular = r.Specular,
-                Emissive = r.Emissive,
-                Gloss = r.Gloss,
-                SpecularStrength = r.SpecularStrength,
-                
+                Channel = r.Channel,
+                Diffuse = r.DiffuseColor,
+                Specular = r.SpecularColor,
+                Emissive = r.EmissiveColor,
+                Scalar3 = r.Scalar3,
+                Metalness = r.Metalness,
+                Roughness = r.Roughness,
+                SheenRate = r.SheenRate,
+                SheenTintRate = r.SheenTintRate,
+                SheenAperture = r.SheenAperture,
+                Anisotropy = r.Anisotropy,
+                SphereMapIndex = r.SphereMapIndex,
+                SphereMapMask = r.SphereMapMask,
             }).ToArray()
         };
     }
