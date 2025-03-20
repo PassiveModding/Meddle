@@ -6,6 +6,7 @@ using Lumina.Excel.Sheets;
 using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Services;
+using Meddle.Plugin.Utils;
 using Meddle.Utils.Constants;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
@@ -39,7 +40,8 @@ public interface IPathInstance
 
 public interface IStainableInstance
 {
-    public Vector4? StainColor { get; set; }
+    public uint? StainColor { get; set; }
+    public uint StainId { get; set; }
 }
 
 public interface ISearchableInstance
@@ -187,8 +189,13 @@ public class ParsedHousingInstance : ParsedSharedInstance, ISearchableInstance
         //Item = item;
     }
 
-    public Stain? Stain { get; }
-    public Stain DefaultStain { get; }
+    private Stain? Stain { get; }
+    public uint? StainColor => Stain != null ? UiUtil.SeColorToRgba(Stain.Value.Color) : null;
+    private Stain DefaultStain { get; }
+    public uint DefaultStainColor => UiUtil.SeColorToRgba(DefaultStain.Color);
+    public uint? StainId => Stain?.RowId;
+    public uint DefaultStainId => DefaultStain.RowId;
+    
     // public Item? Item { get; }
     public string Name { get; }
     public ObjectKind Kind { get; }
@@ -210,8 +217,9 @@ public class ParsedBgPartsInstance : ParsedInstance, IPathInstance, IStainableIn
         Path = path;
     }
 
-    public Vector4? StainColor { get; set; }
-    
+    public uint? StainColor { get; set; }
+    public uint StainId { get; set; }
+
     public bool Search(string query)
     {
         return Path.FullPath.Contains(query, StringComparison.OrdinalIgnoreCase) || 

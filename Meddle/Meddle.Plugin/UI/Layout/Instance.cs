@@ -107,9 +107,11 @@ public partial class LayoutWindow
                 ImGui.Text($"Kind: {ho.Kind}");
                 ImGui.Text($"Object Name: {ho.Name}");
                 //ImGui.Text($"Item Name: {ho.Item?.Name}");
-                Vector4? color = ho.Stain == null ? null : ImGui.ColorConvertU32ToFloat4(ho.Stain.Value.Color);
+                Vector4? color = ho.StainColor != null ? ImGui.ColorConvertU32ToFloat4(ho.StainColor.Value) : null;
                 if (color != null)
                 {
+                    ImGui.Text($"Stain ({ho.StainId})");
+                    ImGui.SameLine();
                     ImGui.ColorButton("Stain", color.Value);
                 }
                 else
@@ -117,15 +119,19 @@ public partial class LayoutWindow
                     ImGui.Text("No Stain");
                 }
                 
-                Vector4 defaultColor = ImGui.ColorConvertU32ToFloat4(ho.DefaultStain.Color);
+                Vector4 defaultColor = ImGui.ColorConvertU32ToFloat4(ho.DefaultStainColor);
+                ImGui.Text($"Default Stain {ho.DefaultStainId}");
+                ImGui.SameLine();
                 ImGui.ColorButton("Default Stain", defaultColor);
             }
             else if (instance is IStainableInstance stainable)
             {
-                Vector4? color = stainable.StainColor;
+                uint? color = stainable.StainColor;
                 if (color != null)
                 {
-                    ImGui.ColorButton("Stain", color.Value);
+                    ImGui.Text("Stain");
+                    ImGui.SameLine();
+                    ImGui.ColorButton("Stain", ImGui.ColorConvertU32ToFloat4(color.Value));
                 }
                 else
                 {

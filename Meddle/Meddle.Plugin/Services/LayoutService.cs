@@ -264,12 +264,13 @@ public class LayoutService : IService, IDisposable
                                              furnitureMatch.GameObject->ObjectKind,
                                              furnitureMatch.Stain,
                                              furnitureMatch.DefaultStain,
-                                             /*furnitureMatch.Item,*/ children);
+                                             children);
             foreach (var child in housing.Flatten())
             {
                 if (child is ParsedBgPartsInstance parsedBgPartsInstance)
                 {
-                    parsedBgPartsInstance.StainColor = UiUtil.ConvertU32ColorToVector4(housing.Stain?.Color ?? housing.DefaultStain.Color);
+                    parsedBgPartsInstance.StainColor = housing.StainColor ?? housing.DefaultStainColor;
+                    parsedBgPartsInstance.StainId = housing.StainId ?? housing.DefaultStainId;
                 }
             }
             

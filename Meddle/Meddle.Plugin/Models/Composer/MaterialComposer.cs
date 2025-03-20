@@ -2,6 +2,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using ImGuiNET;
 using Meddle.Plugin.Models.Composer.Materials;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Utils;
@@ -125,7 +126,8 @@ public class MaterialComposer
     {
         if (instance is IStainableInstance {StainColor: not null} stainInstance)
         {
-            SetProperty("StainColor", stainInstance.StainColor.Value.AsFloatArray());
+            SetProperty("StainColor", ImGui.ColorConvertU32ToFloat4(stainInstance.StainColor.Value).AsFloatArray());
+            SetProperty("StainId", stainInstance.StainId);
         }
     }
     
@@ -141,7 +143,7 @@ public class MaterialComposer
         }
     }
     
-    public static HashSet<string> FailedConstants = new();
+    public static readonly HashSet<string> FailedConstants = new();
     
     public MaterialComposer(MtrlFile mtrlFile, string mtrlPath, ShaderPackage shaderPackage)
     {
