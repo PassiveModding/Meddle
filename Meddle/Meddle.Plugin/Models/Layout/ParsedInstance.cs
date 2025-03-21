@@ -40,8 +40,7 @@ public interface IPathInstance
 
 public interface IStainableInstance
 {
-    public uint? StainColor { get; set; }
-    public uint StainId { get; set; }
+    public Stain? Stain { get; }
 }
 
 public interface ISearchableInstance
@@ -179,24 +178,17 @@ public class ParsedHousingInstance : ParsedSharedInstance, ISearchableInstance
 {
     public ParsedHousingInstance(nint id, Transform transform, string path, string name, 
                                  ObjectKind kind, Stain? stain, Stain defaultStain, 
-                                 /*Item? item,*/ 
                                  IReadOnlyList<ParsedInstance> children) : base(id, ParsedInstanceType.Housing, transform, path, children)
     {
         Name = name;
         Kind = kind;
         Stain = stain;
         DefaultStain = defaultStain;
-        //Item = item;
     }
 
-    private Stain? Stain { get; }
-    public uint? StainColor => Stain != null ? UiUtil.SeColorToRgba(Stain.Value.Color) : null;
-    private Stain DefaultStain { get; }
-    public uint DefaultStainColor => UiUtil.SeColorToRgba(DefaultStain.Color);
-    public uint? StainId => Stain?.RowId;
-    public uint DefaultStainId => DefaultStain.RowId;
+    public Stain? Stain { get; }
+    public Stain DefaultStain { get; }
     
-    // public Item? Item { get; }
     public string Name { get; }
     public ObjectKind Kind { get; }
     
@@ -217,8 +209,7 @@ public class ParsedBgPartsInstance : ParsedInstance, IPathInstance, IStainableIn
         Path = path;
     }
 
-    public uint? StainColor { get; set; }
-    public uint StainId { get; set; }
+    public Stain? Stain { get; set; }
 
     public bool Search(string query)
     {
@@ -315,17 +306,21 @@ public class ParsedTextureInfo(string path, string pathFromMaterial, TextureReso
     public TextureResource Resource { get; } = resource;
 }
 
-public class ParsedMaterialInfo(string path, string pathFromModel, string shpk, IColorTableSet? colorTable, ParsedTextureInfo[] textures) 
+public class ParsedMaterialInfo(string path, string pathFromModel, string shpk, IColorTableSet? colorTable, ParsedTextureInfo[] textures, Stain? stain0, Stain? stain1)
 {
     public HandleString Path { get; } = new() { FullPath = path, GamePath = pathFromModel };
+    public Stain? Stain0 { get; } = stain0;
+    public Stain? Stain1 { get; } = stain1;
     public string Shpk { get; } = shpk;
     public IColorTableSet? ColorTable { get; } = colorTable;
     public ParsedTextureInfo[] Textures { get; } = textures;
 }
 
-public class ParsedModelInfo(string path, string pathFromCharacter, DeformerCachedStruct? deformer, Model.ShapeAttributeGroup? shapeAttributeGroup, ParsedMaterialInfo[] materials) 
+public class ParsedModelInfo(string path, string pathFromCharacter, DeformerCachedStruct? deformer, Model.ShapeAttributeGroup? shapeAttributeGroup, ParsedMaterialInfo[] materials, Stain? stain0, Stain? stain1) 
 {
     public HandleString Path { get; } = new() { FullPath = path, GamePath = pathFromCharacter };
+    public Stain? Stain0 { get; } = stain0;
+    public Stain? Stain1 { get; } = stain1;
     public DeformerCachedStruct? Deformer { get; } = deformer;
     public Model.ShapeAttributeGroup? ShapeAttributeGroup { get; } = shapeAttributeGroup;
     public ParsedMaterialInfo[] Materials { get; } = materials;

@@ -13,6 +13,7 @@ using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Models.Structs;
+using Meddle.Plugin.Services;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Constants;
@@ -107,31 +108,28 @@ public partial class LayoutWindow
                 ImGui.Text($"Kind: {ho.Kind}");
                 ImGui.Text($"Object Name: {ho.Name}");
                 //ImGui.Text($"Item Name: {ho.Item?.Name}");
-                Vector4? color = ho.StainColor != null ? ImGui.ColorConvertU32ToFloat4(ho.StainColor.Value) : null;
-                if (color != null)
+                if (ho.Stain.HasValue)
                 {
-                    ImGui.Text($"Stain ({ho.StainId})");
+                    ImGui.Text($"Stain ({ho.Stain.Value.RowId})");
                     ImGui.SameLine();
-                    ImGui.ColorButton("Stain", color.Value);
+                    ImGui.ColorButton("Stain", StainHooks.GetStainColor(ho.Stain.Value));
                 }
                 else
                 {
                     ImGui.Text("No Stain");
                 }
                 
-                Vector4 defaultColor = ImGui.ColorConvertU32ToFloat4(ho.DefaultStainColor);
-                ImGui.Text($"Default Stain {ho.DefaultStainId}");
+                ImGui.Text($"Default Stain {ho.DefaultStain.RowId}");
                 ImGui.SameLine();
-                ImGui.ColorButton("Default Stain", defaultColor);
+                ImGui.ColorButton("Default Stain", StainHooks.GetStainColor(ho.DefaultStain));
             }
             else if (instance is IStainableInstance stainable)
             {
-                uint? color = stainable.StainColor;
-                if (color != null)
+                if (stainable.Stain != null)
                 {
                     ImGui.Text("Stain");
                     ImGui.SameLine();
-                    ImGui.ColorButton("Stain", ImGui.ColorConvertU32ToFloat4(color.Value));
+                    ImGui.ColorButton("Stain", StainHooks.GetStainColor(stainable.Stain.Value));
                 }
                 else
                 {

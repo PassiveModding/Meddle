@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 using ImGuiNET;
 using Meddle.Plugin.Models.Composer.Materials;
 using Meddle.Plugin.Models.Layout;
+using Meddle.Plugin.Services;
 using Meddle.Plugin.Utils;
 using Meddle.Utils.Constants;
 using Meddle.Utils.Export;
@@ -124,10 +125,10 @@ public class MaterialComposer
 
     public void SetPropertiesFromInstance(ParsedInstance instance)
     {
-        if (instance is IStainableInstance {StainColor: not null} stainInstance)
+        if (instance is IStainableInstance {Stain: not null} stainInstance)
         {
-            SetProperty("StainColor", ImGui.ColorConvertU32ToFloat4(stainInstance.StainColor.Value).AsFloatArray());
-            SetProperty("StainId", stainInstance.StainId);
+            SetProperty("StainColor", StainHooks.GetStainColor(stainInstance.Stain.Value).AsFloatArray());
+            SetProperty("StainId", stainInstance.Stain.Value.RowId);
         }
     }
     
@@ -216,4 +217,19 @@ public class MaterialComposer
         WriteIndented = true,
         Converters = { new IntPtrSerializer(), new TransformSerializer() },
     };
+
+    public void SetPropertiesFromMaterialInfo(ParsedMaterialInfo materialInfo)
+    {
+        if (materialInfo.Stain0 != null)
+        {
+            SetProperty("Stain0Id", materialInfo.Stain0!.Value.RowId);
+            SetProperty("Stain0Name", materialInfo.Stain0!.Value.Name.ExtractText());
+        }
+        
+        if (materialInfo.Stain1 != null)
+        {
+            SetProperty("Stain1Id", materialInfo.Stain1!.Value.RowId);
+            SetProperty("Stain1Name", materialInfo.Stain1!.Value.Name.ExtractText());
+        }
+    }
 }

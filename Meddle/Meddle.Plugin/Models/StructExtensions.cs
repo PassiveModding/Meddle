@@ -5,9 +5,6 @@ using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using FFXIVClientStructs.Interop;
 using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Models.Structs;
-using Meddle.Plugin.Utils;
-using Meddle.Utils.Files;
-using Meddle.Utils.Files.Structs.Model;
 using PartialSkeleton = FFXIVClientStructs.FFXIV.Client.Graphics.Render.PartialSkeleton;
 using Skeleton = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Skeleton;
 

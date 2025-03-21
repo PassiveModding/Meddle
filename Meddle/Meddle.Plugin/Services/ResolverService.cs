@@ -28,6 +28,7 @@ public class ResolverService : IService
     private readonly SqPack pack;
     private readonly ParseService parseService;
     private readonly IFramework framework;
+    private readonly StainHooks stainHooks;
     private readonly PbdHooks pbdHooks;
 
     public ResolverService(
@@ -36,6 +37,7 @@ public class ResolverService : IService
         SqPack pack,
         ParseService parseService, 
         IFramework framework,
+        StainHooks stainHooks,
         PbdHooks pbdHooks)
     {
         this.logger = logger;
@@ -43,6 +45,7 @@ public class ResolverService : IService
         this.pack = pack;
         this.parseService = parseService;
         this.framework = framework;
+        this.stainHooks = stainHooks;
         this.pbdHooks = pbdHooks;
     }
     
@@ -192,13 +195,13 @@ public class ResolverService : IService
                 var texInfo = new ParsedTextureInfo(texName, texName, texRes);
                 textures.Add(texInfo);
             }
-            
-            var materialInfo = new ParsedMaterialInfo(mtrlName, mtrlName, shaderName, colorTable, textures.ToArray());
+
+            var materialInfo = new ParsedMaterialInfo(mtrlName, mtrlName, shaderName, colorTable, textures.ToArray(), null, null);
             
             materials.Add(materialInfo);
         }
-        
-        var modelInfo = new ParsedModelInfo(path, path, null, null, materials.ToArray());
+
+        var modelInfo = new ParsedModelInfo(path, path, null, null, materials.ToArray(), null, null);
         return modelInfo;
     }
     
@@ -215,6 +218,9 @@ public class ResolverService : IService
         var modelPathFromCharacter = characterBase->ResolveMdlPath(model->SlotIndex);
         var shapeAttributeGroup = StructExtensions.ParseModelShapeAttributes(model);
 
+        var stain0 = stainHooks.GetStainFromCache((nint)characterBasePtr.Value, model->SlotIndex, 0);
+        var stain1 = stainHooks.GetStainFromCache((nint)characterBasePtr.Value, model->SlotIndex, 1);
+        
         var materials = new List<ParsedMaterialInfo>();
         for (var mtrlIdx = 0; mtrlIdx < model->MaterialsSpan.Length; mtrlIdx++)
         {
@@ -264,13 +270,15 @@ public class ResolverService : IService
             }
 
             var materialInfo =
-                new ParsedMaterialInfo(materialPath, materialPathFromModel, shaderName, colorTable, textures.ToArray());
+                new ParsedMaterialInfo(materialPath, materialPathFromModel, shaderName, colorTable, textures.ToArray(),
+                                       stain0?.Stain, stain1?.Stain);
             materials.Add(materialInfo);
         }
 
         var deform = pbdHooks.TryGetDeformer((nint)characterBasePtr.Value, model->SlotIndex);
         var modelInfo =
-            new ParsedModelInfo(modelPath, modelPathFromCharacter, deform, shapeAttributeGroup, materials.ToArray());
+            new ParsedModelInfo(modelPath, modelPathFromCharacter, deform, shapeAttributeGroup, materials.ToArray(),
+                                stain0?.Stain, stain1?.Stain);
         
             return modelInfo;
     }

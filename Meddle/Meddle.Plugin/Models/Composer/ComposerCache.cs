@@ -257,6 +257,11 @@ public class ComposerCache
             material.SetPropertiesFromColorTable(colorTableSet);
         }
 
+        if (materialInfo != null)
+        {
+            material.SetPropertiesFromMaterialInfo(materialInfo);
+        }
+
         string materialName;
         if (materialInfo != null)
         {

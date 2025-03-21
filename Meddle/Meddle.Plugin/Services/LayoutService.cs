@@ -22,25 +22,24 @@ namespace Meddle.Plugin.Services;
 
 public class LayoutService : IService, IDisposable
 {
-    // private readonly Dictionary<uint, Item> itemDict;
-    private readonly Dictionary<uint, Stain> stainDict;
     private readonly ILogger<LayoutService> logger;
     private readonly IFramework framework;
+    private readonly StainHooks stainHooks;
     private readonly Configuration config;
     private readonly SigUtil sigUtil;
 
     public LayoutService(
         SigUtil sigUtil, 
         ILogger<LayoutService> logger,
-        IDataManager dataManager,
         IFramework framework,
+        StainHooks stainHooks,
         Configuration config)
     {
         this.sigUtil = sigUtil;
         this.logger = logger;
         this.framework = framework;
+        this.stainHooks = stainHooks;
         this.config = config;
-        stainDict = dataManager.GetExcelSheet<Stain>()!.ToDictionary(row => row.RowId, row => row);
         this.framework.Update += Update;
     }
 
@@ -269,8 +268,7 @@ public class LayoutService : IService, IDisposable
             {
                 if (child is ParsedBgPartsInstance parsedBgPartsInstance)
                 {
-                    parsedBgPartsInstance.StainColor = housing.StainColor ?? housing.DefaultStainColor;
-                    parsedBgPartsInstance.StainId = housing.StainId ?? housing.DefaultStainId;
+                    parsedBgPartsInstance.Stain = furnitureMatch.Stain ?? furnitureMatch.DefaultStain;
                 }
             }
             
@@ -471,9 +469,8 @@ public class LayoutService : IService, IDisposable
                 GameObject = housingObjectPtr,
                 LayoutInstance = layoutInstance,
                 HousingFurniture = item,
-                Stain = item.Stain != 0 ? stainDict[item.Stain] : null,
-                DefaultStain = stainDict[housingSettings.Value->DefaultColorId],
-                //Item = itemDict.GetValueOrDefault(item.Id)
+                Stain = stainHooks.GetStain(item.Stain),
+                DefaultStain = stainHooks.GetStain(housingSettings.Value->DefaultColorId)!.Value,
             });
         }
 

@@ -1,6 +1,5 @@
 ﻿using Dalamud.Game;
 using Dalamud.Hooking;
-using Dalamud.Plugin.Services;
 using Meddle.Plugin.Models.Structs;
 using Microsoft.Extensions.Logging;
 
@@ -13,21 +12,11 @@ public class PbdHooks : IDisposable, IService
     private readonly ILogger<PbdHooks> logger;
     private readonly Hook<HumanCreateDeformerDelegate>? humanCreateDeformerHook;
 
-    public PbdHooks(ISigScanner sigScanner, IGameInteropProvider gameInterop, ILogger<PbdHooks> logger)
+    public PbdHooks(ILogger<PbdHooks> logger, HookManager hookManager)
     {
         this.logger = logger;
-        if (sigScanner.TryScanText(HumanCreateDeformerSig, out var humanCreateDeformerPtr))
-        {
-            logger.LogDebug("Found Human::CreateDeformer at {ptr:X}", humanCreateDeformerPtr);
-            humanCreateDeformerHook =
-                gameInterop.HookFromAddress<HumanCreateDeformerDelegate>(
-                    humanCreateDeformerPtr, Human_CreateDeformerDetour);
-            humanCreateDeformerHook.Enable();
-        }
-        else
-        {
-            logger.LogError("Failed to find Human::CreateDeformer, will not be able to cache deformer data");
-        }
+        humanCreateDeformerHook = hookManager.CreateHook<HumanCreateDeformerDelegate>(HumanCreateDeformerSig, Human_CreateDeformerDetour);
+        humanCreateDeformerHook?.Enable();
     }
     
     public IReadOnlyDictionary<nint, Dictionary<uint, DeformerCachedStruct>> GetDeformerCache() => deformerCache;

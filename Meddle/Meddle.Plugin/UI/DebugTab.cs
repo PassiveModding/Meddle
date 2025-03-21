@@ -33,6 +33,7 @@ public class DebugTab : ITab
     private readonly PbdHooks pbdHooks;
     private readonly INotificationManager notificationManager;
     private readonly SqPack sqPack;
+    private readonly StainHooks stainHooks;
     private readonly IDataManager dataManager;
     private string boneSearch = "";
 
@@ -53,6 +54,7 @@ public class DebugTab : ITab
                     ParseService parseService, PbdHooks pbdHooks,
                     INotificationManager notificationManager,
                     SqPack sqPack,
+                    StainHooks stainHooks,
                     IDataManager dataManager)
     {
         this.config = config;
@@ -65,8 +67,8 @@ public class DebugTab : ITab
         this.pbdHooks = pbdHooks;
         this.notificationManager = notificationManager;
         this.sqPack = sqPack;
+        this.stainHooks = stainHooks;
         this.dataManager = dataManager;
-        stainDict = dataManager.GetExcelSheet<Stain>()!.ToDictionary(row => row.RowId, row => row);
     }
 
     public void Dispose()
@@ -82,8 +84,6 @@ public class DebugTab : ITab
         WriteIndented = true,
         IncludeFields = true
     };
-
-    private readonly Dictionary<uint, Stain> stainDict;
 
     public void Draw()
     {
@@ -202,11 +202,11 @@ public class DebugTab : ITab
     
     private void DrawStainInfo()
     {
-        foreach (var (key, stain) in stainDict)
+        foreach (var (key, stain) in stainHooks.StainDict)
         {
             using var id = ImRaii.PushId(key.ToString());
             ImGui.Text($"Stain: {key}, {stain.Name}");
-            var color = ImGui.ColorConvertU32ToFloat4(stain.Color);
+            var color = StainHooks.GetStainColor(stain);
             ImGui.SameLine();
             ImGui.ColorButton("Color", color);
             

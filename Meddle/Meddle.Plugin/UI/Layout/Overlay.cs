@@ -93,24 +93,18 @@ public partial class LayoutWindow
             {
                 ImGui.Text($"Housing: {housingInstance.Name}");
                 ImGui.Text($"Kind: {housingInstance.Kind}");
-                // if (housingInstance.Item != null)
-                // {
-                //     ImGui.Text($"Item Name: {housingInstance.Item.Value.Name}");
-                // }
 
-                if (housingInstance.StainColor != null)
+                if (housingInstance.Stain != null)
                 {
-                    Vector4 color = ImGui.ColorConvertU32ToFloat4(housingInstance.StainColor.Value);
-                    ImGui.Text($"Stain ({housingInstance.StainId}");
+                    ImGui.Text($"Stain ({housingInstance.Stain.Value.RowId}");
                     ImGui.SameLine();
-                    ImGui.ColorButton("Stain", color);
+                    ImGui.ColorButton("Stain", ImGui.ColorConvertU32ToFloat4(housingInstance.Stain.Value.Color));
                 }
                 else
                 {
-                    Vector4 defaultColor = ImGui.ColorConvertU32ToFloat4(housingInstance.DefaultStainColor);
-                    ImGui.Text($"Stain (Default:{housingInstance.DefaultStainId})");
+                    ImGui.Text($"Stain (Default:{housingInstance.DefaultStain.RowId})");
                     ImGui.SameLine();
-                    ImGui.ColorButton("Stain", defaultColor);
+                    ImGui.ColorButton("Stain", ImGui.ColorConvertU32ToFloat4(housingInstance.DefaultStain.Color));
                 }
             }
 

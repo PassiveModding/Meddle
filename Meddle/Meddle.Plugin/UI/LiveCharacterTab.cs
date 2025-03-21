@@ -44,6 +44,7 @@ namespace Meddle.Plugin.UI;
 public unsafe class LiveCharacterTab : ITab
 {
     private readonly CommonUi commonUi;
+    private readonly SigUtil sigUtil;
     private readonly Configuration config;
     private readonly MdlMaterialWindowManager mdlMaterialWindowManager;
     private readonly ComposerFactory composerFactory;
@@ -61,6 +62,7 @@ public unsafe class LiveCharacterTab : ITab
     private readonly Dictionary<nint, bool> selectedModels = new();
     private readonly TextureCache textureCache;
     private readonly ResolverService resolverService;
+    private readonly StainHooks stainHooks;
     private readonly ITextureProvider textureProvider;
     private Task exportTask = Task.CompletedTask;
     private CancellationTokenSource cancelToken = new();
@@ -78,9 +80,11 @@ public unsafe class LiveCharacterTab : ITab
         ParseService parseService,
         TextureCache textureCache,
         ResolverService resolverService,
+        StainHooks stainHooks,
         SqPack pack,
         PbdHooks pbd,
         CommonUi commonUi,
+        SigUtil sigUtil,
         Configuration config,
         MdlMaterialWindowManager mdlMaterialWindowManager,
         ComposerFactory composerFactory)
@@ -90,9 +94,11 @@ public unsafe class LiveCharacterTab : ITab
         this.parseService = parseService;
         this.textureCache = textureCache;
         this.resolverService = resolverService;
+        this.stainHooks = stainHooks;
         this.pack = pack;
         this.pbd = pbd;
         this.commonUi = commonUi;
+        this.sigUtil = sigUtil;
         this.config = config;
         this.mdlMaterialWindowManager = mdlMaterialWindowManager;
         this.composerFactory = composerFactory;
@@ -144,7 +150,7 @@ public unsafe class LiveCharacterTab : ITab
         var charPtr = (CSCharacter*)selectedCharacter.Address;
         DrawCharacter(charPtr, "Character");
     }
-
+    
     private void DrawCharacter(CSCharacter* character, string name, int depth = 0)
     {
         if (depth > 3)
@@ -513,6 +519,22 @@ public unsafe class LiveCharacterTab : ITab
             UiUtil.Text($"Game File Name: {modelName}", modelName);
             UiUtil.Text($"File Name: {fileName}", fileName);
             ImGui.Text($"Slot Index: {model->SlotIndex}");
+            var stain0 = stainHooks.GetStainFromCache((nint)cPtr.Value, model->SlotIndex, 0);
+            var stain1 = stainHooks.GetStainFromCache((nint)cPtr.Value, model->SlotIndex, 1);
+            if (stain0 != null)
+            {
+                ImGui.Text($"Stain 0: {stain0.Value.Stain.Name.ExtractText()} ({stain0.Value.Stain.RowId})");
+                ImGui.SameLine();
+                ImGui.ColorButton("##Stain0", stain0.Value.Color);
+            }
+            
+            if (stain1 != null)
+            {
+                ImGui.Text($"Stain 1: {stain1.Value.Stain.Name.ExtractText()} ({stain1.Value.Stain.RowId})");
+                ImGui.SameLine();
+                ImGui.ColorButton("##Stain1", stain1.Value.Color);
+            }
+
             UiUtil.Text($"Skeleton Ptr: {(nint)model->Skeleton:X8}", $"{(nint)model->Skeleton:X8}");
             var deformerInfo = pbd.TryGetDeformer((nint)cBase, model->SlotIndex);
             if (deformerInfo != null)
