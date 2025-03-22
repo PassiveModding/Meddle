@@ -80,32 +80,18 @@ public sealed class MainWindow : MeddleWindowBase
             }
             
             using (ImRaii.PushFont(UiBuilder.IconFont))
+            using (ImRaii.PushColor(ImGuiCol.Text, new Vector4(0.8f, 0, 0, 1)))
             {
                 if (ImGui.MenuItem(FontAwesomeIcon.Heart.ToIconString()))
                 {
                     Process.Start(new ProcessStartInfo
                     {
-                        FileName = "https://github.com/sponsors/PassiveModding", UseShellExecute = true
+                        FileName = "https://ko-fi.com/ramen_au", UseShellExecute = true
                     });
                 }
             }
 
             ImGui.EndMenuBar();
-        }
-        
-        // warn color
-        using (var colours = ImRaii.PushColor(ImGuiCol.Text, new Vector4(1, 0, 0, 1)))
-        {
-            ImGui.Text("This is a TEST release of Meddle, many things have changed. Release notes may be found on the github release page.");
-            ImGui.Text("Please report any issues you find on the github issue tracker.");
-            ImGui.Text("For MeddleTools Blender Addon, version 0.0.23 is in pre-release, older versions may not support this version.");
-        }
-        if (ImGui.Button("MeddleTools Blender Addon v0.0.23"))
-        {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = "https://github.com/PassiveModding/MeddleTools/releases/tag/0.0.23", UseShellExecute = true
-            });
         }
     }
     
