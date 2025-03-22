@@ -19,6 +19,7 @@ public class ComposerCache
     private readonly PbdFile defaultPbdFile;
     private readonly ConcurrentDictionary<string, ShaderPackage> shpkCache = new();
     private readonly ConcurrentDictionary<string, RefCounter<MtrlFile>> mtrlCache = new();
+    private readonly ConcurrentDictionary<string, string> mtrlPathCache = new();
     private readonly ConcurrentDictionary<string, PbdFile> pbdCache = new();
     private readonly ConcurrentDictionary<string, RefCounter<MdlFile>> mdlCache = new();
     
@@ -104,7 +105,7 @@ public class ComposerCache
         return item.Object;
     }
     
-    public MtrlFile GetMtrlFile(string path)
+    public MtrlFile GetMtrlFile(string path, out string? cachePath)
     {
         var item = mtrlCache.GetOrAdd(path, key =>
         {
@@ -114,7 +115,8 @@ public class ComposerCache
             
             if (exportConfig.CacheFileTypes.HasFlag(CacheFileType.Mtrl))
             {
-                CacheFile(path);
+                var cachePath = CacheFile(path);
+                mtrlPathCache.TryAdd(path, cachePath);
             }
             
             if (mtrlCache.Count > 100)
@@ -127,6 +129,8 @@ public class ComposerCache
             
             return new RefCounter<MtrlFile>(mtrlFile);
         });
+        
+        cachePath = mtrlPathCache.GetValueOrDefault(path);
         
         item.LastAccess = DateTime.UtcNow;
         return item.Object;
@@ -239,12 +243,17 @@ public class ComposerCache
                                            ParsedCharacterInfo? characterInfo = null, 
                                            IColorTableSet? colorTableSet = null)
     {
-        var mtrlFile = GetMtrlFile(mtrlPath);
+        var mtrlFile = GetMtrlFile(mtrlPath, out var mtrlCachePath);
         var shaderPackage = GetShaderPackage(mtrlFile.GetShaderPackageName());
         var material = new MaterialComposer(mtrlFile, mtrlPath, shaderPackage);
         if (instance != null)
         {
             material.SetPropertiesFromInstance(instance);
+        }
+        
+        if (mtrlCachePath != null)
+        {
+            material.SetProperty("MtrlCachePath", Path.GetRelativePath(cacheDir, mtrlCachePath));
         }
         
         if (characterInfo != null)
