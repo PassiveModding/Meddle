@@ -629,7 +629,7 @@ public unsafe class LiveCharacterTab : ITab
         
         var material = mtPtr.Value;
         var materialParams = material->MaterialParameterCBuffer->TryGetBuffer<float>();
-        var shpkName = material->MaterialResourceHandle->ShpkNameString;
+        var shpkName = material->MaterialResourceHandle->ShpkName;
         var shpkPath = $"shader/sm5/shpk/{shpkName}";
         if (!shpkCache.TryGetValue(shpkPath, out var shpk))
         {
@@ -732,7 +732,7 @@ public unsafe class LiveCharacterTab : ITab
 
         using var materialId = ImRaii.PushId($"{(nint)material}");
         var materialFileName = material->MaterialResourceHandle->FileName.ParseString();
-        var materialName = model->ModelResourceHandle->GetMaterialFileNameBySlotAsString((uint)materialIdx);
+        var materialName = model->ModelResourceHandle->GetMaterialFileNameBySlot((uint)materialIdx);
 
         // in same row as model export button, draw button for export material
         ImGui.TableNextRow();
@@ -780,7 +780,7 @@ public unsafe class LiveCharacterTab : ITab
 
                     if (i < material->MaterialResourceHandle->TextureCount)
                     {
-                        var textureName = material->MaterialResourceHandle->TexturePathString(i);
+                        var textureName = material->MaterialResourceHandle->TexturePath(i);
                         var gpuTex = DXHelper.ExportTextureResource(textureEntry.Texture->Texture);
                         var textureData = gpuTex.Resource.ToTexture();
                         textureBuffer[textureName] = textureData;
@@ -817,7 +817,7 @@ public unsafe class LiveCharacterTab : ITab
             UiUtil.Text($"File Name: {materialFileName}", materialFileName);
             ImGui.Text($"Material Index: {materialIdx}");
             ImGui.Text($"Texture Count: {material->TextureCount}");
-            var shpkName = material->MaterialResourceHandle->ShpkNameString;
+            var shpkName = material->MaterialResourceHandle->ShpkName;
             UiUtil.Text($"Shader Package: {shpkName}", shpkName);
             ImGui.Text($"Shader Flags: 0x{material->ShaderFlags:X8}");
 
@@ -941,7 +941,7 @@ public unsafe class LiveCharacterTab : ITab
         using var textureId = ImRaii.PushId($"{(nint)textureEntry.Texture}");
         string? textureName = null;
         if (texIdx < material->MaterialResourceHandle->TextureCount)
-            textureName = material->MaterialResourceHandle->TexturePathString(texIdx);
+            textureName = material->MaterialResourceHandle->TexturePath(texIdx);
         var textureFileName = textureEntry.Texture->FileName.ParseString();
         ImGui.TableNextRow();
         ImGui.TableSetColumnIndex(0);

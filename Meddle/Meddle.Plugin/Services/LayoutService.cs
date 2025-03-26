@@ -189,9 +189,9 @@ public class LayoutService : IService, IDisposable
             {
                 var primaryPath = instanceLayout->GetPrimaryPath();
                 string? path = null;
-                if (primaryPath != null)
+                if (primaryPath.HasValue)
                 {
-                    path = SpanMemoryUtils.GetStringFromNullTerminated(primaryPath);
+                    path = primaryPath;
                 }
 
                 return new ParsedUnsupportedInstance((nint)instanceLayout, 
@@ -245,15 +245,7 @@ public class LayoutService : IService, IDisposable
 
 
         var primaryPath = sharedGroup->GetPrimaryPath();
-        string? path;
-        if (primaryPath != null)
-        {
-            path = SpanMemoryUtils.GetStringFromNullTerminated(primaryPath);
-        }
-        else
-        {
-            throw new Exception("SharedGroup has no primary path");
-        }
+        string? path = primaryPath.HasValue ? primaryPath : throw new Exception("SharedGroup has no primary path");
 
         var furnitureMatch = context.HousingItems.FirstOrDefault(item => item.LayoutInstance == sharedGroupPtr);
         if (furnitureMatch is not null)
@@ -292,15 +284,7 @@ public class LayoutService : IService, IDisposable
             return null;
 
         var primaryPath = bgPart->GetPrimaryPath();
-        string? path;
-        if (primaryPath != null)
-        {
-            path = SpanMemoryUtils.GetStringFromNullTerminated(primaryPath);
-        }
-        else
-        {
-            throw new Exception("BgPart has no primary path");
-        }
+        string? path = primaryPath.HasValue ? primaryPath : throw new Exception("BgPart has no primary path");
 
         return new ParsedBgPartsInstance((nint)bgPartPtr.Value, new Transform(*bgPart->GetTransformImpl()), path);
     }
@@ -419,7 +403,7 @@ public class LayoutService : IService, IDisposable
         {
             HousingTerritoryType.Indoor => ((IndoorTerritory*)territory)->Furniture,
             HousingTerritoryType.Outdoor => ((OutdoorTerritory*)territory)->Furniture,
-            _ => null
+            _ => []
         };
         var objectManager = type switch
         {
@@ -428,7 +412,7 @@ public class LayoutService : IService, IDisposable
             _ => null
         };
 
-        if (furniture == null || objectManager == null)
+        if (furniture.Length == 0 || objectManager == null)
             return [];
 
         var items = new List<Furniture>();

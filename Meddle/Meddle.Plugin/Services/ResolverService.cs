@@ -231,8 +231,8 @@ public class ResolverService : IService
 
             var materialPath = material->MaterialResourceHandle->ResourceHandle.FileName.ParseString();
             var materialPathFromModel =
-                model->ModelResourceHandle->GetMaterialFileNameBySlotAsString((uint)mtrlIdx);
-            var shaderName = material->MaterialResourceHandle->ShpkNameString;
+                model->ModelResourceHandle->GetMaterialFileNameBySlot((uint)mtrlIdx);
+            var shaderName = material->MaterialResourceHandle->ShpkName;
             IColorTableSet? colorTable = null;
             if (colorTableSets.TryGetValue((int)(model->SlotIndex * CharacterBase.MaterialsPerSlot) + mtrlIdx,
                                                out var gpuColorTable))
@@ -261,7 +261,7 @@ public class ResolverService : IService
                 var texturePath = texturePtr.TextureResourceHandle->FileName.ParseString();
                 if (texIdx < material->TextureCount)
                 {
-                    var texturePathFromMaterial = material->MaterialResourceHandle->TexturePathString(texIdx);
+                    var texturePathFromMaterial = material->MaterialResourceHandle->TexturePath(texIdx);
                     var (resource, _) =
                         DXHelper.ExportTextureResource(texturePtr.TextureResourceHandle->Texture);
                     var textureInfo = new ParsedTextureInfo(texturePath, texturePathFromMaterial, resource);
