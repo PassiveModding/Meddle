@@ -22,7 +22,7 @@
     </ItemGroup>
 
     <PropertyGroup>
-        <Use_Custom_ClientStructs>true</Use_Custom_ClientStructs>
+        <Use_Custom_ClientStructs>false</Use_Custom_ClientStructs>
         <CustomClientStructsPath>..\..\..\FFXIVClientStructs</CustomClientStructsPath>
     </PropertyGroup>
     <ItemGroup Condition="$(Use_Custom_ClientStructs) == false">

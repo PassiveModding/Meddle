@@ -813,6 +813,7 @@ public unsafe class LiveCharacterTab : ITab
         ImGui.TableSetColumnIndex(1);
         if (ImGui.CollapsingHeader(materialName))
         {
+            UiUtil.Text($"Material Ptr: {(nint)material:X8}", $"{(nint)material:X8}");
             UiUtil.Text($"Game File Name: {materialName}", materialName);
             UiUtil.Text($"File Name: {materialFileName}", materialFileName);
             ImGui.Text($"Material Index: {materialIdx}");
@@ -836,10 +837,10 @@ public unsafe class LiveCharacterTab : ITab
                 DrawConstantsTable(mtPtr);
             }
 
-            if (ImGui.CollapsingHeader("Keys"))
-            {
-                DrawKeys(mtPtr);
-            }
+            // if (ImGui.CollapsingHeader("Keys"))
+            // {
+            //     DrawKeys(mtPtr);
+            // }
 
             for (var texIdx = 0; texIdx < material->TextureCount; texIdx++)
             {
@@ -849,6 +850,7 @@ public unsafe class LiveCharacterTab : ITab
         }
     }
 
+    [Obsolete("Should not be used until shader package in-memory is updated", true)]
     private void DrawKeys(CSMaterial* material)
     {
         var constants = Names.GetConstants();

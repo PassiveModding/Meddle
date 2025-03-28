@@ -279,7 +279,7 @@ public class LayoutService : IService, IDisposable
         if (bgPart->Id.Type != InstanceType.BgPart)
             return null;
 
-        var graphics = (BgObject*)bgPart->GraphicsObject;
+        var graphics = bgPart->GraphicsObject;
         if (graphics == null)
             return null;
 
@@ -303,8 +303,8 @@ public class LayoutService : IService, IDisposable
             var obj = objectPtr.Value;
             if (objects.ContainsKey((nint)obj))
                 continue;
-            
-            var type = obj->GetObjectKind();
+
+            ObjectKind type = obj->GetObjectKind();
             var drawObject = obj->DrawObject;
             if (drawObject == null)
                 continue;

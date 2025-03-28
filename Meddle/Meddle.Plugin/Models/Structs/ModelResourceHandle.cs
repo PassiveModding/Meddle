@@ -1,23 +1,8 @@
-﻿using System.Runtime.InteropServices;
-using System.Text;
-using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
-using FFXIVClientStructs.Interop;
-using FFXIVClientStructs.STD;
+﻿using FFXIVClientStructs.Interop;
 using Meddle.Plugin.Utils;
 using Meddle.Utils.Files.Structs.Model;
 
 namespace Meddle.Plugin.Models.Structs;
-
-[StructLayout(LayoutKind.Explicit, Size = 0x260)]
-public unsafe struct ModelResourceHandleExt
-{
-    [FieldOffset(0x0)] public ModelResourceHandle Base;
-
-    [FieldOffset(0xC8)] public byte* StringTable;
-    
-    [FieldOffset(0x208)]
-    public MaterialResourceHandle** MaterialResourceHandles;
-}
 
 public readonly struct ModelResourceHandleData
 {

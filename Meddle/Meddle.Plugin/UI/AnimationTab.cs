@@ -139,7 +139,7 @@ public class AnimationTab : ITab
 
         var attachCollection = new List<AttachSet>();
         string rootName = $"{(nint)root:X8}";
-        var attach = StructExtensions.GetAttach(root);
+        var attach = root->Attach;
         if (attach.ExecuteType == 3)
         {
             var owner = attach.OwnerCharacter;

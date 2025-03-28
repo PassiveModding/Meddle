@@ -1,4 +1,6 @@
-﻿using Meddle.Plugin.Models.Structs;
+﻿using FFXIVClientStructs.FFXIV.Client.Graphics.Render;
+using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
+using Meddle.Plugin.Models.Structs;
 
 namespace Meddle.Plugin.Models.Skeletons;
 
@@ -32,9 +34,9 @@ public unsafe class ParsedAttach
                 {
                     var transform = attach.SkeletonBoneAttachments[0];
                     OffsetTransform = new Transform(transform.ChildTransform);
-                    PartialSkeletonIdx = transform.BoneIndexMask.SkeletonIdx;
+                    PartialSkeletonIdx = transform.BoneIndexMask.PartialSkeletonIdx;
 
-                    var ownerSkeleton = (Skeleton*)attach.OwnerCharacter->Skeleton;
+                    var ownerSkeleton = attach.OwnerCharacter->Skeleton;
 
                     Skeleton.Bone? foundBone = null;
                     var foundBoneIdx = 0;
@@ -57,7 +59,7 @@ public unsafe class ParsedAttach
 
                     var boneMask = ownerSkeleton->BoneMasksSpan[foundBoneIdx];
                     // some case for if boneMask == -1 but meh
-                    PartialSkeletonIdx = boneMask.SkeletonIdx;
+                    PartialSkeletonIdx = boneMask.PartialSkeletonIdx;
                     BoneIdx = boneMask.BoneIdx;
                 }
 
@@ -73,7 +75,7 @@ public unsafe class ParsedAttach
                     var att = attach.SkeletonBoneAttachments[0];
                     OffsetTransform = new Transform(att.ChildTransform);
 
-                    PartialSkeletonIdx = att.BoneIndexMask.SkeletonIdx;
+                    PartialSkeletonIdx = att.BoneIndexMask.PartialSkeletonIdx;
                     BoneIdx = att.BoneIndexMask.BoneIdx;
                 }
 
