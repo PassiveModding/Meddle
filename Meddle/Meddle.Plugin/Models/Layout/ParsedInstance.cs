@@ -2,6 +2,7 @@
 using System.Text.Json.Serialization;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
+using ImGuiNET;
 using Lumina.Excel.Sheets;
 using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Models.Structs;
@@ -40,7 +41,7 @@ public interface IPathInstance
 
 public interface IStainableInstance
 {
-    public Stain? Stain { get; }
+    public ParsedStain? Stain { get; }
 }
 
 public interface ISearchableInstance
@@ -174,6 +175,35 @@ public class ParsedSharedInstance : ParsedInstance, IPathInstance, ISearchableIn
     }
 }
 
+public record ParsedStain
+{
+    public ParsedStain(Stain stain)
+    {
+        SeColor = stain.Color;
+        Color = ImGui.ColorConvertU32ToFloat4(UiUtil.SeColorToRgba(SeColor));
+        RowId = stain.RowId;
+        Name = stain.Name.ExtractText();
+        Name2 = stain.Name2.ExtractText();
+        Shade = stain.Shade;
+        SubOrder = stain.SubOrder;
+        Unknown1 = stain.Unknown1;
+        Unknown2 = stain.Unknown2;
+    }
+    
+    public uint SeColor { get; }
+    public Vector4 Color { get; }
+    public uint RowId { get; }
+    public string Name { get; }
+    public string Name2 { get; }
+    public uint Shade { get; }
+    public uint SubOrder { get; }
+    public bool Unknown1 { get; }
+    public bool Unknown2 { get; }
+    
+    public static implicit operator ParsedStain(Stain stain) => new(stain);
+    public static implicit operator ParsedStain?(Stain? stain) => stain == null ? null : new ParsedStain(stain.Value);
+}
+
 public class ParsedHousingInstance : ParsedSharedInstance, ISearchableInstance
 {
     public ParsedHousingInstance(nint id, Transform transform, string path, string name, 
@@ -186,8 +216,8 @@ public class ParsedHousingInstance : ParsedSharedInstance, ISearchableInstance
         DefaultStain = defaultStain;
     }
 
-    public Stain? Stain { get; }
-    public Stain DefaultStain { get; }
+    public ParsedStain? Stain { get; }
+    public ParsedStain DefaultStain { get; }
     
     public string Name { get; }
     public ObjectKind Kind { get; }
@@ -209,7 +239,7 @@ public class ParsedBgPartsInstance : ParsedInstance, IPathInstance, IStainableIn
         Path = path;
     }
 
-    public Stain? Stain { get; set; }
+    public ParsedStain? Stain { get; set; }
 
     public bool Search(string query)
     {
@@ -309,8 +339,8 @@ public class ParsedTextureInfo(string path, string pathFromMaterial, TextureReso
 public class ParsedMaterialInfo(string path, string pathFromModel, string shpk, IColorTableSet? colorTable, ParsedTextureInfo[] textures, Stain? stain0, Stain? stain1)
 {
     public HandleString Path { get; } = new() { FullPath = path, GamePath = pathFromModel };
-    public Stain? Stain0 { get; } = stain0;
-    public Stain? Stain1 { get; } = stain1;
+    public ParsedStain? Stain0 { get; } = stain0;
+    public ParsedStain? Stain1 { get; } = stain1;
     public string Shpk { get; } = shpk;
     
     [JsonIgnore]
@@ -329,8 +359,8 @@ public class ParsedMaterialInfo(string path, string pathFromModel, string shpk, 
 public class ParsedModelInfo(string path, string pathFromCharacter, DeformerCachedStruct? deformer, Model.ShapeAttributeGroup? shapeAttributeGroup, ParsedMaterialInfo[] materials, Stain? stain0, Stain? stain1) 
 {
     public HandleString Path { get; } = new() { FullPath = path, GamePath = pathFromCharacter };
-    public Stain? Stain0 { get; } = stain0;
-    public Stain? Stain1 { get; } = stain1;
+    public ParsedStain? Stain0 { get; } = stain0;
+    public ParsedStain? Stain1 { get; } = stain1;
     public DeformerCachedStruct? Deformer { get; } = deformer;
     public Model.ShapeAttributeGroup? ShapeAttributeGroup { get; } = shapeAttributeGroup;
     public ParsedMaterialInfo[] Materials { get; } = materials;

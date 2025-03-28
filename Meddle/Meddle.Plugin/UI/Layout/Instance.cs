@@ -108,11 +108,11 @@ public partial class LayoutWindow
                 ImGui.Text($"Kind: {ho.Kind}");
                 ImGui.Text($"Object Name: {ho.Name}");
                 //ImGui.Text($"Item Name: {ho.Item?.Name}");
-                if (ho.Stain.HasValue)
+                if (ho.Stain != null)
                 {
-                    ImGui.Text($"Stain ({ho.Stain.Value.RowId})");
+                    ImGui.Text($"Stain ({ho.Stain.RowId})");
                     ImGui.SameLine();
-                    ImGui.ColorButton("Stain", StainHooks.GetStainColor(ho.Stain.Value));
+                    ImGui.ColorButton("Stain", ho.Stain.Color);
                 }
                 else
                 {
@@ -121,7 +121,7 @@ public partial class LayoutWindow
                 
                 ImGui.Text($"Default Stain {ho.DefaultStain.RowId}");
                 ImGui.SameLine();
-                ImGui.ColorButton("Default Stain", StainHooks.GetStainColor(ho.DefaultStain));
+                ImGui.ColorButton("Default Stain", ho.DefaultStain.Color);
             }
             else if (instance is IStainableInstance stainable)
             {
@@ -129,7 +129,7 @@ public partial class LayoutWindow
                 {
                     ImGui.Text("Stain");
                     ImGui.SameLine();
-                    ImGui.ColorButton("Stain", StainHooks.GetStainColor(stainable.Stain.Value));
+                    ImGui.ColorButton("Stain", stainable.Stain.Color);
                 }
                 else
                 {

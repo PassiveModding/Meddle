@@ -96,15 +96,15 @@ public partial class LayoutWindow
 
                 if (housingInstance.Stain != null)
                 {
-                    ImGui.Text($"Stain ({housingInstance.Stain.Value.RowId})");
+                    ImGui.Text($"Stain ({housingInstance.Stain.RowId})");
                     ImGui.SameLine();
-                    ImGui.ColorButton("Stain", ImGui.ColorConvertU32ToFloat4(housingInstance.Stain.Value.Color));
+                    ImGui.ColorButton("Stain", housingInstance.Stain.Color);
                 }
                 else
                 {
                     ImGui.Text($"Stain (Default:{housingInstance.DefaultStain.RowId})");
                     ImGui.SameLine();
-                    ImGui.ColorButton("Stain", ImGui.ColorConvertU32ToFloat4(housingInstance.DefaultStain.Color));
+                    ImGui.ColorButton("Stain", housingInstance.DefaultStain.Color);
                 }
             }
 

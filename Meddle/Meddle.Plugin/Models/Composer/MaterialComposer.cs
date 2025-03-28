@@ -127,8 +127,8 @@ public class MaterialComposer
     {
         if (instance is IStainableInstance {Stain: not null} stainInstance)
         {
-            SetProperty("StainColor", StainHooks.GetStainColor(stainInstance.Stain.Value).AsFloatArray());
-            SetProperty("StainId", stainInstance.Stain.Value.RowId);
+            SetProperty("StainColor", stainInstance.Stain.Color.AsFloatArray());
+            SetProperty("StainId", stainInstance.Stain.RowId);
         }
     }
     
@@ -222,14 +222,14 @@ public class MaterialComposer
     {
         if (materialInfo.Stain0 != null)
         {
-            SetProperty("Stain0Id", materialInfo.Stain0!.Value.RowId);
-            SetProperty("Stain0Name", materialInfo.Stain0!.Value.Name.ExtractText());
+            SetProperty("Stain0Id", materialInfo.Stain0!.RowId);
+            SetProperty("Stain0Name", materialInfo.Stain0.Name);
         }
         
         if (materialInfo.Stain1 != null)
         {
-            SetProperty("Stain1Id", materialInfo.Stain1!.Value.RowId);
-            SetProperty("Stain1Name", materialInfo.Stain1!.Value.Name.ExtractText());
+            SetProperty("Stain1Id", materialInfo.Stain1.RowId);
+            SetProperty("Stain1Name", materialInfo.Stain1.Name);
         }
     }
 }
