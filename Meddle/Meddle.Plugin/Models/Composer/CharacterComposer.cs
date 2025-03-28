@@ -134,7 +134,7 @@ public class CharacterComposer
                 extrasDict.Add("modelDeformToId", "");
             }
             
-            mesh.Mesh.Extras = JsonNode.Parse(JsonSerializer.Serialize(extrasDict));
+            mesh.Mesh.Extras = JsonNode.Parse(JsonSerializer.Serialize(extrasDict, MaterialComposer.JsonOptions));
             
             InstanceBuilder instance;
             if (skinningContext.Bones.Count > 0)
@@ -384,11 +384,7 @@ public class CharacterComposer
             }
             catch (Exception e)
             {
-                Plugin.Logger?.LogError(e, "Failed to handle model\n{Message}\n{ModelInfo}", e.Message, JsonSerializer.Serialize(
-                                            t, new JsonSerializerOptions
-                                            {
-                                                IncludeFields = true
-                                            }));
+                Plugin.Logger?.LogError(e, "Failed to handle model\n{Message}\n{ModelInfo}", e.Message, JsonSerializer.Serialize(t, MaterialComposer.JsonOptions));
             }
             
             rootProgress.Progress++;

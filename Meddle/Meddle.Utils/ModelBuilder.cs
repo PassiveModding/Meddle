@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using System.Text.Json.Serialization;
 using Meddle.Utils.Constants;
 using Meddle.Utils.Export;
 using Meddle.Utils.Helpers;
@@ -13,6 +14,7 @@ public static class ModelBuilder
     private static JsonSerializerOptions SerializerOptions => new()
     {
         IncludeFields = true,
+        NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals
     };
     
     public static IReadOnlyList<MeshExport> BuildMeshes(
