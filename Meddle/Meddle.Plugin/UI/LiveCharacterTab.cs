@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Reflection.Metadata;
+using System.Text.Json;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface;
 using Dalamud.Interface.ImGuiFileDialog;
@@ -300,6 +301,9 @@ public unsafe class LiveCharacterTab : ITab
                                                 if (!result) return;
                                                 exportTask = Task.Run(() =>
                                                 {
+                                                    Directory.CreateDirectory(path);
+                                                    var characterBlob = JsonSerializer.Serialize(characterInfo, MaterialComposer.JsonOptions);
+                                                    File.WriteAllText(Path.Combine(path, $"{name}_blob.json"), characterBlob);
                                                     var composer = composerFactory.CreateCharacterComposer(path, configClone, cancelToken.Token);
                                                     var scene = new SceneBuilder();
                                                     var characterRoot = new NodeBuilder($"Character-{name}");

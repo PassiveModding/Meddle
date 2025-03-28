@@ -312,7 +312,17 @@ public class ParsedMaterialInfo(string path, string pathFromModel, string shpk, 
     public Stain? Stain0 { get; } = stain0;
     public Stain? Stain1 { get; } = stain1;
     public string Shpk { get; } = shpk;
+    
+    [JsonIgnore]
     public IColorTableSet? ColorTable { get; } = colorTable;
+
+    public object? ColorTableBlob => ColorTable switch
+    {
+        ColorTableSet colorTableSet => colorTableSet.ToObject(),
+        LegacyColorTableSet legacyColorTableSet => legacyColorTableSet.ToObject(),
+        _ => null
+    };
+    
     public ParsedTextureInfo[] Textures { get; } = textures;
 }
 
