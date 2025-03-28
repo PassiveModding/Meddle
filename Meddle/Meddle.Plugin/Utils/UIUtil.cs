@@ -427,7 +427,7 @@ public static class UiUtil
         if (skeleton == null)
             return;
 
-        var attach = characterPointer.GetAttach();
+        var attach = characterPointer.Value->Attach;
         ParsedAttach attachPoint;
         try
         {

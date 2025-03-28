@@ -139,7 +139,7 @@ public class AnimationTab : ITab
 
         var attachCollection = new List<AttachSet>();
         string rootName = $"{(nint)root:X8}";
-        var attach = StructExtensions.GetAttach(root);
+        var attach = root->Attach;
         if (attach.ExecuteType == 3)
         {
             var owner = attach.OwnerCharacter;
@@ -211,17 +211,15 @@ public class AnimationTab : ITab
             attachments.Add(new AttachSet($"{(nint)mountBase:X8}", mountAttach, StructExtensions.GetParsedSkeleton(mountBase), GetTransform(mountBase), ownerId));
         }
 
-        if (weaponData != null)
+
+        for (var i = 0; i < weaponData.Length; ++i)
         {
-            for (var i = 0; i < weaponData.Length; ++i)
+            var weapon = weaponData[i];
+            if (weapon.DrawObject != null && weapon.DrawObject->GetObjectType() == ObjectType.CharacterBase)
             {
-                var weapon = weaponData[i];
-                if (weapon.DrawObject != null && weapon.DrawObject->GetObjectType() == ObjectType.CharacterBase)
-                {
-                    var weaponBase = (CharacterBase*)weapon.DrawObject;
-                    var weaponAttach = StructExtensions.GetParsedAttach(weaponBase);                    
-                    attachments.Add(new AttachSet($"{(nint)weaponBase:X8}", weaponAttach, StructExtensions.GetParsedSkeleton(weaponBase), GetTransform(weaponBase), ownerId));
-                }
+                var weaponBase = (CharacterBase*)weapon.DrawObject;
+                var weaponAttach = StructExtensions.GetParsedAttach(weaponBase);                    
+                attachments.Add(new AttachSet($"{(nint)weaponBase:X8}", weaponAttach, StructExtensions.GetParsedSkeleton(weaponBase), GetTransform(weaponBase), ownerId));
             }
         }
 

@@ -8,8 +8,6 @@ using ImGuiNET;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Utils;
 using Meddle.Utils.Constants;
-using Meddle.Utils.Files;
-using Microsoft.Extensions.Logging;
 
 namespace Meddle.Plugin.UI.Windows;
 
@@ -87,7 +85,7 @@ public class MdlMaterialWindow : Window
             var material = materials[i];
             if (material == null || material.Value == null || material.Value->MaterialResourceHandle == null) continue;
             using var materialId = ImRaii.PushId(i);
-            var shpkName = material.Value->MaterialResourceHandle->ShpkNameString;
+            var shpkName = material.Value->MaterialResourceHandle->ShpkName;
             using var materialNode = ImRaii.TreeNode($"[{shpkName}]Material {i}: {material.Value->MaterialResourceHandle->FileName.ParseString()}");
             if (!materialNode.Success) continue;
             DrawMtrl(material.Value->MaterialResourceHandle);
@@ -127,7 +125,7 @@ public class MdlMaterialWindow : Window
             var material = materials[i];
             if (material == null || material.Value == null) continue;
             using var materialId = ImRaii.PushId(i);
-            var shpkName = material.Value->ShpkNameString;
+            var shpkName = material.Value->ShpkName;
             using var materialNode = ImRaii.TreeNode($"[{shpkName}]Material {i}: {material.Value->FileName.ParseString()}");
             if (!materialNode.Success) continue;
             DrawMtrl(material);
@@ -202,7 +200,7 @@ public class MdlMaterialWindow : Window
 
         var materialParams = material->MaterialParameterCBuffer->TryGetBuffer<float>();
 
-        var shpkName = mtrlPtr.Value->ShpkNameString;
+        var shpkName = mtrlPtr.Value->ShpkName;
         var shpkPath = $"shader/sm5/shpk/{shpkName}";
         var shpk = windowManager.GetShpkFile(shpkPath);
         

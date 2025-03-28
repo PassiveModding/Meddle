@@ -169,7 +169,7 @@ public partial class LayoutWindow
     private unsafe void DrawBgObject(ParsedBgPartsInstance bg)
     {
         BgPartsLayoutInstance* bgPartLayout = (BgPartsLayoutInstance*)bg.Id;
-
+    
         if (bgPartLayout->GraphicsObject != null)
         {
             BgObject* drawObject = (BgObject*)bgPartLayout->GraphicsObject;

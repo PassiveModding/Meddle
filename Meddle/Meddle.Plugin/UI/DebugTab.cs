@@ -168,10 +168,40 @@ public class DebugTab : ITab
                 }
             }
         }
+
+        if (ImGui.CollapsingHeader("Terrain Pointers"))
+        {
+            DrawTerrainPointers();
+        }
         
         if (ImGui.CollapsingHeader("File Export"))
         {
             DrawFileExportUi();
+        }
+    }
+    
+    private unsafe void DrawTerrainPointers()
+    {
+        var world = sigUtil.GetLayoutWorld();
+
+        if (world == null || world->ActiveLayout == null) return;
+        foreach (var layer in world->ActiveLayout->Layers)
+        {
+            UiUtil.Text($"Layer: {layer.Item1} - {(nint)layer.Item2.Value:X8}", $"{(nint)layer.Item2.Value:X8}");
+            var layerPtr = layer.Item2.Value;
+            if (layerPtr == null) continue;
+            foreach (var instance in layerPtr->Instances)
+            {
+                UiUtil.Text($"Instance: {instance.Item1} - {(nint)instance.Item2.Value:X8}", $"{(nint)instance.Item2.Value:X8}");
+            }
+        }
+
+        foreach (var terrain in world->ActiveLayout->Terrains)
+        {
+            UiUtil.Text($"Terrain: {terrain.Item1} - {(nint)terrain.Item2.Value:X8}", $"{(nint)terrain.Item2.Value:X8}");
+            var terrainPtr = terrain.Item2.Value;
+            if (terrainPtr == null) continue;
+            UiUtil.Text($"GfxTerrain: {(nint)terrainPtr->GfxTerrain:X8}", $"{(nint)terrainPtr->GfxTerrain:X8}");
         }
     }
 

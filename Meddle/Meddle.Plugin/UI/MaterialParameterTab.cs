@@ -265,7 +265,7 @@ public class MaterialParameterTab : ITab
                             }
                         }
 
-                        var shpkName = material->MaterialResourceHandle->ShpkNameString;
+                        var shpkName = material->MaterialResourceHandle->ShpkName;
                         var shpkPath = $"shader/sm5/shpk/{shpkName}";
                         if (!shpkCache.TryGetValue(shpkPath, out var shpk))
                         {

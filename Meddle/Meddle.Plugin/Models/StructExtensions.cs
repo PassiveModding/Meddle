@@ -23,25 +23,15 @@ public static class StructExtensions
     {
         if (model == null) throw new ArgumentNullException(nameof(model));
         if (model.Value == null) throw new ArgumentNullException(nameof(model));
-        var ext = (ModelResourceHandleExt*)model.Value;
-        var headerData = new ModelResourceHandleData(ext->StringTable);
+        // var ext = (ModelResourceHandleExt*)model.Value;
+        var headerData = new ModelResourceHandleData(model.Value->ModelData);
         var materialCount = headerData.ModelHeader.MaterialCount;
-        return new Span<Pointer<MaterialResourceHandle>>(ext->MaterialResourceHandles, materialCount);
-    }
-    
-    public static unsafe Attach GetAttach(this Pointer<CharacterBase> character)
-    {
-        if (character == null) throw new ArgumentNullException(nameof(character));
-        if (character.Value == null) throw new ArgumentNullException(nameof(character));
-
-        var characterBase = character.Value; // + 0xD0 gives Attach data
-        var offset = (nint)characterBase + CharacterBaseAttachOffset;
-        return *(Attach*)offset;
+        return new Span<Pointer<MaterialResourceHandle>>(model.Value->MaterialResourceHandles, materialCount);
     }
 
-    public static ParsedAttach GetParsedAttach(this Pointer<CharacterBase> character)
+    public static unsafe ParsedAttach GetParsedAttach(this Pointer<CharacterBase> character)
     {
-        var attach = GetAttach(character);
+        var attach = character.Value->Attach;
         return new ParsedAttach(attach);
     }
 
