@@ -216,6 +216,7 @@ public partial class LayoutWindow
                 
                 foreach (var material in plate.Materials)
                 {
+                    if (material == null) continue;
                     using var materialNode = ImRaii.TreeNode($"Material: {material.Path.GamePath}");
                     if (!materialNode.Success) continue;
                     UiUtil.Text($"Material Path: {material.Path.FullPath}", material.Path.FullPath);
@@ -442,6 +443,7 @@ public partial class LayoutWindow
 
                 foreach (var materialInfo in modelInfo.Materials)
                 {
+                    if (materialInfo == null) continue;
                     using var materialNode = ImRaii.TreeNode($"Material: {materialInfo.Path.GamePath}");
                     if (materialNode.Success)
                     {

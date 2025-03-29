@@ -221,14 +221,17 @@ public class ResolverService : IService
         var stain0 = stainHooks.GetStainFromCache((nint)characterBasePtr.Value, model->SlotIndex, 0);
         var stain1 = stainHooks.GetStainFromCache((nint)characterBasePtr.Value, model->SlotIndex, 1);
         
-        var materials = new List<ParsedMaterialInfo>();
+        var materials = new List<ParsedMaterialInfo?>();
         for (var mtrlIdx = 0; mtrlIdx < model->MaterialsSpan.Length; mtrlIdx++)
         {
             var materialPtr = model->MaterialsSpan[mtrlIdx];
-            if (materialPtr == null) continue;
+            if (materialPtr == null || materialPtr.Value == null)
+            {
+                materials.Add(null);
+                continue;
+            }
+            
             var material = materialPtr.Value;
-            if (material == null) continue;
-
             var materialPath = material->MaterialResourceHandle->ResourceHandle.FileName.ParseString();
             var materialPathFromModel =
                 model->ModelResourceHandle->GetMaterialFileNameBySlot((uint)mtrlIdx);

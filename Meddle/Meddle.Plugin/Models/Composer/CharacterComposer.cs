@@ -59,6 +59,12 @@ public class CharacterComposer
         for (int i = 0; i < m.Materials.Length; i++)
         {
             var materialInfo = m.Materials[i];
+            if (materialInfo == null)
+            {
+                materialBuilders[i] = new MaterialBuilder("null");
+                continue;
+            }
+            
             try
             {
                 materialBuilders[i] = composerCache.ComposeMaterial(materialInfo.Path.FullPath, 

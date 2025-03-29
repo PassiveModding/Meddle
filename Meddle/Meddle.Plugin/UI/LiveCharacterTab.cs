@@ -568,11 +568,6 @@ public unsafe class LiveCharacterTab : ITab
             for (var materialIdx = 0; materialIdx < model->MaterialsSpan.Length; materialIdx++)
             {
                 var materialPtr = model->MaterialsSpan[materialIdx];
-                if (materialPtr == null || materialPtr.Value == null)
-                {
-                    continue;
-                }
-
                 DrawMaterial(cBase, model, materialPtr.Value, materialIdx);
             }
         }
@@ -726,6 +721,9 @@ public unsafe class LiveCharacterTab : ITab
 
         if (mtPtr == null || mtPtr.Value == null || mtPtr.Value->MaterialResourceHandle == null)
         {
+            ImGui.TableNextRow();
+            ImGui.TableSetColumnIndex(1);
+            ImGui.Text("Material is null");
             return;
         }
 
