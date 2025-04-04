@@ -160,6 +160,7 @@ public class Configuration : IPluginConfiguration
         public TextureMode TextureMode { get; set; } = TextureMode.Raw;
         public bool ExportPose { get; set; } = true;
         public bool RemoveAttributeDisabledSubmeshes { get; set; } = true;
+        public bool SkipHiddenBgParts { get; set; }
 
         // public enum ExportRootAttachHandling
         // {
@@ -178,6 +179,7 @@ public class Configuration : IPluginConfiguration
                 ExportType = ExportType,
                 TextureMode = TextureMode,
                 RemoveAttributeDisabledSubmeshes = RemoveAttributeDisabledSubmeshes,
+                SkipHiddenBgParts = SkipHiddenBgParts,
                 // RootAttachHandling = RootAttachHandling
             };
         }

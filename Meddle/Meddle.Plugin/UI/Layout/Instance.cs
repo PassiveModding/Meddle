@@ -57,7 +57,7 @@ public partial class LayoutWindow
         var infoHeader = instance switch
         {
             ParsedHousingInstance housingObject => $"{housingObject.Type} - {housingObject.Name}",
-            ParsedBgPartsInstance bgObject => $"{bgObject.Type} - {bgObject.Path.GamePath}",
+            ParsedBgPartsInstance bgObject => $"{bgObject.Type} - {bgObject.Path.GamePath} - {(bgObject.IsVisible ? "Visible" : "Hidden")}",
             ParsedUnsupportedInstance unsupported => $"{unsupported.Type} - {unsupported.InstanceType}",
             ParsedCharacterInstance character => $"{character.Type} - {character.Kind}",
             _ => $"{instance.Type}"

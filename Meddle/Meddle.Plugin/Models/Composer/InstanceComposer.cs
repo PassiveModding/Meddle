@@ -226,7 +226,13 @@ public class InstanceComposer
         try
         {
             characterComposer.Compose(instance.CharacterInfo, scene, root, characterProgress);
-            root.SetLocalTransform(instance.Transform.AffineTransform, true);
+            var cTransform = instance.Transform.AffineTransform;
+            if (exportConfig.ExportPose)
+            {
+                // set scale to 1 since exporting with pose should already set this on the root bone.
+                cTransform = cTransform.WithScale(Vector3.One);
+            }
+            root.SetLocalTransform(cTransform, true);
         } 
         finally
         {
@@ -259,7 +265,7 @@ public class InstanceComposer
                                            .WithScale(Vector3.One), true);
             if (instance.Transform.Scale != Vector3.One)
             {
-                Plugin.Logger?.LogWarning("Shared group {InstanceId} has non-unity scale {Scale}", instance.Id, instance.Transform.Scale);
+                Plugin.Logger?.LogDebug("Shared group {InstanceId} has non-unity scale {Scale}", instance.Id, instance.Transform.Scale);
                 root.Extras = JsonNode.Parse(JsonSerializer.Serialize(new
                 {
                     RealScale = instance.Transform.Scale
@@ -276,6 +282,12 @@ public class InstanceComposer
     
     public NodeBuilder? ComposeBgPartsInstance(ParsedBgPartsInstance bgPartsInstance, SceneBuilder scene)
     {
+        if (bgPartsInstance.IsVisible == false && exportConfig.SkipHiddenBgParts)
+        {
+            Plugin.Logger?.LogDebug("BgParts instance {InstanceId} is not visible and export config is set to skip hidden", bgPartsInstance.Id);
+            return null;
+        }
+        
         var mdlData = pack.GetFileOrReadFromDisk(bgPartsInstance.Path.FullPath);
         if (mdlData == null)
         {
@@ -301,6 +313,14 @@ public class InstanceComposer
         {
             scene.AddRigidMesh(mesh.Mesh, root);
         }
+        
+        root.Extras = JsonNode.Parse(JsonSerializer.Serialize(new
+        {
+            ModelPath = bgPartsInstance.Path.GamePath,
+            ModelName = Path.GetFileNameWithoutExtension(bgPartsInstance.Path.FullPath),
+            ModelType = bgPartsInstance.Type,
+            IsVisible = bgPartsInstance.IsVisible,
+        }, MaterialComposer.JsonOptions));
         
         root.SetLocalTransform(bgPartsInstance.Transform.AffineTransform, true);
         return root;

@@ -8,6 +8,7 @@ using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Group;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Layer;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Terrain;
+using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using FFXIVClientStructs.Interop;
 using Lumina.Excel.Sheets;
 using Meddle.Plugin.Models.Layout;
@@ -16,6 +17,7 @@ using Meddle.Plugin.Utils;
 using Microsoft.Extensions.Logging;
 using HousingFurniture = FFXIVClientStructs.FFXIV.Client.Game.HousingFurniture;
 using Object = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Object;
+using SharedGroupResourceHandle = Meddle.Plugin.Models.Structs.SharedGroupResourceHandle;
 using Transform = Meddle.Plugin.Models.Transform;
 
 namespace Meddle.Plugin.Services;
@@ -286,7 +288,43 @@ public class LayoutService : IService, IDisposable
         var primaryPath = bgPart->GetPrimaryPath();
         string? path = primaryPath.HasValue ? primaryPath : throw new Exception("BgPart has no primary path");
 
-        return new ParsedBgPartsInstance((nint)bgPartPtr.Value, new Transform(*bgPart->GetTransformImpl()), path);
+        return new ParsedBgPartsInstance((nint)bgPartPtr.Value, graphics->IsVisible, new Transform(*bgPart->GetTransformImpl()), path);
+    }
+
+    private unsafe bool IsObjectPlaceHolder(DrawObject* obj)
+    {
+        if (obj == null)
+            return true;
+        
+        if (obj->GetObjectType() == ObjectType.CharacterBase)
+        {
+            var characterBase = (CharacterBase*)obj;
+            if (IsCharacterPlaceholder(characterBase))
+                return true;
+        }
+
+        return false;
+    }
+    
+    private unsafe bool IsCharacterPlaceholder(CharacterBase* characterBase)
+    {
+        if (characterBase == null)
+            return true;
+        
+        if (characterBase->ModelsSpan.Length == 1)
+        {
+            var model = characterBase->ModelsSpan[0];
+            if (model == null || model.Value == null)
+                return true;
+            if (model.Value->ModelResourceHandle == null)
+                return true;
+            var fileName = model.Value->ModelResourceHandle->FileName;
+            var fileNameString = fileName.ToString();
+            if (fileNameString == "chara/monster/m9995/obj/body/b0001/model/m9995b0001.mdl")
+                return true;
+        }
+
+        return false;
     }
     
     public unsafe ParsedInstance[] ParseObjects()
@@ -307,6 +345,9 @@ public class LayoutService : IService, IDisposable
             ObjectKind type = obj->GetObjectKind();
             var drawObject = obj->DrawObject;
             if (drawObject == null)
+                continue;
+            
+            if (IsObjectPlaceHolder(drawObject))
                 continue;
             
             var anyVisible = drawObject->IsVisible;
@@ -338,6 +379,9 @@ public class LayoutService : IService, IDisposable
                         var cBase = (CharacterBase*)childObject;
                         if (cBase->DrawObject.IsVisible)
                         {
+                            if (IsCharacterPlaceholder(cBase))
+                                return;
+                            
                             var cTransform = new Transform(cBase->DrawObject.Position, cBase->DrawObject.Rotation, cBase->DrawObject.Scale);
                             var cInstance = new ParsedCharacterInstance((nint)childObject, $"Child of {obj->NameString}", type, cTransform, true,
                                                                        ParsedCharacterInstance.ParsedCharacterInstanceIdType.CharacterBase)

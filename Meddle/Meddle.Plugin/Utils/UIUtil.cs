@@ -34,6 +34,7 @@ public static class UiUtil
     {
         None = 0,
         HideExportPose = 1,
+        HideLayoutOptions = 2,
     }
 
     public static bool DrawExportConfig(Configuration.ExportConfiguration exportConfiguration, ExportConfigDrawFlags flags = ExportConfigDrawFlags.None)
@@ -79,6 +80,16 @@ public static class UiUtil
             if (ImGui.Checkbox("Export pose", ref exportPose))
             {
                 exportConfiguration.ExportPose = exportPose;
+                changed = true;
+            }
+        }
+        
+        if (!flags.HasFlag(ExportConfigDrawFlags.HideLayoutOptions))
+        {
+            var skipHiddenBgParts = exportConfiguration.SkipHiddenBgParts;
+            if (ImGui.Checkbox("Skip hidden bg parts", ref skipHiddenBgParts))
+            {
+                exportConfiguration.SkipHiddenBgParts = skipHiddenBgParts;
                 changed = true;
             }
         }

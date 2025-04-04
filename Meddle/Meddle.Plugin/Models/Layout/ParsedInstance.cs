@@ -232,10 +232,12 @@ public class ParsedHousingInstance : ParsedSharedInstance, ISearchableInstance
 
 public class ParsedBgPartsInstance : ParsedInstance, IPathInstance, IStainableInstance, ISearchableInstance
 {
+    public bool IsVisible { get; }
     public HandleString Path { get; }
 
-    public ParsedBgPartsInstance(nint id, Transform transform, string path) : base(id, ParsedInstanceType.BgPart, transform)
+    public ParsedBgPartsInstance(nint id, bool isVisible, Transform transform, string path) : base(id, ParsedInstanceType.BgPart, transform)
     {
+        IsVisible = isVisible;
         Path = path;
     }
 
