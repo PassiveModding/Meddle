@@ -139,8 +139,25 @@ public class CharacterComposer
                 extrasDict.Add("modelDeformFromId", "");
                 extrasDict.Add("modelDeformToId", "");
             }
-            
-            mesh.Mesh.Extras = JsonNode.Parse(JsonSerializer.Serialize(extrasDict, MaterialComposer.JsonOptions));
+
+            // for shape keys to work, mesh.Mesh.Extras already has an object with a field 'targetNames' which names all the shape keys. need to preserve that.
+            var extras = mesh.Mesh.Extras?.AsObject();
+            if (extras != null)
+            {
+                foreach (var kvp in extrasDict)
+                {
+                    if (!extras.ContainsKey(kvp.Key))
+                    {
+                        extras.Add(kvp.Key, kvp.Value);
+                    }
+                }
+                
+                mesh.Mesh.Extras = extras;
+            }
+            else
+            {
+                mesh.Mesh.Extras = JsonNode.Parse(JsonSerializer.Serialize(extrasDict, MaterialComposer.JsonOptions));
+            }
             
             InstanceBuilder instance;
             if (skinningContext.Bones.Count > 0)
