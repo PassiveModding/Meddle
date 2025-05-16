@@ -85,6 +85,8 @@ public class DebugTab : ITab
         IncludeFields = true
     };
 
+    private string constantSearch = "";
+    
     public void Draw()
     {
         if (ImGui.CollapsingHeader("View Skeleton"))
@@ -102,16 +104,72 @@ public class DebugTab : ITab
         {
             if (ImGui.CollapsingHeader("Constant Cache"))
             { 
-                var constants = Names.GetConstants();
+                if (ImGui.InputText("##ConstantSearch", ref constantSearch, 100))
+                {
+                    constantSearch = constantSearch.ToLower();
+                }
+
+                var constants = Names.GetConstants().ToArray();
+                if (!string.IsNullOrEmpty(constantSearch))
+                {
+                    constants = constants.Where(x =>
+                         {
+                             if (x.Value.Value.Contains(constantSearch, StringComparison.CurrentCultureIgnoreCase))
+                             {
+                                 return true;
+                             }
+                             
+                             if (x.Key.ToString().Contains(constantSearch, StringComparison.CurrentCultureIgnoreCase))
+                             {
+                                 return true;
+                             }
+                             
+                             var hexKey = $"0x{x.Key:X8}";
+                             if (hexKey.Contains(constantSearch, StringComparison.CurrentCultureIgnoreCase))
+                             {
+                                 return true;
+                             }
+                              
+                             return false;
+                         })
+                        .ToArray();
+                }
+                
+                using var table = ImRaii.Table("##ConstantCache", 3, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingFixedFit);
+                
+                // foreach (var (key, value) in constants)
+                // {
+                //     if (value is Names.StubName stubName)
+                //     {
+                //         ImGui.Text($"{key}: {stubName.Value} (stubName)");
+                //     }
+                //     else if (value is Names.Name name)
+                //     {
+                //         ImGui.Text($"{key}: {name.Value}");
+                //     }
+                // }
+                
+                ImGui.TableSetupColumn("Key");
+                ImGui.TableSetupColumn("Hex Key");
+                ImGui.TableSetupColumn("Value");
+                ImGui.TableHeadersRow();
+                
                 foreach (var (key, value) in constants)
                 {
+                    ImGui.TableNextRow();
+                    ImGui.TableNextColumn();
+                    ImGui.Text(key.ToString());
+                    ImGui.TableNextColumn();
+                    var hexKey = $"0x{key:X8}";
+                    ImGui.Text(hexKey);
+                    ImGui.TableNextColumn();
                     if (value is Names.StubName stubName)
                     {
-                        ImGui.Text($"{key}: {stubName.Value} (stubName)");
+                        ImGui.Text($"{stubName.Value} (stubName)");
                     }
                     else if (value is Names.Name name)
                     {
-                        ImGui.Text($"{key}: {name.Value}");
+                        ImGui.Text(name.Value);
                     }
                 }
             }
