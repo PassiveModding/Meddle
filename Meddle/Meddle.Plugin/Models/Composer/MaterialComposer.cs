@@ -184,7 +184,7 @@ public class MaterialComposer
 
                 if (!shaderPackage.ResourceKeys.TryGetValue(sampler.SamplerId, out var usage))
                 {
-                    Plugin.Logger?.LogWarning("Sampler {samplerId} not found in {mtrlPath}", sampler.SamplerId, mtrlPath);
+                    Plugin.Logger?.LogWarning("Texture sampler usage {samplerId} not found in {mtrlPath}, {gamePath}", sampler.SamplerId, mtrlPath, gamePath);
                     continue;
                 }
 

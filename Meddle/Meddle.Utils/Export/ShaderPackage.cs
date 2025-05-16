@@ -4,10 +4,9 @@ using Meddle.Utils.Files;
 
 namespace Meddle.Utils.Export;
 
-public unsafe class ShaderPackage
+public class ShaderPackage
 {
     public string Name { get; }
-    public Dictionary<uint, TextureUsage> TextureLookup { get; }
     public Dictionary<MaterialConstant, float[]> MaterialConstants { get; }
     public Dictionary<uint, string> ResourceKeys { get; }
     public Dictionary<uint, uint> DefaultKeyValues { get; }
@@ -16,7 +15,6 @@ public unsafe class ShaderPackage
     {
         Name = name;
         
-        var textureUsages = new Dictionary<uint, TextureUsage>();
         var resourceKeys = new Dictionary<uint, string>();
         var defaultKeyValues = new Dictionary<uint, uint>();
         var stringReader = new SpanBinaryReader(file.RawData[(int)file.FileHeader.StringsOffset..]);
@@ -27,8 +25,6 @@ public unsafe class ShaderPackage
             
             var resName = stringReader.ReadString((int)sampler.StringOffset);
             // compute crc
-            var crc = (TextureUsage)Crc32.GetHash(resName);
-            textureUsages[sampler.Id] = crc;
             resourceKeys[sampler.Id] = resName;
         }
         
@@ -37,8 +33,6 @@ public unsafe class ShaderPackage
             if (constant.Slot != 2)
                 continue;
             var resName = stringReader.ReadString((int)constant.StringOffset);  
-            var crc = (TextureUsage)Crc32.GetHash(resName);
-            textureUsages[constant.Id] = crc;
             resourceKeys[constant.Id] = resName;
         }
         
@@ -47,8 +41,6 @@ public unsafe class ShaderPackage
             if (texture.Slot != 2)
                 continue;
             var resName = stringReader.ReadString((int)texture.StringOffset);
-            var crc = (TextureUsage)Crc32.GetHash(resName);
-            textureUsages[texture.Id] = crc;
             resourceKeys[texture.Id] = resName;
         }
         
@@ -57,8 +49,6 @@ public unsafe class ShaderPackage
             if (uav.Slot != 2)
                 continue;
             var resName = stringReader.ReadString((int)uav.StringOffset);
-            var crc = (TextureUsage)Crc32.GetHash(resName);
-            textureUsages[uav.Id] = crc;
             resourceKeys[uav.Id] = resName;
         }
         
@@ -97,7 +87,6 @@ public unsafe class ShaderPackage
         
         DefaultKeyValues = defaultKeyValues;
         MaterialConstants = materialConstantDict;
-        TextureLookup = textureUsages;
         ResourceKeys = resourceKeys;
     }
 }
