@@ -180,4 +180,5 @@ public enum MaterialConstant : uint
     unk_IrisEmissiveOverride = 0x8EA14846, // Override iris emissive color with feature color
     unk_IrisEmissiveOverrideOpacity = 0x7918D232, // Opacity of the Feature Color Emissive Override.
     unk_TileSharpening = 0x6421DD30, // Positive value "smoothes" the texture, negative value "sharpens" the texture
+    unk_WaterColor = 0xD315E728, // Water color
 }

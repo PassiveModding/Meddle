@@ -222,6 +222,7 @@ public static class Names
             "g_Transparency",
             "g_TransparencyDistance",
             "g_UseSubSurfaceRate",
+            "g_Water",
             "g_WaveletDistortion",
             "g_WaveletNoiseParam",
             "g_WaveletOffset",

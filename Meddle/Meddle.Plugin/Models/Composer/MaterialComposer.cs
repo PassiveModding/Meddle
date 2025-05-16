@@ -22,84 +22,13 @@ public class MaterialComposer
     private readonly MtrlFile mtrlFile;
     private readonly string mtrlPath;
     private readonly ShaderPackage shaderPackage;
-    public readonly Dictionary<MaterialConstant, float[]> ShpkConstants = new();
-    public readonly Dictionary<MaterialConstant, float[]> MtrlConstants = new();
-    public readonly Dictionary<ShaderCategory, uint> ShaderKeyDict = new();
+    private readonly Dictionary<uint, float[]> mtrlConstants = new();
+    private readonly Dictionary<ShaderCategory, uint> shaderKeyDict = new();
     private readonly Dictionary<string, object> additionalProperties = new();
     public JsonNode ExtrasNode => JsonNode.Parse(JsonSerializer.Serialize(additionalProperties, JsonOptions))!;
-    public readonly Dictionary<TextureUsage, HandleString> TextureUsageDict = new();
+    public readonly Dictionary<string, HandleString> TextureUsageDict = new();
     public bool RenderBackfaces => (mtrlFile.ShaderHeader.Flags & (uint)ShaderFlags.HideBackfaces) == 0;
     public bool IsTransparent => (mtrlFile.ShaderHeader.Flags & (uint)ShaderFlags.EnableTranslucency) != 0;
-
-    private void SetShaderKeys()
-    {
-        foreach (var (key, value) in shaderPackage.DefaultKeyValues)
-        {
-            ShaderKeyDict[(ShaderCategory)key] = value;
-        }
-
-        foreach (var key in mtrlFile.ShaderKeys)
-        {
-            ShaderKeyDict[(ShaderCategory)key.Category] = key.Value;
-        }
-    }
-
-    private void SetConstants()
-    {
-        foreach (var constant in mtrlFile.Constants)
-        {
-            var id = (MaterialConstant)constant.ConstantId;
-            var index = constant.ValueOffset / 4;
-            var count = constant.ValueSize / 4;
-            var buf = new List<uint>(128);
-            var logOutOfBounds = false;
-            for (var j = 0; j < count; j++)
-            {
-                if (mtrlFile.ShaderValues.Length <= index + j)
-                {
-                    logOutOfBounds = true;
-                    break;
-                }
-
-                var value = mtrlFile.ShaderValues[index + j];
-                buf.Add(value);
-            }
-
-            // even if duplicate, last probably takes precedence
-            MtrlConstants[id] = MemoryMarshal.Cast<uint, float>(buf.ToArray()).ToArray();
-            if (logOutOfBounds)
-            {
-                Plugin.Logger?.LogWarning("Material constant {id} out of bounds for {mtrlPath}, {indexAndCount} greater than {shaderValuesLength}, [{values}]",
-                                          id, mtrlPath, (index, count), mtrlFile.ShaderValues.Length, string.Join(", ", buf));
-            }
-        }
-    }
-
-    private void SetSamplers()
-    {
-        var texturePaths = mtrlFile.GetTexturePaths();
-        foreach (var sampler in mtrlFile.Samplers)
-        {
-            if (sampler.TextureIndex == byte.MaxValue) continue;
-            if (mtrlFile.TextureOffsets.Length <= sampler.TextureIndex)
-            {
-                throw new Exception($"Texture index {sampler.TextureIndex} out of bounds for {mtrlPath}");
-            }
-            var textureInfo = mtrlFile.TextureOffsets[sampler.TextureIndex];
-            if (!texturePaths.TryGetValue(textureInfo.Offset, out var gamePath))
-            {
-                throw new Exception($"Texture offset {textureInfo.Offset} not found in {mtrlPath}");
-            }
-
-            if (!shaderPackage.TextureLookup.TryGetValue(sampler.SamplerId, out var usage))
-            {
-                continue;
-            }
-
-            TextureUsageDict[usage] = gamePath;
-        }
-
-    }
 
     public void SetPropertiesFromCharacterInfo(ParsedCharacterInfo characterInfo)
     {
@@ -161,7 +90,7 @@ public class MaterialComposer
         SetProperty("IsTransparent", IsTransparent);
         
         var constants = Names.GetConstants();
-        foreach (var key in ShaderKeyDict)
+        foreach (var key in shaderKeyDict)
         {
             var category = (uint)key.Key;
             var value = key.Value;
@@ -169,38 +98,97 @@ public class MaterialComposer
             var valMatch = constants.GetValueOrDefault(value);
             SetProperty(keyMatch != null ? keyMatch.Value : $"0x{category:X8}", 
                         valMatch != null ? valMatch.Value : $"0x{value:X8}");
-            if (keyMatch == null || keyMatch is Names.StubName stubName)
+            if (keyMatch is null or Names.StubName)
             {
                 FailedConstants.Add($"0x{category:X8}");
             }
-            if (valMatch == null || valMatch is Names.StubName stubName2)
+            if (valMatch is null or Names.StubName)
             {
                 FailedConstants.Add($"0x{value:X8}");
             }
         }
-
+        
+        foreach (var (constant, value) in mtrlConstants)
+        {
+            var keyMatch = constants.GetValueOrDefault(constant);
+            SetProperty(keyMatch != null ? keyMatch.Value : $"0x{constant:X8}", value);
+        }
+        
         foreach (var (usage, path) in TextureUsageDict)
         {
-            var usageStr = usage.ToString();
-            SetProperty(usageStr, path.GamePath);
-            SetProperty($"{usageStr}_FullPath", path.FullPath);
+            SetProperty(usage, path.GamePath);
+            SetProperty($"{usage}_FullPath", path.FullPath);
         }
 
-        var all = new Dictionary<MaterialConstant, float[]>(ShpkConstants);
-        foreach (var (key, value) in MtrlConstants)
+        return;
+        
+        void SetShaderKeys()
         {
-            all[key] = value;
-        }
-        foreach (var (constant, value) in all)
-        {
-            if (Enum.IsDefined(typeof(MaterialConstant), constant))
+            foreach (var (key, value) in shaderPackage.DefaultKeyValues)
             {
-                SetProperty(constant.ToString(), value);
+                shaderKeyDict[(ShaderCategory)key] = value;
             }
-            else
+
+            foreach (var key in mtrlFile.ShaderKeys)
             {
-                var key = $"0x{(uint)constant:X8}";
-                SetProperty(key, value);
+                shaderKeyDict[(ShaderCategory)key.Category] = key.Value;
+            }
+        }
+        
+        void SetConstants()
+        {
+            foreach (var constant in mtrlFile.Constants)
+            {
+                var id = constant.ConstantId;
+                var index = constant.ValueOffset / 4;
+                var count = constant.ValueSize / 4;
+                var buf = new List<uint>(128);
+                var logOutOfBounds = false;
+                for (var j = 0; j < count; j++)
+                {
+                    if (mtrlFile.ShaderValues.Length <= index + j)
+                    {
+                        logOutOfBounds = true;
+                        break;
+                    }
+
+                    var value = mtrlFile.ShaderValues[index + j];
+                    buf.Add(value);
+                }
+
+                // even if duplicate, last probably takes precedence
+                mtrlConstants[id] = MemoryMarshal.Cast<uint, float>(buf.ToArray()).ToArray();
+                if (logOutOfBounds)
+                {
+                    Plugin.Logger?.LogWarning("Material constant {id} out of bounds for {mtrlPath}, {indexAndCount} greater than {shaderValuesLength}, [{values}]",
+                                              id, mtrlPath, (index, count), mtrlFile.ShaderValues.Length, string.Join(", ", buf));
+                }
+            }
+        }
+        
+        void SetSamplers()
+        {
+            var texturePaths = mtrlFile.GetTexturePaths();
+            foreach (var sampler in mtrlFile.Samplers)
+            {
+                if (sampler.TextureIndex == byte.MaxValue) continue;
+                if (mtrlFile.TextureOffsets.Length <= sampler.TextureIndex)
+                {
+                    throw new Exception($"Texture index {sampler.TextureIndex} out of bounds for {mtrlPath}");
+                }
+                var textureInfo = mtrlFile.TextureOffsets[sampler.TextureIndex];
+                if (!texturePaths.TryGetValue(textureInfo.Offset, out var gamePath))
+                {
+                    throw new Exception($"Texture offset {textureInfo.Offset} not found in {mtrlPath}");
+                }
+
+                if (!shaderPackage.ResourceKeys.TryGetValue(sampler.SamplerId, out var usage))
+                {
+                    Plugin.Logger?.LogWarning("Texture sampler usage {samplerId} not found in {mtrlPath}, {gamePath}", sampler.SamplerId, mtrlPath, gamePath);
+                    continue;
+                }
+
+                TextureUsageDict[usage] = gamePath;
             }
         }
     }
