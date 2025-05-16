@@ -154,17 +154,7 @@ public class ComposerCache
         });
     }
 
-    private string DefaultCacheFunc(string fullPath, string cachePath)
-    {
-        var fileData = pack.GetFileOrReadFromDisk(fullPath);
-        if (fileData == null) throw new Exception($"Failed to load file: {fullPath}");
-        
-        Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
-        File.WriteAllBytes(cachePath, fileData);
-        return cachePath;
-    }
-    
-    private string CacheFile(string fullPath, Func<string, string, string>? cacheFunc = null)
+    private string GetCacheFilePath(string fullPath)
     {
         var cleanPath = fullPath.TrimHandlePath();
         var rooted = Path.IsPathRooted(cleanPath);
@@ -177,37 +167,43 @@ public class ComposerCache
 
         // modded files are stored in a separate directory to prevent conflict if the same file is modded and unmodded.
         var basePath = rooted ? Path.Combine(cacheDir, "modded") : cacheDir;
-        var cachePath = Path.Combine(basePath, TrimOutCleanPathDir());
-        
-        if (File.Exists(cachePath)) return cachePath;
-        
-        cacheFunc ??= DefaultCacheFunc;
-        var outPath = cacheFunc(fullPath, cachePath);
-        return outPath;
 
-        // Trim path to a suitable length for the cache directory if it exceeds the max length.
-        string TrimOutCleanPathDir()
+        const int maxCharacters = 255;
+        var charactersAvailable = maxCharacters - basePath.Length;
+        var len = cleanPath.Length + 5; // +5 is only because we may add a suffix.
+        if (len >= charactersAvailable)
         {
-            const int maxCharacters = 255;
-            var charactersAvailable = maxCharacters - basePath.Length;
-            var len = cleanPath.Length + 5; // +5 is only because we may add a suffix.
-            if (len < charactersAvailable)
-            {
-                return cleanPath;
-            }
-            
+            // Trim path to a suitable length for the cache directory if it exceeds the max length.
             var parts = cleanPath.Replace('\\', '/').Split('/');
             var dirHash = Crc32.GetHash(string.Join("/", parts[..^1]));
             var fileName = parts[^1];
             
             var trimmed = $"{dirHash}/{fileName}";
-            Plugin.Logger?.LogDebug("Cache path too long ({len} > {available}), using hash: {trimmed} for {fullPath}", len, charactersAvailable, trimmed, cleanPath);
-            return trimmed;
+            Plugin.Logger?.LogDebug("Cache path too long ({len} > {available}), using hash: {trimmed} for {fullPath}", len, charactersAvailable, trimmed, fullPath);
+            cleanPath = trimmed;
         }
+        
+        var cachePath = Path.Combine(basePath, cleanPath);
+        return cachePath;
     }
     
-    private string TextureCacheFunc(string fullPath, string cachePath)
+    private string CacheFile(string fullPath)
     {
+       var cachePath = GetCacheFilePath(fullPath);
+        
+        if (File.Exists(cachePath)) return cachePath;
+        
+        var fileData = pack.GetFileOrReadFromDisk(fullPath);
+        if (fileData == null) throw new Exception($"Failed to load file: {fullPath}");
+        
+        Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
+        File.WriteAllBytes(cachePath, fileData);
+        return cachePath;
+    }
+    
+    private string CacheTexture(string fullPath)
+    {
+        var cachePath = GetCacheFilePath(fullPath);
         var pngCachePath = cachePath + ".png";
         
         // inner skip if the png cache exists.
@@ -230,11 +226,6 @@ public class ComposerCache
         var textureBytes = memoryStream.ToArray();
         File.WriteAllBytes(pngCachePath, textureBytes);
         return pngCachePath;
-    }
-    
-    private string CacheTexture(string fullPath)
-    {
-        return CacheFile(fullPath, TextureCacheFunc);
     }
 
     public MaterialBuilder ComposeMaterial(string mtrlPath, 
