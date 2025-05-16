@@ -43,7 +43,8 @@ public static class ImageUtils
     {
         unsafe
         {
-            fixed (byte* data = image.Span)
+            var bufferCopy = image.Span.ToArray();
+            fixed (byte* data = bufferCopy)
             {
                 using var bitmap = new SKBitmap();
                 var info = new SKImageInfo(image.Width, image.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
