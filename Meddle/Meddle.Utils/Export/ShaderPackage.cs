@@ -9,7 +9,7 @@ public unsafe class ShaderPackage
     public string Name { get; }
     public Dictionary<uint, TextureUsage> TextureLookup { get; }
     public Dictionary<MaterialConstant, float[]> MaterialConstants { get; }
-    public Dictionary<uint, string>? ResourceKeys { get; }
+    public Dictionary<uint, string> ResourceKeys { get; }
     public Dictionary<uint, uint> DefaultKeyValues { get; }
 
     public ShaderPackage(ShpkFile file, string name)
