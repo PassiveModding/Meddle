@@ -820,6 +820,7 @@ public unsafe class LiveCharacterTab : ITab
             UiUtil.Text($"File Name: {materialFileName}", materialFileName);
             ImGui.Text($"Material Index: {materialIdx}");
             ImGui.Text($"Texture Count: {material->TextureCount}");
+            ImGui.Text($"Ref Count: {material->RefCount}");
             var shpkName = material->MaterialResourceHandle->ShpkName;
             UiUtil.Text($"Shader Package: {shpkName}", shpkName);
             ImGui.Text($"Shader Flags: 0x{material->ShaderFlags:X8}");
