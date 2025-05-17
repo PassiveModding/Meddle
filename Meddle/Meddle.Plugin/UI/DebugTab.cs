@@ -1,6 +1,8 @@
-﻿using System.Numerics;
+﻿using System.Diagnostics;
+using System.Numerics;
 using System.Text.Json;
 using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.ImGuiNotification;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
@@ -12,11 +14,14 @@ using ImGuiNET;
 using Lumina.Excel.Sheets;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Composer;
+using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.Services.UI;
 using Meddle.Plugin.Utils;
 using Meddle.Utils.Constants;
 using Meddle.Utils.Files.SqPack;
+using SharpGLTF.Scenes;
+using SharpGLTF.Transforms;
 
 namespace Meddle.Plugin.UI;
 
@@ -35,7 +40,15 @@ public class DebugTab : ITab
     private readonly SqPack sqPack;
     private readonly StainHooks stainHooks;
     private readonly IDataManager dataManager;
+    private readonly ComposerFactory composerFactory;
     private string boneSearch = "";
+    private readonly FileDialogManager fileDialog = new()
+    {
+        AddedWindowFlags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoDocking
+    };
+    private CancellationTokenSource? cancellationTokenSource;
+    private Task? exportTask;
+    
 
     private ICharacter? selectedCharacter;
     private enum BoneMode
@@ -55,7 +68,8 @@ public class DebugTab : ITab
                     INotificationManager notificationManager,
                     SqPack sqPack,
                     StainHooks stainHooks,
-                    IDataManager dataManager)
+                    IDataManager dataManager,
+                    ComposerFactory composerFactory)
     {
         this.config = config;
         this.sigUtil = sigUtil;
@@ -69,6 +83,7 @@ public class DebugTab : ITab
         this.sqPack = sqPack;
         this.stainHooks = stainHooks;
         this.dataManager = dataManager;
+        this.composerFactory = composerFactory;
     }
 
     public void Dispose()
@@ -89,6 +104,8 @@ public class DebugTab : ITab
     
     public void Draw()
     {
+        fileDialog.Draw();
+        
         if (ImGui.CollapsingHeader("View Skeleton"))
         {
             DrawSelectedCharacter();
@@ -272,19 +289,66 @@ public class DebugTab : ITab
         ImGui.InputText("##ExportPath", ref path, 100);
         if (ImGui.Button("Export"))
         {
-            var data = sqPack.GetFile(path);
-            if (data == null)
-            {
-                notificationManager.AddNotification(new Notification
-                {
-                    Content = $"File not found: {path}",
-                    Type = NotificationType.Error
-                });
-                return;
-            }
-            
-            var outPath = Path.Combine(config.ExportDirectory, Path.GetFileName(path));
-            File.WriteAllBytes(outPath, data.Value.file.RawData.ToArray());
+            // var data = sqPack.GetFile(path);
+            // if (data == null)
+            // {
+            //     notificationManager.AddNotification(new Notification
+            //     {
+            //         Content = $"File not found: {path}",
+            //         Type = NotificationType.Error
+            //     });
+            //     return;
+            // }
+            //
+            // var outPath = Path.Combine(config.ExportDirectory, Path.GetFileName(path));
+            // File.WriteAllBytes(outPath, data.Value.file.RawData.ToArray());
+            cancellationTokenSource = new CancellationTokenSource();
+            var pathFileName = Path.GetFileNameWithoutExtension(path);
+            var defaultName = $"Export-{pathFileName}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
+            fileDialog.SaveFolderDialog("Save File", defaultName,
+                            (result, exportPath) =>
+                            {
+                                if (!result) return;
+                                var data = sqPack.GetFile(path);
+                                if (data == null)
+                                {
+                                    notificationManager.AddNotification(new Notification
+                                    {
+                                        Content = $"File not found: {path}",
+                                        Type = NotificationType.Error
+                                    });
+                                    return;
+                                }
+                                
+                                var outPath = Path.Combine(exportPath, Path.GetFileName(path));
+                                Directory.CreateDirectory(exportPath);
+                                File.WriteAllBytes(outPath, data.Value.file.RawData.ToArray());
+                                Process.Start("explorer.exe", exportPath);
+                            }, config.ExportDirectory);
+        }
+
+        using var disabled = ImRaii.Disabled(exportTask is {IsCompleted: false} || !path.EndsWith(".mdl"));
+        if (ImGui.Button("Export Model"))
+        {
+            cancellationTokenSource = new CancellationTokenSource();
+            var configClone = config.ExportConfig.Clone();
+            var pathFileName = Path.GetFileNameWithoutExtension(path);
+            var defaultName = $"Export-{pathFileName}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
+            var stubInstance = new ParsedBgPartsInstance(0, true, new Transform(AffineTransform.Identity), path);
+            fileDialog.SaveFolderDialog("Save Instances", defaultName,
+                                        (result, exportPath) =>
+                                        {
+                                            if (!result) return;
+                                            exportTask = Task.Run(() =>
+                                            {
+                                                var composer = composerFactory.CreateComposer(exportPath,
+                                                                                              configClone,
+                                                                                              cancellationTokenSource.Token);
+                                                var progress = new ExportProgress(1, "Instances");
+                                                composer.Compose([stubInstance], progress);
+                                                Process.Start("explorer.exe", exportPath);
+                                            }, cancellationTokenSource.Token);
+                                        }, config.ExportDirectory);
         }
     }
     
