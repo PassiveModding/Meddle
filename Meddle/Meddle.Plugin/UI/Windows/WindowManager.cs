@@ -19,7 +19,8 @@ public class WindowManager : IHostedService, IDisposable
     private readonly DebugWindow debugWindow;
     private readonly LayoutWindow layoutWindow;
     private readonly WindowSystem windowSystem;
-    
+    private readonly UpdateWindow updateWindow;
+
     private bool disposed;
 
     public WindowManager(
@@ -27,6 +28,7 @@ public class WindowManager : IHostedService, IDisposable
         DebugWindow debugWindow,
         LayoutWindow layoutWindow,
         WindowSystem windowSystem,
+        UpdateWindow updateWindow,
         IDalamudPluginInterface pluginInterface,
         ILogger<WindowManager> log,
         Configuration config,
@@ -40,6 +42,7 @@ public class WindowManager : IHostedService, IDisposable
         this.debugWindow = debugWindow;
         this.layoutWindow = layoutWindow;
         this.windowSystem = windowSystem;
+        this.updateWindow = updateWindow;
     }
     
     public void Dispose()
@@ -62,6 +65,7 @@ public class WindowManager : IHostedService, IDisposable
     {
         windowSystem.AddWindow(mainWindow);
         windowSystem.AddWindow(debugWindow);
+        windowSystem.AddWindow(updateWindow);
 
         config.OnConfigurationSaved += OnSave;
         pluginInterface.UiBuilder.Draw += windowSystem.Draw;
@@ -81,6 +85,13 @@ public class WindowManager : IHostedService, IDisposable
         if (config.OpenDebugMenuOnLoad)
         {
             OpenDebugUi();
+        }
+        
+        if (config.UpdateConfig.ShowUpdateWindow && 
+            config.UpdateConfig.LastSeenUpdateTag != UpdateWindow.UpdateLogs.LastOrDefault()?.Tag)
+        {
+            updateWindow.IsOpen = true;
+            updateWindow.BringToFront();
         }
         
         // if (config.OpenLayoutMenuOnLoad)

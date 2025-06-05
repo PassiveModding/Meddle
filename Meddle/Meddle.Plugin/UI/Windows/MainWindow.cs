@@ -14,15 +14,17 @@ public sealed class MainWindow : MeddleWindowBase
     private readonly ILogger<MainWindow> log;
     private readonly DebugWindow debugWindow;
     private readonly LayoutWindow layoutWindow;
+    private readonly UpdateWindow updateWindow;
     private readonly ITab[] tabs;
 
-    public MainWindow(IEnumerable<ITab> tabs, ILogger<MainWindow> log, DebugWindow debugWindow, LayoutWindow layoutWindow) : 
+    public MainWindow(IEnumerable<ITab> tabs, ILogger<MainWindow> log, DebugWindow debugWindow, LayoutWindow layoutWindow, UpdateWindow updateWindow) : 
         base(log, "Meddle", ImGuiWindowFlags.MenuBar)
     {
         this.tabs = tabs.OrderBy(x => x.Order).Where(x => x.MenuType == MenuType.Default).ToArray();
         this.log = log;
         this.debugWindow = debugWindow;
         this.layoutWindow = layoutWindow;
+        this.updateWindow = updateWindow;
         SizeConstraints = new WindowSizeConstraints
         {
             MinimumSize = new Vector2(375, 350),
@@ -59,7 +61,7 @@ public sealed class MainWindow : MeddleWindowBase
             {
                 Process.Start(new ProcessStartInfo
                 {
-                    FileName = "https://github.com/PassiveModding/MeddleTools", UseShellExecute = true
+                    FileName = Constants.MeddleToolsUrl, UseShellExecute = true
                 });
             }
 
@@ -67,7 +69,7 @@ public sealed class MainWindow : MeddleWindowBase
             {
                 Process.Start(new ProcessStartInfo
                 {
-                    FileName = "https://github.com/PassiveModding/Meddle", UseShellExecute = true
+                    FileName = Constants.MeddleUrl, UseShellExecute = true
                 });
             }
             
@@ -75,8 +77,13 @@ public sealed class MainWindow : MeddleWindowBase
             {
                 Process.Start(new ProcessStartInfo
                 {
-                    FileName = "https://github.com/PassiveModding/Meddle/issues", UseShellExecute = true
+                    FileName = Constants.MeddleBugReportUrl, UseShellExecute = true
                 });
+            }
+            
+            if (ImGui.MenuItem("Updates"))
+            {
+                updateWindow.IsOpen = true;
             }
             
             using (ImRaii.PushFont(UiBuilder.IconFont))
@@ -86,7 +93,7 @@ public sealed class MainWindow : MeddleWindowBase
                 {
                     Process.Start(new ProcessStartInfo
                     {
-                        FileName = "https://ko-fi.com/ramen_au", UseShellExecute = true
+                        FileName = Constants.KoFiUrl, UseShellExecute = true
                     });
                 }
             }
