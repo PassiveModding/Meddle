@@ -102,6 +102,13 @@ public partial class LayoutWindow
             {
                 ImGui.ColorButton("Color", new Vector4(light.Light.Color.Rgb, light.Light.Color.Intensity));
             }
+
+            if (instance is ParsedCameraInstance cameraInstance)
+            {
+                ImGui.Text($"FoV: {cameraInstance.FoV}");
+                ImGui.Text($"Aspect Ratio: {cameraInstance.AspectRatio}");
+                ImGui.Text($"Actual Rotation: {cameraInstance.Rotation}");
+            }
             
             if (instance is ParsedHousingInstance ho)
             {

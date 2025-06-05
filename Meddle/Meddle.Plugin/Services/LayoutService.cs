@@ -8,12 +8,10 @@ using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Group;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Layer;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Terrain;
-using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using FFXIVClientStructs.Interop;
 using Lumina.Excel.Sheets;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Models.Structs;
-using Meddle.Plugin.Utils;
 using Microsoft.Extensions.Logging;
 using HousingFurniture = FFXIVClientStructs.FFXIV.Client.Game.HousingFurniture;
 using Object = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Object;
@@ -65,9 +63,11 @@ public class LayoutService : IService, IDisposable
         if (layoutWorld == null)
             return null;
         
-        var layers = new List<ParsedInstance>();
+        var instances = new List<ParsedInstance>();
         var objects = ParseObjects();
-        layers.AddRange(objects);
+        var cameras = ParseCameras();
+        instances.AddRange(objects);
+        instances.AddRange(cameras);
 
         var currentTerritory = GetCurrentTerritory();
         var housingItems = ParseTerritoryFurniture(currentTerritory);
@@ -80,10 +80,35 @@ public class LayoutService : IService, IDisposable
         var globalLayers = ParseLayout(layoutWorld->GlobalLayout, parseCtx);
 
 
-        layers.AddRange(loadedLayers.SelectMany(x => x.Instances));
-        layers.AddRange(globalLayers.SelectMany(x => x.Instances));
+        instances.AddRange(loadedLayers.SelectMany(x => x.Instances));
+        instances.AddRange(globalLayers.SelectMany(x => x.Instances));
 
-        return layers.ToArray();
+        return instances.ToArray();
+    }
+    
+    private unsafe ParsedCameraInstance[] ParseCameras()
+    {
+        var cameraManager = sigUtil.GetCameraManager();
+        if (cameraManager == null)
+            return [];
+        
+        var cameras = new List<ParsedCameraInstance>();
+        for (var i = 0; i < cameraManager->Cameras.Length; i++)
+        {
+            var cameraPtr = cameraManager->Cameras[i];
+            if (cameraPtr == null || cameraPtr.Value == null)
+                continue;
+
+            var camera = cameraPtr.Value;
+            
+            var transform = new Transform(camera->Position, camera->Rotation, camera->Scale);
+            if (camera->RenderCamera != null)
+            {
+                cameras.Add(new ParsedCameraInstance(camera, transform));
+            }
+        }
+        
+        return cameras.ToArray();
     }
 
     private unsafe HousingTerritory* GetCurrentTerritory()
