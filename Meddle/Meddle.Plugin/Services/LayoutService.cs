@@ -333,8 +333,9 @@ public class LayoutService : IService, IDisposable
 
         var objects = new Dictionary<nint, ParsedInstance>();
         var mounts = new Dictionary<nint, ParsedCharacterInstance>();
-        foreach (var objectPtr in gameObjectManager->Objects.GameObjectIdSorted)
+        for (var idx = 0; idx < gameObjectManager->Objects.GameObjectIdSorted.Length; idx++)
         {
+            var objectPtr = gameObjectManager->Objects.GameObjectIdSorted[idx];
             if (objectPtr == null || objectPtr.Value == null)
                 continue;
 
@@ -346,10 +347,10 @@ public class LayoutService : IService, IDisposable
             var drawObject = obj->DrawObject;
             if (drawObject == null)
                 continue;
-            
+
             if (IsObjectPlaceHolder(drawObject))
                 continue;
-            
+
             var anyVisible = drawObject->IsVisible;
 
             void AddObject(ParsedCharacterInstance instance)
@@ -363,11 +364,12 @@ public class LayoutService : IService, IDisposable
                     objects.TryAdd(instance.Id, instance);
                 }
             }
-            
+
             var transform = new Transform(drawObject->Position, drawObject->Rotation, drawObject->Scale);
-            var instance = new ParsedCharacterInstance((nint)obj, obj->NameString, type, transform, anyVisible);
+            var name = obj->NameString.GetCharacterName(config, type, idx.ToString());
+            var instance = new ParsedCharacterInstance((nint)obj, name, type, transform, anyVisible);
             AddObject(instance);
-            
+
             if (drawObject->IsVisible == false)
             {
                 // want to list children which are visible even if the parent is not.
@@ -381,10 +383,10 @@ public class LayoutService : IService, IDisposable
                         {
                             if (IsCharacterPlaceholder(cBase))
                                 return;
-                            
+
                             var cTransform = new Transform(cBase->DrawObject.Position, cBase->DrawObject.Rotation, cBase->DrawObject.Scale);
-                            var cInstance = new ParsedCharacterInstance((nint)childObject, $"Child of {obj->NameString}", type, cTransform, true,
-                                                                       ParsedCharacterInstance.ParsedCharacterInstanceIdType.CharacterBase)
+                            var cInstance = new ParsedCharacterInstance((nint)childObject, $"Child of {name}", type, cTransform, true,
+                                                                        ParsedCharacterInstance.ParsedCharacterInstanceIdType.CharacterBase)
                             {
                                 Parent = instance
                             };
@@ -392,14 +394,14 @@ public class LayoutService : IService, IDisposable
                             return; // skip parsing if visible as item should be covered under attaches to parent
                         }
                     }
-                    
+
                     foreach (var childOfChild in childObject->ChildObjects)
                     {
                         if (childOfChild == null) continue;
                         HandleRecursiveVisibility(childOfChild);
                     }
                 }
-                
+
                 foreach (var childObject in drawObject->ChildObjects.GetEnumerator())
                 {
                     HandleRecursiveVisibility(childObject);
