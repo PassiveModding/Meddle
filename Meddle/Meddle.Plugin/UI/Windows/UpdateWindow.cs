@@ -28,6 +28,8 @@ public class UpdateWindow : Window
             [
                 new TextUpdateLine(" + Added support for exporting cameras from the layout tab."),
                 new TextUpdateLine(" + Added this update window (Can be disabled from Options)."),
+                new TextUpdateLine(" + Fix obj export failing in come circumstances."),
+                new TextUpdateLine(" + Fix name override being ignored in some cases."),
             ]
         }
     ];
