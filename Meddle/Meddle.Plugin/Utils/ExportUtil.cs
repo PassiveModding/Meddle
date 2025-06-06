@@ -28,7 +28,9 @@ public static class ExportUtil
         
         if (typeFlags.HasFlag(ExportType.OBJ))
         {
-            gltf?.SaveAsWavefront(Path.Combine(path, name + ".obj"));
+            // sanitize obj name
+            var objName = name.Replace(" ", "_");
+            gltf?.SaveAsWavefront(Path.Combine(path, objName + ".obj"));
         }
     }
     

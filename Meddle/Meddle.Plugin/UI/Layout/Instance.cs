@@ -65,14 +65,7 @@ public partial class LayoutWindow
         
         if (instance is ParsedCharacterInstance ci)
         {
-            if (!string.IsNullOrWhiteSpace(config.PlayerNameOverride) && ci.Kind == ObjectKind.Pc)
-            {
-                infoHeader += $" - {config.PlayerNameOverride}";
-            }
-            else
-            {
-                infoHeader += $" - {ci.Name}";
-            }
+            infoHeader += $" - {ci.Name}";
         }
         
         if (instance is ParsedSharedInstance {Children.Count: > 0} shared)
