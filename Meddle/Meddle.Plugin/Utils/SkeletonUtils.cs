@@ -217,10 +217,10 @@ public static class SkeletonUtils
         {
             foreach (var attach in frame.Attaches)
             {
-                if (!attachTimelines.TryGetValue(attach.Id, out var timeline))
+                if (!attachTimelines.TryGetValue($"{attach.Id}_{attach.Name}", out var timeline))
                 {
                     timeline = new List<(DateTime Time, AttachSet Attach)>();
-                    attachTimelines.Add(attach.Id, timeline);
+                    attachTimelines.Add($"{attach.Id}_{attach.Name}", timeline);
                 }
 
                 timeline.Add((frame.Time, attach));

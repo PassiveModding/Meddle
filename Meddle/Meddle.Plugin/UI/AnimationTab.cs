@@ -87,9 +87,7 @@ public class AnimationTab : ITab
             {
                 if (!result) return;
                 animationExportService.ExportAnimation(frames, includePositionalData, path);
-            }, config.ExportDirectory);   
-            
-            
+            }, config.ExportDirectory); 
         }
 
         ImGui.SameLine();
@@ -144,13 +142,13 @@ public class AnimationTab : ITab
         {
             var owner = attach.OwnerCharacter;
             var rootAttach = StructExtensions.GetParsedAttach(root);
-            attachCollection.Add(new AttachSet(rootName, rootAttach, StructExtensions.GetParsedSkeleton(root), GetTransform(root), $"{(nint)owner:X8}"));
-            attachCollection.Add(new AttachSet($"{(nint)owner:X8}", StructExtensions.GetParsedAttach(owner), StructExtensions.GetParsedSkeleton(owner), GetTransform(owner), null));
+            attachCollection.Add(new AttachSet(rootName, "Actor", rootAttach, StructExtensions.GetParsedSkeleton(root), GetTransform(root), $"{(nint)owner:X8}"));
+            attachCollection.Add(new AttachSet($"{(nint)owner:X8}", "Owner", StructExtensions.GetParsedAttach(owner), StructExtensions.GetParsedSkeleton(owner), GetTransform(owner), null));
         }
         else
         {
             rootName = $"{(nint)root:X8}";
-            attachCollection.Add(new AttachSet(rootName, StructExtensions.GetParsedAttach(root), StructExtensions.GetParsedSkeleton(root), GetTransform(root), null));
+            attachCollection.Add(new AttachSet(rootName, "Actor", StructExtensions.GetParsedAttach(root), StructExtensions.GetParsedSkeleton(root), GetTransform(root), null));
         }
 
         foreach (var characterAttach in GetAttachData(charPtr, rootName))
@@ -192,7 +190,7 @@ public class AnimationTab : ITab
         {
             var ornamentBase = (CharacterBase*)ornament->DrawObject;
             var ornamentAttach = StructExtensions.GetParsedAttach(ornamentBase);
-            attachments.Add(new AttachSet($"{(nint)ornamentBase:X8}", ornamentAttach, StructExtensions.GetParsedSkeleton(ornamentBase),GetTransform(ornamentBase), ownerId));
+            attachments.Add(new AttachSet($"{(nint)ornamentBase:X8}", "Ornament", ornamentAttach, StructExtensions.GetParsedSkeleton(ornamentBase),GetTransform(ornamentBase), ownerId));
         }
 
         if (companion != null && companion->DrawObject != null &&
@@ -200,7 +198,7 @@ public class AnimationTab : ITab
         {
             var companionBase = (CharacterBase*)companion->DrawObject;
             var companionAttach = StructExtensions.GetParsedAttach(companionBase);
-            attachments.Add(new AttachSet($"{(nint)companionBase:X8}", companionAttach, StructExtensions.GetParsedSkeleton(companionBase), GetTransform(companionBase), ownerId));
+            attachments.Add(new AttachSet($"{(nint)companionBase:X8}", "Companion", companionAttach, StructExtensions.GetParsedSkeleton(companionBase), GetTransform(companionBase), ownerId));
         }
 
         if (mount != null && mount->DrawObject != null &&
@@ -208,7 +206,7 @@ public class AnimationTab : ITab
         {
             var mountBase = (CharacterBase*)mount->DrawObject;
             var mountAttach = StructExtensions.GetParsedAttach(mountBase);
-            attachments.Add(new AttachSet($"{(nint)mountBase:X8}", mountAttach, StructExtensions.GetParsedSkeleton(mountBase), GetTransform(mountBase), ownerId));
+            attachments.Add(new AttachSet($"{(nint)mountBase:X8}", "Mount", mountAttach, StructExtensions.GetParsedSkeleton(mountBase), GetTransform(mountBase), ownerId));
         }
 
 
@@ -219,7 +217,7 @@ public class AnimationTab : ITab
             {
                 var weaponBase = (CharacterBase*)weapon.DrawObject;
                 var weaponAttach = StructExtensions.GetParsedAttach(weaponBase);                    
-                attachments.Add(new AttachSet($"{(nint)weaponBase:X8}", weaponAttach, StructExtensions.GetParsedSkeleton(weaponBase), GetTransform(weaponBase), ownerId));
+                attachments.Add(new AttachSet($"{(nint)weaponBase:X8}", $"Weapon{i}", weaponAttach, StructExtensions.GetParsedSkeleton(weaponBase), GetTransform(weaponBase), ownerId));
             }
         }
 

@@ -40,6 +40,8 @@ public class AnimationExportService : IDisposable, IService
                 var scene = new SceneBuilder();
                 if (root == null) throw new InvalidOperationException("Root bone not found");
                 logger.LogInformation("Adding bone set {Id}", id);
+                var rootNode = new NodeBuilder(id);
+                rootNode.AddNode(root);
 
                 if (includePositionalData)
                 {
@@ -57,8 +59,8 @@ public class AnimationExportService : IDisposable, IService
                     }
                 }
 
-                scene.AddNode(root);
-                scene.AddSkinnedMesh(GetDummyMesh(id), Matrix4x4.Identity, bones.Cast<NodeBuilder>().ToArray());
+                scene.AddNode(rootNode);
+                scene.AddSkinnedMesh(GetDummyMesh(), Matrix4x4.Identity, bones.Cast<NodeBuilder>().ToArray());
                 var sceneGraph = scene.ToGltf2();
                 var outputPath = Path.Combine(folder, $"motion_{id}.gltf");
                 sceneGraph.SaveGLTF(outputPath);
