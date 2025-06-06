@@ -12,6 +12,7 @@ using FFXIVClientStructs.Interop;
 using Lumina.Excel.Sheets;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Models.Structs;
+using Meddle.Plugin.Utils;
 using Microsoft.Extensions.Logging;
 using HousingFurniture = FFXIVClientStructs.FFXIV.Client.Game.HousingFurniture;
 using Object = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Object;

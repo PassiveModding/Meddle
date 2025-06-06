@@ -26,6 +26,7 @@ public static class ServiceUtility
                .AddSingleton<MainWindow>()
                .AddSingleton<DebugWindow>()
                .AddSingleton<LayoutWindow>()
+               .AddSingleton<UpdateWindow>()
                .AddSingleton<MdlMaterialWindowManager>()
                .AddSingleton(new WindowSystem("Meddle"))
                .AddHostedService<WindowManager>();

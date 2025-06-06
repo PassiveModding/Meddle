@@ -31,7 +31,7 @@ public class AboutTab : ITab
             {
                 Process.Start(new ProcessStartInfo
                 {
-                    FileName = "https://github.com/PassiveModding/Meddle/", UseShellExecute = true
+                    FileName = Constants.MeddleUrl, UseShellExecute = true
                 });
             }
         }
@@ -43,7 +43,7 @@ public class AboutTab : ITab
             {
                 Process.Start(new ProcessStartInfo
                 {
-                    FileName = "https://github.com/PassiveModding/Meddle/issues", UseShellExecute = true
+                    FileName = Constants.MeddleBugReportUrl, UseShellExecute = true
                 });
             }
 
@@ -60,7 +60,7 @@ public class AboutTab : ITab
             {
                 Process.Start(new ProcessStartInfo
                 {
-                    FileName = "https://github.com/PassiveModding/MeddleTools/", UseShellExecute = true
+                    FileName = Constants.MeddleToolsUrl, UseShellExecute = true
                 });
             }
         }
@@ -121,16 +121,13 @@ public class AboutTab : ITab
 
     private static List<(string, string, string)> UserCredits =>
     [
-        ("PassiveModding", "Developer", "https://github.com/PassiveModding/Meddle"),
-        ("Asriel", "GPU/DX11 data handling, shape and attribute logic, attach work, skeleton traversal",
-            "https://github.com/WorkingRobot")
+        ("PassiveModding", "Developer", Constants.MeddleUrl),
+        ("Asriel", "GPU/DX11 data handling, shape and attribute logic, attach work, skeleton traversal", "https://github.com/WorkingRobot")
     ];
 
     private static List<(string, string, string)> ProjectCredits =>
     [
-        ("Xande", "Base for the plugin, PBD file structure, meshbuilder, racedeformer, havok research",
-            "https://github.com/xivdev/Xande"),
-
+        ("Xande", "Base for the plugin, PBD file structure, meshbuilder, racedeformer, havok research", "https://github.com/xivdev/Xande"),
         ("Penumbra", "Shader logic, vertex info, spanbinaryreader impl.", "https://github.com/xivdev/Penumbra"),
         ("Lumina", "File structures", "https://github.com/NotAdam/Lumina/"),
         ("Pathfinder", "World overlay reference design.", "https://github.com/chirpxiv/ffxiv-pathfinder")

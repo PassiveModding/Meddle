@@ -6,6 +6,7 @@ using Dalamud.Plugin;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.UI.Layout;
+using Meddle.Plugin.UI.Windows;
 using Meddle.Plugin.Utils;
 using Meddle.Utils.Files.SqPack;
 using Microsoft.Extensions.DependencyInjection;
@@ -159,6 +160,7 @@ public class Configuration : IPluginConfiguration
     
     public LayoutWindow.LayoutConfig LayoutConfig { get; set; } = new();
     public ExportConfiguration ExportConfig { get; set; } = new();
+    public UpdateWindow.UpdateConfig UpdateConfig { get; set; } = new();
     
     public class ExportConfiguration
     {

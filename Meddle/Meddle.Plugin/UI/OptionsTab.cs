@@ -68,6 +68,13 @@ public class OptionsTab : ITab
             config.Save();
         }
         
+        var update = config.UpdateConfig.ShowUpdateWindow;
+        if (ImGui.Checkbox("Show Update Window when a new version is loaded", ref update))
+        {
+            config.UpdateConfig.ShowUpdateWindow = update;
+            config.Save();
+        }
+        
         ImGui.Separator();
 
         // DrawExportType();
