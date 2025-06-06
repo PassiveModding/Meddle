@@ -205,7 +205,7 @@ public unsafe class LiveCharacterTab : ITab
                 }
 
                 return info;
-            }, $"{character->NameString}");
+            }, character->NameString.GetCharacterName(config, character->ObjectKind));
         }
         else
         {
@@ -214,7 +214,7 @@ public unsafe class LiveCharacterTab : ITab
             genderRace = GenderRace.Unknown;
         }
         
-        DrawDrawObject(drawObject, $"{character->NameString}", customizeData, customizeParams, genderRace);
+        DrawDrawObject(drawObject, character->NameString.GetCharacterName(config, character->ObjectKind), customizeData, customizeParams, genderRace);
 
         try
         {
@@ -243,7 +243,7 @@ public unsafe class LiveCharacterTab : ITab
                 {
                     ImGui.Separator();
                     ImGui.Text($"Weapon {weaponIdx}");
-                    DrawDrawObject(weaponData.DrawObject, $"{character->NameString}_Weapon", null, null, GenderRace.Unknown);
+                    DrawDrawObject(weaponData.DrawObject, $"{character->NameString.GetCharacterName(config, character->ObjectKind)}_Weapon", null, null, GenderRace.Unknown);
                 }
             }
         }
@@ -285,7 +285,7 @@ public unsafe class LiveCharacterTab : ITab
         if (!ImGui.BeginPopup("ExportSettingsPopup", ImGuiWindowFlags.AlwaysAutoResize)) return;
         try
         {
-            if (UiUtil.DrawExportConfig(config.ExportConfig))
+            if (UiUtil.DrawExportConfig(config.ExportConfig, UiUtil.ExportConfigDrawFlags.HideLayoutOptions))
             {
                 config.Save();
             }

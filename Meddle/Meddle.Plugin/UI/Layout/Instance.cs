@@ -65,14 +65,7 @@ public partial class LayoutWindow
         
         if (instance is ParsedCharacterInstance ci)
         {
-            if (!string.IsNullOrWhiteSpace(config.PlayerNameOverride) && ci.Kind == ObjectKind.Pc)
-            {
-                infoHeader += $" - {config.PlayerNameOverride}";
-            }
-            else
-            {
-                infoHeader += $" - {ci.Name}";
-            }
+            infoHeader += $" - {ci.Name}";
         }
         
         if (instance is ParsedSharedInstance {Children.Count: > 0} shared)
@@ -101,6 +94,13 @@ public partial class LayoutWindow
             if (instance is ParsedLightInstance light)
             {
                 ImGui.ColorButton("Color", new Vector4(light.Light.Color.Rgb, light.Light.Color.Intensity));
+            }
+
+            if (instance is ParsedCameraInstance cameraInstance)
+            {
+                ImGui.Text($"FoV: {cameraInstance.FoV}");
+                ImGui.Text($"Aspect Ratio: {cameraInstance.AspectRatio}");
+                ImGui.Text($"Actual Rotation: {cameraInstance.Rotation}");
             }
             
             if (instance is ParsedHousingInstance ho)

@@ -207,7 +207,30 @@ public class InstanceComposer
             return ComposeCharacterInstance(parsedCharacterInstance, scene, rootProgress);
         }
         
+        if (parsedInstance is ParsedCameraInstance parsedCameraInstance)
+        {
+            return ComposeCameraInstance(parsedCameraInstance, scene, rootProgress);
+        }
+        
         return null;
+    }
+    
+    private NodeBuilder? ComposeCameraInstance(ParsedCameraInstance parsedCameraInstance, SceneBuilder scene, ExportProgress rootProgress)
+    {
+        var perspective = new CameraBuilder.Perspective(aspectRatio: parsedCameraInstance.AspectRatio, fovy: parsedCameraInstance.FoV, znear: 0.01f, zfar: 1000f);
+        var root = new NodeBuilder($"{parsedCameraInstance.Type}_{parsedCameraInstance.Id}")
+        {
+            LocalTransform = parsedCameraInstance.Transform.AffineTransform
+                                                 .WithRotation(parsedCameraInstance.Rotation)
+        };
+        scene.AddCamera(perspective, root);
+        
+        // var target = new NodeBuilder($"{parsedCameraInstance.Type}_{parsedCameraInstance.Id}_Target")
+        // {
+        //     LocalTransform = new Transform(cam->LookAtVector, Quaternion.Identity, Vector3.One).AffineTransform
+        // };
+        // scene.AddNode(target);
+        return root;
     }
 
     public NodeBuilder? ComposeCharacterInstance(ParsedCharacterInstance instance, SceneBuilder scene, ExportProgress rootProgress)

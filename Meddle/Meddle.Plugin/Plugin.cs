@@ -106,6 +106,16 @@ public class Configuration : IPluginConfiguration
             Version = 2;
             Save();
         }
+        
+        if (Version == 2)
+        {
+            Plugin.Logger?.LogInformation("Migrating configuration from version 2 to 3");
+            
+            LayoutConfig.DrawTypes = LayoutWindow.DefaultDrawTypes;
+            
+            Version = 3;
+            Save();
+        }
     }
     
     [PluginService]
@@ -146,7 +156,7 @@ public class Configuration : IPluginConfiguration
     [Obsolete("Use ExportConfig.ExportType")]
     public ExportType ExportType { get; set; } = DefaultExportType;
     
-    public int Version { get; set; } = 2;
+    public int Version { get; set; } = 3;
     
     public LayoutWindow.LayoutConfig LayoutConfig { get; set; } = new();
     public ExportConfiguration ExportConfig { get; set; } = new();

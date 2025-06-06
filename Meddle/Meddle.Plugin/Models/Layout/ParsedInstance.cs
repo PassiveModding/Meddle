@@ -1,7 +1,9 @@
 ﻿using System.Numerics;
 using System.Text.Json.Serialization;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
+using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
+using FFXIVClientStructs.Interop;
 using ImGuiNET;
 using Lumina.Excel.Sheets;
 using Meddle.Plugin.Models.Skeletons;
@@ -25,7 +27,8 @@ public enum ParsedInstanceType
     BgPart = 8,
     Light = 16,
     Character = 32,
-    Terrain = 64
+    Terrain = 64,
+    Camera = 128,
 }
 
 public interface IResolvableInstance
@@ -56,6 +59,7 @@ public interface ISearchableInstance
 [JsonDerivedType(typeof(ParsedLightInstance))]
 [JsonDerivedType(typeof(ParsedCharacterInstance))]
 [JsonDerivedType(typeof(ParsedTerrainInstance))]
+[JsonDerivedType(typeof(ParsedCameraInstance))]
 public abstract class ParsedInstance
 {
     public ParsedInstance(nint id, ParsedInstanceType type, Transform transform)
@@ -267,6 +271,59 @@ public class ParsedLightInstance : ParsedInstance, ISearchableInstance
     public bool Search(string query)
     {
         return "light".Contains(query, StringComparison.OrdinalIgnoreCase);
+    }
+}
+
+public class ParsedCameraInstance : ParsedInstance, ISearchableInstance
+{
+    public float FoV { get; }
+    public float AspectRatio { get; }
+    public Quaternion Rotation { get; }
+    
+    public unsafe ParsedCameraInstance(Pointer<Camera> camera, Transform transform) : base((nint)camera.Value, ParsedInstanceType.Camera, transform)
+    {
+        FoV = camera.Value->RenderCamera->FoV;
+        AspectRatio = camera.Value->RenderCamera->AspectRatio;
+
+        var rotation = CreateLookAt(camera.Value->Position, camera.Value->LookAtVector); 
+        // flip the rotation for cameras
+        rotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI);
+        
+        Rotation = rotation;
+    }
+
+    public static Quaternion CreateLookAt(Vector3 from, Vector3 to, Vector3? up = null)
+    {
+        Vector3 upVector = up ?? Vector3.UnitY;
+        
+        // Calculate the direction vector
+        Vector3 forward = Vector3.Normalize(to - from);
+        
+        // Handle edge case where forward is parallel to up
+        if (Math.Abs(Vector3.Dot(forward, upVector)) > 0.99f)
+        {
+            upVector = Math.Abs(forward.Y) > 0.99f ? Vector3.UnitX : Vector3.UnitY;
+        }
+        
+        // Calculate right and up vectors
+        Vector3 right = Vector3.Normalize(Vector3.Cross(upVector, forward));
+        Vector3 newUp = Vector3.Cross(forward, right);
+        
+        // Create rotation matrix
+        Matrix4x4 rotationMatrix = new Matrix4x4(
+            right.X,    right.Y,    right.Z,    0,
+            newUp.X,    newUp.Y,    newUp.Z,    0,
+            forward.X,  forward.Y,  forward.Z,  0,
+            0,          0,          0,          1
+        );
+        
+        // Convert matrix to quaternion
+        return Quaternion.CreateFromRotationMatrix(rotationMatrix);
+    }
+    
+    public bool Search(string query)
+    {
+        return "camera".Contains(query, StringComparison.OrdinalIgnoreCase);
     }
 }
 

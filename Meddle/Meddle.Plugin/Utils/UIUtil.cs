@@ -2,6 +2,7 @@
 using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
+using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.Interop;
 using ImGuiNET;
@@ -640,4 +641,19 @@ public static class UiUtil
     /// <summary> Square stores its colors as BGR values so R and B need to be shuffled and Alpha set to max. </summary>
     public static uint SeColorToRgba(uint color)
         => ((color & 0xFF) << 16) | ((color >> 16) & 0xFF) | (color & 0xFF00) | 0xFF000000;
+
+    public static string GetCharacterName(this string? name, Configuration config, ObjectKind kind, string? suffix = null)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return $"Unknown{suffix}";
+        }
+        
+        if (!string.IsNullOrWhiteSpace(config.PlayerNameOverride) && kind == ObjectKind.Pc)
+        {
+            return $"{config.PlayerNameOverride}{suffix}";
+        }
+
+        return name;
+    }
 }

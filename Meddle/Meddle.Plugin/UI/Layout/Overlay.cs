@@ -168,6 +168,12 @@ public partial class LayoutWindow
 
     private InstanceSelectState DrawInstanceOverlay(ParsedInstance obj, ParsedInstance? parent)
     {
+        if (obj is ParsedCameraInstance cameraInstance)
+        {
+            // don't draw camera instances
+            return InstanceSelectState.None;
+        }
+        
         if (Vector3.Abs(obj.Transform.Translation - searchOrigin).Length() > config.WorldCutoffDistance)
             return InstanceSelectState.None;
         if (!WorldToScreen(obj.Transform.Translation, out var screenPos, out var inView))
