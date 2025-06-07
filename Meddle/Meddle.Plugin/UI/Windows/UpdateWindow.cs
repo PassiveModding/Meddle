@@ -57,7 +57,7 @@ public class UpdateWindow : Window
 
     public class UpdateConfig
     {
-        public string? LastSeenUpdateTag { get; set; } = null;
+        public string? LastSeenUpdateTag { get; set; }
         public bool ShowUpdateWindow { get; set; } = true;
     }
 

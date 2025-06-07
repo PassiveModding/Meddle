@@ -18,7 +18,7 @@ namespace Meddle.Plugin;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public static readonly string TempDirectory = Path.Combine(Path.GetTempPath(), "Meddle.Export");
+    public static readonly string DefaultExportDirectory = Path.Combine(Path.GetTempPath(), "Meddle.Export");
     private readonly IHost? app;
     private readonly ILogger<Plugin>? log;
     public static ILogger<Plugin>? Logger;
@@ -132,7 +132,7 @@ public class Configuration : IPluginConfiguration
     public float WorldCutoffDistance { get; set; } = 100;
     public Vector4 WorldDotColor { get; set; } = new(1f, 1f, 1f, 0.5f);
     
-    public string ExportDirectory { get; set; } = Plugin.TempDirectory;
+    public string ExportDirectory { get; set; } = Plugin.DefaultExportDirectory;
     
     /// <summary>
     /// Used to hide names in the UI

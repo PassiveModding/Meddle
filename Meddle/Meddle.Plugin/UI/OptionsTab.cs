@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Numerics;
 using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
 using ImGuiNET;
@@ -37,9 +38,14 @@ public class OptionsTab : ITab
         {
             if (ImGui.Button(FontAwesomeIcon.Redo.ToIconString()))
             {
-                config.ExportDirectory = Plugin.TempDirectory;
+                config.ExportDirectory = Plugin.DefaultExportDirectory;
                 config.Save();
             }
+        }
+        
+        if (exportDirectory.Contains(Path.GetTempPath(), StringComparison.OrdinalIgnoreCase))
+        {
+            ImGui.TextColored(new Vector4(1, 0, 0, 1), "Warning: Exporting to the temp directory may cause files to be deleted on reboot.");
         }
         
         if (ImGui.IsItemHovered())
