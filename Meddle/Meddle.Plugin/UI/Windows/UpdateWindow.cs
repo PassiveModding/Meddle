@@ -30,7 +30,8 @@ public class UpdateWindow : Window
                 new TextUpdateLine(" + Added this update window (Can be disabled from Options)."),
                 new TextUpdateLine(" + Fix obj export failing in come circumstances."),
                 new TextUpdateLine(" + Fix name override being ignored in some cases."),
-                new TextUpdateLine(" + Improve naming of Animation exports to include track names.")
+                new TextUpdateLine(" + Improve naming of Animation exports to include track names."),
+                new TextUpdateLine(" + Added a warning message in options if the export directory is set to the temp directory.")
             ]
         }
     ];
