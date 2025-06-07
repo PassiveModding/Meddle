@@ -37,9 +37,9 @@ public class UpdateWindow : Window
     
     public class UpdateLog
     {
-        public string Tag { get; set; } = string.Empty;
-        public string Date { get; set; } = string.Empty;
-        public IUpdateLine[] Changes { get; set; } = [];
+        public string Tag { get; init; } = string.Empty;
+        public string Date { get; init; } = string.Empty;
+        public IUpdateLine[] Changes { get; init; } = [];
     }
 
     public interface IUpdateLine
