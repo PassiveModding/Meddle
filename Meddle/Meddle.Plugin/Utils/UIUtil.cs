@@ -95,15 +95,20 @@ public static class UiUtil
             }
         }
 
-        var removeAttributeDisabledSubMeshes = exportConfiguration.RemoveAttributeDisabledSubmeshes;
-        if (ImGui.Checkbox("Remove disabled submeshes", ref removeAttributeDisabledSubMeshes))
+        var includeAttributeDisabledSubMeshes = !exportConfiguration.RemoveAttributeDisabledSubmeshes;
+        if (ImGui.Checkbox("Include all optional character features", ref includeAttributeDisabledSubMeshes))
         {
-            exportConfiguration.RemoveAttributeDisabledSubmeshes = removeAttributeDisabledSubMeshes;
+            exportConfiguration.RemoveAttributeDisabledSubmeshes = !includeAttributeDisabledSubMeshes;
             changed = true;
         }
 
         ImGui.SameLine();
-        HintCircle("Remove submeshes that are disabled by the attribute mask");
+        // technical explanation
+        // In the character creator, there are some features of characters that can be toggled on and off, if this checkbox is toggled to 'Include all submeshes' 
+        // the export will treat is as if all toggles are enabled
+        HintCircle("Certain character features can be toggled on and off in the character creator, " +
+                   "this option will include all features regardless of the toggles.\n" +
+                   "Keep this disabled if you want to export the character as they appear in-game");
 
         // var rootAttachHandling = exportConfiguration.RootAttachHandling;
         // if (EnumExtensions.DrawEnumDropDown("Root Attach Handling", ref rootAttachHandling))
