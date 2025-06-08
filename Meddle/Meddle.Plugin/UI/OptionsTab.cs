@@ -85,30 +85,30 @@ public class OptionsTab : ITab
 
         // DrawExportType();
 
-        var includePose = config.ExportConfig.ExportPose;
-        if (ImGui.Checkbox("Include Pose", ref includePose))
-        {
-            config.ExportConfig.ExportPose = includePose;
-            config.Save();
-        }
-        
-        ImGui.SameLine();
-        using (ImRaii.PushFont(UiBuilder.IconFont))
-        {
-            ImGui.Text(FontAwesomeIcon.QuestionCircle.ToIconString());
-        }
-        
-        if (ImGui.IsItemHovered())
-        {
-            ImGui.BeginTooltip();
-            ImGui.Text("Includes pose as a track on exported models with frame 0 as the currently applied pose.");
-            ImGui.EndTooltip();
-        }
-        
+        // var includePose = config.ExportConfig.ExportPose;
+        // if (ImGui.Checkbox("Include Pose", ref includePose))
+        // {
+        //     config.ExportConfig.ExportPose = includePose;
+        //     config.Save();
+        // }
+        //
+        // ImGui.SameLine();
+        // using (ImRaii.PushFont(UiBuilder.IconFont))
+        // {
+        //     ImGui.Text(FontAwesomeIcon.QuestionCircle.ToIconString());
+        // }
+        //
+        // if (ImGui.IsItemHovered())
+        // {
+        //     ImGui.BeginTooltip();
+        //     ImGui.Text("Includes pose as a track on exported models with frame 0 as the currently applied pose.");
+        //     ImGui.EndTooltip();
+        // }
+
         // DrawPoseMode();
         // DrawCharacterTextureMode();
         
-        ImGui.Separator();
+        // ImGui.Separator();
         
         var playerNameOverride = config.PlayerNameOverride;
         if (ImGui.InputText("Player Name Override", ref playerNameOverride, 64))
