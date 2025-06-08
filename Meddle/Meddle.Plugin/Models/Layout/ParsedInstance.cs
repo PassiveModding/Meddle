@@ -280,12 +280,11 @@ public class ParsedCameraInstance : ParsedInstance, ISearchableInstance
     public float AspectRatio { get; }
     public Quaternion Rotation { get; }
     
-    public unsafe ParsedCameraInstance(Pointer<Camera> camera, Transform transform) : base((nint)camera.Value, ParsedInstanceType.Camera, transform)
+    public unsafe ParsedCameraInstance(nint id, Transform transform, float fov, float aspectRatio, Vector3 position, Vector3 lookAtVector) : base(id, ParsedInstanceType.Camera, transform)
     {
-        FoV = camera.Value->RenderCamera->FoV;
-        AspectRatio = camera.Value->RenderCamera->AspectRatio;
-
-        var rotation = CreateLookAt(camera.Value->Position, camera.Value->LookAtVector); 
+        FoV = fov;
+        AspectRatio = aspectRatio;
+        var rotation = CreateLookAt(position, lookAtVector);
         // flip the rotation for cameras
         rotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI);
         

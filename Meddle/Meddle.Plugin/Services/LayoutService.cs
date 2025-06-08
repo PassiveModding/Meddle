@@ -101,11 +101,14 @@ public class LayoutService : IService, IDisposable
                 continue;
 
             var camera = cameraPtr.Value;
-            
-            var transform = new Transform(camera->Position, camera->Rotation, camera->Scale);
             if (camera->RenderCamera != null)
-            {
-                cameras.Add(new ParsedCameraInstance(camera, transform));
+            {      
+                var transform = new Transform(camera->Position, camera->Rotation, camera->Scale); 
+                var fov = camera->RenderCamera->FoV;
+                var aspectRatio = camera->RenderCamera->AspectRatio;
+                var position = camera->Position;
+                var lookAtVector = camera->LookAtVector;
+                cameras.Add(new ParsedCameraInstance((nint)camera, transform, fov, aspectRatio, position, lookAtVector));
             }
         }
         
