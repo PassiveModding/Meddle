@@ -62,29 +62,44 @@ public static class UiUtil
 
             changed = true;
         }
+        
+        ImGui.SameLine();
+        HintCircle("Select the type of export to use, GLTF is recommended for most cases.\n" +
+                   "GLB is a binary version of GLTF, and OBJ is a legacy format that is not recommended for most cases.");
 
-        var textureMode = exportConfiguration.TextureMode;
-        if (EnumExtensions.DrawEnumDropDown("Texture Mode", ref textureMode))
-        {
-            exportConfiguration.TextureMode = textureMode;
-            changed = true;
-        }
-
-        if (textureMode == TextureMode.Bake)
-        {
-            ImGui.TextColored(new Vector4(1, 0, 0, 1), "Baking textures is deprecated, use Raw mode with the MeddleTools Blender addon");
-        }
+        // var textureMode = exportConfiguration.TextureMode;
+        // if (EnumExtensions.DrawEnumDropDown("Texture Mode", ref textureMode))
+        // {
+        //     exportConfiguration.TextureMode = textureMode;
+        //     changed = true;
+        // }
+        //
+        // if (textureMode == TextureMode.Bake)
+        // {
+        //     ImGui.TextColored(new Vector4(1, 0, 0, 1), "Baking textures is deprecated, use Raw mode with the MeddleTools Blender addon");
+        // }
 
         if (!flags.HasFlag(ExportConfigDrawFlags.HideExportPose))
         {
-            var exportPose = exportConfiguration.ExportPose;
-            if (ImGui.Checkbox("Export pose", ref exportPose))
+            // var exportPose = exportConfiguration.ExportPose;
+            // if (ImGui.Checkbox("Export pose", ref exportPose))
+            // {
+            //     exportConfiguration.ExportPose = exportPose;
+            //     changed = true;
+            // }
+            var poseMode = exportConfiguration.PoseMode;
+            if (EnumExtensions.DrawEnumDropDown("Pose Mode", ref poseMode))
             {
-                exportConfiguration.ExportPose = exportPose;
+                exportConfiguration.PoseMode = poseMode;
                 changed = true;
             }
+            
+            ImGui.SameLine();
+            HintCircle("None: Export will not include a pose track.\n" +
+                       "LocalScale: Export will include only scaling on the pose track.\n" +
+                       "Local (default): Export will include scaling, rotation and translation on the pose track.");
         }
-        
+
         if (!flags.HasFlag(ExportConfigDrawFlags.HideLayoutOptions))
         {
             var skipHiddenBgParts = exportConfiguration.SkipHiddenBgParts;
@@ -94,6 +109,10 @@ public static class UiUtil
                 changed = true;
             }
         }
+        
+        ImGui.SameLine();
+        HintCircle("If enabled, the export will skip any models that are not visible in the game.\n" +
+                    "Example: if an arena changes shape throughout an encounter, the export will only include the arena that is currently visible.");
 
         var includeAttributeDisabledSubMeshes = !exportConfiguration.RemoveAttributeDisabledSubmeshes;
         if (ImGui.Checkbox("Include all optional character features", ref includeAttributeDisabledSubMeshes))

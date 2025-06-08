@@ -401,6 +401,7 @@ public partial class LayoutWindow : ITab
             {
                 flags |= UiUtil.ExportConfigDrawFlags.HideExportPose;
             }
+            
             if (UiUtil.DrawExportConfig(config.ExportConfig, flags))
             {
                 config.Save();
@@ -412,7 +413,7 @@ public partial class LayoutWindow : ITab
                 if (flags.HasFlag(UiUtil.ExportConfigDrawFlags.HideExportPose))
                 {
                     // Force export pose to true if multiple instances are selected
-                    configClone.ExportPose = true;
+                    configClone.PoseMode = SkeletonUtils.PoseMode.Local;
                 }
 
                 var filteredInstances = new List<ParsedInstance>();

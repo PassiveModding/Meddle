@@ -250,7 +250,7 @@ public class InstanceComposer
         {
             characterComposer.Compose(instance.CharacterInfo, scene, root, characterProgress);
             var cTransform = instance.Transform.AffineTransform;
-            if (exportConfig.ExportPose)
+            if (exportConfig.PoseMode != SkeletonUtils.PoseMode.None)
             {
                 // set scale to 1 since exporting with pose should already set this on the root bone.
                 cTransform = cTransform.WithScale(Vector3.One);

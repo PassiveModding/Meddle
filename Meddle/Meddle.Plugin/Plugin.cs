@@ -142,10 +142,10 @@ public class Configuration : IPluginConfiguration
     /// <summary>
     /// If enabled, pose will be included at 0 on the timeline under the 'pose' track.
     /// </summary>
-    [Obsolete("Use ExportConfig.ExportPose")]
+    [Obsolete("Use ExportConfig.ExportPose", true)]
     public bool IncludePose { get; set; } = true;
 
-    [Obsolete("Use ExportConfig.TextureMode")]
+    [Obsolete("Use ExportConfig.TextureMode", true)]
     public TextureMode TextureMode { get; set; } = TextureMode.Bake;
     
     /// <summary>
@@ -153,7 +153,7 @@ public class Configuration : IPluginConfiguration
     /// GLB = GLTF Binary
     /// OBJ = Wavefront OBJ
     /// </summary>
-    [Obsolete("Use ExportConfig.ExportType")]
+    [Obsolete("Use ExportConfig.ExportType", true)]
     public ExportType ExportType { get; set; } = DefaultExportType;
     
     public int Version { get; set; } = 3;
@@ -166,7 +166,12 @@ public class Configuration : IPluginConfiguration
     {
         public CacheFileType CacheFileTypes { get; set; }
         public ExportType ExportType { get; set; } = DefaultExportType;
+        
+        [Obsolete("TextureMode is only ever Raw as baking is no longer supported", true)]
         public TextureMode TextureMode { get; set; } = TextureMode.Raw;
+        public SkeletonUtils.PoseMode PoseMode { get; set; } = SkeletonUtils.PoseMode.Local;
+        
+        [Obsolete("Use PoseMode instead", true)]
         public bool ExportPose { get; set; } = true;
         public bool RemoveAttributeDisabledSubmeshes { get; set; } = true;
         public bool SkipHiddenBgParts { get; set; }
@@ -184,9 +189,10 @@ public class Configuration : IPluginConfiguration
             return new ExportConfiguration
             {
                 CacheFileTypes = CacheFileTypes,
-                ExportPose = ExportPose,
                 ExportType = ExportType,
-                TextureMode = TextureMode,
+                // ExportPose = ExportPose,
+                // TextureMode = TextureMode,
+                PoseMode = PoseMode,
                 RemoveAttributeDisabledSubmeshes = RemoveAttributeDisabledSubmeshes,
                 SkipHiddenBgParts = SkipHiddenBgParts,
                 // RootAttachHandling = RootAttachHandling

@@ -344,7 +344,7 @@ public class CharacterComposer
         BoneNodeBuilder? rootBone;
         try
         {
-            bones = SkeletonUtils.GetBoneMap(characterInfo.Skeleton, exportConfig.ExportPose ? SkeletonUtils.PoseMode.Local : null, out rootBone);
+            bones = SkeletonUtils.GetBoneMap(characterInfo.Skeleton, exportConfig.PoseMode, out rootBone);
             if (rootBone == null)
             {
                 Plugin.Logger?.LogWarning("Root bone not found");
