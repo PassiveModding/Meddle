@@ -108,11 +108,11 @@ public static class UiUtil
                 exportConfiguration.SkipHiddenBgParts = skipHiddenBgParts;
                 changed = true;
             }
-        }
         
-        ImGui.SameLine();
-        HintCircle("If enabled, the export will skip any models that are not visible in the game.\n" +
-                    "Example: if an arena changes shape throughout an encounter, the export will only include the arena that is currently visible.");
+            ImGui.SameLine();
+            HintCircle("If enabled, the export will skip any models that are not visible in the game.\n" +
+                       "Example: if an arena changes shape throughout an encounter, the export will only include the arena that is currently visible.");
+        }
 
         var includeAttributeDisabledSubMeshes = !exportConfiguration.RemoveAttributeDisabledSubmeshes;
         if (ImGui.Checkbox("Include all optional character features", ref includeAttributeDisabledSubMeshes))
