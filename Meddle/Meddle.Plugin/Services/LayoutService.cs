@@ -14,6 +14,7 @@ using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Utils;
 using Microsoft.Extensions.Logging;
+using Camera = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Camera;
 using HousingFurniture = FFXIVClientStructs.FFXIV.Client.Game.HousingFurniture;
 using Object = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Object;
 using SharedGroupResourceHandle = Meddle.Plugin.Models.Structs.SharedGroupResourceHandle;
@@ -89,30 +90,38 @@ public class LayoutService : IService, IDisposable
     
     private unsafe ParsedCameraInstance[] ParseCameras()
     {
-        var cameraManager = sigUtil.GetCameraManager();
-        if (cameraManager == null)
+        // var cameraManager = sigUtil.GetCameraManager();
+        // if (cameraManager == null)
+        //     return [];
+        //
+        // var cameras = new List<ParsedCameraInstance>();
+        // for (var i = 0; i < cameraManager->Cameras.Length; i++)
+        // {
+        //     var cameraPtr = cameraManager->Cameras[i];
+        //     if (cameraPtr == null || cameraPtr.Value == null || cameraPtr.Value->RenderCamera == null)
+        //         continue;
+        //
+        //     var parsedCamera = ParseCameraPtr(cameraPtr);
+        //     cameras.Add(parsedCamera);
+        // }
+        //
+        // return cameras.ToArray();
+        var activeCamera = sigUtil.GetCamera();
+        if (activeCamera == null || activeCamera->RenderCamera == null)
             return [];
         
-        var cameras = new List<ParsedCameraInstance>();
-        for (var i = 0; i < cameraManager->Cameras.Length; i++)
-        {
-            var cameraPtr = cameraManager->Cameras[i];
-            if (cameraPtr == null || cameraPtr.Value == null)
-                continue;
-
-            var camera = cameraPtr.Value;
-            if (camera->RenderCamera != null)
-            {      
-                var transform = new Transform(camera->Position, camera->Rotation, camera->Scale); 
-                var fov = camera->RenderCamera->FoV;
-                var aspectRatio = camera->RenderCamera->AspectRatio;
-                var position = camera->Position;
-                var lookAtVector = camera->LookAtVector;
-                cameras.Add(new ParsedCameraInstance((nint)camera, transform, fov, aspectRatio, position, lookAtVector));
-            }
-        }
+        var parsedCamera = ParseCameraPtr(activeCamera);
+        return [parsedCamera];
         
-        return cameras.ToArray();
+        ParsedCameraInstance ParseCameraPtr(Camera* camera)
+        {
+            var transform = new Transform(camera->Position, camera->Rotation, camera->Scale);
+            var fov = camera->RenderCamera->FoV;
+            var aspectRatio = camera->RenderCamera->AspectRatio;
+            var position = camera->Position;
+            var lookAtVector = camera->LookAtVector;
+            return new ParsedCameraInstance((nint)camera, transform, fov, aspectRatio, position, lookAtVector);
+        }
     }
 
     private unsafe HousingTerritory* GetCurrentTerritory()
