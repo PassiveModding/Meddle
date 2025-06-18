@@ -83,31 +83,34 @@ public class CharacterComposer
 
         var model = new Model(m.Path.GamePath, mdlFile, m.ShapeAttributeGroup);
         EnsureBonesExist(model, skinningContext.Bones, skinningContext.RootBone);
-        (GenderRace from, GenderRace to, RaceDeformer deformer)? deform;
-        if (m.Deformer != null)
+        (GenderRace from, GenderRace to, RaceDeformer deformer)? deform = null;
+        if (exportConfig.UseDeformer)
         {
-            // custom pbd may exist
-            var pbdFile = composerCache.GetPbdFile(m.Deformer.Value.PbdPath);
-            if (pbdFile == null)
+            if (m.Deformer != null)
             {
-                throw new InvalidOperationException($"Failed to get deformer pbd {m.Deformer.Value.PbdPath} returned null");
-            }
-            
-            deform = ((GenderRace)m.Deformer.Value.DeformerId, 
-                         (GenderRace)m.Deformer.Value.RaceSexId, 
-                         new RaceDeformer(pbdFile, skinningContext.Bones));
-            Plugin.Logger?.LogDebug("Using deformer pbd {Path}", m.Deformer.Value.PbdPath);
-        }
-        else
-        {
-            var parsed = RaceDeformer.ParseRaceCode(m.Path.GamePath);
-            if (Enum.IsDefined(parsed))
-            {
-                deform = (parsed, characterInfo.GenderRace, new RaceDeformer(composerCache.GetDefaultPbdFile(), skinningContext.Bones));
+                // custom pbd may exist
+                var pbdFile = composerCache.GetPbdFile(m.Deformer.Value.PbdPath);
+                if (pbdFile == null)
+                {
+                    throw new InvalidOperationException($"Failed to get deformer pbd {m.Deformer.Value.PbdPath} returned null");
+                }
+
+                deform = ((GenderRace)m.Deformer.Value.DeformerId,
+                             (GenderRace)m.Deformer.Value.RaceSexId,
+                             new RaceDeformer(pbdFile, skinningContext.Bones));
+                Plugin.Logger?.LogDebug("Using deformer pbd {Path}", m.Deformer.Value.PbdPath);
             }
             else
             {
-                deform = null;
+                var parsed = RaceDeformer.ParseRaceCode(m.Path.GamePath);
+                if (Enum.IsDefined(parsed))
+                {
+                    deform = (parsed, characterInfo.GenderRace, new RaceDeformer(composerCache.GetDefaultPbdFile(), skinningContext.Bones));
+                }
+                else
+                {
+                    deform = null;
+                }
             }
         }
 

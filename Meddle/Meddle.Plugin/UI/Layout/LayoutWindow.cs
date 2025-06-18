@@ -410,6 +410,7 @@ public partial class LayoutWindow : ITab
             if (ImGui.Button("Export"))
             {
                 var configClone = config.ExportConfig.Clone();
+                configClone.UseDeformer = true;
                 if (flags.HasFlag(UiUtil.ExportConfigDrawFlags.HideExportPose))
                 {
                     // Force export pose to true if multiple instances are selected

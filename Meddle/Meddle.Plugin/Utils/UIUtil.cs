@@ -36,6 +36,7 @@ public static class UiUtil
         None = 0,
         HideExportPose = 1,
         HideLayoutOptions = 2,
+        ShowUseDeformer = 4,
     }
 
     public static bool DrawExportConfig(Configuration.ExportConfiguration exportConfiguration, ExportConfigDrawFlags flags = ExportConfigDrawFlags.None)
@@ -98,6 +99,20 @@ public static class UiUtil
             HintCircle("None: Export will not include a pose track.\n" +
                        "LocalScale: Export will include only scaling on the pose track.\n" +
                        "Local (default): Export will include scaling, rotation and translation on the pose track.");
+        }
+        
+        if (flags.HasFlag(ExportConfigDrawFlags.ShowUseDeformer))
+        {
+            var useDeformer = exportConfiguration.UseDeformer;
+            if (ImGui.Checkbox("Use Deformer", ref useDeformer))
+            {
+                exportConfiguration.UseDeformer = useDeformer;
+                changed = true;
+            }
+        
+            ImGui.SameLine();
+            HintCircle("If enabled, the export will use the deformer to export the model.\n" +
+                       "This is recommended for most models, but will result in different deformations based on the race associated with the model.");
         }
 
         if (!flags.HasFlag(ExportConfigDrawFlags.HideLayoutOptions))

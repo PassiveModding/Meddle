@@ -175,6 +175,7 @@ public class Configuration : IPluginConfiguration
         public bool ExportPose { get; set; } = true;
         public bool RemoveAttributeDisabledSubmeshes { get; set; } = true;
         public bool SkipHiddenBgParts { get; set; }
+        public bool UseDeformer { get; set; } = true;
 
         // public enum ExportRootAttachHandling
         // {
@@ -196,6 +197,7 @@ public class Configuration : IPluginConfiguration
                 RemoveAttributeDisabledSubmeshes = RemoveAttributeDisabledSubmeshes,
                 SkipHiddenBgParts = SkipHiddenBgParts,
                 // RootAttachHandling = RootAttachHandling
+                UseDeformer = UseDeformer
             };
         }
     }

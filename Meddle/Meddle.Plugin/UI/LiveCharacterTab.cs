@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics;
-using System.Reflection.Metadata;
 using System.Text.Json;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface;
@@ -15,7 +14,6 @@ using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Models.Skeletons;
-using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.Services.UI;
 using Meddle.Plugin.UI.Layout;
@@ -29,8 +27,6 @@ using Meddle.Utils.Files.SqPack;
 using Meddle.Utils.Helpers;
 using Microsoft.Extensions.Logging;
 using SharpGLTF.Scenes;
-using SharpGLTF.Schema2;
-using SharpGLTF.Validation;
 using SkiaSharp;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
 using CSCharacterBase = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.CharacterBase;
@@ -38,7 +34,6 @@ using CSHuman = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Human;
 using CustomizeParameter = Meddle.Utils.Export.CustomizeParameter;
 using CSMaterial = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Material;
 using CSModel = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Model;
-using ShaderPackage = FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.ShaderPackage;
 
 namespace Meddle.Plugin.UI;
 
@@ -285,7 +280,13 @@ public unsafe class LiveCharacterTab : ITab
         if (!ImGui.BeginPopup("ExportSettingsPopup", ImGuiWindowFlags.AlwaysAutoResize)) return;
         try
         {
-            if (UiUtil.DrawExportConfig(config.ExportConfig, UiUtil.ExportConfigDrawFlags.HideLayoutOptions))
+            var exportFlags = UiUtil.ExportConfigDrawFlags.HideLayoutOptions;
+            if (characterInfo.Models.Length == 1)
+            {
+                exportFlags |= UiUtil.ExportConfigDrawFlags.ShowUseDeformer;
+            }
+            
+            if (UiUtil.DrawExportConfig(config.ExportConfig, exportFlags))
             {
                 config.Save();
             }
@@ -293,6 +294,13 @@ public unsafe class LiveCharacterTab : ITab
             if (ImGui.Button("Export"))
             {
                 var configClone = config.ExportConfig.Clone();
+                
+                // Force deformer usage if the flag is not set
+                if (!exportFlags.HasFlag(UiUtil.ExportConfigDrawFlags.ShowUseDeformer))
+                {
+                    configClone.UseDeformer = true;
+                }
+                
                 var defaultName = $"Character-{name}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
                 cancelToken = new CancellationTokenSource();
                 fileDialog.SaveFolderDialog("Save Instances", defaultName,
