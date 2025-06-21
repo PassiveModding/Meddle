@@ -19,6 +19,8 @@ public class Service
 
     [PluginService]
     private IPluginLog PrivLog { get; set; } = null!;
+    
+    public IPluginLog? GetLog() => PrivLog;
 
     [PluginService]
     private IObjectTable ObjectTable { get; set; } = null!;

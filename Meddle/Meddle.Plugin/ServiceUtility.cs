@@ -34,10 +34,6 @@ public static class ServiceUtility
 
     public static IServiceCollection AddServices(this IServiceCollection services, IDalamudPluginInterface pluginInterface)
     {
-        var service = new Service();
-        pluginInterface.Inject(service);
-        service.RegisterServices(services);
-                
         var serviceTypes = Assembly.GetExecutingAssembly().GetTypes()
                                    .Where(t => t is {IsClass: true, IsAbstract: false} && typeof(IService).IsAssignableFrom(t));
         foreach (var serviceType in serviceTypes)

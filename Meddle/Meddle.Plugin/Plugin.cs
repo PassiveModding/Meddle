@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Dalamud.Configuration;
 using Dalamud.IoC;
 using Dalamud.Plugin;
+using Dalamud.Plugin.Services;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.UI.Layout;
@@ -20,11 +21,16 @@ public sealed class Plugin : IDalamudPlugin
 {
     public static readonly string DefaultExportDirectory = Path.Combine(Path.GetTempPath(), "Meddle.Export");
     private readonly IHost? app;
-    private readonly ILogger<Plugin>? log;
+    private readonly IPluginLog pluginLog;
     public static ILogger<Plugin>? Logger;
 
     public Plugin(IDalamudPluginInterface pluginInterface)
     {
+        var service = new Service();
+        pluginInterface.Inject(service);
+        pluginLog = service.GetLog() ?? throw new InvalidOperationException("Service log is null");
+        pluginLog.Debug("Meddle Plugin initializing...");
+        
         try
         {
 #if HAS_LOCAL_CS
@@ -52,6 +58,7 @@ public sealed class Plugin : IDalamudPlugin
             host.ConfigureServices(services =>
             {
                 services.Configure<ConsoleLifetimeOptions>(options => options.SuppressStatusMessages = true);
+                service.RegisterServices(services);
                 services
                     .AddServices(pluginInterface)    
                     .AddSingleton(config)
@@ -60,8 +67,7 @@ public sealed class Plugin : IDalamudPlugin
             });
 
             app = host.Build();
-            log = app.Services.GetRequiredService<ILogger<Plugin>>();
-            Logger = log;
+            Logger = app.Services.GetRequiredService<ILogger<Plugin>>();
             Meddle.Utils.Global.Logger = app.Services.GetRequiredService<ILogger<Meddle.Utils.Global>>();
             NativeDll.Initialize(app.Services.GetRequiredService<IDalamudPluginInterface>().AssemblyLocation.DirectoryName);
 
@@ -69,7 +75,7 @@ public sealed class Plugin : IDalamudPlugin
         }
         catch (Exception e)
         {
-            log?.LogError(e, "Failed to initialize plugin");
+            pluginLog.Error(e, "Failed to initialize plugin");
             Dispose();
         }
     }
@@ -79,7 +85,7 @@ public sealed class Plugin : IDalamudPlugin
         app?.StopAsync();
         app?.WaitForShutdown();
         app?.Dispose();
-        log?.LogDebug("Plugin disposed");
+        pluginLog?.Debug("Plugin disposed");
         Alloc.Dispose();
     }
 }
