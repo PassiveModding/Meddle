@@ -21,15 +21,18 @@ public sealed class Plugin : IDalamudPlugin
 {
     public static readonly string DefaultExportDirectory = Path.Combine(Path.GetTempPath(), "Meddle.Export");
     private readonly IHost? app;
-    private readonly IPluginLog pluginLog;
+    private readonly ILogger pluginLog;
     public static ILogger<Plugin>? Logger;
 
     public Plugin(IDalamudPluginInterface pluginInterface)
     {
         var service = new Service();
         pluginInterface.Inject(service);
-        pluginLog = service.GetLog() ?? throw new InvalidOperationException("Service log is null");
-        pluginLog.Debug("Meddle Plugin initializing...");
+        
+        var dLogger = service.GetLog() ?? throw new InvalidOperationException("Service log is null");
+        pluginLog = new PluginSerilogWrapper(dLogger.Logger);
+        pluginLog.LogDebug("Meddle Plugin initializing...");
+        Meddle.Utils.Global.Logger = pluginLog;
         
         try
         {
@@ -75,7 +78,7 @@ public sealed class Plugin : IDalamudPlugin
         }
         catch (Exception e)
         {
-            pluginLog.Error(e, "Failed to initialize plugin");
+            pluginLog.LogError(e, "Failed to initialize plugin");
             Dispose();
         }
     }
@@ -85,7 +88,7 @@ public sealed class Plugin : IDalamudPlugin
         app?.StopAsync();
         app?.WaitForShutdown();
         app?.Dispose();
-        pluginLog?.Debug("Plugin disposed");
+        pluginLog.LogDebug("Plugin disposed");
         Alloc.Dispose();
     }
 }

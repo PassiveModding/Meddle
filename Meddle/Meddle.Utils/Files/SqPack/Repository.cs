@@ -1,5 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 
 namespace Meddle.Utils.Files.SqPack;
@@ -68,7 +69,22 @@ public class Repository : IDisposable
         // {XX    } is the category id
         // {  XX  } is the expansion id
         // {    XX} is the chunk id
-        var setGroups = allFiles.GroupBy(x => System.IO.Path.GetFileName(x)[..6]);
+        var keyRegex = new Regex(@"^(?<setId>[0-9a-fA-F]{6})\.(?<platform>\w+)\.(?<fileType>index|index2|dat\d+)$",
+                                 RegexOptions.Compiled | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking);
+        var setGroups = allFiles.GroupBy(x =>
+                                {
+                                    var fileName = System.IO.Path.GetFileName(x);
+                                    var match = keyRegex.Match(fileName);
+                                    if (!match.Success)
+                                    {
+                                        Global.Logger.LogWarning("File {FileName} does not match expected pattern", fileName);
+                                        return string.Empty;
+                                    }
+
+                                    var setId = match.Groups["setId"].Value;
+                                    return setId;
+                                })
+                                .Where(x => !string.IsNullOrEmpty(x.Key));
         var categories = new Dictionary<(byte category, byte expansion, byte chunk), Category>();
         foreach (var setGroup in setGroups)
         {
@@ -80,7 +96,7 @@ public class Repository : IDisposable
 
             if (datFiles.Length == 0)
             {
-                //throw new FileNotFoundException($"Could not find .dat files for category {setId} in {path}");
+                Global.Logger.LogWarning("Could not find .dat files for category {SetId} in {Path}", setId, path);
                 continue;
             }
             

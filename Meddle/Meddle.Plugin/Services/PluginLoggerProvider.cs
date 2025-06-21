@@ -5,6 +5,63 @@ using Microsoft.Extensions.Logging;
 
 namespace Meddle.Plugin.Services;
 
+public class PluginSerilogWrapper : ILogger
+{
+    private readonly Serilog.ILogger logger;
+    public PluginSerilogWrapper(Serilog.ILogger logger) 
+    {
+        this.logger = logger;
+    }
+    
+    public bool IsEnabled(LogLevel logLevel)
+    {
+        return logger.IsEnabled((Serilog.Events.LogEventLevel)logLevel);
+    }
+    
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull
+    {
+        return null;
+    }
+
+    public void Log<TState>(
+        LogLevel logLevel,
+        EventId eventId,
+        TState state,
+        Exception? exception,
+        Func<TState, Exception?, string> formatter)
+    {
+        if (!IsEnabled(logLevel))
+            return;
+
+        var message = formatter(state, exception);
+        switch (logLevel)
+        {
+            case LogLevel.Trace:
+                logger.Verbose(message);
+                break;
+            case LogLevel.Debug:
+                logger.Debug(message);
+                break;
+            case LogLevel.Information:
+                logger.Information(message);
+                break;
+            case LogLevel.Warning:
+                logger.Warning(message);
+                break;
+            case LogLevel.Error:
+                logger.Error(exception, message);
+                break;
+            case LogLevel.Critical:
+                logger.Fatal(exception, message);
+                break;
+            case LogLevel.None:
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(logLevel), logLevel, null);
+        }
+    }
+}
+
 public class PluginLoggerProvider : ILoggerProvider
 {
     private readonly Configuration config;
