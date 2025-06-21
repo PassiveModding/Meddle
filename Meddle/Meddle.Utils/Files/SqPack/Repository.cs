@@ -1,5 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using System.Globalization;
+using Microsoft.Extensions.Logging;
 
 namespace Meddle.Utils.Files.SqPack;
 
@@ -85,7 +86,8 @@ public class Repository : IDisposable
             
             if (indexFile == null && index2File == null)
             {
-                throw new FileNotFoundException($"Could not find .index or .index2 file for category {setId} in {path}");
+                Global.Logger.LogWarning("Could not find .index or .index2 file for category {SetId} in {Path}", setId, path);
+                continue;
             }
             
             var index = indexFile == null ? null : File.ReadAllBytes(indexFile);
