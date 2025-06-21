@@ -381,11 +381,13 @@ public partial class LayoutWindow : ITab
             requestedPopup = true;
             var instancesArray = instances.ToArray();
             resolverService.ResolveInstances(instancesArray);
-            drawExportSettingsCallback = () => DrawExportSettings(instancesArray);
+            var exportConfig = config.ExportConfig.Clone();
+            exportConfig.SetDefaultCloneOptions();
+            drawExportSettingsCallback = () => DrawExportSettings(instancesArray, exportConfig);
         }
     }
 
-    private void DrawExportSettings(ParsedInstance[] instances)
+    private void DrawExportSettings(ParsedInstance[] instances, Configuration.ExportConfiguration exportConfig)
     {
         if (!exportTask.IsCompleted)
         {
@@ -396,25 +398,26 @@ public partial class LayoutWindow : ITab
         if (!ImGui.BeginPopup("ExportSettingsPopup", ImGuiWindowFlags.AlwaysAutoResize)) return;
         try
         {
-            var flags = UiUtil.ExportConfigDrawFlags.None;
-            if (instances.Length > 1)
+            var flags = UiUtil.ExportConfigDrawFlags.ShowLayoutOptions;
+            if (instances.Length == 1 && (instances[0].Type & ParsedInstanceType.Character) != 0)
             {
-                flags |= UiUtil.ExportConfigDrawFlags.HideExportPose;
+                flags |= UiUtil.ExportConfigDrawFlags.ShowExportPose;
+                flags |= UiUtil.ExportConfigDrawFlags.ShowSubmeshOptions;
             }
             
-            if (UiUtil.DrawExportConfig(config.ExportConfig, flags))
+            if (UiUtil.DrawExportConfig(exportConfig, flags))
             {
+                config.ExportConfig.Apply(exportConfig);
                 config.Save();
             }
 
             if (ImGui.Button("Export"))
             {
-                var configClone = config.ExportConfig.Clone();
-                configClone.UseDeformer = true;
-                if (flags.HasFlag(UiUtil.ExportConfigDrawFlags.HideExportPose))
+                exportConfig.UseDeformer = true;
+                if (!flags.HasFlag(UiUtil.ExportConfigDrawFlags.ShowExportPose))
                 {
-                    // Force export pose to true if multiple instances are selected
-                    configClone.PoseMode = SkeletonUtils.PoseMode.Local;
+                    // Force local pose mode if we don't show the pose option
+                    exportConfig.PoseMode = SkeletonUtils.PoseMode.Local;
                 }
 
                 var filteredInstances = new List<ParsedInstance>();
@@ -454,7 +457,7 @@ public partial class LayoutWindow : ITab
                                                 exportTask = Task.Run(() =>
                                                 {
                                                     var composer = composerFactory.CreateComposer(path,
-                                                                                                  configClone,
+                                                                                                  exportConfig,
                                                                                                   cancelToken.Token);
                                                     progress = new ExportProgress(filteredInstanceArray.Length, "Instances");
                                                     composer.Compose(filteredInstanceArray, progress);

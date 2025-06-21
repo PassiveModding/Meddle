@@ -34,9 +34,10 @@ public static class UiUtil
     public enum ExportConfigDrawFlags
     {
         None = 0,
-        HideExportPose = 1,
-        HideLayoutOptions = 2,
+        ShowExportPose = 1,
+        ShowLayoutOptions = 2,
         ShowUseDeformer = 4,
+        ShowSubmeshOptions = 8,
     }
 
     public static bool DrawExportConfig(Configuration.ExportConfiguration exportConfiguration, ExportConfigDrawFlags flags = ExportConfigDrawFlags.None)
@@ -80,7 +81,7 @@ public static class UiUtil
         //     ImGui.TextColored(new Vector4(1, 0, 0, 1), "Baking textures is deprecated, use Raw mode with the MeddleTools Blender addon");
         // }
 
-        if (!flags.HasFlag(ExportConfigDrawFlags.HideExportPose))
+        if (flags.HasFlag(ExportConfigDrawFlags.ShowExportPose))
         {
             // var exportPose = exportConfiguration.ExportPose;
             // if (ImGui.Checkbox("Export pose", ref exportPose))
@@ -115,10 +116,10 @@ public static class UiUtil
                        "This is recommended for most models, but will result in different deformations based on the race associated with the model.");
         }
 
-        if (!flags.HasFlag(ExportConfigDrawFlags.HideLayoutOptions))
+        if (flags.HasFlag(ExportConfigDrawFlags.ShowLayoutOptions))
         {
             var skipHiddenBgParts = exportConfiguration.SkipHiddenBgParts;
-            if (ImGui.Checkbox("Skip hidden bg parts", ref skipHiddenBgParts))
+            if (ImGui.Checkbox("Remove hidden background parts", ref skipHiddenBgParts))
             {
                 exportConfiguration.SkipHiddenBgParts = skipHiddenBgParts;
                 changed = true;
@@ -129,20 +130,19 @@ public static class UiUtil
                        "Example: if an arena changes shape throughout an encounter, the export will only include the arena that is currently visible.");
         }
 
-        var includeAttributeDisabledSubMeshes = !exportConfiguration.RemoveAttributeDisabledSubmeshes;
-        if (ImGui.Checkbox("Include all optional character features", ref includeAttributeDisabledSubMeshes))
+        if (flags.HasFlag(ExportConfigDrawFlags.ShowSubmeshOptions))
         {
-            exportConfiguration.RemoveAttributeDisabledSubmeshes = !includeAttributeDisabledSubMeshes;
-            changed = true;
-        }
+            var removeAttributeDisabledSubmeshes = exportConfiguration.RemoveAttributeDisabledSubmeshes;
+            if (ImGui.Checkbox("Remove unused character features", ref removeAttributeDisabledSubmeshes))
+            {
+                exportConfiguration.RemoveAttributeDisabledSubmeshes = removeAttributeDisabledSubmeshes;
+                changed = true;
+            }
 
-        ImGui.SameLine();
-        // technical explanation
-        // In the character creator, there are some features of characters that can be toggled on and off, if this checkbox is toggled to 'Include all submeshes' 
-        // the export will treat is as if all toggles are enabled
-        HintCircle("Certain character features can be toggled on and off in the character creator, " +
-                   "this option will include all features regardless of the toggles.\n" +
-                   "Keep this disabled if you want to export the character as they appear in-game");
+            ImGui.SameLine();
+            HintCircle("Certain character features can be toggled on and off in the character creator,\n" +
+                       "this will make sure the export only includes the features that are currently enabled.");
+        }
 
         // var rootAttachHandling = exportConfiguration.RootAttachHandling;
         // if (EnumExtensions.DrawEnumDropDown("Root Attach Handling", ref rootAttachHandling))

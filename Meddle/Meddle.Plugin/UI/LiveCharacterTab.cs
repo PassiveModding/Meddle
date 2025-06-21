@@ -255,7 +255,9 @@ public unsafe class LiveCharacterTab : ITab
         {
             requestedPopup = true;
             var parsedCharacterInfo = resolve();
-            drawExportSettingsCallback = () => DrawExportSettings(parsedCharacterInfo, name);
+            var configClone = config.ExportConfig.Clone();
+            configClone.SetDefaultCloneOptions();
+            drawExportSettingsCallback = () => DrawExportSettings(parsedCharacterInfo, name, configClone);
         }
     }
     
@@ -265,11 +267,13 @@ public unsafe class LiveCharacterTab : ITab
         {
             requestedPopup = true;
             var parsedCharacterInfo = resolve();
-            drawExportSettingsCallback = () => DrawExportSettings(parsedCharacterInfo, name);
+            var configClone = config.ExportConfig.Clone();
+            configClone.SetDefaultCloneOptions();
+            drawExportSettingsCallback = () => DrawExportSettings(parsedCharacterInfo, name, configClone);
         }
     }
     
-    private void DrawExportSettings(ParsedCharacterInfo characterInfo, string name)
+    private void DrawExportSettings(ParsedCharacterInfo characterInfo, string name, Configuration.ExportConfiguration exportConfig)
     {
         if (!exportTask.IsCompleted)
         {
@@ -280,27 +284,21 @@ public unsafe class LiveCharacterTab : ITab
         if (!ImGui.BeginPopup("ExportSettingsPopup", ImGuiWindowFlags.AlwaysAutoResize)) return;
         try
         {
-            var exportFlags = UiUtil.ExportConfigDrawFlags.HideLayoutOptions;
+            var exportFlags = UiUtil.ExportConfigDrawFlags.ShowExportPose |
+                              UiUtil.ExportConfigDrawFlags.ShowSubmeshOptions;
             if (characterInfo.Models.Length == 1)
             {
                 exportFlags |= UiUtil.ExportConfigDrawFlags.ShowUseDeformer;
             }
             
-            if (UiUtil.DrawExportConfig(config.ExportConfig, exportFlags))
+            if (UiUtil.DrawExportConfig(exportConfig, exportFlags))
             {
+                config.ExportConfig.Apply(exportConfig);
                 config.Save();
             }
             
             if (ImGui.Button("Export"))
             {
-                var configClone = config.ExportConfig.Clone();
-                
-                // Force deformer usage if the flag is not set
-                if (!exportFlags.HasFlag(UiUtil.ExportConfigDrawFlags.ShowUseDeformer))
-                {
-                    configClone.UseDeformer = true;
-                }
-                
                 var defaultName = $"Character-{name}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
                 cancelToken = new CancellationTokenSource();
                 fileDialog.SaveFolderDialog("Save Instances", defaultName,
@@ -312,14 +310,14 @@ public unsafe class LiveCharacterTab : ITab
                                                     Directory.CreateDirectory(path);
                                                     var characterBlob = JsonSerializer.Serialize(characterInfo, MaterialComposer.JsonOptions);
                                                     File.WriteAllText(Path.Combine(path, $"{name}_blob.json"), characterBlob);
-                                                    var composer = composerFactory.CreateCharacterComposer(path, configClone, cancelToken.Token);
+                                                    var composer = composerFactory.CreateCharacterComposer(path, exportConfig, cancelToken.Token);
                                                     var scene = new SceneBuilder();
                                                     var characterRoot = new NodeBuilder($"Character-{name}");
                                                     scene.AddNode(characterRoot);
                                                     progress = new ExportProgress(characterInfo.Models.Length, "Character");
                                                     composer.Compose(characterInfo, scene, characterRoot, progress);
                                                     var modelRoot = scene.ToGltf2();
-                                                    ExportUtil.SaveAsType(modelRoot, configClone.ExportType, path, name);
+                                                    ExportUtil.SaveAsType(modelRoot, exportConfig.ExportType, path, name);
                                                     Process.Start("explorer.exe", path);
                                                 });
                                             }, config.ExportDirectory);

@@ -206,6 +206,26 @@ public class Configuration : IPluginConfiguration
                 UseDeformer = UseDeformer
             };
         }
+
+        public void SetDefaultCloneOptions()
+        {
+            RemoveAttributeDisabledSubmeshes = true;
+            SkipHiddenBgParts = true;
+            UseDeformer = true;
+        }
+        
+        public void Apply(ExportConfiguration other)
+        {
+            CacheFileTypes = other.CacheFileTypes;
+            ExportType = other.ExportType;
+            // ExportPose = other.ExportPose;
+            // TextureMode = other.TextureMode;
+            PoseMode = other.PoseMode;
+            RemoveAttributeDisabledSubmeshes = other.RemoveAttributeDisabledSubmeshes;
+            SkipHiddenBgParts = other.SkipHiddenBgParts;
+            // RootAttachHandling = other.RootAttachHandling;
+            UseDeformer = other.UseDeformer;
+        }
     }
 
     public event Action? OnConfigurationSaved;
