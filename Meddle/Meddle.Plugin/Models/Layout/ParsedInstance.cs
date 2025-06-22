@@ -346,11 +346,13 @@ public class ParsedCameraInstance : ParsedInstance, ISearchableInstance
 public class ParsedTerrainInstance : ParsedInstance, IPathInstance, IResolvableInstance, ISearchableInstance
 {
     public HandleString Path { get; }
+    public Vector3 SearchOrigin { get; }
     public ParsedTerrainInstanceData? Data { get; set; }
 
-    public ParsedTerrainInstance(nint id, Transform transform, string path) : base(id, ParsedInstanceType.Terrain, transform)
+    public ParsedTerrainInstance(nint id, Transform transform, string path, Vector3 searchOrigin) : base(id, ParsedInstanceType.Terrain, transform)
     {
         Path = path;
+        SearchOrigin = searchOrigin;
     }
 
     public bool IsResolved { get; private set; }

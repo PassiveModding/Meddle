@@ -194,7 +194,7 @@ public class InstanceComposer
         
         if (parsedInstance is ParsedTerrainInstance parsedTerrainInstance)
         {
-            return ComposeTerrain(parsedTerrainInstance, scene);
+            return ComposeTerrain(parsedTerrainInstance, scene, rootProgress);
         }
         
         if (parsedInstance is ParsedBgPartsInstance parsedBgPartsInstance)
@@ -354,19 +354,34 @@ public class InstanceComposer
         return root;
     }
     
-    public NodeBuilder ComposeTerrain(ParsedTerrainInstance terrainInstance, SceneBuilder scene)
+    public NodeBuilder ComposeTerrain(ParsedTerrainInstance terrainInstance, SceneBuilder scene, ExportProgress rootProgress)
     {
         var root = new NodeBuilder($"{terrainInstance.Type}_{terrainInstance.Path.GamePath}");
         var teraPath = $"{terrainInstance.Path.GamePath}/bgplate/terrain.tera";
         var teraData = pack.GetFileOrReadFromDisk(teraPath);
         if (teraData == null) throw new Exception($"Failed to load terrain file: {teraPath}");
         var teraFile = new TeraFile(teraData);
+        
+        var terrainProgress = new ExportProgress((int)teraFile.Header.PlateCount, "Terrain Plates");
+        rootProgress.Children.Add(terrainProgress);
 
         for (var i = 0; i < teraFile.Header.PlateCount; i++)
         {
             Plugin.Logger?.LogInformation("Parsing plate {i}", i);
             var platePos = teraFile.GetPlatePosition(i);
             var plateTransform = new Transform(new Vector3(platePos.X, 0, platePos.Y), Quaternion.Identity, Vector3.One);
+            if (exportConfig.LimitTerrainExportRange)
+            {
+                var searchOrigin = terrainInstance.SearchOrigin;
+                var distance = Vector3.Distance(searchOrigin with { Y = 0 }, plateTransform.Translation);
+                if (distance > exportConfig.TerrainExportDistance)
+                {
+                    Plugin.Logger?.LogDebug("Skipping plate {i} at distance {distance} from search origin {searchOrigin} (limit: {limit})",
+                                            i, distance, searchOrigin, exportConfig.TerrainExportDistance);
+                    terrainProgress.Progress++;
+                    continue;
+                }
+            }
             var mdlPath = $"{terrainInstance.Path.GamePath}/bgplate/{i:D4}.mdl";
             var mdlData = pack.GetFileOrReadFromDisk(mdlPath);
             if (mdlData == null)
@@ -389,14 +404,19 @@ public class InstanceComposer
             var meshes = ModelBuilder.BuildMeshes(model, materialBuilders, [], null);
 
             var plateRoot = new NodeBuilder(mdlPath);
+            var meshProgress = new ExportProgress(meshes.Count, "Plate Meshes");
+            terrainProgress.Children.Add(meshProgress);
             for (var meshIdx = 0; meshIdx < meshes.Count; meshIdx++)
             {
+                if (cancellationToken.IsCancellationRequested) break;
                 var mesh = meshes[meshIdx];
                 scene.AddRigidMesh(mesh.Mesh, plateRoot);
+                meshProgress.Progress++;
             }
 
             plateRoot.SetLocalTransform(plateTransform.AffineTransform, true);
             root.AddNode(plateRoot);
+            terrainProgress.Progress++;
         }
         
         root.SetLocalTransform(terrainInstance.Transform.AffineTransform, true);

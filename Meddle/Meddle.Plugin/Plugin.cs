@@ -185,6 +185,9 @@ public class Configuration : IPluginConfiguration
         public bool RemoveAttributeDisabledSubmeshes { get; set; } = true;
         public bool SkipHiddenBgParts { get; set; }
         public bool UseDeformer { get; set; } = true;
+        
+        public bool LimitTerrainExportRange { get; set; }
+        public float TerrainExportDistance { get; set; } = 500f;
 
         // public enum ExportRootAttachHandling
         // {
@@ -206,7 +209,9 @@ public class Configuration : IPluginConfiguration
                 RemoveAttributeDisabledSubmeshes = RemoveAttributeDisabledSubmeshes,
                 SkipHiddenBgParts = SkipHiddenBgParts,
                 // RootAttachHandling = RootAttachHandling
-                UseDeformer = UseDeformer
+                UseDeformer = UseDeformer,
+                LimitTerrainExportRange = LimitTerrainExportRange,
+                TerrainExportDistance = TerrainExportDistance
             };
         }
 
@@ -228,6 +233,8 @@ public class Configuration : IPluginConfiguration
             SkipHiddenBgParts = other.SkipHiddenBgParts;
             // RootAttachHandling = other.RootAttachHandling;
             UseDeformer = other.UseDeformer;
+            LimitTerrainExportRange = other.LimitTerrainExportRange;
+            TerrainExportDistance = other.TerrainExportDistance;
         }
     }
 

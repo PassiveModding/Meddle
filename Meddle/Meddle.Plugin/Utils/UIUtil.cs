@@ -35,9 +35,10 @@ public static class UiUtil
     {
         None = 0,
         ShowExportPose = 1,
-        ShowLayoutOptions = 2,
+        ShowBgPartOptions = 2,
         ShowUseDeformer = 4,
         ShowSubmeshOptions = 8,
+        ShowTerrainOptions = 16,
     }
 
     public static bool DrawExportConfig(Configuration.ExportConfiguration exportConfiguration, ExportConfigDrawFlags flags = ExportConfigDrawFlags.None)
@@ -116,7 +117,7 @@ public static class UiUtil
                        "This is recommended for most models, but will result in different deformations based on the race associated with the model.");
         }
 
-        if (flags.HasFlag(ExportConfigDrawFlags.ShowLayoutOptions))
+        if (flags.HasFlag(ExportConfigDrawFlags.ShowBgPartOptions))
         {
             var skipHiddenBgParts = exportConfiguration.SkipHiddenBgParts;
             if (ImGui.Checkbox("Remove hidden background parts", ref skipHiddenBgParts))
@@ -142,6 +143,30 @@ public static class UiUtil
             ImGui.SameLine();
             HintCircle("Certain character features can be toggled on and off in the character creator,\n" +
                        "this will make sure the export only includes the features that are currently enabled.");
+        }
+        
+        if (flags.HasFlag(ExportConfigDrawFlags.ShowTerrainOptions))
+        {
+            var limitTerrainDistance = exportConfiguration.TerrainExportDistance;
+            if (ImGui.DragFloat("##TerrainExportDistance", ref limitTerrainDistance, 0.1f, 0f, 10000f))
+            {
+                exportConfiguration.TerrainExportDistance = limitTerrainDistance;
+                changed = true;
+            }
+            
+            ImGui.SameLine();
+            
+            var limitTerrainExportRange = exportConfiguration.LimitTerrainExportRange;
+            if (ImGui.Checkbox("Limit terrain range", ref limitTerrainExportRange))
+            {
+                exportConfiguration.LimitTerrainExportRange = limitTerrainExportRange;
+                changed = true;
+            }
+            
+            ImGui.SameLine();
+            
+            HintCircle("If enabled, the export will only include terrain within the specified distance from the player.\n" +
+                       "This is useful for reducing the size of the export, but may result in missing terrain in some areas.");
         }
 
         // var rootAttachHandling = exportConfiguration.RootAttachHandling;

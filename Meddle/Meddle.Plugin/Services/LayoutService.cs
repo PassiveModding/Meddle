@@ -46,6 +46,7 @@ public class LayoutService : IService, IDisposable
     }
 
     public bool RequestUpdate { get; set; }
+    public Vector3 SearchOrigin { get; set; } = Vector3.Zero;
     
     public ParsedInstance[]? LastState { get; private set; }
     
@@ -85,7 +86,6 @@ public class LayoutService : IService, IDisposable
                            .Select(layout => ParseLayout(layout.Value, parseCtx))
                            .SelectMany(x => x).ToArray();
         var globalLayers = ParseLayout(layoutWorld->GlobalLayout, parseCtx);
-
 
         instances.AddRange(loadedLayers.SelectMany(x => x.Instances));
         instances.AddRange(globalLayers.SelectMany(x => x.Instances));
@@ -160,7 +160,7 @@ public class LayoutService : IService, IDisposable
         
         var terrainManager = terrainPtr.Value;
         var path = terrainManager->PathString;
-        return new ParsedTerrainInstance((nint)terrainManager, new Transform(Vector3.Zero, Quaternion.Identity, Vector3.One), path);
+        return new ParsedTerrainInstance((nint)terrainManager, new Transform(Vector3.Zero, Quaternion.Identity, Vector3.One), path, SearchOrigin);
     }
 
     private unsafe ParsedInstanceSet? ParseLayer(Pointer<LayerManager> layerManagerPtr, ParseContext context)

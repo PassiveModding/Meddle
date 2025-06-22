@@ -256,6 +256,7 @@ public partial class LayoutWindow : ITab
         {
             searchOrigin = Vector3.Zero;
         }
+        layoutService.SearchOrigin = searchOrigin;
     }
 
 
@@ -390,11 +391,19 @@ public partial class LayoutWindow : ITab
         if (!ImGui.BeginPopup("ExportSettingsPopup", ImGuiWindowFlags.AlwaysAutoResize)) return;
         try
         {
-            var flags = UiUtil.ExportConfigDrawFlags.ShowLayoutOptions;
+            var flags = UiUtil.ExportConfigDrawFlags.None;
             if (instances.Length == 1 && (instances[0].Type & ParsedInstanceType.Character) != 0)
             {
                 flags |= UiUtil.ExportConfigDrawFlags.ShowExportPose;
                 flags |= UiUtil.ExportConfigDrawFlags.ShowSubmeshOptions;
+            }
+            if (instances.Any(t => t is ParsedBgPartsInstance { IsVisible: false }))
+            {
+                flags |= UiUtil.ExportConfigDrawFlags.ShowBgPartOptions;
+            }
+            if (instances.Any(t => (t.Type & ParsedInstanceType.Terrain) != 0))
+            {
+                flags |= UiUtil.ExportConfigDrawFlags.ShowTerrainOptions;
             }
             
             if (UiUtil.DrawExportConfig(exportConfig, flags))
