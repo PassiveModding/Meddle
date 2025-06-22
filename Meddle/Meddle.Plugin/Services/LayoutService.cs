@@ -254,10 +254,9 @@ public class LayoutService : IService, IDisposable
             return null;
 
         var lighting = envMan->EnvState.Lighting;
-        return new ParsedEnvLightInstance(
-            (nint)envMan,
-            new Transform(position, Quaternion.Identity, Vector3.One),
-            lighting);
+        return new ParsedEnvLightInstance((nint)envMan,
+                                          new Transform(position, Quaternion.Identity, Vector3.One),
+                                          lighting);
     }
 
     private unsafe ParsedInstance? ParseSharedGroup(Pointer<SharedGroupLayoutInstance> sharedGroupPtr, ParseContext context)
