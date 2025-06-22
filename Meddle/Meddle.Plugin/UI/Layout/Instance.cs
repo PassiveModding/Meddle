@@ -95,6 +95,14 @@ public partial class LayoutWindow
             {
                 ImGui.ColorButton("Color", new Vector4(light.Light.Color.Rgb, light.Light.Color.Intensity));
             }
+        
+            if (instance is ParsedEnvLightInstance envLight)
+            {
+                var lt = envLight.Lighting;
+                ImGui.ColorButton("Sunlight", new Vector4(lt.SunLightColor.Rgb, lt.SunLightColor.HdrIntensity));
+                ImGui.ColorButton("Moonlight", new Vector4(lt.MoonLightColor.Rgb, lt.MoonLightColor.HdrIntensity));
+                ImGui.ColorButton("Ambient", new Vector4(lt.Ambient.Rgb, lt.Ambient.HdrIntensity));
+            }
 
             if (instance is ParsedCameraInstance cameraInstance)
             {

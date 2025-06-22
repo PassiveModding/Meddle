@@ -142,7 +142,6 @@ public partial class LayoutWindow : ITab
     }
     private void DrawAll()
     {
-
         shouldUpdateState = true;
         ImGui.InputText("Search", ref search, 100);
 
@@ -150,16 +149,10 @@ public partial class LayoutWindow : ITab
         var set = currentLayout
                   .Where(x =>
                   {
-                      // if (x is ParsedCharacterInstance characterInstance)
-                      // {
-                      //       if (config.LayoutConfig.ExcludeParented)
-                      //       {
-                      //           return characterInstance.Parent == null;
-                      //       }
-                      // }
-                      
-                      // keep terrain regardless of distance
+                      // keep regardless of distance
                       if (x is ParsedTerrainInstance) return true;
+                      if (x is ParsedCameraInstance) return true;
+                      if (x is ParsedEnvLightInstance) return true;
                       return Vector3.Distance(x.Transform.Translation, searchOrigin) < config.WorldCutoffDistance;
                   })
                   .Where(x => config.LayoutConfig.DrawTypes.HasFlag(x.Type));
@@ -172,7 +165,6 @@ public partial class LayoutWindow : ITab
         {
             set = set.Where(x => x is not ParsedCharacterInstance {Visible: false});
         }
-
 
         if (!string.IsNullOrWhiteSpace(search))
         {

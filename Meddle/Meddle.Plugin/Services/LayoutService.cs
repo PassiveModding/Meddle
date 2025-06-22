@@ -68,6 +68,11 @@ public class LayoutService : IService, IDisposable
         var instances = new List<ParsedInstance>();
         var objects = ParseObjects();
         var cameras = ParseCameras();
+        var envLight = ParseEnvLight(cameras.Length > 0 ? cameras[0].Transform.Translation : Vector3.Zero);
+        if (envLight != null)
+        {
+            instances.Add(envLight);
+        }
         instances.AddRange(objects);
         instances.AddRange(cameras);
 
@@ -90,22 +95,6 @@ public class LayoutService : IService, IDisposable
     
     private unsafe ParsedCameraInstance[] ParseCameras()
     {
-        // var cameraManager = sigUtil.GetCameraManager();
-        // if (cameraManager == null)
-        //     return [];
-        //
-        // var cameras = new List<ParsedCameraInstance>();
-        // for (var i = 0; i < cameraManager->Cameras.Length; i++)
-        // {
-        //     var cameraPtr = cameraManager->Cameras[i];
-        //     if (cameraPtr == null || cameraPtr.Value == null || cameraPtr.Value->RenderCamera == null)
-        //         continue;
-        //
-        //     var parsedCamera = ParseCameraPtr(cameraPtr);
-        //     cameras.Add(parsedCamera);
-        // }
-        //
-        // return cameras.ToArray();
         var activeCamera = sigUtil.GetCamera();
         if (activeCamera == null || activeCamera->RenderCamera == null)
             return [];
@@ -256,6 +245,19 @@ public class LayoutService : IService, IDisposable
             return null;
 
         return new ParsedLightInstance((nint)light, new Transform(*light->GetTransformImpl()), typedInstance->LightPtr->LightItem);
+    }
+
+    private unsafe ParsedEnvLightInstance? ParseEnvLight(Vector3 position)
+    {
+        var envMan = EnvManagerEx.Instance();
+        if (envMan == null)
+            return null;
+
+        var lighting = envMan->EnvState.Lighting;
+        return new ParsedEnvLightInstance(
+            (nint)envMan,
+            new Transform(position, Quaternion.Identity, Vector3.One),
+            lighting);
     }
 
     private unsafe ParsedInstance? ParseSharedGroup(Pointer<SharedGroupLayoutInstance> sharedGroupPtr, ParseContext context)

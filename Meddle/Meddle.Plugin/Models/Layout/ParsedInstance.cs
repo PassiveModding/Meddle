@@ -29,6 +29,7 @@ public enum ParsedInstanceType
     Character = 32,
     Terrain = 64,
     Camera = 128,
+    EnvLighting = 256,
 }
 
 public interface IResolvableInstance
@@ -60,6 +61,7 @@ public interface ISearchableInstance
 [JsonDerivedType(typeof(ParsedCharacterInstance))]
 [JsonDerivedType(typeof(ParsedTerrainInstance))]
 [JsonDerivedType(typeof(ParsedCameraInstance))]
+[JsonDerivedType(typeof(ParsedEnvLightInstance))]
 public abstract class ParsedInstance
 {
     public ParsedInstance(nint id, ParsedInstanceType type, Transform transform)
@@ -251,6 +253,21 @@ public class ParsedBgPartsInstance : ParsedInstance, IPathInstance, IStainableIn
     {
         return Path.FullPath.Contains(query, StringComparison.OrdinalIgnoreCase) || 
                Path.GamePath.Contains(query, StringComparison.OrdinalIgnoreCase);
+    }
+}
+
+public class ParsedEnvLightInstance : ParsedInstance, ISearchableInstance
+{
+    public EnvLighting Lighting { get; }
+    
+    public ParsedEnvLightInstance(nint id, Transform transform, EnvLighting lighting) : base(id, ParsedInstanceType.EnvLighting, transform)
+    {
+        Lighting = lighting;
+    }
+
+    public bool Search(string query)
+    {
+        return "envlight".Contains(query, StringComparison.OrdinalIgnoreCase);
     }
 }
 

@@ -168,9 +168,10 @@ public partial class LayoutWindow
 
     private InstanceSelectState DrawInstanceOverlay(ParsedInstance obj, ParsedInstance? parent)
     {
-        if (obj is ParsedCameraInstance cameraInstance)
+        if (obj is ParsedCameraInstance cameraInstance || 
+            obj is ParsedEnvLightInstance envLightInstance)
         {
-            // don't draw camera instances
+            // don't draw these instances
             return InstanceSelectState.None;
         }
         

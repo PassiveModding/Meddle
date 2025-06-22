@@ -15,6 +15,7 @@ using Lumina.Excel.Sheets;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Layout;
+using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.Services.UI;
 using Meddle.Plugin.Utils;
@@ -115,6 +116,11 @@ public class DebugTab : ITab
         {
             var cofigJson = JsonSerializer.Serialize(config, jsonOptions);
             ImGui.TextWrapped(cofigJson);
+        }
+
+        if (ImGui.CollapsingHeader("EnvLighting"))
+        {
+            ParseEnvLight();
         }
 
         if (ImGui.CollapsingHeader("Constants"))
@@ -654,7 +660,8 @@ public class DebugTab : ITab
                         var path = handle->FileName.ParseString();
                         if (ImGui.CollapsingHeader($"Partial Skeleton {i}: {path}"))
                         {
-                            var boneCount = StructExtensions.GetBoneCount(&partialSkeleton);
+                            var ex = (PartialSkeletonEx*)(&partialSkeleton);
+                            var boneCount = ex->BoneCount;
                             ImGui.Text($"Partial Skeleton Bone Count: {boneCount}");
                             using var boneTable = ImRaii.Table($"##BoneTable{i}", 5, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable);
                             ImGui.TableSetupColumn("Bone", ImGuiTableColumnFlags.WidthStretch);
@@ -766,9 +773,9 @@ public class DebugTab : ITab
     {
         var rootPos = partialSkeleton.Skeleton->Transform;
         var rootTransform = new Transform(rootPos);
+        var ex = (PartialSkeletonEx*)(&partialSkeleton);
         var pose = partialSkeleton.GetHavokPose(0);
-        var boneCount = StructExtensions.GetBoneCount(&partialSkeleton);
-        for (var i = 0; i < boneCount; i++)
+        for (var i = 0; i < ex->BoneCount; i++)
         {
             var bone = pose->Skeleton->Bones[i];
             if (!string.IsNullOrEmpty(boneSearch) && bone.Name.String != null && !bone.Name.String.Contains(boneSearch))
@@ -813,5 +820,22 @@ public class DebugTab : ITab
                 ImGui.GetBackgroundDrawList().AddCircleFilled(screenPos, 5, dotColor);
             }
         }
+    }
+    
+    private unsafe void ParseEnvLight()
+    {
+        var envMan = EnvManagerEx.Instance();
+        if (envMan == null) throw new InvalidOperationException("EnvManagerEx is null");
+        var envState = envMan->EnvState;
+        var lighting = envState.Lighting;
+        
+        var sunCol = lighting.SunLightColor;
+        ImGui.ColorButton("Sunlight Color", new Vector4(sunCol.Red, sunCol.Green, sunCol.Blue, 1.0f));
+        
+        var moonCol = lighting.MoonLightColor;
+        ImGui.ColorButton("Moonlight Color", new Vector4(moonCol.Red, moonCol.Green, moonCol.Blue, 1.0f));
+        
+        var ambientCol = lighting.Ambient;
+        ImGui.ColorButton("Ambient Color", new Vector4(ambientCol.Red, ambientCol.Green, ambientCol.Blue, 1.0f));
     }
 }

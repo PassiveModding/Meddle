@@ -1,10 +1,12 @@
 ﻿using Dalamud.Memory;
+using FFXIVClientStructs.FFXIV.Client.Graphics.Environment;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Render;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using FFXIVClientStructs.Interop;
 using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Models.Structs;
+using EnvState = Meddle.Plugin.Models.Structs.EnvState;
 using PartialSkeleton = FFXIVClientStructs.FFXIV.Client.Graphics.Render.PartialSkeleton;
 using Skeleton = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Skeleton;
 
@@ -28,26 +30,11 @@ public static class StructExtensions
         var materialCount = headerData.ModelHeader.MaterialCount;
         return new Span<Pointer<MaterialResourceHandle>>(model.Value->MaterialResourceHandles, materialCount);
     }
-
+    
     public static unsafe ParsedAttach GetParsedAttach(this Pointer<CharacterBase> character)
     {
         var attach = character.Value->Attach;
         return new ParsedAttach(attach);
-    }
-
-    public static unsafe uint GetFlags(this Pointer<PartialSkeleton> partialSkeleton)
-    {
-        if (partialSkeleton == null) throw new ArgumentNullException(nameof(partialSkeleton));
-        if (partialSkeleton.Value == null) throw new ArgumentNullException(nameof(partialSkeleton));
-
-        var flags = *(uint*)((nint)partialSkeleton.Value + PartialSkeletonFlagsOffset);
-        return flags;
-    }
-
-    public static uint GetBoneCount(this Pointer<PartialSkeleton> partialSkeleton)
-    {
-        var flags = partialSkeleton.GetFlags();
-        return (flags >> 5) & 0xFFFu;
     }
 
     public static unsafe ParsedSkeleton GetParsedSkeleton(this Pointer<CharacterBase> character)
@@ -57,30 +44,11 @@ public static class StructExtensions
         return GetParsedSkeleton(character.Value->Skeleton);
     }
 
-    public static unsafe ParsedSkeleton GetParsedSkeleton(this Pointer<Model> model)
-    {
-        if (model == null) throw new ArgumentNullException(nameof(model));
-        if (model.Value == null) throw new ArgumentNullException(nameof(model));
-        return GetParsedSkeleton(model.Value->Skeleton);
-    }
-
     private static unsafe ParsedSkeleton GetParsedSkeleton(this Pointer<Skeleton> skeleton)
     {
         if (skeleton == null) throw new ArgumentNullException(nameof(skeleton));
         return new ParsedSkeleton(skeleton.Value);
     }
-
-    // public static unsafe (uint EnabledAttributeIndexMask, uint EnabledShapeKeyIndexMask) GetModelMasks(
-    //     this Pointer<Model> model)
-    // {
-    //     if (model == null) throw new ArgumentNullException(nameof(model));
-    //     if (model.Value == null) throw new ArgumentNullException(nameof(model));
-    //
-    //     var modelBase = model.Value;
-    //     var enabledAttributeIndexMask = *(uint*)((nint)modelBase + ModelEnabledAttributeIndexMaskOffset);
-    //     var enabledShapeKeyIndexMask = *(uint*)((nint)modelBase + ModelEnabledShapeKeyIndexMaskOffset);
-    //     return (enabledAttributeIndexMask, enabledShapeKeyIndexMask);
-    // }
     
     public static unsafe Meddle.Utils.Export.Model.ShapeAttributeGroup ParseModelShapeAttributes(
         Pointer<Model> modelPointer)

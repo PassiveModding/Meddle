@@ -1,5 +1,6 @@
 ﻿using FFXIVClientStructs.FFXIV.Client.Graphics.Render;
 using FFXIVClientStructs.Interop;
+using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Utils;
 
 namespace Meddle.Plugin.Models.Skeletons;
@@ -11,13 +12,14 @@ public class ParsedPartialSkeleton
 
     public unsafe ParsedPartialSkeleton(PartialSkeleton* partialSkeleton)
     {
+        var ex = (PartialSkeletonEx*)partialSkeleton;
         if (partialSkeleton->SkeletonResourceHandle != null)
         {
             HkSkeleton = new ParsedHkaSkeleton(partialSkeleton->SkeletonResourceHandle->HavokSkeleton);
             HandlePath = partialSkeleton->SkeletonResourceHandle->FileName.ParseString();
         }
 
-        BoneCount = StructExtensions.GetBoneCount(partialSkeleton);
+        BoneCount = ex->BoneCount;
         ConnectedBoneIndex = partialSkeleton->ConnectedBoneIndex;
 
         var poses = new List<ParsedHkaPose>();

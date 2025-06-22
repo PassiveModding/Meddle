@@ -186,6 +186,11 @@ public class InstanceComposer
         {
             return ComposeLight(parsedLightInstance, scene);
         }
+
+        if (parsedInstance is ParsedEnvLightInstance parsedEnvLightInstance)
+        {
+            return ComposeEnvLight(parsedEnvLightInstance, scene);
+        }
         
         if (parsedInstance is ParsedTerrainInstance parsedTerrainInstance)
         {
@@ -397,6 +402,67 @@ public class InstanceComposer
         root.SetLocalTransform(terrainInstance.Transform.AffineTransform, true);
         return root;
     }
+
+    public NodeBuilder? ComposeEnvLight(ParsedEnvLightInstance instance, SceneBuilder sceneBuilder)
+    {
+        var root = new NodeBuilder();
+        var transform = instance.Transform;
+
+        var lt = instance.Lighting;
+        
+        // NOTE: Point is just a placeholder, these should be considered 'sun' in blender probably
+        
+        var lights = new List<(Vector3, Vector3, float, string)>
+        {
+            (lt.SunLightColor.Rgb, lt.SunLightColor._vec3, lt.SunLightColor.HdrIntensity, "SunLight"),
+            (lt.MoonLightColor.Rgb, lt.SunLightColor._vec3, lt.MoonLightColor.HdrIntensity, "MoonLight"),
+            (lt.Ambient.Rgb, lt.SunLightColor._vec3, lt.Ambient.HdrIntensity, "AmbientLight")
+        };
+        
+        foreach (var (color, rawColor, intensity, name) in lights)
+        {
+            var lightRoot = new NodeBuilder($"{instance.Type}_{name}_{instance.Id}");
+            var lightBuilder = new LightBuilder.Point
+            {
+                Color = color,
+                Intensity = intensity,
+                Name = lightRoot.Name
+            };
+            
+            lightRoot.Extras = JsonNode.Parse(JsonSerializer.Serialize(new
+            {
+                ColorHDR = rawColor,
+                ColorRGB = color,
+                HDRIntensity = intensity,
+                LightType = name,
+            }, MaterialComposer.JsonOptions));
+            
+            sceneBuilder.AddLight(lightBuilder, lightRoot);
+            lightRoot.SetLocalTransform(transform.AffineTransform, true);
+            root.AddNode(lightRoot);
+        }
+        
+        root.Name = $"{instance.Type}_env_{instance.Id}";
+        root.Extras = JsonNode.Parse(JsonSerializer.Serialize(new
+        {
+            SunLightColor = lt.SunLightColor._vec3,
+            SunLightHdrIntensity = lt.SunLightColor.HdrIntensity,
+            MoonLightColor = lt.MoonLightColor._vec3,
+            MoonLightHdrIntensity = lt.MoonLightColor.HdrIntensity,
+            AmbientColor = lt.Ambient._vec3,
+            AmbientHdrIntensity = lt.Ambient.HdrIntensity,
+            AmbientSaturation = lt.AmbientSaturation,
+            Temperature = lt.Temperature,
+            Unknown1 = lt._unk1,
+            Unknown2 = lt._unk2,
+            Unknown3 = lt._unk3,
+            Unknown4 = lt._unk4,
+        }, MaterialComposer.JsonOptions));
+        
+        root.SetLocalTransform(transform.AffineTransform, true);
+        
+        return root;
+    }
     
     public NodeBuilder? ComposeLight(ParsedLightInstance instance, SceneBuilder scene)
     {
@@ -417,7 +483,7 @@ public class InstanceComposer
         var light = instance.Light;
         
         root.Name = $"{instance.Type}_{light.LightType}_{instance.Id}";
-
+        
         LightBuilder? lightBuilder;
         switch (light.LightType)
         {
