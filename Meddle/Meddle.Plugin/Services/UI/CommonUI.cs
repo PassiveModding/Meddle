@@ -17,6 +17,7 @@ public class CommonUi : IDisposable, IService
     private readonly IObjectTable objectTable;
     private readonly IClientState clientState;
     private readonly Configuration config;
+    private bool selectTarget;
 
     public CommonUi(IClientState clientState, IObjectTable objectTable, Configuration config)
     {
@@ -61,6 +62,24 @@ public class CommonUi : IDisposable, IService
                 if (ImGui.Selectable(GetCharacterDisplayText(character)))
                 {
                     selectedCharacter = character;
+                }
+            }
+        }
+        
+        ImGui.Checkbox("Select Target", ref selectTarget);
+        
+        if (selectTarget)
+        {
+            if (clientState.LocalPlayer is {TargetObject: not null})
+            {
+                var target = clientState.LocalPlayer.TargetObject;
+                if (target is ICharacter targetCharacter && targetCharacter.IsValid() && targetCharacter.IsValidCharacterBase())
+                {
+                    selectedCharacter = targetCharacter;
+                }
+                else
+                {
+                    ImGui.Text("Target is not a valid character");
                 }
             }
         }
