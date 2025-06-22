@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using FFXIVClientStructs.Havok.Common.Base.Math.QsTransform;
 using FFXIVClientStructs.Havok.Common.Base.Math.Quaternion;
 using FFXIVClientStructs.Havok.Common.Base.Math.Vector;
+using Microsoft.Extensions.Logging;
 using SharpGLTF.Transforms;
 using CSTransform = FFXIVClientStructs.FFXIV.Client.Graphics.Transform;
 
@@ -58,7 +59,69 @@ public readonly record struct Transform
     public Vector3 Scale { get; init; }
 
     [JsonIgnore]
-    public AffineTransform AffineTransform => new(Scale, Rotation, Translation);
+    public AffineTransform AffineTransform => GetAffine();
+
+    private bool IsFinite(Vector3 value)
+    {
+        return IsFinite(value.X) && IsFinite(value.Y) && IsFinite(value.Z);
+    }
+    
+    private bool IsFinite(Quaternion value)
+    {
+        return IsFinite(value.X) && IsFinite(value.Y) && IsFinite(value.Z) && IsFinite(value.W);
+    }
+
+    private bool IsFinite(float value)
+    {
+        return !(float.IsNaN(value) || float.IsInfinity(value));
+    }
+    
+    private AffineTransform GetAffine()
+    {
+        try
+        {
+            Vector3 scale;
+            if (!IsFinite(Scale))
+            {
+                Plugin.Logger?.LogWarning("Transform contains non-finite scale, using default: {Scale} -> {DefaultValue}", Scale, Vector3.One);
+                scale = Vector3.One;
+            }
+            else
+            {
+                scale = Scale;
+            }
+            
+            Vector3 translation;
+            if (!IsFinite(Translation))
+            {
+                Plugin.Logger?.LogWarning("Transform contains non-finite translation, using default: {Translation} -> {DefaultValue}", Translation, Vector3.Zero);
+                translation = Vector3.Zero;
+            }
+            else
+            {
+                translation = Translation;
+            }
+            
+            Quaternion rotation;
+            if (!IsFinite(Rotation))
+            {
+                Plugin.Logger?.LogWarning("Transform contains non-finite rotation, using default: {Rotation} -> {DefaultValue}", Rotation, Quaternion.Identity);
+                rotation = Quaternion.Identity;
+            }
+            else
+            {
+                rotation = Rotation;
+            }
+            
+            return new AffineTransform(scale, rotation, translation);
+        }
+        catch (Exception ex)
+        {
+            Plugin.Logger?.LogError(ex, "Failed to create AffineTransform from Transform, pos: {Position}, rot: {Rotation}, scale: {Scale}",
+                Translation, Rotation, Scale);
+            throw new InvalidOperationException("Failed to create AffineTransform from Transform", ex);
+        }
+    }
 
     public override string ToString()
     {
