@@ -364,16 +364,22 @@ public class InstanceComposer
         
         var terrainProgress = new ExportProgress((int)teraFile.Header.PlateCount, "Terrain Plates");
         rootProgress.Children.Add(terrainProgress);
+        var terrainPlates = Enumerable.Range(0, (int)teraFile.Header.PlateCount)
+            .Select(i =>
+            {
+                var platePos = teraFile.GetPlatePosition(i);
+                return (i, platePos, Vector2.Distance(new Vector2(terrainInstance.SearchOrigin.X, terrainInstance.SearchOrigin.Z), new Vector2(platePos.X, platePos.Y)));
+            })
+            .OrderBy(x => x.Item3)
+            .ToArray();
 
-        for (var i = 0; i < teraFile.Header.PlateCount; i++)
+        foreach (var (i, platePos, distance) in terrainPlates)
         {
             Plugin.Logger?.LogInformation("Parsing plate {i}", i);
-            var platePos = teraFile.GetPlatePosition(i);
             var plateTransform = new Transform(new Vector3(platePos.X, 0, platePos.Y), Quaternion.Identity, Vector3.One);
             if (exportConfig.LimitTerrainExportRange)
             {
                 var searchOrigin = terrainInstance.SearchOrigin;
-                var distance = Vector3.Distance(searchOrigin with { Y = 0 }, plateTransform.Translation);
                 if (distance > exportConfig.TerrainExportDistance)
                 {
                     Plugin.Logger?.LogDebug("Skipping plate {i} at distance {distance} from search origin {searchOrigin} (limit: {limit})",
@@ -404,14 +410,11 @@ public class InstanceComposer
             var meshes = ModelBuilder.BuildMeshes(model, materialBuilders, [], null);
 
             var plateRoot = new NodeBuilder(mdlPath);
-            var meshProgress = new ExportProgress(meshes.Count, "Plate Meshes");
-            terrainProgress.Children.Add(meshProgress);
             for (var meshIdx = 0; meshIdx < meshes.Count; meshIdx++)
             {
                 if (cancellationToken.IsCancellationRequested) break;
                 var mesh = meshes[meshIdx];
                 scene.AddRigidMesh(mesh.Mesh, plateRoot);
-                meshProgress.Progress++;
             }
 
             plateRoot.SetLocalTransform(plateTransform.AffineTransform, true);
@@ -419,6 +422,7 @@ public class InstanceComposer
             terrainProgress.Progress++;
         }
         
+        terrainProgress.IsComplete = true;
         root.SetLocalTransform(terrainInstance.Transform.AffineTransform, true);
         return root;
     }
