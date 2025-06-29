@@ -1,13 +1,10 @@
 ﻿using Dalamud.Memory;
-using FFXIVClientStructs.FFXIV.Client.Graphics.Environment;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Render;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using FFXIVClientStructs.Interop;
 using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Models.Structs;
-using EnvState = Meddle.Plugin.Models.Structs.EnvState;
-using PartialSkeleton = FFXIVClientStructs.FFXIV.Client.Graphics.Render.PartialSkeleton;
 using Skeleton = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Skeleton;
 
 namespace Meddle.Plugin.Models;

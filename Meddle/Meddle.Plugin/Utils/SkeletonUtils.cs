@@ -1,12 +1,8 @@
-﻿using System.Numerics;
-using System.Runtime.CompilerServices;
-using FFXIVClientStructs.Havok.Common.Base.Math.QsTransform;
-using Meddle.Plugin.Models;
+﻿using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Skeletons;
 using Meddle.Utils;
 using Microsoft.Extensions.Logging;
 using SharpGLTF.Scenes;
-using SharpGLTF.Transforms;
 
 namespace Meddle.Plugin.Utils;
 

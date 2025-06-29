@@ -133,10 +133,10 @@ public readonly record struct Transform
         return new Vector3(hkVector.X, hkVector.Y, hkVector.Z);
     }
 
-    private static Vector4 AsVector(hkQuaternionf hkVector)
-    {
-        return new Vector4(hkVector.X, hkVector.Y, hkVector.Z, hkVector.W);
-    }
+    // private static Vector4 AsVector(hkQuaternionf hkVector)
+    // {
+    //     return new Vector4(hkVector.X, hkVector.Y, hkVector.Z, hkVector.W);
+    // }
 
     private static Quaternion AsQuaternion(hkQuaternionf hkQuaternion)
     {
@@ -152,9 +152,9 @@ public readonly record struct EulerAngles
         Vector3 angles = new();
 
         // roll / x
-        double sinr_cosp = 2 * ((q.W * q.X) + (q.Y * q.Z));
-        double cosr_cosp = 1 - (2 * ((q.X * q.X) + (q.Y * q.Y)));
-        angles.X = (float)Math.Atan2(sinr_cosp, cosr_cosp);
+        double sinrCosp = 2 * ((q.W * q.X) + (q.Y * q.Z));
+        double cosrCosp = 1 - (2 * ((q.X * q.X) + (q.Y * q.Y)));
+        angles.X = (float)Math.Atan2(sinrCosp, cosrCosp);
 
         // pitch / y
         double sinp = 2 * ((q.W * q.Y) - (q.Z * q.X));
@@ -168,9 +168,9 @@ public readonly record struct EulerAngles
         }
 
         // yaw / z
-        double siny_cosp = 2 * ((q.W * q.Z) + (q.X * q.Y));
-        double cosy_cosp = 1 - (2 * ((q.Y * q.Y) + (q.Z * q.Z)));
-        angles.Z = (float)Math.Atan2(siny_cosp, cosy_cosp);
+        double sinyCosp = 2 * ((q.W * q.Z) + (q.X * q.Y));
+        double cosyCosp = 1 - (2 * ((q.Y * q.Y) + (q.Z * q.Z)));
+        angles.Z = (float)Math.Atan2(sinyCosp, cosyCosp);
 
         Angles = angles * 180 / MathF.PI;
     }

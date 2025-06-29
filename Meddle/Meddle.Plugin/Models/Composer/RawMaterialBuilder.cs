@@ -1,9 +1,7 @@
-﻿using Meddle.Plugin.Models.Composer.Textures;
-using Meddle.Utils.Helpers;
-using Meddle.Utils.Materials;
+﻿using Meddle.Utils.Materials;
 using SharpGLTF.Materials;
 
-namespace Meddle.Plugin.Models.Composer.Materials;
+namespace Meddle.Plugin.Models.Composer;
 
 public class RawMaterialBuilder : MaterialBuilder, IVertexPaintMaterialBuilder
 {

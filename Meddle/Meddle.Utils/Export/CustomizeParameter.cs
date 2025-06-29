@@ -6,14 +6,6 @@ public class CustomizeData
 {
     public bool LipStick;
     public bool Highlights;
-    
-    public override int GetHashCode()
-    {
-        var hash = new HashCode();
-        hash.Add(LipStick);
-        hash.Add(Highlights);
-        return hash.ToHashCode();
-    }
 }
 
 public class CustomizeParameter {
@@ -36,7 +28,7 @@ public class CustomizeParameter {
     /// XYZ : Hair primary color, as squared RGB.
     /// </summary>
     public Vector3 MainColor;
-    public float FacePaintUVMultiplier;
+    public float FacePaintUvMultiplier;
 
     public Vector3 HairFresnelValue0;
     
@@ -44,7 +36,7 @@ public class CustomizeParameter {
     /// XYZ : Hair highlight color, as squared RGB.
     /// </summary>
     public Vector3 MeshColor;
-    public float FacePaintUVOffset;
+    public float FacePaintUvOffset;
 
     /// <summary>
     /// XYZ : Left eye color, as squared RGB.
@@ -61,22 +53,4 @@ public class CustomizeParameter {
     /// XYZ : Race feature color, as squared RGB.
     /// </summary>
     public Vector3 OptionColor;
-    
-    public override int GetHashCode()
-    {
-        var hash = new HashCode();
-        hash.Add(SkinColor);
-        hash.Add(MuscleTone);
-        hash.Add(SkinFresnelValue0);
-        hash.Add(LipColor);
-        hash.Add(MainColor);
-        hash.Add(FacePaintUVMultiplier);
-        hash.Add(HairFresnelValue0);
-        hash.Add(MeshColor);
-        hash.Add(FacePaintUVOffset);
-        hash.Add(LeftColor);
-        hash.Add(RightColor);
-        hash.Add(OptionColor);
-        return hash.ToHashCode();
-    }
 }

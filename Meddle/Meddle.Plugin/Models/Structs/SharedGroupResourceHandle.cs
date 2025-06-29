@@ -34,7 +34,7 @@ public unsafe struct SgbFile
 }
 
 [StructLayout(LayoutKind.Explicit, Size = 0x10)]
-public unsafe struct SgbData
+public struct SgbData
 {
     [FieldOffset(0x00)] public SgbFileHeader FileHeader;
     [FieldOffset(0x0C)] public SceneChunkDefinition SceneChunkDefinition;
@@ -58,7 +58,7 @@ public unsafe struct SceneChunkHeader
 }
 
 [StructLayout(LayoutKind.Explicit, Size = 0x48)]
-public unsafe struct SceneChunkDefinition
+public struct SceneChunkDefinition
 {
     [FieldOffset(0x00)] public SceneChunkHeader Header;
     [FieldOffset(0x08)] public uint LayerGroupOffset;
@@ -68,7 +68,7 @@ public unsafe struct SceneChunkDefinition
 }
 
 [StructLayout(LayoutKind.Explicit, Size = 0x42)]
-public unsafe struct HousingSettings
+public struct HousingSettings
 {
     [FieldOffset(0x00)] public ushort DefaultColorId;
 }

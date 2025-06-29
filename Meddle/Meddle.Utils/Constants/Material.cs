@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+// ReSharper disable InconsistentNaming
 
 namespace Meddle.Utils.Constants;
 

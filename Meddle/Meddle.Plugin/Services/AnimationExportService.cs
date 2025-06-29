@@ -12,12 +12,10 @@ namespace Meddle.Plugin.Services;
 
 public class AnimationExportService : IDisposable, IService
 {
-    private readonly Configuration configuration;
     private readonly ILogger<AnimationExportService> logger;
 
-    public AnimationExportService(Configuration configuration, ILogger<AnimationExportService> logger)
+    public AnimationExportService(ILogger<AnimationExportService> logger)
     {
-        this.configuration = configuration;
         this.logger = logger;
     }
 

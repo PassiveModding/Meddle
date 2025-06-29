@@ -2,7 +2,6 @@
 using System.Runtime.InteropServices;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface.Utility.Raii;
-using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.Interop;
 using ImGuiNET;
@@ -10,7 +9,6 @@ using Meddle.Plugin.Models;
 using Meddle.Plugin.Services.UI;
 using Meddle.Plugin.Utils;
 using Meddle.Utils.Constants;
-using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;

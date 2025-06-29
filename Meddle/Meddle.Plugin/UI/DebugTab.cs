@@ -11,7 +11,6 @@ using FFXIVClientStructs.FFXIV.Client.Graphics.Render;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.Havok.Animation.Rig;
 using ImGuiNET;
-using Lumina.Excel.Sheets;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Layout;
@@ -21,7 +20,6 @@ using Meddle.Plugin.Services.UI;
 using Meddle.Plugin.Utils;
 using Meddle.Utils.Constants;
 using Meddle.Utils.Files.SqPack;
-using SharpGLTF.Scenes;
 using SharpGLTF.Transforms;
 
 namespace Meddle.Plugin.UI;
@@ -60,7 +58,7 @@ public class DebugTab : ITab
         ModelRaw
     }
     
-    private BoneMode boneMode = BoneMode.ModelPropagate;
+    private BoneMode boneModeInput = BoneMode.ModelPropagate;
 
     public DebugTab(Configuration config, SigUtil sigUtil, CommonUi commonUi, 
                     IGameGui gui, IClientState clientState, 
@@ -286,13 +284,13 @@ public class DebugTab : ITab
         }
     }
 
-    private string path = "";
+    private string exportPathInput = "";
     public void DrawFileExportUi()
     {
         using var indent = ImRaii.PushIndent();
         ImGui.Text("Export Path");
         ImGui.SameLine();
-        ImGui.InputText("##ExportPath", ref path, 100);
+        ImGui.InputText("##ExportPath", ref exportPathInput, 100);
         if (ImGui.Button("Export"))
         {
             // var data = sqPack.GetFile(path);
@@ -309,38 +307,38 @@ public class DebugTab : ITab
             // var outPath = Path.Combine(config.ExportDirectory, Path.GetFileName(path));
             // File.WriteAllBytes(outPath, data.Value.file.RawData.ToArray());
             cancellationTokenSource = new CancellationTokenSource();
-            var pathFileName = Path.GetFileNameWithoutExtension(path);
+            var pathFileName = Path.GetFileNameWithoutExtension(exportPathInput);
             var defaultName = $"Export-{pathFileName}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
             fileDialog.SaveFolderDialog("Save File", defaultName,
                             (result, exportPath) =>
                             {
                                 if (!result) return;
-                                var data = sqPack.GetFile(path);
+                                var data = sqPack.GetFile(exportPathInput);
                                 if (data == null)
                                 {
                                     notificationManager.AddNotification(new Notification
                                     {
-                                        Content = $"File not found: {path}",
+                                        Content = $"File not found: {exportPathInput}",
                                         Type = NotificationType.Error
                                     });
                                     return;
                                 }
                                 
-                                var outPath = Path.Combine(exportPath, Path.GetFileName(path));
+                                var outPath = Path.Combine(exportPath, Path.GetFileName(exportPathInput));
                                 Directory.CreateDirectory(exportPath);
                                 File.WriteAllBytes(outPath, data.Value.file.RawData.ToArray());
                                 Process.Start("explorer.exe", exportPath);
                             }, config.ExportDirectory);
         }
 
-        using var disabled = ImRaii.Disabled(exportTask is {IsCompleted: false} || !path.EndsWith(".mdl"));
+        using var disabled = ImRaii.Disabled(exportTask is {IsCompleted: false} || !exportPathInput.EndsWith(".mdl"));
         if (ImGui.Button("Export Model"))
         {
             cancellationTokenSource = new CancellationTokenSource();
             var configClone = config.ExportConfig.Clone();
-            var pathFileName = Path.GetFileNameWithoutExtension(path);
+            var pathFileName = Path.GetFileNameWithoutExtension(exportPathInput);
             var defaultName = $"Export-{pathFileName}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
-            var stubInstance = new ParsedBgPartsInstance(0, true, new Transform(AffineTransform.Identity), path);
+            var stubInstance = new ParsedBgPartsInstance(0, true, new Transform(AffineTransform.Identity), exportPathInput);
             fileDialog.SaveFolderDialog("Save Instances", defaultName,
                                         (result, exportPath) =>
                                         {
@@ -631,15 +629,15 @@ public class DebugTab : ITab
                     ImGui.Text("Bone Mode");
                     ImGui.SameLine();
                     ImGui.SetNextItemWidth(200);
-                    using (var combo = ImRaii.Combo("##BoneMode", boneMode.ToString()))
+                    using (var combo = ImRaii.Combo("##BoneMode", boneModeInput.ToString()))
                     {
                         if (combo.Success)
                         {
                             foreach (BoneMode mode in Enum.GetValues(typeof(BoneMode)))
                             {
-                                if (ImGui.Selectable(mode.ToString(), mode == boneMode))
+                                if (ImGui.Selectable(mode.ToString(), mode == boneModeInput))
                                 {
-                                    boneMode = mode;
+                                    boneModeInput = mode;
                                 }
                             }
                         }
@@ -670,7 +668,7 @@ public class DebugTab : ITab
                             ImGui.TableSetupColumn("Rotation", ImGuiTableColumnFlags.WidthStretch);
                             ImGui.TableSetupColumn("Scale", ImGuiTableColumnFlags.WidthStretch);
                             ImGui.TableHeadersRow();
-                            DrawBoneTransformsOnScreen(partialSkeleton, boneMode);
+                            DrawBoneTransformsOnScreen(partialSkeleton, boneModeInput);
                         }
                     }
                 }

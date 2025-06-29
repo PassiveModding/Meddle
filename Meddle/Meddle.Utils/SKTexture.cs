@@ -4,7 +4,7 @@ using SkiaSharp;
 
 namespace Meddle.Utils;
 
-public sealed class SKTexture
+public sealed class SkTexture
     {
         private byte[] Data { get; }
 
@@ -28,14 +28,14 @@ public sealed class SKTexture
             }
         }
         
-        public SKTexture(int width, int height)
+        public SkTexture(int width, int height)
         {
             Data = new byte[width * height * 4];
             Width = width;
             Height = height;
         }
         
-        public SKTexture(SKBitmap bitmap) : this(bitmap.Width, bitmap.Height)
+        public SkTexture(SKBitmap bitmap) : this(bitmap.Width, bitmap.Height)
         {
             if (bitmap.ColorType != SKColorType.Rgba8888 || bitmap.AlphaType != SKAlphaType.Unpremul)
             {
@@ -58,20 +58,20 @@ public sealed class SKTexture
             }
         }
 
-        public SKTexture Copy()
+        public SkTexture Copy()
         {
-            var ret = new SKTexture(Width, Height);
+            var ret = new SkTexture(Width, Height);
             Data.CopyTo(ret.Data, 0);
             return ret;
         }
         
-        public SKTexture Resize(int width, int height)
+        public SkTexture Resize(int width, int height)
         {
             var info = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
             var bitmapCopy = Bitmap.Copy();
             var resize = bitmapCopy.Resize(info, new SKSamplingOptions(SKCubicResampler.Mitchell));
             
-            return new SKTexture(resize);
+            return new SkTexture(resize);
         }
 
         

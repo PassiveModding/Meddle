@@ -11,7 +11,6 @@ using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.UI.Windows;
 using Meddle.Plugin.Utils;
-using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
 using Microsoft.Extensions.Logging;
 
@@ -31,11 +30,11 @@ public partial class LayoutWindow : ITab
 
     private readonly LayoutService layoutService;
     private readonly ILogger<LayoutWindow> log;
-    private readonly Dictionary<string, MdlFile?> mdlCache = new();
-    private readonly Dictionary<string, MtrlFile?> mtrlCache = new();
+    // private readonly Dictionary<string, MdlFile?> mdlCache = new();
+    // private readonly Dictionary<string, MtrlFile?> mtrlCache = new();
+    // private readonly Dictionary<string, ShpkFile?> shpkCache = new();
     private readonly ResolverService resolverService;
     private readonly Dictionary<nint, ParsedInstance> selectedInstances = new();
-    private readonly Dictionary<string, ShpkFile?> shpkCache = new();
     private readonly SigUtil sigUtil;
     private readonly TextureCache textureCache;
     private readonly ITextureProvider textureProvider;
@@ -153,7 +152,7 @@ public partial class LayoutWindow : ITab
                       if (x is ParsedTerrainInstance) return true;
                       if (x is ParsedCameraInstance) return true;
                       if (x is ParsedEnvLightInstance) return true;
-                      return Vector3.Distance(x.Transform.Translation, searchOrigin) < config.WorldCutoffDistance;
+                      return Vector3.Distance(x.Transform.Translation, searchOrigin) < config.LayoutConfig.WorldCutoffDistance;
                   })
                   .Where(x => config.LayoutConfig.DrawTypes.HasFlag(x.Type));
         if (config.LayoutConfig.OrderByDistance)

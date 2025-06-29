@@ -1,5 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 using OtterTex;
+// ReSharper disable InconsistentNaming
 
 namespace Meddle.Utils.Files;
 

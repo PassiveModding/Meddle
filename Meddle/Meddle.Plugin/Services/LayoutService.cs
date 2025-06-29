@@ -286,7 +286,7 @@ public class LayoutService : IService, IDisposable
 
 
         var primaryPath = sharedGroup->GetPrimaryPath();
-        string? path = primaryPath.HasValue ? primaryPath : throw new Exception("SharedGroup has no primary path");
+        string path = primaryPath.HasValue ? primaryPath : throw new Exception("SharedGroup has no primary path");
 
         var furnitureMatch = context.HousingItems.FirstOrDefault(item => item.LayoutInstance == sharedGroupPtr);
         if (furnitureMatch is not null)
@@ -325,7 +325,7 @@ public class LayoutService : IService, IDisposable
             return null;
 
         var primaryPath = bgPart->GetPrimaryPath();
-        string? path = primaryPath.HasValue ? primaryPath : throw new Exception("BgPart has no primary path");
+        string path = primaryPath.HasValue ? primaryPath : throw new Exception("BgPart has no primary path");
 
         return new ParsedBgPartsInstance((nint)bgPartPtr.Value, graphics->IsVisible, new Transform(*bgPart->GetTransformImpl()), path);
     }

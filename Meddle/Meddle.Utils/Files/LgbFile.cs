@@ -1,6 +1,7 @@
 ﻿using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+// ReSharper disable InconsistentNaming
 
 namespace Meddle.Utils.Files;
 

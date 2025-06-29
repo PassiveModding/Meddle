@@ -144,7 +144,7 @@ public unsafe class Model
             var meshMatch = Meshes.FirstOrDefault(x => file.Meshes[x.MeshIdx].StartIndex == shapeMesh.MeshIndexOffset);
             if (meshMatch == null)
                 continue;
-            shapeMeshes[i] = new ShapeMesh(file.ShapeValues, shapeMesh, meshMatch, i);
+            shapeMeshes[i] = new ShapeMesh(file.ShapeValues, shapeMesh, meshMatch);
         }
 
         var shapes = new ModelShape[file.ModelHeader.ShapeCount];

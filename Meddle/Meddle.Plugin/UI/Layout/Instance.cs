@@ -1,27 +1,13 @@
 ﻿using System.Numerics;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using Dalamud.Interface.Textures;
 using Dalamud.Interface.Utility.Raii;
-using FFXIVClientStructs.FFXIV.Client.Game.Object;
-using FFXIVClientStructs.FFXIV.Client.Graphics;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Layer;
-using FFXIVClientStructs.Interop;
 using ImGuiNET;
-using Meddle.Plugin.Models;
-using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Layout;
-using Meddle.Plugin.Models.Structs;
-using Meddle.Plugin.Services;
 using Meddle.Plugin.Utils;
-using Meddle.Utils;
-using Meddle.Utils.Constants;
 using Meddle.Utils.Export;
-using Meddle.Utils.Files;
 using Meddle.Utils.Helpers;
-using Microsoft.Extensions.Logging;
-using Transform = FFXIVClientStructs.FFXIV.Client.LayoutEngine.Transform;
 
 namespace Meddle.Plugin.UI.Layout;
 
@@ -180,7 +166,7 @@ public partial class LayoutWindow
     
         if (bgPartLayout->GraphicsObject != null)
         {
-            BgObject* drawObject = (BgObject*)bgPartLayout->GraphicsObject;
+            BgObject* drawObject = bgPartLayout->GraphicsObject;
             UiUtil.Text($"Graphics Object {(nint)drawObject:X8}", $"{(nint)drawObject:X8}");
             using var disabled = ImRaii.Disabled( mdlMaterialWindowManager.HasWindow(drawObject->ModelResourceHandle));
             if (ImGui.Button("Open Material Window"))
@@ -244,7 +230,7 @@ public partial class LayoutWindow
         }
     }
 
-    private unsafe void DrawCache(ParsedInstance instance)
+    /*private void DrawCache(ParsedInstance instance)
     {
         if (instance is not ParsedBgPartsInstance bgPartInstance) return;
         var mdlPath = bgPartInstance.Path.FullPath;
@@ -418,16 +404,16 @@ public partial class LayoutWindow
                 ImGui.Text($"Has Dye Table: {cachedMtrl.HasDyeTable}");
             });
         }
-    }
+    }*/
     
-    private void TreeNode(string name, Action action)
-    {
-        using var node = ImRaii.TreeNode(name);
-        if (node.Success)
-        {
-            action();
-        }
-    }
+    // private void TreeNode(string name, Action action)
+    // {
+    //     using var node = ImRaii.TreeNode(name);
+    //     if (node.Success)
+    //     {
+    //         action();
+    //     }
+    // }
 
     private void DrawCharacter(ParsedCharacterInstance character)
     {

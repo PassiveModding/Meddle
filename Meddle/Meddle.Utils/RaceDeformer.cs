@@ -11,7 +11,7 @@ public partial class RaceDeformer(PbdFile pbd, IReadOnlyList<BoneNodeBuilder> bo
     public PbdFile PbdFile { get; } = pbd;
     private IReadOnlyList<BoneNodeBuilder> BoneMap { get; } = boneMap;
 
-    private PbdFile.DeformMatrix4x4? ResolveDeformation(PbdFile.Deformer deformer, string name)
+    private PbdFile.DeformMatrix4X4? ResolveDeformation(PbdFile.Deformer deformer, string name)
     {
         // Try and fetch it from the PBD
         var boneNames = deformer.BoneNames;

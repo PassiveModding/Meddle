@@ -1,9 +1,7 @@
 ﻿using System.Numerics;
 using System.Text.Json.Serialization;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
-using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
-using FFXIVClientStructs.Interop;
 using ImGuiNET;
 using Lumina.Excel.Sheets;
 using Meddle.Plugin.Models.Skeletons;
@@ -297,7 +295,7 @@ public class ParsedCameraInstance : ParsedInstance, ISearchableInstance
     public float AspectRatio { get; }
     public Quaternion Rotation { get; }
     
-    public unsafe ParsedCameraInstance(nint id, Transform transform, float fov, float aspectRatio, Vector3 position, Vector3 lookAtVector) : base(id, ParsedInstanceType.Camera, transform)
+    public ParsedCameraInstance(nint id, Transform transform, float fov, float aspectRatio, Vector3 position, Vector3 lookAtVector) : base(id, ParsedInstanceType.Camera, transform)
     {
         FoV = fov;
         AspectRatio = aspectRatio;

@@ -1,5 +1,4 @@
-﻿using Dalamud.Game;
-using Dalamud.Hooking;
+﻿using Dalamud.Hooking;
 using Meddle.Plugin.Models.Structs;
 using Microsoft.Extensions.Logging;
 

@@ -8,7 +8,6 @@ using Meddle.Utils;
 using Meddle.Utils.Constants;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files.SqPack;
-using Meddle.Utils.Helpers;
 using Microsoft.Extensions.Logging;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
@@ -18,31 +17,22 @@ public class CharacterComposer
 {
     public record SkinningContext(List<BoneNodeBuilder> Bones, BoneNodeBuilder? RootBone, Matrix4x4 Transform);
     
-    private readonly Configuration config;
-    private readonly SqPack pack;
     private readonly ComposerCache composerCache;
     private readonly Configuration.ExportConfiguration exportConfig;
-    private readonly CancellationToken cancellationToken;
     
-    public CharacterComposer(Configuration config, SqPack pack, ComposerCache composerCache, Configuration.ExportConfiguration exportConfig, CancellationToken cancellationToken = default)
+    public CharacterComposer(ComposerCache composerCache, Configuration.ExportConfiguration exportConfig)
     {
-        this.config = config;
-        this.pack = pack;
         this.composerCache = composerCache;
         this.exportConfig = exportConfig;
-        this.cancellationToken = cancellationToken;
     }
     
-    public CharacterComposer(Configuration config, SqPack pack, Configuration.ExportConfiguration exportConfig, string outDir, CancellationToken cancellationToken = default)
+    public CharacterComposer(SqPack pack, Configuration.ExportConfiguration exportConfig, string outDir)
     {
-        this.config = config;
-        this.pack = pack;
         this.exportConfig = exportConfig;
         Directory.CreateDirectory(outDir);
         var cacheDir = Path.Combine(outDir, "cache");
         Directory.CreateDirectory(cacheDir);
         composerCache = new ComposerCache(pack, cacheDir, exportConfig);
-        this.cancellationToken = cancellationToken;
     }
     
     private void HandleModel(ParsedCharacterInfo characterInfo, ParsedModelInfo m, SceneBuilder scene, SkinningContext skinningContext)

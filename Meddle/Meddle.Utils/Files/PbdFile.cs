@@ -9,14 +9,14 @@ public class PbdFile
     public readonly Header[] Headers;
     public readonly Link[] Links;                        // header.deformerId -> link
     public readonly Dictionary<int, Deformer> Deformers; // offset -> deformer
-    private readonly byte[] _data;
-    public ReadOnlySpan<byte> RawData => _data;
+    private readonly byte[] data;
+    public ReadOnlySpan<byte> RawData => data;
 
     public PbdFile(byte[] data) : this((ReadOnlySpan<byte>)data) { }
 
     public PbdFile(ReadOnlySpan<byte> data)
     {
-        _data = data.ToArray();
+        this.data = data.ToArray();
         var reader = new SpanBinaryReader(data);
         var entryCount = reader.ReadInt32();
 
@@ -56,7 +56,7 @@ public class PbdFile
         public ushort HeaderIdx;
     }
 
-    public readonly struct DeformMatrix4x4
+    public readonly struct DeformMatrix4X4
     {
         private readonly float[] matrix;
 
@@ -70,9 +70,9 @@ public class PbdFile
             }
         }
 
-        public DeformMatrix4x4(ReadOnlySpan<float> matrix) : this(matrix.ToArray()) { }
+        public DeformMatrix4X4(ReadOnlySpan<float> matrix) : this(matrix.ToArray()) { }
 
-        public DeformMatrix4x4(float[] matrix)
+        public DeformMatrix4X4(float[] matrix)
         {
             if (matrix.Length != 16)
                 throw new ArgumentException("Matrix must have 16 elements", nameof(matrix));
@@ -93,7 +93,7 @@ public class PbdFile
     {
         public int BoneCount;
         public string[] BoneNames;
-        public DeformMatrix4x4?[] DeformMatrices;
+        public DeformMatrix4X4?[] DeformMatrices;
 
         public static Deformer Read(SpanBinaryReader reader)
         {
@@ -113,14 +113,14 @@ public class PbdFile
             var padding = boneCount * 2 % 4;
             reader.Read<byte>(padding);
 
-            var matrixArray = new DeformMatrix4x4?[boneCount];
+            var matrixArray = new DeformMatrix4X4?[boneCount];
             for (var i = 0; i < boneCount; i++)
             {
                 var matrix = reader.Read<float>(12);
                 var buf = new float[16];
                 matrix.CopyTo(buf);
                 buf[15] = 1.0f;
-                matrixArray[i] = new DeformMatrix4x4(buf);
+                matrixArray[i] = new DeformMatrix4X4(buf);
             }
 
             return new Deformer
@@ -131,7 +131,7 @@ public class PbdFile
             };
         }
 
-        public static DeformMatrix4x4 Identity()
+        public static DeformMatrix4X4 Identity()
         {
             var buf = new float[]
             {
@@ -141,10 +141,10 @@ public class PbdFile
                 0, 0, 0, 1, // Affine
             };
 
-            return new DeformMatrix4x4(buf);
+            return new DeformMatrix4X4(buf);
         }
         
-        public static Vector3 TransformCoordinate(Vector3 vector, DeformMatrix4x4 matrix) =>
+        public static Vector3 TransformCoordinate(Vector3 vector, DeformMatrix4X4 matrix) =>
             matrix.TransformCoordinate(vector);
     }
 

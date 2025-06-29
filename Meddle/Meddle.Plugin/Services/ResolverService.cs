@@ -9,7 +9,6 @@ using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Constants;
-using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
 using Meddle.Utils.Files.Structs.Material;
@@ -266,7 +265,7 @@ public class ResolverService : IService
                 {
                     var texturePathFromMaterial = material->MaterialResourceHandle->TexturePath(texIdx);
                     var (resource, _) =
-                        DXHelper.ExportTextureResource(texturePtr.TextureResourceHandle->Texture);
+                        DxHelper.ExportTextureResource(texturePtr.TextureResourceHandle->Texture);
                     var textureInfo = new ParsedTextureInfo(texturePath, texturePathFromMaterial, resource);
                     textures.Add(textureInfo);
                 }
@@ -380,10 +379,10 @@ public class ResolverService : IService
             SkinFresnelValue0 = customizeCBuf.SkinFresnelValue0,
             LipColor = customizeCBuf.LipColor,
             MainColor = customizeCBuf.MainColor,
-            FacePaintUVMultiplier = customizeCBuf.FacePaintUVMultiplier,
+            FacePaintUvMultiplier = customizeCBuf.FacePaintUVMultiplier,
             HairFresnelValue0 = customizeCBuf.HairFresnelValue0,
             MeshColor = customizeCBuf.MeshColor,
-            FacePaintUVOffset = customizeCBuf.FacePaintUVOffset,
+            FacePaintUvOffset = customizeCBuf.FacePaintUVOffset,
             LeftColor = customizeCBuf.LeftColor,
             RightColor = customizeCBuf.RightColor,
             OptionColor = customizeCBuf.OptionColor

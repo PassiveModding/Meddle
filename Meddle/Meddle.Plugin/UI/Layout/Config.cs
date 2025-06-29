@@ -1,5 +1,4 @@
 ﻿using System.Numerics;
-using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
 using ImGuiNET;
 using Meddle.Plugin.Models;
@@ -27,10 +26,12 @@ public partial class LayoutWindow
         public bool TraceToParent { get; set; } = true;
         public bool OrderByDistance { get; set; } = true;
         public bool TraceToHovered { get; set; } = true;
-        
+        public float WorldCutoffDistance { get; set; } = 100f;
+        public Vector4 WorldDotColor = new(1f, 1f, 1f, 0.5f);
         // Search Options
         public bool HideOffscreenCharacters { get; set; } = true;
         public int MaxItemCount { get; set; } = 100;
+        
         public OriginAdjustment OriginAdjustment { get; set; } = OriginAdjustment.Camera;
     }
     
@@ -45,17 +46,17 @@ public partial class LayoutWindow
     private void DrawOptions()
     {
         if (!ImGui.CollapsingHeader("Options")) return;
-        var cutoff = config.WorldCutoffDistance;
+        var cutoff = config.LayoutConfig.WorldCutoffDistance;
         if (ImGui.DragFloat("Cutoff Distance", ref cutoff, 1, 0, 10000))
         {
-            config.WorldCutoffDistance = cutoff;
+            config.LayoutConfig.WorldCutoffDistance = cutoff;
             config.Save();
         }
 
-        var dotColor = config.WorldDotColor;
+        var dotColor = config.LayoutConfig.WorldDotColor;
         if (ImGui.ColorEdit4("Dot Color", ref dotColor, ImGuiColorEditFlags.NoInputs))
         {
-            config.WorldDotColor = dotColor;
+            config.LayoutConfig.WorldDotColor = dotColor;
             config.Save();
         }
 

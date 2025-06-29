@@ -1,5 +1,4 @@
-﻿using System.Runtime.InteropServices;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 using FFXIVClientStructs.FFXIV.Common.Math;
 using FFXIVClientStructs.Havok.Animation.Rig;
 using FFXIVClientStructs.Interop;

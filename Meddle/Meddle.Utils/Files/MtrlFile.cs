@@ -1,12 +1,10 @@
-﻿using Meddle.Utils.Files.Structs.Material;
-
-namespace Meddle.Utils.Files;
+﻿namespace Meddle.Utils.Files;
 
 public class MtrlFile
 {
     public const uint MtrlMagic = 0x1030000;
 
-    private readonly byte[] _data;
+    private readonly byte[] data;
 
     public MaterialFileHeader FileHeader;
     public TextureOffset[] TextureOffsets;
@@ -29,7 +27,7 @@ public class MtrlFile
 
     public MtrlFile(ReadOnlySpan<byte> data)
     {
-        _data = data.ToArray();
+        this.data = data.ToArray();
         var reader = new SpanBinaryReader(data);
         FileHeader = reader.Read<MaterialFileHeader>();
         TextureOffsets = new TextureOffset[FileHeader.TextureCount];
@@ -84,7 +82,7 @@ public class MtrlFile
 
     public bool HasTable => AdditionalData.Length > 0 && (AdditionalData[0] & 0x4) != 0;
     public bool HasDyeTable => AdditionalData.Length > 0 && (AdditionalData[0] & 0x8) != 0;
-    public ReadOnlySpan<byte> RawData => _data;
+    public ReadOnlySpan<byte> RawData => data;
 }
 
 public struct Constant

@@ -1,5 +1,4 @@
 ﻿using System.Numerics;
-using System.Runtime.InteropServices;
 using Meddle.Utils.Files.Structs.Model;
 
 namespace Meddle.Utils.Export;

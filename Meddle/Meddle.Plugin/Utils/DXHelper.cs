@@ -9,7 +9,7 @@ using Texture = FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Texture;
 
 namespace Meddle.Plugin.Utils;
 
-public static unsafe class DXHelper
+public static unsafe class DxHelper
 {
     public static readonly Result WasStillDrawing = new(0x887A000A);
 
@@ -139,8 +139,8 @@ public static unsafe class DXHelper
     //}
 
     // https://github.com/microsoft/graphics-driver-samples/blob/de4a2161991eda254013da6c18226f5ea06e4a9c/render-only-sample/rostest/util.cpp#L244
-    private static RetT GetResourceData<T, RetT>(
-        T res, Func<T, T> cloneResource, Func<T, MappedSubresource, RetT> getData) where T : ID3D11Resource
+    private static TRet GetResourceData<T, TRet>(
+        T res, Func<T, T> cloneResource, Func<T, MappedSubresource, TRet> getData) where T : ID3D11Resource
     {
         using var stagingRes = cloneResource(res);
 
@@ -155,7 +155,9 @@ public static unsafe class DXHelper
                       .CheckError();
         }
 
+        // ReSharper disable AccessToDisposedClosure
         using var unmap = new DisposeRaii(() => stagingRes.Device.ImmediateContext.Unmap(stagingRes, 0));
+        // ReSharper restore AccessToDisposedClosure
 
         return getData(stagingRes, mapInfo);
     }

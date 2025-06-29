@@ -3,7 +3,6 @@ using System.Runtime.InteropServices;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Layer;
-using SharpGLTF.Scenes;
 
 namespace Meddle.Plugin.Models.Structs;
 
