@@ -27,7 +27,7 @@ public partial class LayoutWindow
         public bool OrderByDistance { get; set; } = true;
         public bool TraceToHovered { get; set; } = true;
         public float WorldCutoffDistance { get; set; } = 100f;
-        public Vector4 WorldDotColor = new(1f, 1f, 1f, 0.5f);
+        public Vector4 WorldDotColor { get; set; } = new(1f, 1f, 1f, 0.5f);
         // Search Options
         public bool HideOffscreenCharacters { get; set; } = true;
         public int MaxItemCount { get; set; } = 100;
