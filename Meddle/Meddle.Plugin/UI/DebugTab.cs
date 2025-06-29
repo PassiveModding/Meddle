@@ -19,8 +19,11 @@ using Meddle.Plugin.Services;
 using Meddle.Plugin.Services.UI;
 using Meddle.Plugin.Utils;
 using Meddle.Utils.Constants;
+using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
+using Meddle.Utils.Helpers;
 using SharpGLTF.Transforms;
+using SkiaSharp;
 
 namespace Meddle.Plugin.UI;
 
@@ -331,28 +334,75 @@ public class DebugTab : ITab
                             }, config.ExportDirectory);
         }
 
-        using var disabled = ImRaii.Disabled(exportTask is {IsCompleted: false} || !exportPathInput.EndsWith(".mdl"));
-        if (ImGui.Button("Export Model"))
+        using (var disabled = ImRaii.Disabled(exportTask is {IsCompleted: false} || !exportPathInput.EndsWith(".mdl")))
         {
-            cancellationTokenSource = new CancellationTokenSource();
-            var configClone = config.ExportConfig.Clone();
-            var pathFileName = Path.GetFileNameWithoutExtension(exportPathInput);
-            var defaultName = $"Export-{pathFileName}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
-            var stubInstance = new ParsedBgPartsInstance(0, true, new Transform(AffineTransform.Identity), exportPathInput);
-            fileDialog.SaveFolderDialog("Save Instances", defaultName,
-                                        (result, exportPath) =>
-                                        {
-                                            if (!result) return;
-                                            exportTask = Task.Run(() =>
+            if (ImGui.Button("Export Model"))
+            {
+                cancellationTokenSource = new CancellationTokenSource();
+                var configClone = config.ExportConfig.Clone();
+                var pathFileName = Path.GetFileNameWithoutExtension(exportPathInput);
+                var defaultName = $"Export-{pathFileName}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
+                var stubInstance = new ParsedBgPartsInstance(0, true, new Transform(AffineTransform.Identity), exportPathInput);
+                fileDialog.SaveFolderDialog("Save Instances", defaultName,
+                                            (result, exportPath) =>
                                             {
-                                                var composer = composerFactory.CreateComposer(exportPath,
-                                                                                              configClone,
-                                                                                              cancellationTokenSource.Token);
-                                                var progress = new ExportProgress(1, "Instances");
-                                                composer.Compose([stubInstance], progress);
-                                                Process.Start("explorer.exe", exportPath);
-                                            }, cancellationTokenSource.Token);
-                                        }, config.ExportDirectory);
+                                                if (!result) return;
+                                                exportTask = Task.Run(() =>
+                                                {
+                                                    var composer = composerFactory.CreateComposer(exportPath,
+                                                                                                  configClone,
+                                                                                                  cancellationTokenSource.Token);
+                                                    var progress = new ExportProgress(1, "Instances");
+                                                    composer.Compose([stubInstance], progress);
+                                                    Process.Start("explorer.exe", exportPath);
+                                                }, cancellationTokenSource.Token);
+                                            }, config.ExportDirectory);
+            }
+        }
+        
+        using (var disabled = ImRaii.Disabled(exportTask is {IsCompleted: false} || !exportPathInput.EndsWith(".tex")))
+        {
+            if (ImGui.Button("Export Texture"))
+            {
+                cancellationTokenSource = new CancellationTokenSource();
+                var configClone = config.ExportConfig.Clone();
+                var pathFileName = Path.GetFileNameWithoutExtension(exportPathInput);
+                var defaultName = $"Export-{pathFileName}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
+                fileDialog.SaveFolderDialog("Save Texture", defaultName,
+                                            (result, exportPath) =>
+                                            {
+                                                if (!result) return;
+                                                exportTask = Task.Run(() =>
+                                                {
+                                                    var file = sqPack.GetFile(exportPathInput);
+                                                    if (file == null)
+                                                    {
+                                                        notificationManager.AddNotification(new Notification
+                                                        {
+                                                            Content = $"File not found: {exportPathInput}",
+                                                            Type = NotificationType.Error
+                                                        });
+                                                        return;
+                                                    }
+                                                    
+                                                    var outPath = Path.Combine(exportPath, Path.GetFileName(exportPathInput));
+                                                    
+                                                    Directory.CreateDirectory(exportPath);
+                                                    var buf = file.Value.file.RawData.ToArray();
+                                                    File.WriteAllBytes(outPath, buf);
+                                                    
+                                                    // Convert to png
+                                                    var tex = new TexFile(buf);
+                                                    var texture = tex.ToResource().ToTexture();
+                                                    using var memoryStream = new MemoryStream();
+                                                    texture.Bitmap.Encode(memoryStream, SKEncodedImageFormat.Png, 100);
+                                                    var textureBytes = memoryStream.ToArray();
+                                                    File.WriteAllBytes(Path.ChangeExtension(outPath, ".png"), textureBytes);
+                                                    
+                                                    Process.Start("explorer.exe", exportPath);
+                                                }, cancellationTokenSource.Token);
+                                            }, config.ExportDirectory);
+            }
         }
     }
     
