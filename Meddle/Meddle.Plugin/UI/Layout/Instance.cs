@@ -2,6 +2,7 @@
 using Dalamud.Interface.Textures;
 using Dalamud.Interface.Utility.Raii;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
+using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Layer;
 using ImGuiNET;
 using Meddle.Plugin.Models.Layout;
@@ -25,6 +26,22 @@ public partial class LayoutWindow
                      .Take(config.LayoutConfig.MaxItemCount))
         {
             DrawInstance(instance, [], additionalOptions);
+        }
+    }
+    
+    private unsafe void DrawControlsEvil(ParsedInstance instance)
+    {
+        var layoutInstance = (ILayoutInstance*)instance.Id;
+        var graphics = layoutInstance->GetGraphics();
+        if (graphics == null) return;
+        Vector3 translation = graphics->Position;
+
+        using var _ = ImRaii.PushId(instance.Id);
+        if (ImGui.DragFloat3("Position", ref translation, 0.1f))
+        {
+            // WARNING: Don't use this, it will move the collision of the object, instead just set translation on the graphics back
+            // bgPartPtr->SetTranslationImpl(&translation);
+            graphics->Position = translation;
         }
     }
     
@@ -71,6 +88,8 @@ public partial class LayoutWindow
             ImGui.Text($"Position: {instance.Transform.Translation}");
             ImGui.Text($"Rotation: {instance.Transform.Rotation}");
             ImGui.Text($"Scale: {instance.Transform.Scale}");
+            // DrawControlsEvil(instance);
+            
             if (instance is IPathInstance pathedInstance)
             {
                 UiUtil.Text($"Full Path: {pathedInstance.Path.FullPath}", pathedInstance.Path.FullPath);
@@ -88,6 +107,13 @@ public partial class LayoutWindow
                 ImGui.ColorButton("Sunlight", new Vector4(lt.SunLightColor.Rgb, lt.SunLightColor.HdrIntensity));
                 ImGui.ColorButton("Moonlight", new Vector4(lt.MoonLightColor.Rgb, lt.MoonLightColor.HdrIntensity));
                 ImGui.ColorButton("Ambient", new Vector4(lt.Ambient.Rgb, lt.Ambient.HdrIntensity));
+            }
+
+            if (instance is ParsedDecalInstance decal)
+            {
+                UiUtil.Text($"Diffuse Path: {decal.Diffuse.FullPath}", decal.Diffuse.FullPath);
+                UiUtil.Text($"Normal Path: {decal.Normal.FullPath}", decal.Normal.FullPath);
+                UiUtil.Text($"Specular Path: {decal.Specular.FullPath}", decal.Specular.FullPath);
             }
 
             if (instance is ParsedCameraInstance cameraInstance)

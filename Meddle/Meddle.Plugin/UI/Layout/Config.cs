@@ -10,12 +10,14 @@ namespace Meddle.Plugin.UI.Layout;
 public partial class LayoutWindow
 {
     public const ParsedInstanceType DefaultDrawTypes = ParsedInstanceType.Character |
-                                                        ParsedInstanceType.Housing |
-                                                        ParsedInstanceType.Terrain |
-                                                        ParsedInstanceType.BgPart |
-                                                        ParsedInstanceType.Light |
-                                                        ParsedInstanceType.SharedGroup |
-                                                        ParsedInstanceType.Camera;
+                                                       ParsedInstanceType.Housing |
+                                                       ParsedInstanceType.Terrain |
+                                                       ParsedInstanceType.BgPart |
+                                                       ParsedInstanceType.Light |
+                                                       ParsedInstanceType.SharedGroup |
+                                                       ParsedInstanceType.Camera |
+                                                       ParsedInstanceType.Decal |
+                                                       ParsedInstanceType.EnvLighting;
 
     public class LayoutConfig
     {

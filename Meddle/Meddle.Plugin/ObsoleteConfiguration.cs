@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using Meddle.Plugin.Models;
+using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.UI.Layout;
 using Microsoft.Extensions.Logging;
 
@@ -65,6 +66,7 @@ public partial class Configuration
             Plugin.Logger?.LogInformation("Migrating configuration from version 3 to 4");
             LayoutConfig.WorldDotColor = WorldDotColor;
             LayoutConfig.WorldCutoffDistance = WorldCutoffDistance;
+            LayoutConfig.DrawTypes |= ParsedInstanceType.Decal | ParsedInstanceType.EnvLighting;
             
             Version = 4;
             Save();

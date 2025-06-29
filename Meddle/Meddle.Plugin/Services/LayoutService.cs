@@ -214,6 +214,11 @@ public class LayoutService : IService, IDisposable
                 var light = ParsedLightInstance(instanceLayout);
                 return light;
             }
+            case InstanceType.Decal:
+            {
+                var decal = ParseDecalInstance(instanceLayout);
+                return decal;
+            }
             default:
             {
                 var primaryPath = instanceLayout->GetPrimaryPath();
@@ -231,6 +236,31 @@ public class LayoutService : IService, IDisposable
         }
     }
     
+    private unsafe ParsedInstance? ParseDecalInstance(Pointer<ILayoutInstance> decalPtr)
+    {
+        if (decalPtr == null || decalPtr.Value == null)
+            return null;
+
+        var decalLayout = decalPtr.Value;
+        if (decalLayout->Id.Type != InstanceType.Decal)
+            return null;
+
+        var typedInstance = (DecalLayoutInstance*)decalLayout;
+        if (typedInstance->DecalPtr == null || typedInstance->DecalPtr->DecalItem == null)
+            return null;
+
+        var decalData = typedInstance->DecalPtr->DecalItem;
+        var diffuseTex = decalData->TexDiffuse;
+        var normalTex = decalData->TexNormal;
+        var specularTex = decalData->TexSpecular;
+
+        return new ParsedDecalInstance((nint)decalLayout,
+                                       new Transform(*decalLayout->GetTransformImpl()),
+                                       diffuseTex->FileName.ParseString(),
+                                       normalTex->FileName.ParseString(),
+                                       specularTex->FileName.ParseString());
+    }
+
     private unsafe ParsedLightInstance? ParsedLightInstance(Pointer<ILayoutInstance> lightPtr)
     {
         if (lightPtr == null || lightPtr.Value == null)

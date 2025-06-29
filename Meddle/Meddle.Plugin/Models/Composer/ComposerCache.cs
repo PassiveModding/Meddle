@@ -199,7 +199,7 @@ public class ComposerCache
         return cachePath;
     }
     
-    private string CacheTexture(string fullPath)
+    public string CacheTexture(string fullPath)
     {
         var cachePath = GetCacheFilePath(fullPath);
         var pngCachePath = cachePath + ".png";

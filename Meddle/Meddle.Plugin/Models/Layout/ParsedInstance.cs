@@ -28,6 +28,7 @@ public enum ParsedInstanceType
     Terrain = 64,
     Camera = 128,
     EnvLighting = 256,
+    Decal = 512,
 }
 
 public interface IResolvableInstance
@@ -60,6 +61,7 @@ public interface ISearchableInstance
 [JsonDerivedType(typeof(ParsedTerrainInstance))]
 [JsonDerivedType(typeof(ParsedCameraInstance))]
 [JsonDerivedType(typeof(ParsedEnvLightInstance))]
+[JsonDerivedType(typeof(ParsedDecalInstance))]
 public abstract class ParsedInstance
 {
     public ParsedInstance(nint id, ParsedInstanceType type, Transform transform)
@@ -90,6 +92,31 @@ public class ParsedUnsupportedInstance : ParsedInstance, ISearchableInstance
     {
         return Path?.Contains(query, StringComparison.OrdinalIgnoreCase) == true || 
                "unsupported".Contains(query, StringComparison.OrdinalIgnoreCase);
+    }
+}
+
+public class ParsedDecalInstance : ParsedInstance, ISearchableInstance
+{
+    public HandleString Diffuse { get; }
+    public HandleString Normal { get; }
+    public HandleString Specular { get; }
+    
+    public ParsedDecalInstance(nint id, Transform transform, string diffuse, string normal, string specular) : base(id, ParsedInstanceType.Decal, transform)
+    {
+        Diffuse = diffuse;
+        Normal = normal;
+        Specular = specular;
+    }
+    
+    public bool Search(string query)
+    {
+        return Diffuse.FullPath.Contains(query, StringComparison.OrdinalIgnoreCase) || 
+               Diffuse.GamePath.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+               Normal.FullPath.Contains(query, StringComparison.OrdinalIgnoreCase) || 
+               Normal.GamePath.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+               Specular.FullPath.Contains(query, StringComparison.OrdinalIgnoreCase) || 
+               Specular.GamePath.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+               "decal".Contains(query, StringComparison.OrdinalIgnoreCase);
     }
 }
 

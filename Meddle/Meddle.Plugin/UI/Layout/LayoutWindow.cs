@@ -35,7 +35,6 @@ public partial class LayoutWindow : ITab
     // private readonly Dictionary<string, ShpkFile?> shpkCache = new();
     private readonly ResolverService resolverService;
     private readonly Dictionary<nint, ParsedInstance> selectedInstances = new();
-    private readonly Dictionary<nint, bool> visibleStates = new();
     private readonly SigUtil sigUtil;
     private readonly TextureCache textureCache;
     private readonly ITextureProvider textureProvider;
