@@ -35,6 +35,7 @@ public partial class LayoutWindow : ITab
     // private readonly Dictionary<string, ShpkFile?> shpkCache = new();
     private readonly ResolverService resolverService;
     private readonly Dictionary<nint, ParsedInstance> selectedInstances = new();
+    private readonly Dictionary<nint, bool> visibleStates = new();
     private readonly SigUtil sigUtil;
     private readonly TextureCache textureCache;
     private readonly ITextureProvider textureProvider;
@@ -152,7 +153,19 @@ public partial class LayoutWindow : ITab
                       if (x is ParsedTerrainInstance) return true;
                       if (x is ParsedCameraInstance) return true;
                       if (x is ParsedEnvLightInstance) return true;
-                      return Vector3.Distance(x.Transform.Translation, searchOrigin) < config.LayoutConfig.WorldCutoffDistance;
+                      if (Vector3.Distance(x.Transform.Translation, searchOrigin) < config.LayoutConfig.WorldCutoffDistance)
+                      {
+                          return true;
+                      }
+                      
+                      if (config.LayoutConfig.IncludeSharedGroupsWhereSubItemsAreWithinRange &&
+                          x is ParsedSharedInstance sharedInstance &&
+                          sharedInstance.Flatten().Any(i => Vector3.Distance(i.Transform.Translation, searchOrigin) < config.LayoutConfig.WorldCutoffDistance))
+                      {
+                          return true;
+                      }
+
+                      return false;
                   })
                   .Where(x => config.LayoutConfig.DrawTypes.HasFlag(x.Type));
         if (config.LayoutConfig.OrderByDistance)
@@ -210,7 +223,6 @@ public partial class LayoutWindow : ITab
     }
     private void DrawSelected()
     {
-
         if (selectedInstances.Count == 0)
         {
             ImGui.Text("No instances selected");

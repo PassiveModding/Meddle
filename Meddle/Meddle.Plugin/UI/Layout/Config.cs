@@ -28,7 +28,7 @@ public partial class LayoutWindow
         public bool TraceToHovered { get; set; } = true;
         public float WorldCutoffDistance { get; set; } = 100f;
         public Vector4 WorldDotColor { get; set; } = new(1f, 1f, 1f, 0.5f);
-        // Search Options
+        public bool IncludeSharedGroupsWhereSubItemsAreWithinRange { get; set; } = true;
         public bool HideOffscreenCharacters { get; set; } = true;
         public int MaxItemCount { get; set; } = 100;
         
@@ -73,6 +73,18 @@ public partial class LayoutWindow
             config.LayoutConfig.DrawChildren = drawChildren;
             config.Save();
         }
+        
+        var includeSharedGroupsWhereSubItemsAreVisible = config.LayoutConfig.IncludeSharedGroupsWhereSubItemsAreWithinRange;
+        if (ImGui.Checkbox("Include Shared Groups Where Sub Items Are Visible", ref includeSharedGroupsWhereSubItemsAreVisible))
+        {
+            config.LayoutConfig.IncludeSharedGroupsWhereSubItemsAreWithinRange = includeSharedGroupsWhereSubItemsAreVisible;
+            config.Save();
+        }
+        
+        ImGui.SameLine();
+        UiUtil.HintCircle("If enabled, shared groups will be included in the layout if any of their sub items are visible.\n" +
+                          "This may mean that complex shared groups will be included in the layout, even if only a small subset of the items are within the cutoff distance.\n" +
+                          "If disabled, shared groups will only be included if the shared group origin is within the cutoff distance.");
         
         var traceToParent = config.LayoutConfig.TraceToParent;
         if (drawChildren && ImGui.Checkbox("Trace to Parent", ref traceToParent))
