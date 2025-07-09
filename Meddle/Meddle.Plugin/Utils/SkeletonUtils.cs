@@ -3,6 +3,7 @@ using Meddle.Plugin.Models.Skeletons;
 using Meddle.Utils;
 using Microsoft.Extensions.Logging;
 using SharpGLTF.Scenes;
+using SharpGLTF.Transforms;
 
 namespace Meddle.Plugin.Utils;
 
@@ -97,7 +98,7 @@ public static class SkeletonUtils
             {
                 foreach (var bone in map.List)
                 {
-                    ApplyPose(rootTransform, bone, partialSkeletons, poseMode, 0);
+                    ApplyPose(rootTransform, bone, partialSkeletons, poseMode, 0, null, out _);
                 }
             }
         }
@@ -109,8 +110,11 @@ public static class SkeletonUtils
         BoneNodeBuilder bone, 
         IReadOnlyList<ParsedPartialSkeleton> partialSkeletons, 
         PoseMode poseMode, 
-        float time)
+        float time,
+        AffineTransform? prevTransform,
+        out AffineTransform? outTransform)
     {
+        outTransform = null;
         var partial = partialSkeletons[bone.PartialSkeletonIndex];
         if (partial.Poses.Count == 0)
         {
@@ -166,6 +170,12 @@ public static class SkeletonUtils
             case (PoseMode.Local or PoseMode.LocalScaleOnly) when bone.Parent is BoneNodeBuilder:
             {
                 var boneTransform = pose.Pose[bone.BoneIndex].AffineTransform;
+                outTransform = boneTransform;
+                if (!IsDifferent(boneTransform, prevTransform))
+                {
+                    outTransform = boneTransform;
+                    break; // skip if transform remains unchanged
+                }
                 bone.UseScale().UseTrackBuilder("pose").WithPoint(time, boneTransform.Scale);
                 if (poseMode != PoseMode.LocalScaleOnly)
                 {
@@ -178,6 +188,11 @@ public static class SkeletonUtils
             {
                 var boneTransform = pose.Pose[bone.BoneIndex].AffineTransform;
                 var scale = boneTransform.Scale * rootTransform.Scale;
+                outTransform = new AffineTransform(scale, boneTransform.Rotation, boneTransform.Translation);
+                if (!IsDifferent(new AffineTransform(scale, boneTransform.Rotation, boneTransform.Translation), prevTransform))
+                {
+                    break; // skip if transform remains unchanged
+                }
 
                 bone.UseScale().UseTrackBuilder("pose").WithPoint(time, scale);
                 if (poseMode != PoseMode.LocalScaleOnly)
@@ -194,6 +209,16 @@ public static class SkeletonUtils
             }
             default:
                 throw new InvalidOperationException("Pose mode not supported: " + poseMode);
+        }
+        return;
+        
+        bool IsDifferent(AffineTransform? transform, AffineTransform? prev)
+        {
+            if (transform == null || prev == null)
+                return true;
+
+            // check if the transform is different from the previous one
+            return !transform.Equals(prev);
         }
     }
     
@@ -244,6 +269,7 @@ public static class SkeletonUtils
         foreach (var (attachId, timeline) in attachTimelines)
         {
             var firstAttach = timeline.First().Attach;
+            var prevTransforms = new Dictionary<string, AffineTransform>();
             if (!attachDict.TryGetValue(attachId, out var attachBoneMap))
             {
                 attachBoneMap = new AttachGrouping([], null, timeline);
@@ -267,15 +293,20 @@ public static class SkeletonUtils
 
                 foreach (var attachBone in boneMap)
                 {
-                    var bone = attachBoneMap.Bones.FirstOrDefault(
-                        x => x.BoneName.Equals(attachBone.BoneName, StringComparison.OrdinalIgnoreCase));
+                    var bone = attachBoneMap.Bones.FirstOrDefault(x => x.BoneName.Equals(attachBone.BoneName, StringComparison.OrdinalIgnoreCase));
                     if (bone == null)
                     {
                         attachBoneMap.Bones.Add(attachBone);
                         bone = attachBone;
                     }
+                    
+                    var prevTransform = prevTransforms.GetValueOrDefault(bone.BoneName);
 
-                    ApplyPose(frame.Attach.Skeleton.Transform, bone, frame.Attach.Skeleton.PartialSkeletons, PoseMode.Local, frameTime);
+                    ApplyPose(frame.Attach.Skeleton.Transform, bone, frame.Attach.Skeleton.PartialSkeletons, PoseMode.Local, frameTime, prevTransform, out var transform);
+                    if (transform != null)
+                    {
+                        prevTransforms[bone.BoneName] = transform.Value;
+                    }
                 }
 
                 var firstTranslation = firstAttach.Transform.Translation;

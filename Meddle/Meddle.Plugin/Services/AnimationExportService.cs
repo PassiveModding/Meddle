@@ -27,7 +27,6 @@ public class AnimationExportService : IDisposable, IService
     public void ExportAnimation(
         List<(DateTime, AttachSet[])> frames,
         bool includePositionalData,
-        bool relativePositionalData,
         string path,
         CancellationToken token = default)
     {
@@ -46,7 +45,7 @@ public class AnimationExportService : IDisposable, IService
                 var rootNode = new NodeBuilder(id);
                 rootNode.AddNode(root);
 
-                if (includePositionalData && !relativePositionalData)
+                if (includePositionalData)
                 {
                     var startPos = timeline.First().Attach.Transform.Translation;
                     foreach (var frameTime in timeline)

@@ -25,7 +25,6 @@ public class AnimationTab : ITab
     private readonly ILogger<AnimationTab> logger;
     private bool captureAnimation;
     private bool includePositionalData;
-    private bool relativePositionalData;
     private int intervalMs = 100;
     public MenuType MenuType => MenuType.Default;
     private readonly FileDialogManager fileDialog = new()
@@ -60,6 +59,11 @@ public class AnimationTab : ITab
 
         commonUi.DrawMultiCharacterSelect(ref SelectedCharacters);
         
+        if (ImGui.InputInt("Interval (ms)", ref intervalMs, 10, 100))
+        {
+            if (intervalMs < 50) intervalMs = 50;
+            if (intervalMs > 1000) intervalMs = 1000;
+        }
 
         switch (captureAnimation)
         {
@@ -73,32 +77,16 @@ public class AnimationTab : ITab
                 break;
         }
         
-        if (ImGui.InputInt("Interval (ms)", ref intervalMs, 10, 100))
-        {
-            if (intervalMs < 50) intervalMs = 50;
-            if (intervalMs > 1000) intervalMs = 1000;
-        }
-        
-        if (ImGui.Checkbox("Relative Position", ref relativePositionalData))
-        {
-            if (relativePositionalData)
-            {
-                logger.LogInformation("Relative positional data enabled");
-            }
-            else
-            {
-                logger.LogInformation("Relative positional data disabled");
-            }
-        }
-        
+                
+        ImGui.SameLine();
         if (ImGui.Button("Clear"))
         {
             frames.Clear();
         }
 
+        ImGui.SameLine();
         var frameCount = frames.Count;
         ImGui.Text($"Frames: {frameCount}");
-        
         
         if (ImGui.Button("Export"))
         {
@@ -106,12 +94,13 @@ public class AnimationTab : ITab
             fileDialog.SaveFolderDialog("Save Animation", folderName, (result, path) =>
             {
                 if (!result) return;
-                animationExportService.ExportAnimation(frames, includePositionalData, relativePositionalData, path);
+                animationExportService.ExportAnimation(frames, includePositionalData, path);
             }, config.ExportDirectory); 
         }
 
         ImGui.SameLine();
         ImGui.Checkbox("Include Positional Data", ref includePositionalData);
+        
         ImGui.Separator();
 
         foreach (var selectedCharacter in SelectedCharacters)
