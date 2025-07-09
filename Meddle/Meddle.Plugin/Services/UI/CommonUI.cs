@@ -26,6 +26,47 @@ public class CommonUi : IDisposable, IService
         this.config = config;
     }
 
+    public unsafe void DrawMultiCharacterSelect(ref List<ICharacter> selectedCharacters)
+    {
+        ICharacter[] objects;
+        if (clientState.LocalPlayer != null)
+        {
+            objects = objectTable.OfType<ICharacter>()
+                                 .Where(obj => obj.IsValid() && obj.IsValidCharacterBase())
+                                 .OrderBy(c => clientState.GetDistanceToLocalPlayer(c).LengthSquared())
+                                 .ToArray();
+        }
+        else
+        {
+            // login/char creator produces "invalid" characters but are still usable I guess
+            objects = objectTable.OfType<ICharacter>()
+                                 .Where(obj => obj.IsValidHuman())
+                                 .OrderBy(c => clientState.GetDistanceToLocalPlayer(c).LengthSquared())
+                                 .ToArray();
+        }
+
+        ImGui.Text("Select Characters");
+        using var combo = ImRaii.Combo("##MultiCharacter", $"{selectedCharacters.Count} Selected");
+        if (combo)
+        {
+            foreach (var character in objects)
+            {
+                var displayText = GetCharacterDisplayText(character);
+                if (ImGui.Selectable(displayText, selectedCharacters.Contains(character)))
+                {
+                    if (selectedCharacters.Contains(character))
+                    {
+                        selectedCharacters.Remove(character);
+                    }
+                    else
+                    {
+                        selectedCharacters.Add(character);
+                    }
+                }
+            }
+        }
+    }
+
     public unsafe void DrawCharacterSelect(ref ICharacter? selectedCharacter)
     {
         ICharacter[] objects;

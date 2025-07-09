@@ -1,5 +1,6 @@
 ﻿using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface.ImGuiFileDialog;
+using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
@@ -24,7 +25,8 @@ public class AnimationTab : ITab
     private readonly ILogger<AnimationTab> logger;
     private bool captureAnimation;
     private bool includePositionalData;
-    private ICharacter? selectedCharacter;
+    private bool relativePositionalData;
+    private int intervalMs = 100;
     public MenuType MenuType => MenuType.Default;
     private readonly FileDialogManager fileDialog = new()
     {
@@ -48,14 +50,16 @@ public class AnimationTab : ITab
     public string Name => "Animation";
     public int Order => (int) WindowOrder.Animation;
 
+    private List<ICharacter> SelectedCharacters = [];
+    
     public void Draw()
     {
         // Warning text:
         ImGui.TextWrapped(
             "NOTE: Animation exports are experimental, held weapons, mounts and other attached objects may not work as expected.");
 
-        commonUi.DrawCharacterSelect(ref selectedCharacter);
-        if (selectedCharacter == null) return;
+        commonUi.DrawMultiCharacterSelect(ref SelectedCharacters);
+        
 
         switch (captureAnimation)
         {
@@ -69,13 +73,29 @@ public class AnimationTab : ITab
                 break;
         }
         
-        ImGui.SameLine();
+        if (ImGui.InputInt("Interval (ms)", ref intervalMs, 10, 100))
+        {
+            if (intervalMs < 50) intervalMs = 50;
+            if (intervalMs > 1000) intervalMs = 1000;
+        }
+        
+        if (ImGui.Checkbox("Relative Position", ref relativePositionalData))
+        {
+            if (relativePositionalData)
+            {
+                logger.LogInformation("Relative positional data enabled");
+            }
+            else
+            {
+                logger.LogInformation("Relative positional data disabled");
+            }
+        }
+        
         if (ImGui.Button("Clear"))
         {
             frames.Clear();
         }
 
-        ImGui.SameLine();
         var frameCount = frames.Count;
         ImGui.Text($"Frames: {frameCount}");
         
@@ -86,7 +106,7 @@ public class AnimationTab : ITab
             fileDialog.SaveFolderDialog("Save Animation", folderName, (result, path) =>
             {
                 if (!result) return;
-                animationExportService.ExportAnimation(frames, includePositionalData, path);
+                animationExportService.ExportAnimation(frames, includePositionalData, relativePositionalData, path);
             }, config.ExportDirectory); 
         }
 
@@ -94,7 +114,11 @@ public class AnimationTab : ITab
         ImGui.Checkbox("Include Positional Data", ref includePositionalData);
         ImGui.Separator();
 
-        DrawSelectedCharacter();
+        foreach (var selectedCharacter in SelectedCharacters)
+        {
+            using var dropdown = ImRaii.TreeNode(selectedCharacter.Name.ToString());
+            DrawSelectedCharacter(selectedCharacter);
+        }
         
         fileDialog.Draw();
     }
@@ -112,56 +136,61 @@ public class AnimationTab : ITab
     private unsafe void Capture()
     {
         if (!captureAnimation) return;
-        if (selectedCharacter == null) return;
 
-        if (frames.Count > 0 && DateTime.UtcNow - frames[^1].Time < TimeSpan.FromMilliseconds(100))
+        if (frames.Count > 0 && DateTime.UtcNow - frames[^1].Time < TimeSpan.FromMilliseconds(intervalMs))
         {
             return;
         }
 
-        var charPtr = (Character*)selectedCharacter.Address;
-        if (charPtr == null)
-        {
-            logger.LogWarning("Character is null");
-            captureAnimation = false;
-            return;
-        }
-
-        var root = (CharacterBase*)charPtr->GameObject.DrawObject;
-        if (root == null)
-        {
-            logger.LogWarning("CharacterBase is null");
-            captureAnimation = false;
-            return;
-        }
-
+        Pointer<Character>[] charPtrs = SelectedCharacters.Where(x => x.IsValidCharacterBase())
+            .Select<ICharacter, Pointer<Character>>(x => (Character*)x.Address)
+            .Where(x => x != null)
+            .ToArray();
         var attachCollection = new List<AttachSet>();
-        string rootName = $"{(nint)root:X8}";
-        var attach = root->Attach;
-        if (attach.ExecuteType == 3)
+        foreach (var charPtr in charPtrs)
         {
-            var owner = attach.OwnerCharacter;
-            var rootAttach = StructExtensions.GetParsedAttach(root);
-            attachCollection.Add(new AttachSet(rootName, "Actor", rootAttach, StructExtensions.GetParsedSkeleton(root), GetTransform(root), $"{(nint)owner:X8}"));
-            attachCollection.Add(new AttachSet($"{(nint)owner:X8}", "Owner", StructExtensions.GetParsedAttach(owner), StructExtensions.GetParsedSkeleton(owner), GetTransform(owner), null));
-        }
-        else
-        {
-            rootName = $"{(nint)root:X8}";
-            attachCollection.Add(new AttachSet(rootName, "Actor", StructExtensions.GetParsedAttach(root), StructExtensions.GetParsedSkeleton(root), GetTransform(root), null));
-        }
-
-        foreach (var characterAttach in GetAttachData(charPtr, rootName))
-        {
-            // skip ie. mount may be the owner of the character already so we don't want to duplicate
-            if (attachCollection.Any(a => a.Id == characterAttach.Id))
+            // var charPtr = (Character*)selectedCharacter.Address;
+            if (charPtr == null || charPtr.Value == null)
             {
-                continue;
+                logger.LogWarning("Character is null");
+                return;
             }
 
-            attachCollection.Add(characterAttach);
-        }
+            var root = (CharacterBase*)charPtr.Value->GameObject.DrawObject;
+            if (root == null)
+            {
+                logger.LogWarning("CharacterBase is null");
+                return;
+            }
 
+            string rootName = $"{(nint)root:X8}";
+            var attach = root->Attach;
+            string actorName = charPtr.Value->NameString;
+            if (attach.ExecuteType == 3)
+            {
+                var owner = attach.OwnerCharacter;
+                var rootAttach = StructExtensions.GetParsedAttach(root);
+                attachCollection.Add(new AttachSet(rootName, $"Actor_{actorName}", rootAttach, StructExtensions.GetParsedSkeleton(root), GetTransform(root), $"{(nint)owner:X8}"));
+                attachCollection.Add(new AttachSet($"{(nint)owner:X8}", $"Owner_{actorName}", StructExtensions.GetParsedAttach(owner), StructExtensions.GetParsedSkeleton(owner), GetTransform(owner), null));
+            }
+            else
+            {
+                rootName = $"{(nint)root:X8}";
+                attachCollection.Add(new AttachSet(rootName, $"Actor_{actorName}", StructExtensions.GetParsedAttach(root), StructExtensions.GetParsedSkeleton(root), GetTransform(root), null));
+            }
+
+            foreach (var characterAttach in GetAttachData(charPtr, rootName, actorName))
+            {
+                // skip ie. mount may be the owner of the character already so we don't want to duplicate
+                if (attachCollection.Any(a => a.Id == characterAttach.Id))
+                {
+                    continue;
+                }
+
+                attachCollection.Add(characterAttach);
+            }
+        }
+        
         frames.Add((DateTime.UtcNow, attachCollection.ToArray()));
     }
 
@@ -176,7 +205,7 @@ public class AnimationTab : ITab
         return new AffineTransform(scale, rotation, position);
     }
 
-    private static unsafe AttachSet[] GetAttachData(Character* charPtr, string ownerId)
+    private static unsafe AttachSet[] GetAttachData(Character* charPtr, string ownerId, string actorName)
     {
         var attachments = new List<AttachSet>();
         var ornament = charPtr->OrnamentData.OrnamentObject;
@@ -190,7 +219,7 @@ public class AnimationTab : ITab
         {
             var ornamentBase = (CharacterBase*)ornament->DrawObject;
             var ornamentAttach = StructExtensions.GetParsedAttach(ornamentBase);
-            attachments.Add(new AttachSet($"{(nint)ornamentBase:X8}", "Ornament", ornamentAttach, StructExtensions.GetParsedSkeleton(ornamentBase),GetTransform(ornamentBase), ownerId));
+            attachments.Add(new AttachSet($"{(nint)ornamentBase:X8}", $"Ornament_{actorName}", ornamentAttach, StructExtensions.GetParsedSkeleton(ornamentBase),GetTransform(ornamentBase), ownerId));
         }
 
         if (companion != null && companion->DrawObject != null &&
@@ -198,7 +227,7 @@ public class AnimationTab : ITab
         {
             var companionBase = (CharacterBase*)companion->DrawObject;
             var companionAttach = StructExtensions.GetParsedAttach(companionBase);
-            attachments.Add(new AttachSet($"{(nint)companionBase:X8}", "Companion", companionAttach, StructExtensions.GetParsedSkeleton(companionBase), GetTransform(companionBase), ownerId));
+            attachments.Add(new AttachSet($"{(nint)companionBase:X8}", $"Companion_{actorName}", companionAttach, StructExtensions.GetParsedSkeleton(companionBase), GetTransform(companionBase), ownerId));
         }
 
         if (mount != null && mount->DrawObject != null &&
@@ -206,7 +235,7 @@ public class AnimationTab : ITab
         {
             var mountBase = (CharacterBase*)mount->DrawObject;
             var mountAttach = StructExtensions.GetParsedAttach(mountBase);
-            attachments.Add(new AttachSet($"{(nint)mountBase:X8}", "Mount", mountAttach, StructExtensions.GetParsedSkeleton(mountBase), GetTransform(mountBase), ownerId));
+            attachments.Add(new AttachSet($"{(nint)mountBase:X8}", $"Mount_{actorName}", mountAttach, StructExtensions.GetParsedSkeleton(mountBase), GetTransform(mountBase), ownerId));
         }
 
 
@@ -217,14 +246,14 @@ public class AnimationTab : ITab
             {
                 var weaponBase = (CharacterBase*)weapon.DrawObject;
                 var weaponAttach = StructExtensions.GetParsedAttach(weaponBase);                    
-                attachments.Add(new AttachSet($"{(nint)weaponBase:X8}", $"Weapon{i}", weaponAttach, StructExtensions.GetParsedSkeleton(weaponBase), GetTransform(weaponBase), ownerId));
+                attachments.Add(new AttachSet($"{(nint)weaponBase:X8}", $"Weapon{i}_{actorName}", weaponAttach, StructExtensions.GetParsedSkeleton(weaponBase), GetTransform(weaponBase), ownerId));
             }
         }
 
         return attachments.ToArray();
     }
 
-    private unsafe void DrawSelectedCharacter()
+    private unsafe void DrawSelectedCharacter(ICharacter? selectedCharacter = null)
     {
         if (selectedCharacter == null) return;
         var charPtr = (Character*)selectedCharacter.Address;
