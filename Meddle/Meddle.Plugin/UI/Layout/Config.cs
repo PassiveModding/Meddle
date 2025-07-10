@@ -16,7 +16,6 @@ public partial class LayoutWindow
                                                        ParsedInstanceType.Light |
                                                        ParsedInstanceType.SharedGroup |
                                                        ParsedInstanceType.Camera |
-                                                       ParsedInstanceType.Decal |
                                                        ParsedInstanceType.EnvLighting;
 
     public class LayoutConfig
