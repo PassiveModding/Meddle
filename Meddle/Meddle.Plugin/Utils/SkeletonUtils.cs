@@ -18,15 +18,14 @@ public static class SkeletonUtils
     }
     
     public static (List<BoneNodeBuilder> List, BoneNodeBuilder Root)[] GetBoneMaps(
-        Transform rootTransform,
-        IReadOnlyList<ParsedPartialSkeleton> partialSkeletons, PoseMode poseMode)
+        ParsedSkeleton skeleton, PoseMode poseMode)
     {
         List<BoneNodeBuilder> boneMap = new();
         List<BoneNodeBuilder> rootList = new();
 
-        for (var partialIdx = 0; partialIdx < partialSkeletons.Count; partialIdx++)
+        for (var partialIdx = 0; partialIdx < skeleton.PartialSkeletons.Count; partialIdx++)
         {
-            var partial = partialSkeletons[partialIdx];
+            var partial = skeleton.PartialSkeletons[partialIdx];
             var hkSkeleton = partial.HkSkeleton;
             if (hkSkeleton == null)
                 continue;
@@ -65,7 +64,9 @@ public static class SkeletonUtils
 
                 var parentIdx = hkSkeleton.BoneParents[i];
                 if (parentIdx != -1)
+                {
                     skeleBones[parentIdx].AddNode(bone);
+                }
                 else
                 {
                     rootList.Add(bone);
@@ -98,133 +99,37 @@ public static class SkeletonUtils
             {
                 foreach (var bone in map.List)
                 {
-                    ApplyPose(rootTransform, bone, partialSkeletons, poseMode, 0, null, out _);
+                    ApplyPose(bone, skeleton, poseMode, 0);
                 }
             }
         }
 
         return boneMaps;
     }
+    
 
-    private static void ApplyPose(Transform rootTransform,
-        BoneNodeBuilder bone, 
-        IReadOnlyList<ParsedPartialSkeleton> partialSkeletons, 
-        PoseMode poseMode, 
-        float time,
-        AffineTransform? prevTransform,
-        out AffineTransform? outTransform)
+    private static void ApplyPose(BoneNodeBuilder bone, 
+                                  ParsedSkeleton skeleton, 
+                                  PoseMode poseMode, 
+                                  float time)
     {
-        outTransform = null;
-        var partial = partialSkeletons[bone.PartialSkeletonIndex];
-        if (partial.Poses.Count == 0)
+        if (poseMode == PoseMode.None)
         {
-            Plugin.Logger?.LogWarning("No poses found for {BoneName}", bone.BoneName);
+            return; // no pose applied
+        }
+        
+        var boneTransform = GetBoneTransform(skeleton, bone);
+        if (boneTransform == null)
+        {
             return;
         }
-        var pose = partial.Poses[0];
-
-        switch (poseMode)
-        {
-            // NOTE: PoseMode.Model does not work in many scenarios and is not recommended
-            // case PoseMode.Model when bone.Parent is BoneNodeBuilder parent:
-            // {
-            //     var boneMatrix = pose.HkModelSpaceMatrices[bone.BoneIndex];
-            //     if (partialSkeletons[parent.PartialSkeletonIndex].Poses.Count == 0)
-            //     {
-            //         Plugin.Logger?.LogWarning("Parent pose not found for {BoneName} parent {ParentName}", bone.BoneName, parent.BoneName);
-            //         return;
-            //     }
-            //
-            //     var parentMatrix = partialSkeletons[parent.PartialSkeletonIndex].Poses[0].HkModelSpaceMatrices[parent.BoneIndex];
-            //     var boneAffine = new AffineTransform(boneMatrix);
-            //     var parentAffine = new AffineTransform(parentMatrix);
-            //     if (!AffineTransform.TryInvert(parentAffine, out var invParentAffine))
-            //     {
-            //         Plugin.Logger?.LogWarning("Failed to invert parent affine for {BoneName} parent {ParentName}", bone.BoneName, parent.BoneName);
-            //         return;
-            //     }
-            //     
-            //     var affine = boneAffine * invParentAffine;
-            //     if (!affine.TryDecompose(out var scale, out var rotation, out var translation))
-            //     {
-            //         Plugin.Logger?.LogWarning("Failed to decompose affine for {BoneName} parent {ParentName}", bone.BoneName, parent.BoneName);
-            //         return;
-            //     }
-            //
-            //     bone.UseScale().UseTrackBuilder("pose").WithPoint(time, scale);
-            //     bone.UseRotation().UseTrackBuilder("pose").WithPoint(time, rotation);
-            //     bone.UseTranslation().UseTrackBuilder("pose").WithPoint(time, translation);
-            //     break;
-            // }
-            // case PoseMode.Model:
-            // {
-            //     var boneMatrix = pose.HkModelSpaceMatrices[bone.BoneIndex];
-            //     var boneAffine = new AffineTransform(boneMatrix).GetDecomposed();
-            //     var scale = boneAffine.Scale * rootTransform.Scale;
-            //     
-            //     bone.UseScale().UseTrackBuilder("pose").WithPoint(time, scale);
-            //     bone.UseRotation().UseTrackBuilder("pose").WithPoint(time, boneAffine.Rotation);
-            //     bone.UseTranslation().UseTrackBuilder("pose").WithPoint(time, boneAffine.Translation);
-            //     break;
-            // }
-            case (PoseMode.Local or PoseMode.LocalScaleOnly) when bone.Parent is BoneNodeBuilder:
-            {
-                var boneTransform = pose.Pose[bone.BoneIndex].AffineTransform;
-                outTransform = boneTransform;
-                if (!IsDifferent(boneTransform, prevTransform))
-                {
-                    outTransform = boneTransform;
-                    break; // skip if transform remains unchanged
-                }
-                bone.UseScale().UseTrackBuilder("pose").WithPoint(time, boneTransform.Scale);
-                if (poseMode != PoseMode.LocalScaleOnly)
-                {
-                    bone.UseRotation().UseTrackBuilder("pose").WithPoint(time, boneTransform.Rotation);
-                    bone.UseTranslation().UseTrackBuilder("pose").WithPoint(time, boneTransform.Translation);
-                }
-                break;
-            }
-            case (PoseMode.Local or PoseMode.LocalScaleOnly):
-            {
-                var boneTransform = pose.Pose[bone.BoneIndex].AffineTransform;
-                var scale = boneTransform.Scale * rootTransform.Scale;
-                outTransform = new AffineTransform(scale, boneTransform.Rotation, boneTransform.Translation);
-                if (!IsDifferent(new AffineTransform(scale, boneTransform.Rotation, boneTransform.Translation), prevTransform))
-                {
-                    break; // skip if transform remains unchanged
-                }
-
-                bone.UseScale().UseTrackBuilder("pose").WithPoint(time, scale);
-                if (poseMode != PoseMode.LocalScaleOnly)
-                {
-                    bone.UseRotation().UseTrackBuilder("pose").WithPoint(time, boneTransform.Rotation);
-                    bone.UseTranslation().UseTrackBuilder("pose").WithPoint(time, boneTransform.Translation);
-                }
-                break;
-            }
-            case PoseMode.None:
-            {
-                // do nothing, no pose applied
-                break;
-            }
-            default:
-                throw new InvalidOperationException("Pose mode not supported: " + poseMode);
-        }
-        return;
         
-        bool IsDifferent(AffineTransform? transform, AffineTransform? prev)
-        {
-            if (transform == null || prev == null)
-                return true;
-
-            // check if the transform is different from the previous one
-            return !transform.Equals(prev);
-        }
+        AddBoneKeyframe(bone, poseMode, time, boneTransform.Value);
     }
     
     public static List<BoneNodeBuilder> GetBoneMap(ParsedSkeleton skeleton, PoseMode poseMode, out BoneNodeBuilder? root)
     {
-        var maps = GetBoneMaps(skeleton.Transform, skeleton.PartialSkeletons, poseMode);
+        var maps = GetBoneMaps(skeleton, poseMode);
         if (maps.Length == 0)
         {
             throw new InvalidOperationException("No roots were found");
@@ -253,79 +158,140 @@ public static class SkeletonUtils
         {
             foreach (var attach in frame.Attaches)
             {
-                if (!attachTimelines.TryGetValue($"{attach.Id}_{attach.Name}", out var timeline))
+                var timelineName = $"{attach.Id}_{attach.Name}";
+                if (!attachTimelines.TryGetValue(timelineName, out var timeline))
                 {
-                    timeline = new List<(DateTime Time, AttachSet Attach)>();
-                    attachTimelines.Add($"{attach.Id}_{attach.Name}", timeline);
+                    timeline = [];
+                    attachTimelines.Add(timelineName, timeline);
                 }
 
                 timeline.Add((frame.Time, attach));
             }
         }
 
-        var allTimes = frames.Select(x => x.Time).ToArray();
-
         var startTime = frames.Min(x => x.Time);
         foreach (var (attachId, timeline) in attachTimelines)
         {
-            var firstAttach = timeline.First().Attach;
-            var prevTransforms = new Dictionary<string, AffineTransform>();
-            if (!attachDict.TryGetValue(attachId, out var attachBoneMap))
-            {
-                attachBoneMap = new AttachGrouping([], null, timeline);
-                attachDict.Add(attachId, attachBoneMap);
-            }
-
-            foreach (var time in allTimes)
-            {
-                var frame = timeline.FirstOrDefault(x => x.Time == time);
-                var frameTime = TotalSeconds(time, startTime);
-                if (frame == default) continue;
-
-                var boneMap = GetBoneMap(frame.Attach.Skeleton, PoseMode.None, out var attachRoot);
-                if (attachRoot == null)
-                    continue;
-
-                if (attachBoneMap.Root == null)
-                {
-                    attachBoneMap = attachBoneMap with { Root = attachRoot };
-                }
-
-                foreach (var attachBone in boneMap)
-                {
-                    var bone = attachBoneMap.Bones.FirstOrDefault(x => x.BoneName.Equals(attachBone.BoneName, StringComparison.OrdinalIgnoreCase));
-                    if (bone == null)
-                    {
-                        attachBoneMap.Bones.Add(attachBone);
-                        bone = attachBone;
-                    }
-                    
-                    var prevTransform = prevTransforms.GetValueOrDefault(bone.BoneName);
-
-                    ApplyPose(frame.Attach.Skeleton.Transform, bone, frame.Attach.Skeleton.PartialSkeletons, PoseMode.Local, frameTime, prevTransform, out var transform);
-                    if (transform != null)
-                    {
-                        prevTransforms[bone.BoneName] = transform.Value;
-                    }
-                }
-
-                var firstTranslation = firstAttach.Transform.Translation;
-                attachRoot.UseScale().UseTrackBuilder("root").WithPoint(frameTime, frame.Attach.Transform.Scale);
-                attachRoot.UseRotation().UseTrackBuilder("root").WithPoint(frameTime, frame.Attach.Transform.Rotation);
-                attachRoot.UseTranslation().UseTrackBuilder("root").WithPoint(frameTime, frame.Attach.Transform.Translation - firstTranslation);
-                attachDict[attachId] = attachBoneMap;
-            }
+            ProcessTimeline(attachId, timeline, attachDict, startTime);
         }
 
         return attachDict;
     }
+
+    private static void ProcessTimeline(string attachId, List<(DateTime Time, AttachSet Attach)> timeline, 
+                                        Dictionary<string, AttachGrouping> attachDict,
+                                        DateTime startTime)
+    {
+        if (!attachDict.TryGetValue(attachId, out var attachBoneMap))
+        {
+            attachBoneMap = new AttachGrouping([], null, timeline);
+            attachDict.Add(attachId, attachBoneMap);
+        }
+
+        if (timeline.Count == 0)
+        {
+            return; // no frames for this attach
+        }
+
+        var firstAttach = timeline.First().Attach;
+        foreach (var time in timeline.Select(x => x.Time).Distinct())
+        {
+            var frame = timeline.FirstOrDefault(x => x.Time == time);
+            var nextFrame = timeline.FirstOrDefault(x => x.Time > time);
+            var frameTime = TotalSeconds(frame.Time, startTime);
+
+            // get the bone map for this attach
+            var boneMap = GetBoneMap(frame.Attach.Skeleton, PoseMode.None, out var attachRoot);
+            if (attachRoot == null)
+                continue;
+
+            if (attachBoneMap.Root == null)
+            {
+                attachBoneMap = attachBoneMap with { Root = attachRoot };
+            }
+
+            // for each bone in the bone map
+            foreach (var attachBone in boneMap)
+            {
+                // get the transform for this bone
+                var currentTransform = GetBoneTransform(frame.Attach.Skeleton, attachBone);
+                if (currentTransform == null)
+                    continue; // no transform for this bone
+
+                // find the bone in the attachBoneMap
+                var bone = attachBoneMap.Bones.FirstOrDefault(x => x.BoneName.Equals(attachBone.BoneName, StringComparison.OrdinalIgnoreCase));
+                bool firstOccurrence = false;
+                if (bone == null)
+                {
+                    attachBoneMap.Bones.Add(attachBone);
+                    bone = attachBone;
+                    firstOccurrence = true;
+                }
+
+                var nextFrameBone = nextFrame != default ? GetBoneTransform(nextFrame.Attach.Skeleton, attachBone) : null;
+                if (!firstOccurrence && nextFrameBone != null && IsSameTransform(nextFrameBone.Value, currentTransform.Value))
+                {
+                    continue; // skip applying if next frame is identical
+                }
+                
+                // apply the pose to the bone
+                ApplyPose(bone, frame.Attach.Skeleton, PoseMode.Local, frameTime);
+            }
+            
+            ApplyRootTransform(attachRoot, frame.Attach.Transform, firstAttach.Transform, frameTime);
+            attachDict[attachId] = attachBoneMap;
+        }
+    }
+    
+    private static void AddBoneKeyframe(BoneNodeBuilder bone, PoseMode poseMode, float time, AffineTransform transform)
+    {
+        bone.UseScale().UseTrackBuilder("pose").WithPoint(time, transform.Scale);
+        
+        if (poseMode != PoseMode.LocalScaleOnly)
+        {
+            bone.UseRotation().UseTrackBuilder("pose").WithPoint(time, transform.Rotation);
+            bone.UseTranslation().UseTrackBuilder("pose").WithPoint(time, transform.Translation);
+        }
+    }
+
+    private static bool IsSameTransform(AffineTransform? current, AffineTransform? previous)
+    {
+        if (current == null || previous == null)
+            return false;
+
+        return current.Equals(previous);
+    }
+    
+    private static void ApplyRootTransform(BoneNodeBuilder attachRoot, AffineTransform currentTransform, AffineTransform firstTransform, float frameTime)
+    {
+        var relativeTranslation = currentTransform.Translation - firstTransform.Translation;
+        
+        attachRoot.UseScale().UseTrackBuilder("root").WithPoint(frameTime, currentTransform.Scale);
+        attachRoot.UseRotation().UseTrackBuilder("root").WithPoint(frameTime, currentTransform.Rotation);
+        attachRoot.UseTranslation().UseTrackBuilder("root").WithPoint(frameTime, relativeTranslation);
+    }
+    
+    private static AffineTransform? GetBoneTransform(ParsedSkeleton skeleton, BoneNodeBuilder bone)
+    {
+        var partial = skeleton.PartialSkeletons[bone.PartialSkeletonIndex];
+        if (partial.Poses.Count == 0) return null;
+            
+        var pose = partial.Poses[0];
+        var boneTransform = pose.Pose[bone.BoneIndex].AffineTransform;
+        
+        // Apply root scaling if this is a root bone
+        if (bone.Parent is not BoneNodeBuilder)
+        {
+            var scale = boneTransform.Scale * skeleton.Transform.Scale;
+            return new AffineTransform(scale, boneTransform.Rotation, boneTransform.Translation);
+        }
+        
+        return boneTransform;
+    }
     
     public static float TotalSeconds(DateTime time, DateTime startTime)
     {
-        var value = (float)(time - startTime).TotalSeconds;
-        // handle really close to 0 values
-        if (value < 0.0001f)
-            return 0;
-        return value;
+        var seconds = (float)(time - startTime).TotalSeconds;
+        return seconds < 0.0001f ? 0f : seconds;
     }
 }

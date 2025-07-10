@@ -3,6 +3,7 @@ using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
+using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.Interop;
 using ImGuiNET;
@@ -49,7 +50,7 @@ public class AnimationTab : ITab
     public string Name => "Animation";
     public int Order => (int) WindowOrder.Animation;
 
-    private List<ICharacter> SelectedCharacters = [];
+    private List<ICharacter> selectedCharacters = [];
     
     public void Draw()
     {
@@ -57,7 +58,7 @@ public class AnimationTab : ITab
         ImGui.TextWrapped(
             "NOTE: Animation exports are experimental, held weapons, mounts and other attached objects may not work as expected.");
 
-        commonUi.DrawMultiCharacterSelect(ref SelectedCharacters);
+        commonUi.DrawMultiCharacterSelect(ref selectedCharacters);
         
         if (ImGui.InputInt("Interval (ms)", ref intervalMs, 10, 100))
         {
@@ -103,10 +104,13 @@ public class AnimationTab : ITab
         
         ImGui.Separator();
 
-        foreach (var selectedCharacter in SelectedCharacters)
+        foreach (var selectedCharacter in selectedCharacters)
         {
-            using var dropdown = ImRaii.TreeNode(selectedCharacter.Name.ToString());
-            DrawSelectedCharacter(selectedCharacter);
+            if (ImGui.CollapsingHeader(UiUtil.GetCharacterName(selectedCharacter.Name.TextValue, config, (ObjectKind)selectedCharacter.ObjectKind), ImGuiTreeNodeFlags.DefaultOpen))
+            {
+                using var id = ImRaii.PushId(selectedCharacter.Address);
+                DrawSelectedCharacter(selectedCharacter);
+            }
         }
         
         fileDialog.Draw();
@@ -131,21 +135,19 @@ public class AnimationTab : ITab
             return;
         }
 
-        Pointer<Character>[] charPtrs = SelectedCharacters.Where(x => x.IsValidCharacterBase())
-            .Select<ICharacter, Pointer<Character>>(x => (Character*)x.Address)
-            .Where(x => x != null)
-            .ToArray();
+        var characters = commonUi.GetCharacters()
+                                 .Where(x => selectedCharacters.Any(s => s.Address == x.Address)).ToArray();
         var attachCollection = new List<AttachSet>();
-        foreach (var charPtr in charPtrs)
+        foreach (var character in characters)
         {
-            // var charPtr = (Character*)selectedCharacter.Address;
-            if (charPtr == null || charPtr.Value == null)
+            var charPtr = (Character*)character.Address;
+            if (charPtr == null)
             {
                 logger.LogWarning("Character is null");
                 return;
             }
 
-            var root = (CharacterBase*)charPtr.Value->GameObject.DrawObject;
+            var root = (CharacterBase*)charPtr->GameObject.DrawObject;
             if (root == null)
             {
                 logger.LogWarning("CharacterBase is null");
@@ -154,7 +156,7 @@ public class AnimationTab : ITab
 
             string rootName = $"{(nint)root:X8}";
             var attach = root->Attach;
-            string actorName = charPtr.Value->NameString;
+            string actorName = charPtr->NameString;
             if (attach.ExecuteType == 3)
             {
                 var owner = attach.OwnerCharacter;

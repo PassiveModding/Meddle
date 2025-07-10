@@ -1,6 +1,7 @@
 ﻿using System.Numerics;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface;
+using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
@@ -25,25 +26,29 @@ public class CommonUi : IDisposable, IService
         this.objectTable = objectTable;
         this.config = config;
     }
-
-    public unsafe void DrawMultiCharacterSelect(ref List<ICharacter> selectedCharacters)
+    
+    public unsafe ICharacter[] GetCharacters()
     {
-        ICharacter[] objects;
         if (clientState.LocalPlayer != null)
         {
-            objects = objectTable.OfType<ICharacter>()
-                                 .Where(obj => obj.IsValid() && obj.IsValidCharacterBase())
-                                 .OrderBy(c => clientState.GetDistanceToLocalPlayer(c).LengthSquared())
-                                 .ToArray();
+            return objectTable.OfType<ICharacter>()
+                              .Where(obj => obj.IsValid() && obj.IsValidCharacterBase())
+                              .OrderBy(c => clientState.GetDistanceToLocalPlayer(c).LengthSquared())
+                              .ToArray();
         }
         else
         {
             // login/char creator produces "invalid" characters but are still usable I guess
-            objects = objectTable.OfType<ICharacter>()
-                                 .Where(obj => obj.IsValidHuman())
-                                 .OrderBy(c => clientState.GetDistanceToLocalPlayer(c).LengthSquared())
-                                 .ToArray();
+            return objectTable.OfType<ICharacter>()
+                              .Where(obj => obj.IsValidHuman())
+                              .OrderBy(c => clientState.GetDistanceToLocalPlayer(c).LengthSquared())
+                              .ToArray();
         }
+    }
+
+    public unsafe void DrawMultiCharacterSelect(ref List<ICharacter> selectedCharacters)
+    {
+        ICharacter[] objects = GetCharacters();
 
         ImGui.Text("Select Characters");
         using var combo = ImRaii.Combo("##MultiCharacter", $"{selectedCharacters.Count} Selected");
@@ -52,9 +57,11 @@ public class CommonUi : IDisposable, IService
             foreach (var character in objects)
             {
                 var displayText = GetCharacterDisplayText(character);
-                if (ImGui.Selectable(displayText, selectedCharacters.Contains(character)))
+                var contains = selectedCharacters.Contains(character);
+                using var col = ImRaii.PushColor(ImGuiCol.Text, contains ? ImGuiColors.DalamudYellow : ImGuiColors.DalamudWhite);
+                if (ImGui.Selectable(displayText, contains, ImGuiSelectableFlags.DontClosePopups))
                 {
-                    if (selectedCharacters.Contains(character))
+                    if (contains)
                     {
                         selectedCharacters.Remove(character);
                     }
@@ -65,26 +72,20 @@ public class CommonUi : IDisposable, IService
                 }
             }
         }
+        
+        // remove entries which cannot be found in the object table
+        foreach (var character in selectedCharacters.ToArray())
+        {
+            if (!objectTable.Contains(character) || !character.IsValid() || !character.IsValidCharacterBase())
+            {
+                selectedCharacters.Remove(character);
+            }
+        }
     }
 
     public unsafe void DrawCharacterSelect(ref ICharacter? selectedCharacter)
     {
-        ICharacter[] objects;
-        if (clientState.LocalPlayer != null)
-        {
-            objects = objectTable.OfType<ICharacter>()
-                                 .Where(obj => obj.IsValid() && obj.IsValidCharacterBase())
-                                 .OrderBy(c => clientState.GetDistanceToLocalPlayer(c).LengthSquared())
-                                 .ToArray();
-        }
-        else
-        {
-            // login/char creator produces "invalid" characters but are still usable I guess
-            objects = objectTable.OfType<ICharacter>()
-                                 .Where(obj => obj.IsValidHuman())
-                                 .OrderBy(c => clientState.GetDistanceToLocalPlayer(c).LengthSquared())
-                                 .ToArray();
-        }
+        ICharacter[] objects = GetCharacters();
 
         selectedCharacter ??= objects.FirstOrDefault() ?? clientState.LocalPlayer;
 
