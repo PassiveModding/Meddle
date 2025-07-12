@@ -210,31 +210,31 @@ public class InstanceComposer
             return ComposeCameraInstance(parsedCameraInstance, scene);
         }
 
-        if (parsedInstance is ParsedDecalInstance parsedDecalInstance)
+        if (parsedInstance is ParsedWorldDecalInstance parsedDecalInstance)
         {
             return ComposeDecalInstance(parsedDecalInstance, scene);
         }
         
         return null;
     }
-    private NodeBuilder? ComposeDecalInstance(ParsedDecalInstance parsedDecalInstance, SceneBuilder scene)
+    private NodeBuilder? ComposeDecalInstance(ParsedWorldDecalInstance parsedWorldDecalInstance, SceneBuilder scene)
     {
-        var root = new NodeBuilder($"{parsedDecalInstance.Type}_{parsedDecalInstance.Id}");
-        var cachedDiffuse = Path.GetRelativePath(cacheDir, composerCache.CacheTexture(parsedDecalInstance.Diffuse.FullPath));
-        var cachedNormal = Path.GetRelativePath(cacheDir, composerCache.CacheTexture(parsedDecalInstance.Normal.FullPath));
-        var cachedSpecular = Path.GetRelativePath(cacheDir, composerCache.CacheTexture(parsedDecalInstance.Specular.FullPath));
+        var root = new NodeBuilder($"{parsedWorldDecalInstance.Type}_{parsedWorldDecalInstance.Id}");
+        var cachedDiffuse = Path.GetRelativePath(cacheDir, composerCache.CacheTexture(parsedWorldDecalInstance.Diffuse.FullPath));
+        var cachedNormal = Path.GetRelativePath(cacheDir, composerCache.CacheTexture(parsedWorldDecalInstance.Normal.FullPath));
+        var cachedSpecular = Path.GetRelativePath(cacheDir, composerCache.CacheTexture(parsedWorldDecalInstance.Specular.FullPath));
         var decalData = new
         {
-            DiffusePath = parsedDecalInstance.Diffuse.FullPath,
+            DiffusePath = parsedWorldDecalInstance.Diffuse.FullPath,
             DiffuseCachePath = cachedDiffuse,
-            NormalPath = parsedDecalInstance.Normal.FullPath,
+            NormalPath = parsedWorldDecalInstance.Normal.FullPath,
             NormalCachePath = cachedNormal,
-            SpecularPath = parsedDecalInstance.Specular.FullPath,
+            SpecularPath = parsedWorldDecalInstance.Specular.FullPath,
             SpecularCachePath = cachedSpecular,
         };
         
         root.Extras = JsonNode.Parse(JsonSerializer.Serialize(decalData, MaterialComposer.JsonOptions));
-        root.SetLocalTransform(parsedDecalInstance.Transform.AffineTransform, true);
+        root.SetLocalTransform(parsedWorldDecalInstance.Transform.AffineTransform, true);
         scene.AddNode(root);
         
         return root;

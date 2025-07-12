@@ -61,7 +61,7 @@ public interface ISearchableInstance
 [JsonDerivedType(typeof(ParsedTerrainInstance))]
 [JsonDerivedType(typeof(ParsedCameraInstance))]
 [JsonDerivedType(typeof(ParsedEnvLightInstance))]
-[JsonDerivedType(typeof(ParsedDecalInstance))]
+[JsonDerivedType(typeof(ParsedWorldDecalInstance))]
 public abstract class ParsedInstance
 {
     public ParsedInstance(nint id, ParsedInstanceType type, Transform transform)
@@ -95,13 +95,13 @@ public class ParsedUnsupportedInstance : ParsedInstance, ISearchableInstance
     }
 }
 
-public class ParsedDecalInstance : ParsedInstance, ISearchableInstance
+public class ParsedWorldDecalInstance : ParsedInstance, ISearchableInstance
 {
     public HandleString Diffuse { get; }
     public HandleString Normal { get; }
     public HandleString Specular { get; }
     
-    public ParsedDecalInstance(nint id, Transform transform, string diffuse, string normal, string specular) : base(id, ParsedInstanceType.Decal, transform)
+    public ParsedWorldDecalInstance(nint id, Transform transform, string diffuse, string normal, string specular) : base(id, ParsedInstanceType.Decal, transform)
     {
         Diffuse = diffuse;
         Normal = normal;

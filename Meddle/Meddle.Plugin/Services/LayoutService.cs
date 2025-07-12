@@ -254,7 +254,7 @@ public class LayoutService : IService, IDisposable
         var normalTex = decalData->TexNormal;
         var specularTex = decalData->TexSpecular;
 
-        return new ParsedDecalInstance((nint)decalLayout,
+        return new ParsedWorldDecalInstance((nint)decalLayout,
                                        new Transform(*decalLayout->GetTransformImpl()),
                                        diffuseTex->FileName.ParseString(),
                                        normalTex->FileName.ParseString(),

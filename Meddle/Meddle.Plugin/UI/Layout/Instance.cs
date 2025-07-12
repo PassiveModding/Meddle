@@ -109,7 +109,7 @@ public partial class LayoutWindow
                 ImGui.ColorButton("Ambient", new Vector4(lt.Ambient.Rgb, lt.Ambient.HdrIntensity));
             }
 
-            if (instance is ParsedDecalInstance decal)
+            if (instance is ParsedWorldDecalInstance decal)
             {
                 UiUtil.Text($"Diffuse Path: {decal.Diffuse.FullPath}", decal.Diffuse.FullPath);
                 UiUtil.Text($"Normal Path: {decal.Normal.FullPath}", decal.Normal.FullPath);
