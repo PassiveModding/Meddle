@@ -222,6 +222,7 @@ public static class UiUtil
         //ImGui.ColorEdit4("Skin Fresnel Value", ref customize.SkinFresnelValue0);
         
         ImGui.ColorEdit3("Option Color", ref customize.OptionColor);
+        ImGui.ColorEdit4("DecalColor", ref customize.DecalColor);
     }
 
     public static void DrawCustomizeData(CustomizeData customize)
@@ -230,6 +231,7 @@ public static class UiUtil
         ImGui.Checkbox("Highlights", ref customize.Highlights);
         UiUtil.Text($"Decal Path: {customize.DecalPath ?? "None"}", customize.DecalPath);
         UiUtil.Text($"Legacy Body Decal Path: {customize.LegacyBodyDecalPath ?? "None"}", customize.LegacyBodyDecalPath);
+        ImGui.Text($"FacePaintReversed: {customize.FacePaintReversed}");
     }
 
     public static void DrawColorTable(IColorTableSet table)

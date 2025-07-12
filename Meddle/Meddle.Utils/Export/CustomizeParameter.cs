@@ -8,6 +8,7 @@ public class CustomizeData
     public bool Highlights;
     public string? DecalPath;
     public string? LegacyBodyDecalPath;
+    public bool FacePaintReversed;
 }
 
 public class CustomizeParameter {
@@ -55,4 +56,6 @@ public class CustomizeParameter {
     /// XYZ : Race feature color, as squared RGB.
     /// </summary>
     public Vector3 OptionColor;
+
+    public Vector4 DecalColor;
 }

@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Numerics;
+using System.Runtime.InteropServices;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
@@ -38,6 +39,7 @@ public class ResolverService : IService
         ParseService parseService, 
         IFramework framework,
         StainHooks stainHooks,
+        IDataManager dataManager,
         PbdHooks pbdHooks)
     {
         this.logger = logger;
@@ -373,6 +375,7 @@ public class ResolverService : IService
         
         var human = (Human*)characterBase;
         var customizeCBuf = human->CustomizeParameterCBuffer->TryGetBuffer<CustomizeParameter>()[0];
+        var decalCol = human->DecalColorCBuffer->TryGetBuffer<Vector4>()[0];
         var customizeParams = new Meddle.Utils.Export.CustomizeParameter
         {
             SkinColor = customizeCBuf.SkinColor,
@@ -386,14 +389,16 @@ public class ResolverService : IService
             FacePaintUvOffset = customizeCBuf.FacePaintUVOffset,
             LeftColor = customizeCBuf.LeftColor,
             RightColor = customizeCBuf.RightColor,
-            OptionColor = customizeCBuf.OptionColor
+            OptionColor = customizeCBuf.OptionColor,
+            DecalColor = decalCol
         };
         var customizeData = new CustomizeData
         {
             LipStick = human->Customize.Lipstick,
             Highlights = human->Customize.Highlights,
             DecalPath = GetTexturePath(human->Decal),
-            LegacyBodyDecalPath = GetTexturePath(human->LegacyBodyDecal)
+            LegacyBodyDecalPath = GetTexturePath(human->LegacyBodyDecal),
+            FacePaintReversed = human->Customize.FacePaintReversed,
         };
         var genderRace = (GenderRace)human->RaceSexId;
         
