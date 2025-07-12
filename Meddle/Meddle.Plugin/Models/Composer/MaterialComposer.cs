@@ -32,6 +32,9 @@ public class MaterialComposer
         
         SetProperty("Highlights", customizeData.Highlights);
         SetProperty("LipStick", customizeData.LipStick);
+        SetProperty("FacePaintReversed", customizeData.FacePaintReversed);
+        SetProperty("LegacyBodyDecalPath", customizeData.LegacyBodyDecalPath ?? "");
+        SetProperty("DecalPath", customizeData.DecalPath ?? "");
         SetProperty("CustomizeData", JsonNode.Parse(JsonSerializer.Serialize(customizeData, JsonOptions))!);
         
         SetProperty("LeftIrisColor", customizeParameter.LeftColor.AsFloatArray());
@@ -44,6 +47,7 @@ public class MaterialComposer
         SetProperty("FacePaintUVMultiplier", customizeParameter.FacePaintUvMultiplier);
         SetProperty("MuscleTone", customizeParameter.MuscleTone);
         SetProperty("OptionColor", customizeParameter.OptionColor.AsFloatArray());
+        SetProperty("DecalColor", customizeParameter.DecalColor.AsFloatArray());
         SetProperty("CustomizeParameters", JsonNode.Parse(JsonSerializer.Serialize(customizeParameter, JsonOptions))!);
     }
 

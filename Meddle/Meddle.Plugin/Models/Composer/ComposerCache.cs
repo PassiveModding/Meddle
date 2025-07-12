@@ -289,6 +289,21 @@ public class ComposerCache
             // remove full path prefix, get only dir below cache dir.
             material.SetProperty($"{texture.Key}_PngCachePath", Path.GetRelativePath(cacheDir, cachePath));
         }
+        
+        if (characterInfo != null)
+        {
+            if (characterInfo.CustomizeData.DecalPath != null)
+            {
+                var decalCachePath = CacheTexture(characterInfo.CustomizeData.DecalPath);
+                material.SetProperty("Decal_PngCachePath", Path.GetRelativePath(cacheDir, decalCachePath));
+            }
+            
+            if (characterInfo.CustomizeData.LegacyBodyDecalPath != null)
+            {
+                var legacyDecalCachePath = CacheTexture(characterInfo.CustomizeData.LegacyBodyDecalPath);
+                material.SetProperty("LegacyBodyDecal_PngCachePath", Path.GetRelativePath(cacheDir, legacyDecalCachePath));
+            }
+        }
 
         materialBuilder.Extras = material.ExtrasNode;
         return materialBuilder;

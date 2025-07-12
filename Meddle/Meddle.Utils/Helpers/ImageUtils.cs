@@ -13,11 +13,11 @@ public static class ImageUtils
     {
         return format switch
         {
-            TexFile.TextureFormat.BC1 => (width + 3) / 4 * 8,
-            TexFile.TextureFormat.BC2 => (width + 3) / 4 * 16,
-            TexFile.TextureFormat.BC3 => (width + 3) / 4 * 16,
-            TexFile.TextureFormat.BC5 => width * 2,
-            TexFile.TextureFormat.BC7 => (width + 3) / 4 * 16,
+            TexFile.TextureFormat.BC1_UNORM => (width + 3) / 4 * 8,
+            TexFile.TextureFormat.BC2_UNORM => (width + 3) / 4 * 16,
+            TexFile.TextureFormat.BC3_UNORM => (width + 3) / 4 * 16,
+            TexFile.TextureFormat.BC5_UNORM => width * 2,
+            TexFile.TextureFormat.BC7_UNORM => (width + 3) / 4 * 16,
             _ => width * 4,
         };
     }
