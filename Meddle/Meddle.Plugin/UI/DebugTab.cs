@@ -4,6 +4,7 @@ using System.Text.Json;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.ImGuiNotification;
+using Dalamud.Interface.Textures;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
@@ -68,6 +69,8 @@ public class DebugTab : ITab
                     LayoutService layoutService,
                     ParseService parseService, PbdHooks pbdHooks,
                     INotificationManager notificationManager,
+                    TextureCache textureCache,
+                    ITextureProvider textureProvider,
                     SqPack sqPack,
                     StainHooks stainHooks,
                     IDataManager dataManager,
@@ -82,6 +85,8 @@ public class DebugTab : ITab
         this.parseService = parseService;
         this.pbdHooks = pbdHooks;
         this.notificationManager = notificationManager;
+        this.textureCache = textureCache;
+        this.textureProvider = textureProvider;
         this.sqPack = sqPack;
         this.stainHooks = stainHooks;
         this.dataManager = dataManager;
@@ -404,7 +409,19 @@ public class DebugTab : ITab
                                             }, config.ExportDirectory);
             }
         }
+
+        if (exportPathInput.EndsWith(".tex"))
+        {
+            // draw the texture
+            var availableWidth = ImGui.GetContentRegionAvail().X;
+
+            var tex = textureProvider.GetFromGame(exportPathInput);
+            var wrap = tex.GetWrapOrEmpty();
+            ImGui.Image(wrap.ImGuiHandle, new Vector2(availableWidth, availableWidth * wrap.Height / wrap.Width));
+        }
     }
+    private readonly TextureCache textureCache;
+    private readonly ITextureProvider textureProvider;
     
     private void DrawStainInfo()
     {
@@ -415,7 +432,6 @@ public class DebugTab : ITab
             var color = StainHooks.GetStainColor(stain);
             ImGui.SameLine();
             ImGui.ColorButton("Color", color);
-            
         }
     }
 
