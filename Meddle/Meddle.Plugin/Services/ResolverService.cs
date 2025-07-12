@@ -3,6 +3,7 @@ using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
+using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using FFXIVClientStructs.Interop;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Layout;
@@ -362,7 +363,7 @@ public class ResolverService : IService
         return new ParsedCharacterInfo(models.ToArray(), skeleton, StructExtensions.GetParsedAttach(characterBase), customizeData, customizeParams, genderRace);
     }
 
-    public unsafe (Meddle.Utils.Export.CustomizeParameter, CustomizeData, GenderRace) ParseHuman(CharacterBase* characterBase)
+    public unsafe (Meddle.Utils.Export.CustomizeParameter customizeParameter, CustomizeData customizeData, GenderRace genderRace) ParseHuman(CharacterBase* characterBase)
     {
         var modelType = characterBase->GetModelType();
         if (modelType != CharacterBase.ModelType.Human)
@@ -390,10 +391,24 @@ public class ResolverService : IService
         var customizeData = new CustomizeData
         {
             LipStick = human->Customize.Lipstick,
-            Highlights = human->Customize.Highlights
+            Highlights = human->Customize.Highlights,
+            DecalPath = GetTexturePath(human->Decal),
+            LegacyBodyDecalPath = GetTexturePath(human->LegacyBodyDecal)
         };
         var genderRace = (GenderRace)human->RaceSexId;
         
         return (customizeParams, customizeData, genderRace);
+    }
+
+    private unsafe string? GetTexturePath(Pointer<TextureResourceHandle> ptr)
+    {
+        if (ptr == null || ptr.Value == null)
+        {
+            return null;
+        }
+
+        var textureResourceHandle = ptr.Value;
+        var texturePath = textureResourceHandle->FileName.ParseString();
+        return texturePath;
     }
 }

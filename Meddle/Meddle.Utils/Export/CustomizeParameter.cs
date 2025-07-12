@@ -6,6 +6,8 @@ public class CustomizeData
 {
     public bool LipStick;
     public bool Highlights;
+    public string? DecalPath;
+    public string? LegacyBodyDecalPath;
 }
 
 public class CustomizeParameter {

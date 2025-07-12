@@ -1060,29 +1060,11 @@ public unsafe class LiveCharacterTab : ITab
         }
         else
         {
-            var customizeCBuf = cBase->CustomizeParameterCBuffer->TryGetBuffer<Models.Structs.CustomizeParameter>()[0];
-            customizeParams = new CustomizeParameter
-            {
-                SkinColor = customizeCBuf.SkinColor,
-                MuscleTone = customizeCBuf.MuscleTone,
-                SkinFresnelValue0 = customizeCBuf.SkinFresnelValue0,
-                LipColor = customizeCBuf.LipColor,
-                MainColor = customizeCBuf.MainColor,
-                FacePaintUvMultiplier = customizeCBuf.FacePaintUVMultiplier,
-                HairFresnelValue0 = customizeCBuf.HairFresnelValue0,
-                MeshColor = customizeCBuf.MeshColor,
-                FacePaintUvOffset = customizeCBuf.FacePaintUVOffset,
-                LeftColor = customizeCBuf.LeftColor,
-                RightColor = customizeCBuf.RightColor,
-                OptionColor = customizeCBuf.OptionColor
-            };
-            customizeData = new CustomizeData
-            {
-                LipStick = cBase->Customize.Lipstick,
-                Highlights = cBase->Customize.Highlights
-            };
-            genderRace = (GenderRace)cBase->RaceSexId;
-            humanCustomizeData[cBase] = (customizeData, customizeParams);
+            var humanData = resolverService.ParseHuman((CSCharacterBase*)cBase);
+            customizeData = humanData.customizeData;
+            customizeParams = humanData.customizeParameter;
+            genderRace = humanData.genderRace;
+            humanCustomizeData[cBase] = (humanData.customizeData, humanData.customizeParameter);
         }
 
         if (ImGui.CollapsingHeader("Customize Options"))
