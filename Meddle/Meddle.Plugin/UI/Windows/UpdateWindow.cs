@@ -33,6 +33,22 @@ public class UpdateWindow : Window
                 new TextUpdateLine(" + Improve naming of Animation exports to include track names."),
                 new TextUpdateLine(" + Added a warning message in options if the export directory is set to the temp directory.")
             ]
+        },
+        new()
+        {
+            Tag = "Decal Support and MultiTrack recording",
+            Date = "2025-07-22",
+            Changes =
+            [
+                new TextUpdateLine(" + Added support for exporting decal textures for characters"),
+                new TextUpdateLine(" + Added support for parsing and exporting world decal info"),
+                new TextUpdateLine(" + Added support for multi-actor recording in the animation tab"),
+                new TextUpdateLine(" + Added option to specify keyframe interval for animation recording"),
+                new TextUpdateLine(" + Improved animation export file names to include actor names"),
+                new TextUpdateLine(" + Added support for exporting environment ambient, sun and moon lighting from layout tab"),
+                new TextUpdateLine(" + Added option to include shared groups when only a subset of the group is within range in the layout tab"),
+                new TextUpdateLine(" + Added support for many missed texture types which are less frequently used but still supported by the game"),
+            ]
         }
     ];
     
