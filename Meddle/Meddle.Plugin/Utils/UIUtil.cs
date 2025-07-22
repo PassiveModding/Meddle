@@ -223,6 +223,8 @@ public static class UiUtil
         
         ImGui.ColorEdit3("Option Color", ref customize.OptionColor);
         ImGui.ColorEdit4("DecalColor", ref customize.DecalColor);
+        ImGui.DragFloat("Face Paint UV Offset", ref customize.FacePaintUvOffset, 0.01f, -100f, 100f);
+        ImGui.DragFloat("Face Paint UV Multiplier", ref customize.FacePaintUvMultiplier, 0.01f, -100f, 100f);
     }
 
     public static void DrawCustomizeData(CustomizeData customize)

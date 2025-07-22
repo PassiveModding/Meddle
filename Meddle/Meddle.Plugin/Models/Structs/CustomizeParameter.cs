@@ -1,5 +1,5 @@
-﻿using System.Runtime.InteropServices;
-using FFXIVClientStructs.FFXIV.Common.Math;
+﻿using System.Numerics;
+using System.Runtime.InteropServices;
 
 namespace Meddle.Plugin.Models.Structs;
 
@@ -37,6 +37,9 @@ public struct CustomizeParameter
     [FieldOffset(0x40)]
     public Vector3 HairFresnelValue0;
 
+    [FieldOffset(0x4C)]
+    public float Unk0;
+
     /// <summary>
     ///     XYZ : Hair highlight color, as squared RGB.
     /// </summary>
@@ -65,4 +68,7 @@ public struct CustomizeParameter
     /// </summary>
     [FieldOffset(0x80)]
     public Vector3 OptionColor;
+    
+    [FieldOffset(0x8C)]
+    public float Unk1;
 }

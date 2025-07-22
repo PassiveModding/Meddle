@@ -6,6 +6,7 @@ using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.Interop;
 using ImGuiNET;
 using Meddle.Plugin.Models;
+using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Services.UI;
 using Meddle.Plugin.Utils;
 using Meddle.Utils.Constants;
@@ -27,7 +28,8 @@ public class MaterialParameterTab : ITab
     private readonly SqPack pack;
 
     private readonly Dictionary<string, ShpkFile> shpkCache = new();
-    private Vector4[]? customizeParameters;
+    //private Vector4[]? customizeParameters;
+    private CustomizeParameter? customizeParameters;
     private Pointer<Human> lastHuman;
 
     // only show values that are different from the shader default
@@ -83,96 +85,140 @@ public class MaterialParameterTab : ITab
                 if (lastHuman != null && lastHuman.Value != null)
                 {
                     // restore defaults
-                    var lastParams = lastHuman.Value->CustomizeParameterCBuffer->TryGetBuffer<Vector4>();
-                    customizeParameters.CopyTo(lastParams);
+                    var lastParams = lastHuman.Value->CustomizeParameterCBuffer->TryGetBuffer<CustomizeParameter>();
+                    if (customizeParameters != null)
+                    {
+                        lastParams[0] = customizeParameters.Value;
+                    }
                 }
 
                 customizeParameters = null;
                 lastHuman = human;
             }
             
-            var parameter = human->CustomizeParameterCBuffer->TryGetBuffer<Vector4>();
+            var parameters = human->CustomizeParameterCBuffer->TryGetBuffer<CustomizeParameter>();
+            var parameter = parameters[0];
             if (customizeParameters == null)
             {
-                var initParams = new Vector4[parameter.Length];
-                for (var i = 0; i < parameter.Length; i++)
-                {
-                    var p = parameter[i];
-                    initParams[i] = new Vector4(p.X, p.Y, p.Z, p.W);
-                }
-
-                customizeParameters = initParams;
+                // copy
+                SaveParameters(parameter);
             }
 
             if (ImGui.Button("Restore all defaults"))
             {
-                customizeParameters.CopyTo(parameter);
+                // restore defaults from customizeParameters
+                if (customizeParameters != null)
+                {
+                    parameter = customizeParameters.Value;
+                }
             }
 
-            ImGui.ColorEdit4("Skin Color", ref parameter[0]);
+            ImGui.ColorEdit3("Skin Color", ref parameter.SkinColor);
             ImGui.SameLine();
-            // restore
             if (ImGui.Button("Restore##SkinColor"))
             {
-                parameter[0] = customizeParameters[0];
+                parameter.SkinColor = customizeParameters!.Value.SkinColor;
             }
-
-            ImGui.ColorEdit4("Skin Fresnel", ref parameter[1]);
+            
+            ImGui.DragFloat("Muscle Tone", ref parameter.MuscleTone, 0.01f, 0.0f, 1.0f, "%.2f");
+            ImGui.SameLine();
+            if (ImGui.Button("Restore##SkinColor"))
+            {
+                parameter.MuscleTone = customizeParameters!.Value.MuscleTone;
+            }
+            
+            ImGui.ColorEdit4("Skin Fresnel", ref parameter.SkinFresnelValue0);
             ImGui.SameLine();
             if (ImGui.Button("Restore##SkinFresnel"))
             {
-                parameter[1] = customizeParameters[1];
+                parameter.SkinFresnelValue0 = customizeParameters!.Value.SkinFresnelValue0;
             }
 
-            ImGui.ColorEdit4("Lip Color", ref parameter[2]);
+            ImGui.ColorEdit4("Lip Color", ref parameter.LipColor);
             ImGui.SameLine();
             if (ImGui.Button("Restore##LipColor"))
             {
-                parameter[2] = customizeParameters[2];
+                parameter.LipColor = customizeParameters!.Value.LipColor;
             }
 
-            ImGui.ColorEdit4("Main Color", ref parameter[3]);
+            ImGui.ColorEdit3("Main Color", ref parameter.MainColor);
             ImGui.SameLine();
             if (ImGui.Button("Restore##MainColor"))
             {
-                parameter[3] = customizeParameters[3];
+                parameter.MainColor = customizeParameters!.Value.MainColor;
+            }
+            
+            ImGui.DragFloat("Face Paint UV Multiplier", ref parameter.FacePaintUVMultiplier, 0.01f, -10.0f, 10.0f, "%.2f");
+            ImGui.SameLine();
+            if (ImGui.Button("Restore##FacePaintUVMultiplier"))
+            {
+                parameter.FacePaintUVMultiplier = customizeParameters!.Value.FacePaintUVMultiplier;
             }
 
-            ImGui.ColorEdit4("Hair Fresnel", ref parameter[4]);
+            ImGui.ColorEdit3("Hair Fresnel", ref parameter.HairFresnelValue0);
             ImGui.SameLine();
             if (ImGui.Button("Restore##HairFresnel"))
             {
-                parameter[4] = customizeParameters[4];
+                parameter.HairFresnelValue0 = customizeParameters!.Value.HairFresnelValue0;
+            }
+            
+            ImGui.DragFloat("Unk0", ref parameter.Unk0, 0.01f, -10.0f, 10.0f, "%.2f");
+            ImGui.SameLine();
+            if (ImGui.Button("Restore##Unk0"))
+            {
+                parameter.Unk0 = customizeParameters!.Value.Unk0;
             }
 
-            ImGui.ColorEdit4("Mesh Color", ref parameter[5]);
+            ImGui.ColorEdit3("Mesh Color", ref parameter.MeshColor);
             ImGui.SameLine();
             if (ImGui.Button("Restore##MeshColor"))
             {
-                parameter[5] = customizeParameters[5];
+                parameter.MeshColor = customizeParameters!.Value.MeshColor;
+            }
+            
+            ImGui.DragFloat("Face Paint UV Offset", ref parameter.FacePaintUVOffset, 0.01f, -10.0f, 10.0f, "%.2f");
+            ImGui.SameLine();
+            if (ImGui.Button("Restore##FacePaintUVOffset"))
+            {
+                parameter.FacePaintUVOffset = customizeParameters!.Value.FacePaintUVOffset;
             }
 
-            ImGui.ColorEdit4("Left Color", ref parameter[6]);
+            ImGui.ColorEdit4("Left Color", ref parameter.LeftColor);
             ImGui.SameLine();
             if (ImGui.Button("Restore##LeftColor"))
             {
-                parameter[6] = customizeParameters[6];
+                parameter.LeftColor = customizeParameters!.Value.LeftColor;
             }
 
-            ImGui.ColorEdit4("Right Color", ref parameter[7]);
+            ImGui.ColorEdit4("Right Color", ref parameter.RightColor);
             ImGui.SameLine();
             if (ImGui.Button("Restore##RightColor"))
             {
-                parameter[7] = customizeParameters[7];
+                parameter.RightColor = customizeParameters!.Value.RightColor;
             }
 
-            ImGui.ColorEdit4("Option Color", ref parameter[8]);
+            ImGui.ColorEdit3("Option Color", ref parameter.OptionColor);
             ImGui.SameLine();
             if (ImGui.Button("Restore##OptionColor"))
             {
-                parameter[8] = customizeParameters[8];
+                parameter.OptionColor = customizeParameters!.Value.OptionColor;
             }
+            
+            ImGui.DragFloat("Unk1", ref parameter.Unk1, 0.01f, -10.0f, 10.0f, "%.2f");
+            ImGui.SameLine();
+            if (ImGui.Button("Restore##Unk1"))
+            {
+                parameter.Unk1 = customizeParameters!.Value.Unk1;
+            }
+            
+            parameters[0] = parameter; // save back to buffer
         }
+    }
+    
+    // passing to method to copy the parameters
+    private void SaveParameters(CustomizeParameter parameter)
+    {
+        customizeParameters = parameter;
     }
 
     public unsafe void DrawCharacter(ICharacter character)
