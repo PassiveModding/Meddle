@@ -362,6 +362,7 @@ public class MdlMaterialWindow : Window
                 }
                 
                 materialKeys = keyColl.ToArray();
+                materialKeysCache[(nint)mtrlPtr.Value] = materialKeys;
             }
 
             for (int i = 0; i < shpk.MaterialKeys.Length; i++)
@@ -405,6 +406,21 @@ public class MdlMaterialWindow : Window
                     else
                     {
                         ImGui.TextColored(new Vector4(1, 0, 0, 1), "Invalid value format.");
+                    }
+                }
+                
+                ImGui.SameLine();
+                if (ImGui.Button($"Restore##{key.Id}"))
+                {
+                    var cacheValue = materialKeys.FirstOrDefault(x => x.Key == key.Id);
+                    if (cacheValue.Key != 0)
+                    {
+                        shaderValues[i] = cacheValue.Value;
+                        keyEditor[key.Id] = $"{cacheValue.Value:X8}";
+                    }
+                    else
+                    {
+                        ImGui.TextColored(new Vector4(1, 0, 0, 1), "No cached value found.");
                     }
                 }
             }
