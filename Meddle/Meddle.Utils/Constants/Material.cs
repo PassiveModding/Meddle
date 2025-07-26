@@ -54,7 +54,7 @@ public enum TextureMode : uint
     
     // BG.shpk
     BG_UNK0 = 0x669A451B, // no map1 usage
-    BG_UNK1 = 0x1DF2985C, 
+    GetMultiValues = 0x1DF2985C, 
     BG_UNK2 = 0x941820BE, // Mix both textures? 
 }
 

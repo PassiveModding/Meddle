@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using System.Text;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
@@ -10,6 +11,7 @@ using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Layer;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Terrain;
 using FFXIVClientStructs.Interop;
 using Lumina.Excel.Sheets;
+using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Utils;
@@ -18,6 +20,7 @@ using Camera = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Camera;
 using HousingFurniture = FFXIVClientStructs.FFXIV.Client.Game.HousingFurniture;
 using Object = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Object;
 using SharedGroupResourceHandle = Meddle.Plugin.Models.Structs.SharedGroupResourceHandle;
+using Terrain = Meddle.Plugin.Models.Structs.Terrain;
 using Transform = Meddle.Plugin.Models.Transform;
 
 namespace Meddle.Plugin.Services;
@@ -160,6 +163,7 @@ public class LayoutService : IService, IDisposable
         
         var terrainManager = terrainPtr.Value;
         var path = terrainManager->PathString;
+        
         return new ParsedTerrainInstance((nint)terrainManager, new Transform(Vector3.Zero, Quaternion.Identity, Vector3.One), path, SearchOrigin);
     }
 

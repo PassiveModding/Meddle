@@ -28,6 +28,17 @@ public static class Names
     }
     
     private static Dictionary<uint, ICrcPair>? Constants;
+    public static string TryResolveName(uint crc)
+    {
+        var constants = GetConstants();
+        if (constants.TryGetValue(crc, out var name))
+        {
+            return $"{name.Value} ({name.Crc:X8})";
+        }
+        
+        return $"Unknown constant ({crc:X8})";
+    }
+    
     public static Dictionary<uint, ICrcPair> GetConstants()
     {
         if (Constants == null)
@@ -384,6 +395,11 @@ public static class Names
 
     private static readonly IReadOnlyList<string> KnownSuffixes =
         [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
             "_0_0",
             "_0",
             "_1_0",

@@ -8,6 +8,7 @@ using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using FFXIVClientStructs.Interop;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Layout;
+using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Constants;
@@ -333,8 +334,64 @@ public class ResolverService : IService
         
         return characterInfo;
     }
-    
-    
+
+    public unsafe ParsedModelInfo? ParseTerrainModelFromPointer(ModelResourceHandle* handle)
+    {
+        if (handle == null || handle->ModelData == null)
+        {
+            return null;
+        }
+
+        var modelData = new ModelResourceHandleData(handle->ModelData);
+        var path = handle->ResourceHandle.FileName.ParseString();
+
+        var materials = new List<ParsedMaterialInfo>();
+        for (int i = 0; i < modelData.ModelHeader.MaterialCount; i++)
+        {
+            var material = handle->MaterialResourceHandles[i];
+            if (material == null)
+            {
+                continue;
+            }
+            
+            var materialPath = material->ResourceHandle.FileName.ParseString();
+            var pathFromModel = handle->GetMaterialFileNameBySlot((uint)i);
+            var shaderName = material->ShpkName;
+            IColorTableSet? colorTable = null;
+            // skip color table parsing for now
+            var textures = new List<ParsedTextureInfo>();
+            for (var texIdx = 0; texIdx < material->TexturesSpan.Length; texIdx++)
+            {
+                var texturePtr = material->TexturesSpan[texIdx];
+                if (texturePtr.TextureResourceHandle == null) continue;
+
+                var texturePath = texturePtr.TextureResourceHandle->FileName.ParseString();
+                if (texIdx < material->TextureCount)
+                {
+                    var texturePathFromMaterial = material->TexturePath(texIdx);
+                    var (resource, _) =
+                        DxHelper.ExportTextureResource(texturePtr.TextureResourceHandle->Texture);
+                    var textureInfo = new ParsedTextureInfo(texturePath, texturePathFromMaterial, resource);
+                    textures.Add(textureInfo);
+                }
+            }
+            
+            var materialInfo = new ParsedMaterialInfo(materialPath, pathFromModel, shaderName, colorTable, textures.ToArray(), null, null);
+            materials.Add(materialInfo);
+        }
+        
+        var model = new ParsedModelInfo(
+            path, 
+            path, 
+            null, // Deform is not available here
+            null,
+            materials.ToArray(), 
+            null,
+            null
+        );
+        
+        return model;
+    }
     
     public unsafe ParsedCharacterInfo? ParseDrawObject(DrawObject* drawObject)
     {
