@@ -51,9 +51,9 @@ public class MaterialComposer
         SetProperty("CustomizeParameters", JsonNode.Parse(JsonSerializer.Serialize(customizeParameter, JsonOptions))!);
     }
 
-    public void SetPropertiesFromInstance(ParsedInstance instance)
+    public void SetPropertiesFromInstance(IStainableInstance instance)
     {
-        if (instance is IStainableInstance {Stain: not null} stainInstance)
+        if (instance is {Stain: not null} stainInstance && stainInstance.Stain.RowId != 0)
         {
             SetProperty("StainColor", stainInstance.Stain.Color.AsFloatArray());
             SetProperty("StainId", stainInstance.Stain.RowId);

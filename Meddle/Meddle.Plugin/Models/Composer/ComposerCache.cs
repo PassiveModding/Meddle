@@ -20,6 +20,7 @@ public class ComposerCache
     private readonly ConcurrentDictionary<string, string> mtrlPathCache = new();
     private readonly ConcurrentDictionary<string, PbdFile> pbdCache = new();
     private readonly ConcurrentDictionary<string, RefCounter<MdlFile>> mdlCache = new();
+    private readonly ConcurrentDictionary<string, MaterialBuilder> mtrlBuilderCache = new();
     
     private sealed class RefCounter<T>(T obj)
     {
@@ -228,16 +229,35 @@ public class ComposerCache
 
     public MaterialBuilder ComposeMaterial(string mtrlPath, 
                                            ParsedMaterialInfo? materialInfo = null,
-                                           ParsedInstance? instance = null, 
+                                           IStainableInstance? stainInstance = null, 
                                            ParsedCharacterInfo? characterInfo = null, 
                                            IColorTableSet? colorTableSet = null)
     {
+        // bool canCacheBuilder = materialInfo == null 
+        //                        && characterInfo == null 
+        //                        && colorTableSet == null;
+        // var cacheKey = $"{mtrlPath}_{materialInfo?.Shpk ?? "default"}";
+        // if (canCacheBuilder)
+        // {
+        //     if (stainInstance != null)
+        //     {
+        //         var stainHash = stainInstance.GetStainingHash();
+        //         var stainHashStr = System.Text.Encoding.UTF8.GetString(stainHash);
+        //         cacheKey += $"_{stainHashStr}";
+        //     }
+        //     if (mtrlBuilderCache.TryGetValue(cacheKey, out var cachedBuilder))
+        //     {
+        //         Plugin.Logger?.LogDebug("Using cached material builder for {cacheKey}", cacheKey);
+        //         return cachedBuilder;
+        //     }
+        // }
+        
         var mtrlFile = GetMtrlFile(mtrlPath, out var mtrlCachePath);
         var shaderPackage = GetShaderPackage(mtrlFile.GetShaderPackageName());
         var material = new MaterialComposer(mtrlFile, mtrlPath, shaderPackage);
-        if (instance != null)
+        if (stainInstance != null)
         {
-            material.SetPropertiesFromInstance(instance);
+            material.SetPropertiesFromInstance(stainInstance);
         }
         
         if (mtrlCachePath != null)
@@ -306,6 +326,11 @@ public class ComposerCache
         }
 
         materialBuilder.Extras = material.ExtrasNode;
+
+        // if (canCacheBuilder)
+        // {
+        //     mtrlBuilderCache.TryAdd(cacheKey, materialBuilder);
+        // }
         return materialBuilder;
     }
 }

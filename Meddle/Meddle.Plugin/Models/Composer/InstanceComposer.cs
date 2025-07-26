@@ -349,7 +349,7 @@ public class InstanceComposer
         var materialBuilders = new List<MaterialBuilder>();
         foreach (var mtrlPath in materials)
         {
-            var output = composerCache.ComposeMaterial(mtrlPath, instance: bgPartsInstance);
+            var output = composerCache.ComposeMaterial(mtrlPath, stainInstance: bgPartsInstance);
             materialBuilders.Add(output);
         }
 
@@ -422,7 +422,7 @@ public class InstanceComposer
             var materialBuilders = new List<MaterialBuilder>();
             foreach (var mtrlPath in materials)
             {
-                var materialBuilder = composerCache.ComposeMaterial(mtrlPath, instance: terrainInstance);
+                var materialBuilder = composerCache.ComposeMaterial(mtrlPath);
                 materialBuilders.Add(materialBuilder);
             }
 

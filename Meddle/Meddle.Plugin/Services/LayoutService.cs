@@ -335,7 +335,17 @@ public class LayoutService : IService, IDisposable
             {
                 if (child is ParsedBgPartsInstance parsedBgPartsInstance)
                 {
-                    parsedBgPartsInstance.Stain = furnitureMatch.Stain ?? furnitureMatch.DefaultStain;
+                    if (furnitureMatch.Stain == null || furnitureMatch.Stain.Value.RowId == 0)
+                    {
+                        if (furnitureMatch.DefaultStain.RowId != 0)
+                        {
+                            parsedBgPartsInstance.Stain = furnitureMatch.DefaultStain;
+                        }
+                    }
+                    else
+                    {
+                        parsedBgPartsInstance.Stain = furnitureMatch.Stain;
+                    }
                 }
             }
             
