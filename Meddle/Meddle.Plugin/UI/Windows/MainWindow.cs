@@ -63,6 +63,14 @@ public sealed class MainWindow : MeddleWindowBase
                 {
                     FileName = Constants.MeddleToolsUrl, UseShellExecute = true
                 });
+            }            
+            
+            if (ImGui.MenuItem("Discord"))
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = Constants.DiscordUrl, UseShellExecute = true
+                });
             }
 
             if (ImGui.MenuItem("Github"))
