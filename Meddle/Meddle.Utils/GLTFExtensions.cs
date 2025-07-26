@@ -1,12 +1,14 @@
-﻿using System.Numerics;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Numerics;
 
 namespace Meddle.Utils;
 
-public static class GLTFExtensions
+[SuppressMessage("ReSharper", "CompareOfFloatsByEqualityOperator")]
+public static class GltfExtensions
 {
     // https://github.com/vpenades/SharpGLTF/blob/2073cf3cd671f8ecca9667f9a8c7f04ed865d3ac/src/Shared/_Extensions.cs#L158
-    private const float _UnitLengthThresholdVec3 = 0.00674f;
-    private const float _UnitLengthThresholdVec4 = 0.00769f;
+    private const float UnitLengthThresholdVec3 = 0.00674f;
+    private const float UnitLengthThresholdVec4 = 0.00769f;
     
     
     internal static bool _IsFinite(this float value)
@@ -33,7 +35,7 @@ public static class GLTFExtensions
     {
         if (!normal._IsFinite()) return false;
 
-        return Math.Abs(normal.Length() - 1) <= _UnitLengthThresholdVec3;
+        return Math.Abs(normal.Length() - 1) <= UnitLengthThresholdVec3;
     }
     
     internal static void ValidateNormal(this Vector3 normal, string msg)

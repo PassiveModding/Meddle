@@ -2,10 +2,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
-using ImGuiNET;
-using Meddle.Plugin.Models.Composer.Materials;
 using Meddle.Plugin.Models.Layout;
-using Meddle.Plugin.Services;
 using Meddle.Plugin.Utils;
 using Meddle.Utils.Constants;
 using Meddle.Utils.Export;
@@ -20,8 +17,6 @@ namespace Meddle.Plugin.Models.Composer;
 public class MaterialComposer
 {
     private readonly MtrlFile mtrlFile;
-    private readonly string mtrlPath;
-    private readonly ShaderPackage shaderPackage;
     private readonly Dictionary<uint, float[]> mtrlConstants = new();
     private readonly Dictionary<ShaderCategory, uint> shaderKeyDict = new();
     private readonly Dictionary<string, object> additionalProperties = new();
@@ -37,6 +32,9 @@ public class MaterialComposer
         
         SetProperty("Highlights", customizeData.Highlights);
         SetProperty("LipStick", customizeData.LipStick);
+        SetProperty("FacePaintReversed", customizeData.FacePaintReversed);
+        SetProperty("LegacyBodyDecalPath", customizeData.LegacyBodyDecalPath ?? "");
+        SetProperty("DecalPath", customizeData.DecalPath ?? "");
         SetProperty("CustomizeData", JsonNode.Parse(JsonSerializer.Serialize(customizeData, JsonOptions))!);
         
         SetProperty("LeftIrisColor", customizeParameter.LeftColor.AsFloatArray());
@@ -45,10 +43,11 @@ public class MaterialComposer
         SetProperty("SkinColor", customizeParameter.SkinColor.AsFloatArray());
         SetProperty("MeshColor", customizeParameter.MeshColor.AsFloatArray());
         SetProperty("LipColor", customizeParameter.LipColor.AsFloatArray());
-        SetProperty("FacePaintUVOffset", customizeParameter.FacePaintUVOffset);
-        SetProperty("FacePaintUVMultiplier", customizeParameter.FacePaintUVMultiplier);
+        SetProperty("FacePaintUVOffset", customizeParameter.FacePaintUvOffset);
+        SetProperty("FacePaintUVMultiplier", customizeParameter.FacePaintUvMultiplier);
         SetProperty("MuscleTone", customizeParameter.MuscleTone);
         SetProperty("OptionColor", customizeParameter.OptionColor.AsFloatArray());
+        SetProperty("DecalColor", customizeParameter.DecalColor.AsFloatArray());
         SetProperty("CustomizeParameters", JsonNode.Parse(JsonSerializer.Serialize(customizeParameter, JsonOptions))!);
     }
 
@@ -78,8 +77,6 @@ public class MaterialComposer
     public MaterialComposer(MtrlFile mtrlFile, string mtrlPath, ShaderPackage shaderPackage)
     {
         this.mtrlFile = mtrlFile;
-        this.mtrlPath = mtrlPath;
-        this.shaderPackage = shaderPackage;
         SetShaderKeys();
         SetConstants();
         SetSamplers();

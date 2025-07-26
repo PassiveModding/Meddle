@@ -3,7 +3,7 @@ using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
 using Meddle.Utils.Helpers;
 
-namespace Meddle.Plugin.Models.Composer.Textures;
+namespace Meddle.Plugin.Models.Composer;
 
 public static class ArrayTextureUtil
 {

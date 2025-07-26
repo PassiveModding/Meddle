@@ -1,27 +1,14 @@
 ﻿using System.Numerics;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using Dalamud.Interface.Textures;
 using Dalamud.Interface.Utility.Raii;
-using FFXIVClientStructs.FFXIV.Client.Game.Object;
-using FFXIVClientStructs.FFXIV.Client.Graphics;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
+using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Layer;
-using FFXIVClientStructs.Interop;
 using ImGuiNET;
-using Meddle.Plugin.Models;
-using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Layout;
-using Meddle.Plugin.Models.Structs;
-using Meddle.Plugin.Services;
 using Meddle.Plugin.Utils;
-using Meddle.Utils;
-using Meddle.Utils.Constants;
 using Meddle.Utils.Export;
-using Meddle.Utils.Files;
 using Meddle.Utils.Helpers;
-using Microsoft.Extensions.Logging;
-using Transform = FFXIVClientStructs.FFXIV.Client.LayoutEngine.Transform;
 
 namespace Meddle.Plugin.UI.Layout;
 
@@ -39,6 +26,22 @@ public partial class LayoutWindow
                      .Take(config.LayoutConfig.MaxItemCount))
         {
             DrawInstance(instance, [], additionalOptions);
+        }
+    }
+    
+    private unsafe void DrawControlsEvil(ParsedInstance instance)
+    {
+        var layoutInstance = (ILayoutInstance*)instance.Id;
+        var graphics = layoutInstance->GetGraphics();
+        if (graphics == null) return;
+        Vector3 translation = graphics->Position;
+
+        using var _ = ImRaii.PushId(instance.Id);
+        if (ImGui.DragFloat3("Position", ref translation, 0.1f))
+        {
+            // WARNING: Don't use this, it will move the collision of the object, instead just set translation on the graphics back
+            // bgPartPtr->SetTranslationImpl(&translation);
+            graphics->Position = translation;
         }
     }
     
@@ -85,6 +88,8 @@ public partial class LayoutWindow
             ImGui.Text($"Position: {instance.Transform.Translation}");
             ImGui.Text($"Rotation: {instance.Transform.Rotation}");
             ImGui.Text($"Scale: {instance.Transform.Scale}");
+            // DrawControlsEvil(instance);
+            
             if (instance is IPathInstance pathedInstance)
             {
                 UiUtil.Text($"Full Path: {pathedInstance.Path.FullPath}", pathedInstance.Path.FullPath);
@@ -102,6 +107,13 @@ public partial class LayoutWindow
                 ImGui.ColorButton("Sunlight", new Vector4(lt.SunLightColor.Rgb, lt.SunLightColor.HdrIntensity));
                 ImGui.ColorButton("Moonlight", new Vector4(lt.MoonLightColor.Rgb, lt.MoonLightColor.HdrIntensity));
                 ImGui.ColorButton("Ambient", new Vector4(lt.Ambient.Rgb, lt.Ambient.HdrIntensity));
+            }
+
+            if (instance is ParsedWorldDecalInstance decal)
+            {
+                UiUtil.Text($"Diffuse Path: {decal.Diffuse.FullPath}", decal.Diffuse.FullPath);
+                UiUtil.Text($"Normal Path: {decal.Normal.FullPath}", decal.Normal.FullPath);
+                UiUtil.Text($"Specular Path: {decal.Specular.FullPath}", decal.Specular.FullPath);
             }
 
             if (instance is ParsedCameraInstance cameraInstance)
@@ -180,7 +192,7 @@ public partial class LayoutWindow
     
         if (bgPartLayout->GraphicsObject != null)
         {
-            BgObject* drawObject = (BgObject*)bgPartLayout->GraphicsObject;
+            BgObject* drawObject = bgPartLayout->GraphicsObject;
             UiUtil.Text($"Graphics Object {(nint)drawObject:X8}", $"{(nint)drawObject:X8}");
             using var disabled = ImRaii.Disabled( mdlMaterialWindowManager.HasWindow(drawObject->ModelResourceHandle));
             if (ImGui.Button("Open Material Window"))
@@ -244,7 +256,7 @@ public partial class LayoutWindow
         }
     }
 
-    private unsafe void DrawCache(ParsedInstance instance)
+    /*private void DrawCache(ParsedInstance instance)
     {
         if (instance is not ParsedBgPartsInstance bgPartInstance) return;
         var mdlPath = bgPartInstance.Path.FullPath;
@@ -418,16 +430,16 @@ public partial class LayoutWindow
                 ImGui.Text($"Has Dye Table: {cachedMtrl.HasDyeTable}");
             });
         }
-    }
+    }*/
     
-    private void TreeNode(string name, Action action)
-    {
-        using var node = ImRaii.TreeNode(name);
-        if (node.Success)
-        {
-            action();
-        }
-    }
+    // private void TreeNode(string name, Action action)
+    // {
+    //     using var node = ImRaii.TreeNode(name);
+    //     if (node.Success)
+    //     {
+    //         action();
+    //     }
+    // }
 
     private void DrawCharacter(ParsedCharacterInstance character)
     {

@@ -214,6 +214,11 @@ public class LayoutService : IService, IDisposable
                 var light = ParsedLightInstance(instanceLayout);
                 return light;
             }
+            case InstanceType.Decal:
+            {
+                var decal = ParseDecalInstance(instanceLayout);
+                return decal;
+            }
             default:
             {
                 var primaryPath = instanceLayout->GetPrimaryPath();
@@ -231,6 +236,31 @@ public class LayoutService : IService, IDisposable
         }
     }
     
+    private unsafe ParsedInstance? ParseDecalInstance(Pointer<ILayoutInstance> decalPtr)
+    {
+        if (decalPtr == null || decalPtr.Value == null)
+            return null;
+
+        var decalLayout = decalPtr.Value;
+        if (decalLayout->Id.Type != InstanceType.Decal)
+            return null;
+
+        var typedInstance = (DecalLayoutInstance*)decalLayout;
+        if (typedInstance->DecalPtr == null || typedInstance->DecalPtr->DecalItem == null)
+            return null;
+
+        var decalData = typedInstance->DecalPtr->DecalItem;
+        var diffuseTex = decalData->TexDiffuse;
+        var normalTex = decalData->TexNormal;
+        var specularTex = decalData->TexSpecular;
+
+        return new ParsedWorldDecalInstance((nint)decalLayout,
+                                       new Transform(*decalLayout->GetTransformImpl()),
+                                       diffuseTex->FileName.ParseString(),
+                                       normalTex->FileName.ParseString(),
+                                       specularTex->FileName.ParseString());
+    }
+
     private unsafe ParsedLightInstance? ParsedLightInstance(Pointer<ILayoutInstance> lightPtr)
     {
         if (lightPtr == null || lightPtr.Value == null)
@@ -286,7 +316,7 @@ public class LayoutService : IService, IDisposable
 
 
         var primaryPath = sharedGroup->GetPrimaryPath();
-        string? path = primaryPath.HasValue ? primaryPath : throw new Exception("SharedGroup has no primary path");
+        string path = primaryPath.HasValue ? primaryPath : throw new Exception("SharedGroup has no primary path");
 
         var furnitureMatch = context.HousingItems.FirstOrDefault(item => item.LayoutInstance == sharedGroupPtr);
         if (furnitureMatch is not null)
@@ -325,7 +355,7 @@ public class LayoutService : IService, IDisposable
             return null;
 
         var primaryPath = bgPart->GetPrimaryPath();
-        string? path = primaryPath.HasValue ? primaryPath : throw new Exception("BgPart has no primary path");
+        string path = primaryPath.HasValue ? primaryPath : throw new Exception("BgPart has no primary path");
 
         return new ParsedBgPartsInstance((nint)bgPartPtr.Value, graphics->IsVisible, new Transform(*bgPart->GetTransformImpl()), path);
     }

@@ -28,7 +28,7 @@ public unsafe class SigUtil : IService, IDisposable
         this.gameInterop = gameInterop;
     }
     
-    public unsafe World* GetWorld()
+    public World* GetWorld()
     {
         var world = World.Instance();
         if (world == null)
@@ -36,7 +36,7 @@ public unsafe class SigUtil : IService, IDisposable
         return world;
     }
     
-    public unsafe GameObjectManager* GetGameObjectManager()
+    public GameObjectManager* GetGameObjectManager()
     {
         var gameObjectManager = GameObjectManager.Instance();
         if (gameObjectManager == null)
@@ -45,20 +45,20 @@ public unsafe class SigUtil : IService, IDisposable
         return gameObjectManager;
     }
     
-    public unsafe BattleChara* GetLocalPlayer()
+    public BattleChara* GetLocalPlayer()
     {
         var localPlayer = Control.GetLocalPlayer();
         return localPlayer;
     }
     
-    public unsafe Vector3 GetLocalPosition()
+    public Vector3 GetLocalPosition()
     {
         var localPlayer = GetLocalPlayer();
         if (localPlayer == null) return Vector3.Zero;
         return localPlayer->Position;
     }
     
-    public unsafe HousingManager* GetHousingManager()
+    public HousingManager* GetHousingManager()
     {
         var manager = HousingManager.Instance();
         if (manager == null)
@@ -66,7 +66,7 @@ public unsafe class SigUtil : IService, IDisposable
         return manager;
     }
     
-    public unsafe LayoutWorld* GetLayoutWorld()
+    public LayoutWorld* GetLayoutWorld()
     {
         var layoutWorld = LayoutWorld.Instance();
         if (layoutWorld == null)
@@ -74,7 +74,7 @@ public unsafe class SigUtil : IService, IDisposable
         return layoutWorld;
     }
     
-    public unsafe CameraManager* GetCameraManager()
+    public CameraManager* GetCameraManager()
     {
         var manager = CameraManager.Instance();
         if (manager == null)
@@ -82,7 +82,7 @@ public unsafe class SigUtil : IService, IDisposable
         return manager;
     }
     
-    public unsafe Camera* GetCamera()
+    public Camera* GetCamera()
     {
         var manager = CameraManager.Instance();
         if (manager == null)
@@ -92,7 +92,7 @@ public unsafe class SigUtil : IService, IDisposable
         return manager->CurrentCamera;
     }
     
-    public unsafe Device* GetDevice()
+    public Device* GetDevice()
     {
         var device = Device.Instance();
         if (device == null)
@@ -100,7 +100,7 @@ public unsafe class SigUtil : IService, IDisposable
         return device;
     }
     
-    public unsafe Control* GetControl()
+    public Control* GetControl()
     {
         var control = Control.Instance();
         if (control == null)
@@ -113,7 +113,7 @@ public unsafe class SigUtil : IService, IDisposable
         logger.LogDebug("Disposing SigUtil");
     }
     
-    public unsafe void* TryGetStaticAddressFromSig(string sig, int offset)
+    public void* TryGetStaticAddressFromSig(string sig, int offset)
     {
         if (sigScanner == null)
             throw new Exception("SigScanner not set");

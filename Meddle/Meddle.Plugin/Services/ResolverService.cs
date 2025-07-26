@@ -1,15 +1,16 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Numerics;
+using System.Runtime.InteropServices;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
+using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using FFXIVClientStructs.Interop;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Constants;
-using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
 using Meddle.Utils.Files.Structs.Material;
@@ -38,6 +39,7 @@ public class ResolverService : IService
         ParseService parseService, 
         IFramework framework,
         StainHooks stainHooks,
+        IDataManager dataManager,
         PbdHooks pbdHooks)
     {
         this.logger = logger;
@@ -266,7 +268,7 @@ public class ResolverService : IService
                 {
                     var texturePathFromMaterial = material->MaterialResourceHandle->TexturePath(texIdx);
                     var (resource, _) =
-                        DXHelper.ExportTextureResource(texturePtr.TextureResourceHandle->Texture);
+                        DxHelper.ExportTextureResource(texturePtr.TextureResourceHandle->Texture);
                     var textureInfo = new ParsedTextureInfo(texturePath, texturePathFromMaterial, resource);
                     textures.Add(textureInfo);
                 }
@@ -363,7 +365,7 @@ public class ResolverService : IService
         return new ParsedCharacterInfo(models.ToArray(), skeleton, StructExtensions.GetParsedAttach(characterBase), customizeData, customizeParams, genderRace);
     }
 
-    public unsafe (Meddle.Utils.Export.CustomizeParameter, CustomizeData, GenderRace) ParseHuman(CharacterBase* characterBase)
+    public unsafe (Meddle.Utils.Export.CustomizeParameter customizeParameter, CustomizeData customizeData, GenderRace genderRace) ParseHuman(CharacterBase* characterBase)
     {
         var modelType = characterBase->GetModelType();
         if (modelType != CharacterBase.ModelType.Human)
@@ -373,6 +375,7 @@ public class ResolverService : IService
         
         var human = (Human*)characterBase;
         var customizeCBuf = human->CustomizeParameterCBuffer->TryGetBuffer<CustomizeParameter>()[0];
+        var decalCol = human->DecalColorCBuffer->TryGetBuffer<Vector4>()[0];
         var customizeParams = new Meddle.Utils.Export.CustomizeParameter
         {
             SkinColor = customizeCBuf.SkinColor,
@@ -380,21 +383,37 @@ public class ResolverService : IService
             SkinFresnelValue0 = customizeCBuf.SkinFresnelValue0,
             LipColor = customizeCBuf.LipColor,
             MainColor = customizeCBuf.MainColor,
-            FacePaintUVMultiplier = customizeCBuf.FacePaintUVMultiplier,
+            FacePaintUvMultiplier = customizeCBuf.FacePaintUVMultiplier,
             HairFresnelValue0 = customizeCBuf.HairFresnelValue0,
             MeshColor = customizeCBuf.MeshColor,
-            FacePaintUVOffset = customizeCBuf.FacePaintUVOffset,
+            FacePaintUvOffset = customizeCBuf.FacePaintUVOffset,
             LeftColor = customizeCBuf.LeftColor,
             RightColor = customizeCBuf.RightColor,
-            OptionColor = customizeCBuf.OptionColor
+            OptionColor = customizeCBuf.OptionColor,
+            DecalColor = decalCol
         };
         var customizeData = new CustomizeData
         {
             LipStick = human->Customize.Lipstick,
-            Highlights = human->Customize.Highlights
+            Highlights = human->Customize.Highlights,
+            DecalPath = GetTexturePath(human->Decal),
+            LegacyBodyDecalPath = GetTexturePath(human->LegacyBodyDecal),
+            FacePaintReversed = human->Customize.FacePaintReversed,
         };
         var genderRace = (GenderRace)human->RaceSexId;
         
         return (customizeParams, customizeData, genderRace);
+    }
+
+    private unsafe string? GetTexturePath(Pointer<TextureResourceHandle> ptr)
+    {
+        if (ptr == null || ptr.Value == null)
+        {
+            return null;
+        }
+
+        var textureResourceHandle = ptr.Value;
+        var texturePath = textureResourceHandle->FileName.ParseString();
+        return texturePath;
     }
 }

@@ -1,7 +1,6 @@
 ﻿using System.Numerics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Meddle.Plugin.Models.Composer.Textures;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Utils;
@@ -13,9 +12,6 @@ using Meddle.Utils.Helpers;
 using Microsoft.Extensions.Logging;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
-using SharpGLTF.Schema2;
-using SharpGLTF.Transforms;
-using SharpGLTF.Validation;
 
 namespace Meddle.Plugin.Models.Composer;
 
@@ -37,7 +33,6 @@ public class ExportProgress
 
 public class InstanceComposer
 {
-    private readonly Configuration config;
     private readonly SqPack pack;
     private readonly Configuration.ExportConfiguration exportConfig;
     private readonly string outDir;
@@ -46,13 +41,11 @@ public class InstanceComposer
     private readonly ComposerCache composerCache;
     
     public InstanceComposer(
-        Configuration config,
         SqPack pack,
         Configuration.ExportConfiguration exportConfig,
         string outDir,
         CancellationToken cancellationToken)
     {
-        this.config = config;
         this.pack = pack;
         this.exportConfig = exportConfig;
         this.outDir = outDir;
@@ -214,13 +207,40 @@ public class InstanceComposer
         
         if (parsedInstance is ParsedCameraInstance parsedCameraInstance)
         {
-            return ComposeCameraInstance(parsedCameraInstance, scene, rootProgress);
+            return ComposeCameraInstance(parsedCameraInstance, scene);
+        }
+
+        if (parsedInstance is ParsedWorldDecalInstance parsedDecalInstance)
+        {
+            return ComposeDecalInstance(parsedDecalInstance, scene);
         }
         
         return null;
     }
-    
-    private NodeBuilder? ComposeCameraInstance(ParsedCameraInstance parsedCameraInstance, SceneBuilder scene, ExportProgress rootProgress)
+    private NodeBuilder? ComposeDecalInstance(ParsedWorldDecalInstance parsedWorldDecalInstance, SceneBuilder scene)
+    {
+        var root = new NodeBuilder($"{parsedWorldDecalInstance.Type}_{parsedWorldDecalInstance.Id}");
+        var cachedDiffuse = Path.GetRelativePath(cacheDir, composerCache.CacheTexture(parsedWorldDecalInstance.Diffuse.FullPath));
+        var cachedNormal = Path.GetRelativePath(cacheDir, composerCache.CacheTexture(parsedWorldDecalInstance.Normal.FullPath));
+        var cachedSpecular = Path.GetRelativePath(cacheDir, composerCache.CacheTexture(parsedWorldDecalInstance.Specular.FullPath));
+        var decalData = new
+        {
+            DiffusePath = parsedWorldDecalInstance.Diffuse.FullPath,
+            DiffuseCachePath = cachedDiffuse,
+            NormalPath = parsedWorldDecalInstance.Normal.FullPath,
+            NormalCachePath = cachedNormal,
+            SpecularPath = parsedWorldDecalInstance.Specular.FullPath,
+            SpecularCachePath = cachedSpecular,
+        };
+        
+        root.Extras = JsonNode.Parse(JsonSerializer.Serialize(decalData, MaterialComposer.JsonOptions));
+        root.SetLocalTransform(parsedWorldDecalInstance.Transform.AffineTransform, true);
+        scene.AddNode(root);
+        
+        return root;
+    }
+
+    private NodeBuilder ComposeCameraInstance(ParsedCameraInstance parsedCameraInstance, SceneBuilder scene)
     {
         var perspective = new CameraBuilder.Perspective(aspectRatio: parsedCameraInstance.AspectRatio, fovy: parsedCameraInstance.FoV, znear: 0.01f, zfar: 1000f);
         var root = new NodeBuilder($"{parsedCameraInstance.Type}_{parsedCameraInstance.Id}")
@@ -245,7 +265,7 @@ public class InstanceComposer
             Plugin.Logger?.LogWarning("Character instance {InstanceId} has no character info", instance.Id);
             return null;
         }
-        var characterComposer = new CharacterComposer(config, pack, composerCache, exportConfig, cancellationToken);
+        var characterComposer = new CharacterComposer(composerCache, exportConfig);
         var root = new NodeBuilder($"{instance.Type}_{instance.Name}_{instance.Id}");
         
         var characterProgress = new ExportProgress(instance.CharacterInfo.Models.Length, "Character Meshes");

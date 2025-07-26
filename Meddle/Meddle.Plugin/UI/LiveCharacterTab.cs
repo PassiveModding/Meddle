@@ -777,7 +777,7 @@ public unsafe class LiveCharacterTab : ITab
 
             if (ImGui.MenuItem("Export raw textures as pngs"))
             {
-                var textureBuffer = new Dictionary<string, SKTexture>();
+                var textureBuffer = new Dictionary<string, SkTexture>();
                 for (var i = 0; i < material->TexturesSpan.Length; i++)
                 {
                     var textureEntry = material->TexturesSpan[i];
@@ -789,7 +789,7 @@ public unsafe class LiveCharacterTab : ITab
                     if (i < material->MaterialResourceHandle->TextureCount)
                     {
                         var textureName = material->MaterialResourceHandle->TexturePath(i);
-                        var gpuTex = DXHelper.ExportTextureResource(textureEntry.Texture->Texture);
+                        var gpuTex = DxHelper.ExportTextureResource(textureEntry.Texture->Texture);
                         var textureData = gpuTex.Resource.ToTexture();
                         textureBuffer[textureName] = textureData;
                     }
@@ -971,7 +971,7 @@ public unsafe class LiveCharacterTab : ITab
             {
                 var defaultFileName = Path.GetFileName(textureFileName);
                 defaultFileName = Path.ChangeExtension(defaultFileName, ".png");
-                var gpuTex = DXHelper.ExportTextureResource(textureEntry.Texture->Texture);
+                var gpuTex = DxHelper.ExportTextureResource(textureEntry.Texture->Texture);
                 var textureData = gpuTex.Resource.ToTexture();
                 using var memoryStream = new MemoryStream();
                 textureData.Bitmap.Encode(memoryStream, SKEncodedImageFormat.Png, 100);
@@ -1036,7 +1036,7 @@ public unsafe class LiveCharacterTab : ITab
 
             var wrap = textureCache.GetOrAdd($"{(nint)textureEntry.Texture->Texture}", () =>
             {
-                var gpuTex = DXHelper.ExportTextureResource(textureEntry.Texture->Texture);
+                var gpuTex = DxHelper.ExportTextureResource(textureEntry.Texture->Texture);
                 var textureData = gpuTex.Resource.ToBitmap().GetPixelSpan();
                 var wrap = textureProvider.CreateFromRaw(
                     RawImageSpecification.Rgba32(gpuTex.Resource.Width, gpuTex.Resource.Height), textureData,
@@ -1060,29 +1060,11 @@ public unsafe class LiveCharacterTab : ITab
         }
         else
         {
-            var customizeCBuf = cBase->CustomizeParameterCBuffer->TryGetBuffer<Models.Structs.CustomizeParameter>()[0];
-            customizeParams = new CustomizeParameter
-            {
-                SkinColor = customizeCBuf.SkinColor,
-                MuscleTone = customizeCBuf.MuscleTone,
-                SkinFresnelValue0 = customizeCBuf.SkinFresnelValue0,
-                LipColor = customizeCBuf.LipColor,
-                MainColor = customizeCBuf.MainColor,
-                FacePaintUVMultiplier = customizeCBuf.FacePaintUVMultiplier,
-                HairFresnelValue0 = customizeCBuf.HairFresnelValue0,
-                MeshColor = customizeCBuf.MeshColor,
-                FacePaintUVOffset = customizeCBuf.FacePaintUVOffset,
-                LeftColor = customizeCBuf.LeftColor,
-                RightColor = customizeCBuf.RightColor,
-                OptionColor = customizeCBuf.OptionColor
-            };
-            customizeData = new CustomizeData
-            {
-                LipStick = cBase->Customize.Lipstick,
-                Highlights = cBase->Customize.Highlights
-            };
-            genderRace = (GenderRace)cBase->RaceSexId;
-            humanCustomizeData[cBase] = (customizeData, customizeParams);
+            var humanData = resolverService.ParseHuman((CSCharacterBase*)cBase);
+            customizeData = humanData.customizeData;
+            customizeParams = humanData.customizeParameter;
+            genderRace = humanData.genderRace;
+            humanCustomizeData[cBase] = (humanData.customizeData, humanData.customizeParameter);
         }
 
         if (ImGui.CollapsingHeader("Customize Options"))

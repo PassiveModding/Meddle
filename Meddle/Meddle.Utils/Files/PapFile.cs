@@ -9,8 +9,8 @@ public class PapFile
     public PapFileHeader FileHeader;
     public PapAnimation[] Animations;
     
-    private byte[] _data;
-    public ReadOnlySpan<byte> RawData => _data;
+    private readonly byte[] data;
+    public ReadOnlySpan<byte> RawData => data;
     public ReadOnlySpan<byte> HavokData => RawData.Slice((int)FileHeader.HavokOffset, (int)FileHeader.FooterOffset - (int)FileHeader.HavokOffset);
     public ReadOnlySpan<byte> FooterData => RawData.Slice((int)FileHeader.FooterOffset);
     
@@ -18,7 +18,7 @@ public class PapFile
 
     public PapFile(ReadOnlySpan<byte> data)
     {
-        _data = data.ToArray();
+        this.data = data.ToArray();
         var reader = new SpanBinaryReader(data);
         FileHeader = reader.Read<PapFileHeader>();
         Animations = reader.Read<PapAnimation>(FileHeader.AnimationCount).ToArray();

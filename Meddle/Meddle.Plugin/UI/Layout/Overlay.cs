@@ -175,7 +175,7 @@ public partial class LayoutWindow
             return InstanceSelectState.None;
         }
         
-        if (Vector3.Abs(obj.Transform.Translation - searchOrigin).Length() > config.WorldCutoffDistance)
+        if (Vector3.Abs(obj.Transform.Translation - searchOrigin).Length() > config.LayoutConfig.WorldCutoffDistance)
             return InstanceSelectState.None;
         if (!WorldToScreen(obj.Transform.Translation, out var screenPos, out var inView))
             return InstanceSelectState.None;
@@ -201,7 +201,7 @@ public partial class LayoutWindow
         var screenPosVec = new Vector2(screenPos.X, screenPos.Y);
         var bg = ImGui.GetBackgroundDrawList();
 
-        var dotColor = config.WorldDotColor;
+        var dotColor = config.LayoutConfig.WorldDotColor;
         if (selectedInstances.ContainsKey(obj.Id) || (parent != null && selectedInstances.ContainsKey(parent.Id)))
         {
             dotColor = new Vector4(1f, 1f, 1f, 0.5f);
@@ -220,7 +220,7 @@ public partial class LayoutWindow
                 bg.AddLine(screenPosVec, endPos, ImGui.GetColorU32(dotColor), 2);
             }
             
-            bg.AddCircle(screenPosVec, 5.1f, ImGui.GetColorU32(config.WorldDotColor));
+            bg.AddCircle(screenPosVec, 5.1f, ImGui.GetColorU32(config.LayoutConfig.WorldDotColor));
         }
         
         bg.AddCircleFilled(screenPosVec, 5, ImGui.GetColorU32(dotColor));
@@ -232,7 +232,7 @@ public partial class LayoutWindow
             {
                 if (WorldToScreen(playerPosition, out var currentScreenPos, out _))
                 {
-                    bg.AddLine(currentScreenPos, screenPos, ImGui.GetColorU32(config.WorldDotColor), 2);
+                    bg.AddLine(currentScreenPos, screenPos, ImGui.GetColorU32(config.LayoutConfig.WorldDotColor), 2);
                 }
             }
             
@@ -240,7 +240,7 @@ public partial class LayoutWindow
             {
                 if (WorldToScreen(parent.Transform.Translation, out var parentScreenPos, out _))
                 {
-                    bg.AddLine(screenPos, parentScreenPos, ImGui.GetColorU32(config.WorldDotColor), 2);
+                    bg.AddLine(screenPos, parentScreenPos, ImGui.GetColorU32(config.LayoutConfig.WorldDotColor), 2);
                 }
             }
             

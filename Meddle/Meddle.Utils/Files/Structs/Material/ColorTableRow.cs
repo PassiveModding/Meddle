@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using System.Runtime.InteropServices;
+// ReSharper disable InconsistentNaming
 namespace Meddle.Utils.Files.Structs.Material;
 
 // https://github.com/Ottermandias/Penumbra.GameData/blob/main/Files/MaterialStructs/ColorTable.cs

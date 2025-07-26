@@ -1,5 +1,4 @@
 ﻿using System.Numerics;
-using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
 using ImGuiNET;
 using Meddle.Plugin.Models;
@@ -11,12 +10,13 @@ namespace Meddle.Plugin.UI.Layout;
 public partial class LayoutWindow
 {
     public const ParsedInstanceType DefaultDrawTypes = ParsedInstanceType.Character |
-                                                        ParsedInstanceType.Housing |
-                                                        ParsedInstanceType.Terrain |
-                                                        ParsedInstanceType.BgPart |
-                                                        ParsedInstanceType.Light |
-                                                        ParsedInstanceType.SharedGroup |
-                                                        ParsedInstanceType.Camera;
+                                                       ParsedInstanceType.Housing |
+                                                       ParsedInstanceType.Terrain |
+                                                       ParsedInstanceType.BgPart |
+                                                       ParsedInstanceType.Light |
+                                                       ParsedInstanceType.SharedGroup |
+                                                       ParsedInstanceType.Camera |
+                                                       ParsedInstanceType.EnvLighting;
 
     public class LayoutConfig
     {
@@ -27,10 +27,12 @@ public partial class LayoutWindow
         public bool TraceToParent { get; set; } = true;
         public bool OrderByDistance { get; set; } = true;
         public bool TraceToHovered { get; set; } = true;
-        
-        // Search Options
+        public float WorldCutoffDistance { get; set; } = 100f;
+        public Vector4 WorldDotColor { get; set; } = new(1f, 1f, 1f, 0.5f);
+        public bool IncludeSharedGroupsWhereSubItemsAreWithinRange { get; set; } = true;
         public bool HideOffscreenCharacters { get; set; } = true;
         public int MaxItemCount { get; set; } = 100;
+        
         public OriginAdjustment OriginAdjustment { get; set; } = OriginAdjustment.Camera;
     }
     
@@ -45,17 +47,17 @@ public partial class LayoutWindow
     private void DrawOptions()
     {
         if (!ImGui.CollapsingHeader("Options")) return;
-        var cutoff = config.WorldCutoffDistance;
+        var cutoff = config.LayoutConfig.WorldCutoffDistance;
         if (ImGui.DragFloat("Cutoff Distance", ref cutoff, 1, 0, 10000))
         {
-            config.WorldCutoffDistance = cutoff;
+            config.LayoutConfig.WorldCutoffDistance = cutoff;
             config.Save();
         }
 
-        var dotColor = config.WorldDotColor;
+        var dotColor = config.LayoutConfig.WorldDotColor;
         if (ImGui.ColorEdit4("Dot Color", ref dotColor, ImGuiColorEditFlags.NoInputs))
         {
-            config.WorldDotColor = dotColor;
+            config.LayoutConfig.WorldDotColor = dotColor;
             config.Save();
         }
 
@@ -72,6 +74,18 @@ public partial class LayoutWindow
             config.LayoutConfig.DrawChildren = drawChildren;
             config.Save();
         }
+        
+        var includeSharedGroupsWhereSubItemsAreVisible = config.LayoutConfig.IncludeSharedGroupsWhereSubItemsAreWithinRange;
+        if (ImGui.Checkbox("Include Shared Groups Where Sub Items Are Visible", ref includeSharedGroupsWhereSubItemsAreVisible))
+        {
+            config.LayoutConfig.IncludeSharedGroupsWhereSubItemsAreWithinRange = includeSharedGroupsWhereSubItemsAreVisible;
+            config.Save();
+        }
+        
+        ImGui.SameLine();
+        UiUtil.HintCircle("If enabled, shared groups will be included in the layout if any of their sub items are visible.\n" +
+                          "This may mean that complex shared groups will be included in the layout, even if only a small subset of the items are within the cutoff distance.\n" +
+                          "If disabled, shared groups will only be included if the shared group origin is within the cutoff distance.");
         
         var traceToParent = config.LayoutConfig.TraceToParent;
         if (drawChildren && ImGui.Checkbox("Trace to Parent", ref traceToParent))

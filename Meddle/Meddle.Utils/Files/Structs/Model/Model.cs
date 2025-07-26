@@ -12,7 +12,7 @@ public partial struct ElementId {
 }*/
 
 [StructLayout(LayoutKind.Sequential, Size = 32)]
-public unsafe partial struct ElementId
+public unsafe struct ElementId
 {
     public uint Id;
     public uint ParentBoneName;
@@ -21,7 +21,7 @@ public unsafe partial struct ElementId
 }
 
 [StructLayout(LayoutKind.Sequential, Size = 60)]
-public unsafe partial struct Lod {
+public struct Lod {
     public ushort MeshIndex;
     public ushort MeshCount;
 
@@ -54,7 +54,7 @@ public unsafe partial struct Lod {
 }
 
 [StructLayout(LayoutKind.Sequential, Size = 40)]
-public unsafe partial struct ExtraLod {
+public struct ExtraLod {
     public ushort LightShaftMeshIndex;
     public ushort LightShaftMeshCount;
 
@@ -101,7 +101,7 @@ public partial struct Mesh {
 }*/
 
 [StructLayout(LayoutKind.Sequential, Size = 36)]
-public unsafe partial struct Mesh {
+public unsafe struct Mesh {
     public ushort VertexCount;
     public ushort Padding;
     public uint IndexCount;
@@ -153,7 +153,7 @@ public partial struct BoneTable {
 }*/
 
 [StructLayout(LayoutKind.Sequential, Size = 132)]
-public unsafe partial struct BoneTable {
+public unsafe struct BoneTable {
     public fixed ushort BoneIndex[64];
     public byte BoneCount;
 }
@@ -169,7 +169,7 @@ public partial struct Shape {
 }*/
 
 [StructLayout(LayoutKind.Sequential, Size = 16)]
-public unsafe partial struct Shape {
+public unsafe struct Shape {
     public uint StringOffset;
     public fixed ushort ShapeMeshStartIndex[3];
     public fixed ushort ShapeMeshCount[3];
@@ -197,7 +197,7 @@ public partial struct BoundingBox {
 }*/
 
 [StructLayout(LayoutKind.Sequential, Size = 32)]
-public unsafe partial struct BoundingBox {
+public unsafe struct BoundingBox {
     public fixed float Min[4];
     public fixed float Max[4];
 }
@@ -219,7 +219,7 @@ public unsafe partial struct VertexDeclaration {
 }*/
 
 [StructLayout(LayoutKind.Sequential, Size = 17 * 8)]
-public unsafe partial struct VertexDeclaration {
+public unsafe struct VertexDeclaration {
     public fixed byte Elements[17 * 8];
     
     public Span<VertexElement> GetElements()

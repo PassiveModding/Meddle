@@ -1,6 +1,5 @@
 ﻿using System.Runtime.InteropServices;
 using FFXIVClientStructs.FFXIV.Common.Math;
-using FFXIVClientStructs.Havok.Common.Base.Math.Matrix;
 using FFXIVClientStructs.Havok.Common.Base.Math.QsTransform;
 
 namespace Meddle.Plugin.Utils;

@@ -47,7 +47,7 @@ public class MdlMaterialWindow : Window
     }
 
 
-    public override unsafe void OnClose()
+    public override void OnClose()
     {
         windowManager.RemoveMaterialWindow(this);
         base.OnClose();

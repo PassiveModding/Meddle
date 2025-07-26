@@ -1,9 +1,7 @@
 ﻿using System.Numerics;
 using System.Text.Json.Serialization;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
-using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
-using FFXIVClientStructs.Interop;
 using ImGuiNET;
 using Lumina.Excel.Sheets;
 using Meddle.Plugin.Models.Skeletons;
@@ -30,6 +28,7 @@ public enum ParsedInstanceType
     Terrain = 64,
     Camera = 128,
     EnvLighting = 256,
+    Decal = 512,
 }
 
 public interface IResolvableInstance
@@ -62,6 +61,7 @@ public interface ISearchableInstance
 [JsonDerivedType(typeof(ParsedTerrainInstance))]
 [JsonDerivedType(typeof(ParsedCameraInstance))]
 [JsonDerivedType(typeof(ParsedEnvLightInstance))]
+[JsonDerivedType(typeof(ParsedWorldDecalInstance))]
 public abstract class ParsedInstance
 {
     public ParsedInstance(nint id, ParsedInstanceType type, Transform transform)
@@ -92,6 +92,31 @@ public class ParsedUnsupportedInstance : ParsedInstance, ISearchableInstance
     {
         return Path?.Contains(query, StringComparison.OrdinalIgnoreCase) == true || 
                "unsupported".Contains(query, StringComparison.OrdinalIgnoreCase);
+    }
+}
+
+public class ParsedWorldDecalInstance : ParsedInstance, ISearchableInstance
+{
+    public HandleString Diffuse { get; }
+    public HandleString Normal { get; }
+    public HandleString Specular { get; }
+    
+    public ParsedWorldDecalInstance(nint id, Transform transform, string diffuse, string normal, string specular) : base(id, ParsedInstanceType.Decal, transform)
+    {
+        Diffuse = diffuse;
+        Normal = normal;
+        Specular = specular;
+    }
+    
+    public bool Search(string query)
+    {
+        return Diffuse.FullPath.Contains(query, StringComparison.OrdinalIgnoreCase) || 
+               Diffuse.GamePath.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+               Normal.FullPath.Contains(query, StringComparison.OrdinalIgnoreCase) || 
+               Normal.GamePath.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+               Specular.FullPath.Contains(query, StringComparison.OrdinalIgnoreCase) || 
+               Specular.GamePath.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+               "decal".Contains(query, StringComparison.OrdinalIgnoreCase);
     }
 }
 
@@ -297,7 +322,7 @@ public class ParsedCameraInstance : ParsedInstance, ISearchableInstance
     public float AspectRatio { get; }
     public Quaternion Rotation { get; }
     
-    public unsafe ParsedCameraInstance(nint id, Transform transform, float fov, float aspectRatio, Vector3 position, Vector3 lookAtVector) : base(id, ParsedInstanceType.Camera, transform)
+    public ParsedCameraInstance(nint id, Transform transform, float fov, float aspectRatio, Vector3 position, Vector3 lookAtVector) : base(id, ParsedInstanceType.Camera, transform)
     {
         FoV = fov;
         AspectRatio = aspectRatio;

@@ -93,7 +93,7 @@ public static class TransformSerializerFloatExtensions
             }
             else
             {
-                value = float.Parse(str);
+                value = float.Parse(str!);
             }
         }
         else

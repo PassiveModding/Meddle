@@ -1,6 +1,4 @@
 ﻿using System.Collections.Concurrent;
-using Meddle.Plugin.Models.Composer.Materials;
-using Meddle.Plugin.Models.Composer.Textures;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Utils;
 using Meddle.Utils.Export;
@@ -201,7 +199,7 @@ public class ComposerCache
         return cachePath;
     }
     
-    private string CacheTexture(string fullPath)
+    public string CacheTexture(string fullPath)
     {
         var cachePath = GetCacheFilePath(fullPath);
         var pngCachePath = cachePath + ".png";
@@ -290,6 +288,21 @@ public class ComposerCache
             
             // remove full path prefix, get only dir below cache dir.
             material.SetProperty($"{texture.Key}_PngCachePath", Path.GetRelativePath(cacheDir, cachePath));
+        }
+        
+        if (characterInfo != null)
+        {
+            if (characterInfo.CustomizeData.DecalPath != null)
+            {
+                var decalCachePath = CacheTexture(characterInfo.CustomizeData.DecalPath);
+                material.SetProperty("Decal_PngCachePath", Path.GetRelativePath(cacheDir, decalCachePath));
+            }
+            
+            if (characterInfo.CustomizeData.LegacyBodyDecalPath != null)
+            {
+                var legacyDecalCachePath = CacheTexture(characterInfo.CustomizeData.LegacyBodyDecalPath);
+                material.SetProperty("LegacyBodyDecal_PngCachePath", Path.GetRelativePath(cacheDir, legacyDecalCachePath));
+            }
         }
 
         materialBuilder.Extras = material.ExtrasNode;

@@ -1,5 +1,4 @@
 ﻿using System.Numerics;
-using Dalamud.Game;
 using Dalamud.Hooking;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
@@ -56,7 +55,7 @@ public unsafe class StainHooks : IDisposable, IService
     public StainHooks(ILogger<PbdHooks> logger, IDataManager dataManager, HookManager hookManager)
     {
         this.logger = logger;
-        stainDict = dataManager.GetExcelSheet<Stain>()!.ToDictionary(row => row.RowId, row => row);
+        stainDict = dataManager.GetExcelSheet<Stain>().ToDictionary(row => row.RowId, row => row);
 
         humanGetDyeForSlotHook = hookManager.CreateHook<HumanGetDyeForSlotDelegate>(HumanGetDyeForSlotSignature, Human_GetDyeForSlotDetour);
         humanGetDyeForSlotHook?.Enable();

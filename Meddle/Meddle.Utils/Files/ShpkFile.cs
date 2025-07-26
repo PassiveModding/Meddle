@@ -1,7 +1,10 @@
-﻿using Microsoft.Extensions.Logging;
+﻿// ReSharper disable InconsistentNaming
+
+using System.Diagnostics.CodeAnalysis;
 
 namespace Meddle.Utils.Files;
 
+[SuppressMessage("ReSharper", "RedundantAssignment")]
 public class ShpkFile
 {
     public const uint ShPkMagic = 0x6B506853u; // bytes of ShPk
@@ -85,7 +88,7 @@ public class ShpkFile
             PixelShaders[i] = ReadShader(ref reader, Shader.ShaderType.Pixel);
         }
 
-        MaterialParams = reader.Read<MaterialParam>((int)FileHeader.MaterialParamCount).ToArray();
+        MaterialParams = reader.Read<MaterialParam>(FileHeader.MaterialParamCount).ToArray();
         if (FileHeader.HasMatParamDefaults != 0)
         {
             var size = FileHeader.MaterialParamsSize >> 2;
@@ -96,10 +99,10 @@ public class ShpkFile
             MaterialParamDefaults = [];
         }
         
-        Constants = reader.Read<Resource>((int)FileHeader.ConstantCount).ToArray();
-        Samplers = reader.Read<Resource>((int)FileHeader.SamplerCount).ToArray();
-        Textures = reader.Read<Resource>((int)FileHeader.TextureCount).ToArray();
-        Uavs = reader.Read<Resource>((int)FileHeader.UavCount).ToArray();
+        Constants = reader.Read<Resource>(FileHeader.ConstantCount).ToArray();
+        Samplers = reader.Read<Resource>(FileHeader.SamplerCount).ToArray();
+        Textures = reader.Read<Resource>(FileHeader.TextureCount).ToArray();
+        Uavs = reader.Read<Resource>(FileHeader.UavCount).ToArray();
         
         SystemKeys = reader.Read<Key>((int)FileHeader.SystemKeyCount).ToArray();
         SceneKeys = reader.Read<Key>((int)FileHeader.SceneKeyCount).ToArray();

@@ -4,6 +4,7 @@ using System.Text.Json;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.ImGuiNotification;
+using Dalamud.Interface.Textures;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
@@ -11,7 +12,6 @@ using FFXIVClientStructs.FFXIV.Client.Graphics.Render;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.Havok.Animation.Rig;
 using ImGuiNET;
-using Lumina.Excel.Sheets;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Layout;
@@ -20,9 +20,11 @@ using Meddle.Plugin.Services;
 using Meddle.Plugin.Services.UI;
 using Meddle.Plugin.Utils;
 using Meddle.Utils.Constants;
+using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
-using SharpGLTF.Scenes;
+using Meddle.Utils.Helpers;
 using SharpGLTF.Transforms;
+using SkiaSharp;
 
 namespace Meddle.Plugin.UI;
 
@@ -60,13 +62,15 @@ public class DebugTab : ITab
         ModelRaw
     }
     
-    private BoneMode boneMode = BoneMode.ModelPropagate;
+    private BoneMode boneModeInput = BoneMode.ModelPropagate;
 
     public DebugTab(Configuration config, SigUtil sigUtil, CommonUi commonUi, 
                     IGameGui gui, IClientState clientState, 
                     LayoutService layoutService,
                     ParseService parseService, PbdHooks pbdHooks,
                     INotificationManager notificationManager,
+                    TextureCache textureCache,
+                    ITextureProvider textureProvider,
                     SqPack sqPack,
                     StainHooks stainHooks,
                     IDataManager dataManager,
@@ -81,6 +85,8 @@ public class DebugTab : ITab
         this.parseService = parseService;
         this.pbdHooks = pbdHooks;
         this.notificationManager = notificationManager;
+        this.textureCache = textureCache;
+        this.textureProvider = textureProvider;
         this.sqPack = sqPack;
         this.stainHooks = stainHooks;
         this.dataManager = dataManager;
@@ -286,13 +292,13 @@ public class DebugTab : ITab
         }
     }
 
-    private string path = "";
+    private string exportPathInput = "";
     public void DrawFileExportUi()
     {
         using var indent = ImRaii.PushIndent();
         ImGui.Text("Export Path");
         ImGui.SameLine();
-        ImGui.InputText("##ExportPath", ref path, 100);
+        ImGui.InputText("##ExportPath", ref exportPathInput, 100);
         if (ImGui.Button("Export"))
         {
             // var data = sqPack.GetFile(path);
@@ -309,54 +315,113 @@ public class DebugTab : ITab
             // var outPath = Path.Combine(config.ExportDirectory, Path.GetFileName(path));
             // File.WriteAllBytes(outPath, data.Value.file.RawData.ToArray());
             cancellationTokenSource = new CancellationTokenSource();
-            var pathFileName = Path.GetFileNameWithoutExtension(path);
+            var pathFileName = Path.GetFileNameWithoutExtension(exportPathInput);
             var defaultName = $"Export-{pathFileName}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
             fileDialog.SaveFolderDialog("Save File", defaultName,
                             (result, exportPath) =>
                             {
                                 if (!result) return;
-                                var data = sqPack.GetFile(path);
+                                var data = sqPack.GetFile(exportPathInput);
                                 if (data == null)
                                 {
                                     notificationManager.AddNotification(new Notification
                                     {
-                                        Content = $"File not found: {path}",
+                                        Content = $"File not found: {exportPathInput}",
                                         Type = NotificationType.Error
                                     });
                                     return;
                                 }
                                 
-                                var outPath = Path.Combine(exportPath, Path.GetFileName(path));
+                                var outPath = Path.Combine(exportPath, Path.GetFileName(exportPathInput));
                                 Directory.CreateDirectory(exportPath);
                                 File.WriteAllBytes(outPath, data.Value.file.RawData.ToArray());
                                 Process.Start("explorer.exe", exportPath);
                             }, config.ExportDirectory);
         }
 
-        using var disabled = ImRaii.Disabled(exportTask is {IsCompleted: false} || !path.EndsWith(".mdl"));
-        if (ImGui.Button("Export Model"))
+        using (var disabled = ImRaii.Disabled(exportTask is {IsCompleted: false} || !exportPathInput.EndsWith(".mdl")))
         {
-            cancellationTokenSource = new CancellationTokenSource();
-            var configClone = config.ExportConfig.Clone();
-            var pathFileName = Path.GetFileNameWithoutExtension(path);
-            var defaultName = $"Export-{pathFileName}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
-            var stubInstance = new ParsedBgPartsInstance(0, true, new Transform(AffineTransform.Identity), path);
-            fileDialog.SaveFolderDialog("Save Instances", defaultName,
-                                        (result, exportPath) =>
-                                        {
-                                            if (!result) return;
-                                            exportTask = Task.Run(() =>
+            if (ImGui.Button("Export Model"))
+            {
+                cancellationTokenSource = new CancellationTokenSource();
+                var configClone = config.ExportConfig.Clone();
+                var pathFileName = Path.GetFileNameWithoutExtension(exportPathInput);
+                var defaultName = $"Export-{pathFileName}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
+                var stubInstance = new ParsedBgPartsInstance(0, true, new Transform(AffineTransform.Identity), exportPathInput);
+                fileDialog.SaveFolderDialog("Save Instances", defaultName,
+                                            (result, exportPath) =>
                                             {
-                                                var composer = composerFactory.CreateComposer(exportPath,
-                                                                                              configClone,
-                                                                                              cancellationTokenSource.Token);
-                                                var progress = new ExportProgress(1, "Instances");
-                                                composer.Compose([stubInstance], progress);
-                                                Process.Start("explorer.exe", exportPath);
-                                            }, cancellationTokenSource.Token);
-                                        }, config.ExportDirectory);
+                                                if (!result) return;
+                                                exportTask = Task.Run(() =>
+                                                {
+                                                    var composer = composerFactory.CreateComposer(exportPath,
+                                                                                                  configClone,
+                                                                                                  cancellationTokenSource.Token);
+                                                    var progress = new ExportProgress(1, "Instances");
+                                                    composer.Compose([stubInstance], progress);
+                                                    Process.Start("explorer.exe", exportPath);
+                                                }, cancellationTokenSource.Token);
+                                            }, config.ExportDirectory);
+            }
+        }
+        
+        using (var disabled = ImRaii.Disabled(exportTask is {IsCompleted: false} || !exportPathInput.EndsWith(".tex")))
+        {
+            if (ImGui.Button("Export Texture"))
+            {
+                cancellationTokenSource = new CancellationTokenSource();
+                var configClone = config.ExportConfig.Clone();
+                var pathFileName = Path.GetFileNameWithoutExtension(exportPathInput);
+                var defaultName = $"Export-{pathFileName}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
+                fileDialog.SaveFolderDialog("Save Texture", defaultName,
+                                            (result, exportPath) =>
+                                            {
+                                                if (!result) return;
+                                                exportTask = Task.Run(() =>
+                                                {
+                                                    var file = sqPack.GetFile(exportPathInput);
+                                                    if (file == null)
+                                                    {
+                                                        notificationManager.AddNotification(new Notification
+                                                        {
+                                                            Content = $"File not found: {exportPathInput}",
+                                                            Type = NotificationType.Error
+                                                        });
+                                                        return;
+                                                    }
+                                                    
+                                                    var outPath = Path.Combine(exportPath, Path.GetFileName(exportPathInput));
+                                                    
+                                                    Directory.CreateDirectory(exportPath);
+                                                    var buf = file.Value.file.RawData.ToArray();
+                                                    File.WriteAllBytes(outPath, buf);
+                                                    
+                                                    // Convert to png
+                                                    var tex = new TexFile(buf);
+                                                    var texture = tex.ToResource().ToTexture();
+                                                    using var memoryStream = new MemoryStream();
+                                                    texture.Bitmap.Encode(memoryStream, SKEncodedImageFormat.Png, 100);
+                                                    var textureBytes = memoryStream.ToArray();
+                                                    File.WriteAllBytes(Path.ChangeExtension(outPath, ".png"), textureBytes);
+                                                    
+                                                    Process.Start("explorer.exe", exportPath);
+                                                }, cancellationTokenSource.Token);
+                                            }, config.ExportDirectory);
+            }
+        }
+
+        if (exportPathInput.EndsWith(".tex"))
+        {
+            // draw the texture
+            var availableWidth = ImGui.GetContentRegionAvail().X;
+
+            var tex = textureProvider.GetFromGame(exportPathInput);
+            var wrap = tex.GetWrapOrEmpty();
+            ImGui.Image(wrap.ImGuiHandle, new Vector2(availableWidth, availableWidth * wrap.Height / wrap.Width));
         }
     }
+    private readonly TextureCache textureCache;
+    private readonly ITextureProvider textureProvider;
     
     private void DrawStainInfo()
     {
@@ -367,7 +432,6 @@ public class DebugTab : ITab
             var color = StainHooks.GetStainColor(stain);
             ImGui.SameLine();
             ImGui.ColorButton("Color", color);
-            
         }
     }
 
@@ -631,15 +695,15 @@ public class DebugTab : ITab
                     ImGui.Text("Bone Mode");
                     ImGui.SameLine();
                     ImGui.SetNextItemWidth(200);
-                    using (var combo = ImRaii.Combo("##BoneMode", boneMode.ToString()))
+                    using (var combo = ImRaii.Combo("##BoneMode", boneModeInput.ToString()))
                     {
                         if (combo.Success)
                         {
                             foreach (BoneMode mode in Enum.GetValues(typeof(BoneMode)))
                             {
-                                if (ImGui.Selectable(mode.ToString(), mode == boneMode))
+                                if (ImGui.Selectable(mode.ToString(), mode == boneModeInput))
                                 {
-                                    boneMode = mode;
+                                    boneModeInput = mode;
                                 }
                             }
                         }
@@ -670,7 +734,7 @@ public class DebugTab : ITab
                             ImGui.TableSetupColumn("Rotation", ImGuiTableColumnFlags.WidthStretch);
                             ImGui.TableSetupColumn("Scale", ImGuiTableColumnFlags.WidthStretch);
                             ImGui.TableHeadersRow();
-                            DrawBoneTransformsOnScreen(partialSkeleton, boneMode);
+                            DrawBoneTransformsOnScreen(partialSkeleton, boneModeInput);
                         }
                     }
                 }

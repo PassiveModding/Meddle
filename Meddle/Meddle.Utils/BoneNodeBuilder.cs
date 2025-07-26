@@ -1,5 +1,4 @@
 ﻿using SharpGLTF.Scenes;
-using SharpGLTF.Transforms;
 
 
 namespace Meddle.Utils;

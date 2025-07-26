@@ -13,11 +13,11 @@ public static class ImageUtils
     {
         return format switch
         {
-            TexFile.TextureFormat.BC1 => (width + 3) / 4 * 8,
-            TexFile.TextureFormat.BC2 => (width + 3) / 4 * 16,
-            TexFile.TextureFormat.BC3 => (width + 3) / 4 * 16,
-            TexFile.TextureFormat.BC5 => width * 2,
-            TexFile.TextureFormat.BC7 => (width + 3) / 4 * 16,
+            TexFile.TextureFormat.BC1_UNORM => (width + 3) / 4 * 8,
+            TexFile.TextureFormat.BC2_UNORM => (width + 3) / 4 * 16,
+            TexFile.TextureFormat.BC3_UNORM => (width + 3) / 4 * 16,
+            TexFile.TextureFormat.BC5_UNORM => width * 2,
+            TexFile.TextureFormat.BC7_UNORM => (width + 3) / 4 * 16,
             _ => width * 4,
         };
     }
@@ -166,7 +166,7 @@ public static class ImageUtils
         return img;
     }
     
-    public static unsafe SKTexture ToTexture(this Image img, Vector2? resize = null)
+    public static unsafe SkTexture ToTexture(this Image img, Vector2? resize = null)
     {
         if (img.Format != DXGIFormat.R8G8B8A8UNorm)
             throw new ArgumentException("Image must be in RGBA format.", nameof(img));
@@ -184,10 +184,10 @@ public static class ImageUtils
                                    new SKSamplingOptions(SKCubicResampler.Mitchell));
         }
         
-        return new SKTexture(bitmap);
+        return new SkTexture(bitmap);
     }
     
-    public static SKTexture ToTexture(this TextureResource resource, Vector2 size)
+    public static SkTexture ToTexture(this TextureResource resource, Vector2 size)
     {
         if (resource.Width == (int)size.X && resource.Height == (int)size.Y)
         {
@@ -197,10 +197,10 @@ public static class ImageUtils
         var bitmap = resource.ToBitmap();
         bitmap = bitmap.Resize(new SKImageInfo((int)size.X, (int)size.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul), 
                                new SKSamplingOptions(SKCubicResampler.Mitchell));
-        return new SKTexture(bitmap);
+        return new SkTexture(bitmap);
     }
     
-    public static SKTexture ToTexture(this TextureResource resource, (int width, int height)? resize = null)
+    public static SkTexture ToTexture(this TextureResource resource, (int width, int height)? resize = null)
     {
         var bitmap = resource.ToBitmap();
         
@@ -210,7 +210,7 @@ public static class ImageUtils
                                    new SKSamplingOptions(SKCubicResampler.Mitchell));
         }
         
-        return new SKTexture(bitmap);
+        return new SkTexture(bitmap);
     }
     
     public static unsafe SKBitmap ToBitmap(this TextureResource resource)
