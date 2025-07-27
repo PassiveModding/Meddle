@@ -28,7 +28,7 @@ public unsafe struct BgObject
             return null;
         
         var flags3Value = modelData.ModelHeader.Flags3;
-        if ((flags3Value & 0x2) != 0 & modelData.ModelHeader.BGChangeMaterialIndex < modelData.ModelHeader.MaterialCount)
+        if ((flags3Value & 0x2) != 0 && modelData.ModelHeader.BGChangeMaterialIndex < modelData.ModelHeader.MaterialCount)
         {
             if (BGChangeData->MaterialResourceHandle == null)
             {
