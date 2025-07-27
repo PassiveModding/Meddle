@@ -293,8 +293,26 @@ public class InstanceComposer
     {
         var sharedGroupProgress = new ExportProgress(instance.Children.Count, "Shared Group");
         rootProgress.Children.Add(sharedGroupProgress);
+
+        var extrasDict = new Dictionary<string, object>
+        {
+            { "Type", instance.Type.ToString() },
+            { "Id", instance.Id },
+            { "Path", instance.Path.GamePath },
+        };
         
-        var root = new NodeBuilder($"{instance.Type}_{instance.Path.GamePath}");
+        string name = $"{instance.Type}";
+        if (instance is ParsedHousingInstance ho)
+        {
+            name += $"_{ho.Name}";
+            extrasDict.Add("Name", ho.Name);
+        }
+        else
+        {
+            name += $"_{instance.Path.GamePath}";
+        }
+        
+        var root = new NodeBuilder(name);
         try 
         {        
             bool validChild = false;
@@ -311,14 +329,16 @@ public class InstanceComposer
             if (!validChild) return null;
             root.SetLocalTransform(instance.Transform.AffineTransform
                                            .WithScale(Vector3.One), true);
+            
+            
             if (instance.Transform.Scale != Vector3.One)
             {
                 Plugin.Logger?.LogDebug("Shared group {InstanceId} has non-unity scale {Scale}", instance.Id, instance.Transform.Scale);
-                root.Extras = JsonNode.Parse(JsonSerializer.Serialize(new
-                {
-                    RealScale = instance.Transform.Scale
-                }, MaterialComposer.JsonOptions));
+                extrasDict.Add("RealScale", instance.Transform.Scale);
             }
+            
+            root.Extras = JsonNode.Parse(JsonSerializer.Serialize(extrasDict, MaterialComposer.JsonOptions));
+            
             return root;
         } 
         finally
@@ -344,11 +364,18 @@ public class InstanceComposer
         }
 
         var mdlFile = new MdlFile(mdlData);
-        var materials = mdlFile.GetMaterialNames().Select(x => x.Value).ToArray();
+        var bgChangeMaterial = bgPartsInstance.BgChangeMaterial;
+        var fileMaterials = mdlFile.GetMaterialNames().Select(x => x.Value).ToArray();
 
         var materialBuilders = new List<MaterialBuilder>();
-        foreach (var mtrlPath in materials)
+        for (var i = 0; i < fileMaterials.Length; i++)
         {
+            string mtrlPath = fileMaterials[i];
+            if (bgChangeMaterial != null && bgChangeMaterial.Value.BGChangeMaterialIndex == i)
+            {
+                mtrlPath = bgChangeMaterial.Value.MaterialPath;
+            }
+            
             var output = composerCache.ComposeMaterial(mtrlPath, stainInstance: bgPartsInstance);
             materialBuilders.Add(output);
         }
