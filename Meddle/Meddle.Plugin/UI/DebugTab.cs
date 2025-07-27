@@ -122,6 +122,13 @@ public class DebugTab : ITab
         {
             var cofigJson = JsonSerializer.Serialize(config, jsonOptions);
             ImGui.TextWrapped(cofigJson);
+
+            var secretConfigOption = config.SecretConfig;
+            if (ImGui.InputText("Secret Config", ref secretConfigOption, 50))
+            {
+                config.SecretConfig = secretConfigOption;
+                config.Save();
+            }
         }
 
         if (ImGui.CollapsingHeader("EnvLighting"))
@@ -347,7 +354,7 @@ public class DebugTab : ITab
                 var configClone = config.ExportConfig.Clone();
                 var pathFileName = Path.GetFileNameWithoutExtension(exportPathInput);
                 var defaultName = $"Export-{pathFileName}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
-                var stubInstance = new ParsedBgPartsInstance(0, true, new Transform(AffineTransform.Identity), exportPathInput);
+                var stubInstance = new ParsedBgPartsInstance(0, true, new Transform(AffineTransform.Identity), exportPathInput, null);
                 fileDialog.SaveFolderDialog("Save Instances", defaultName,
                                             (result, exportPath) =>
                                             {

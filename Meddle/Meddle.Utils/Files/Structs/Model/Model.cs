@@ -233,30 +233,30 @@ public unsafe struct VertexDeclaration {
 
 [StructLayout(LayoutKind.Sequential, Size = 56)]
 public struct ModelHeader {
-    public float Radius;
-    public ushort MeshCount;
-    public ushort AttributeCount;
-    public ushort SubmeshCount;
-    public ushort MaterialCount;
-    public ushort BoneCount;
-    public ushort BoneTableCount;
-    public ushort ShapeCount;
-    public ushort ShapeMeshCount;
-    public ushort ShapeValueCount;
-    public byte LodCount;
-    public byte Flags1;
-    public ushort ElementIdCount;
-    public byte TerrainShadowMeshCount;
-    public byte Flags2;
-    public float ModelClipOutDistance;
-    public float ShadowClipOutDistance;
-    public ushort Unknown4;
-    public ushort TerrainShadowSubmeshCount;
-    public byte Unknown5;
-    public byte BGChangeMaterialIndex;
-    public byte BGCrestChangeMaterialIndex;
-    public byte Unknown6;
-    public ushort BoneTableArrayCountTotal;
-    public ushort Unknown8;
-    public ushort Unknown9;
+    public float Radius; // 0x0
+    public ushort MeshCount; // 0x4
+    public ushort AttributeCount; // 0x6
+    public ushort SubmeshCount; // 0x8
+    public ushort MaterialCount; // 0xA
+    public ushort BoneCount; // 0xC
+    public ushort BoneTableCount; // 0xE
+    public ushort ShapeCount; // 0x10
+    public ushort ShapeMeshCount; // 0x12
+    public ushort ShapeValueCount; // 0x14
+    public byte LodCount; // 0x16
+    public byte Flags1; // 0x17
+    public ushort ElementIdCount; // 0x18
+    public byte TerrainShadowMeshCount; // 0x1A
+    public byte Flags2; // 0x1B
+    public float ModelClipOutDistance; // 0x1C
+    public float ShadowClipOutDistance; // 0x20
+    public ushort Unknown4; // 0x24
+    public ushort TerrainShadowSubmeshCount; // 0x26
+    public byte Flags3; // 0x28
+    public byte BGChangeMaterialIndex; // 0x29
+    public byte BGCrestChangeMaterialIndex; // 0x2A
+    public byte Unknown6; // 0x2B
+    public ushort BoneTableArrayCountTotal; // 0x2C
+    public ushort Unknown8; // 0x2E
+    public ushort Unknown9; // 0x30
 }

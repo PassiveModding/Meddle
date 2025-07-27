@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using Dalamud.Interface.Utility.Raii;
+using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
 using ImGuiNET;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Models.Structs;
@@ -188,6 +189,16 @@ public partial class LayoutWindow
         {
             if (!searchable.Search(search))
                 return InstanceSelectState.None;
+        }
+
+        if (parent != null)
+        {
+            if (parent is ParsedHousingInstance hi)
+            {
+                // if housing not in flags, ignore
+                if (!config.LayoutConfig.DrawTypes.HasFlag(ParsedInstanceType.Housing))
+                    return InstanceSelectState.None;
+            }
         }
 
         if (obj is ParsedSharedInstance sharedInstance)

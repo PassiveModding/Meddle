@@ -28,6 +28,7 @@ public partial class Configuration : IPluginConfiguration
     public bool DisableCutsceneUiHide { get; set; } = true;
     public bool DisableGposeUiHide { get; set; } = true;
     public string ExportDirectory { get; set; } = Plugin.DefaultExportDirectory;
+    public string SecretConfig { get; set; } = string.Empty;
     
     /// <summary>
     /// Used to hide names in the UI

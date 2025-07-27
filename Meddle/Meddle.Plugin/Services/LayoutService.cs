@@ -16,6 +16,7 @@ using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Utils;
 using Microsoft.Extensions.Logging;
+using BgObject = Meddle.Plugin.Models.Structs.BgObject;
 using Camera = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Camera;
 using HousingFurniture = FFXIVClientStructs.FFXIV.Client.Game.HousingFurniture;
 using Object = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Object;
@@ -79,9 +80,8 @@ public class LayoutService : IService, IDisposable
         }
         instances.AddRange(objects);
         instances.AddRange(cameras);
-
-        var currentTerritory = GetCurrentTerritory();
-        var housingItems = ParseTerritoryFurniture(currentTerritory);
+        
+        var housingItems = ParseTerritoryFurniture();
         var parseCtx = new ParseContext(housingItems);
         
         var loadedLayouts = layoutWorld->LoadedLayouts.ToArray();
@@ -364,14 +364,26 @@ public class LayoutService : IService, IDisposable
         if (bgPart->Id.Type != InstanceType.BgPart)
             return null;
 
-        var graphics = bgPart->GraphicsObject;
-        if (graphics == null)
+        BgObject* graphics = (BgObject*)bgPart->GraphicsObject;
+        if (graphics == null || graphics->ModelResourceHandle == null)
             return null;
+        
+        if (graphics->ModelResourceHandle->LoadState < 7)
+        {
+            return null; 
+        }
 
         var primaryPath = bgPart->GetPrimaryPath();
         string path = primaryPath.HasValue ? primaryPath : throw new Exception("BgPart has no primary path");
-
-        return new ParsedBgPartsInstance((nint)bgPartPtr.Value, graphics->IsVisible, new Transform(*bgPart->GetTransformImpl()), path);
+        
+        var bgChangeHandle = graphics->GetBgChangeMaterial();
+        (int BgChangeMaterialIndex, string Path)? bgChangeMaterial = null;
+        if (bgChangeHandle != null && bgChangeHandle.Value.ResourceHandle != null && bgChangeHandle.Value.ResourceHandle.Value != null)
+        {
+            bgChangeMaterial = (bgChangeHandle.Value.MaterialIndex, bgChangeHandle.Value.ResourceHandle.Value->FileName.ParseString());
+        }
+        
+        return new ParsedBgPartsInstance((nint)bgPartPtr.Value, bgPart->GraphicsObject->IsVisible, new Transform(*bgPart->GetTransformImpl()), path, bgChangeMaterial);
     }
 
     private unsafe bool IsObjectPlaceHolder(DrawObject* obj)
@@ -523,9 +535,10 @@ public class LayoutService : IService, IDisposable
         return objects.Values.ToArray();
     }
 
-    private unsafe Furniture[] ParseTerritoryFurniture(HousingTerritory* territory)
+    private unsafe Furniture[] ParseTerritoryFurniture()
     {
-        if (territory == null)
+        var territory = GetCurrentTerritory();
+        if (territory == null || territory->IsLoaded() == false)
             return [];
         var type = territory->GetTerritoryType();
         var furniture = type switch
@@ -564,13 +577,18 @@ public class LayoutService : IService, IDisposable
             var housingObjectPtr = (HousingObject*)objectPtr.Value;
             var layoutInstance = housingObjectPtr->SharedGroupLayoutInstance;
             var instanceHandle = (SharedGroupResourceHandle*)layoutInstance->ResourceHandle;
-            if (instanceHandle == null)
+            if (instanceHandle == null || instanceHandle->ResourceHandle == null)
             {
                 logger.LogWarning("InstanceHandle is null");
                 continue;
             }
-            
-            var housingSettings = instanceHandle->SceneChunk->GetHousingSettings();
+
+            if (instanceHandle->ResourceHandle->LoadState < 7 || instanceHandle->SceneChunk == null || instanceHandle->SceneChunk->SgbData == null)
+            {
+                continue; // not loaded
+            }
+
+            Pointer<HousingSettings> housingSettings = instanceHandle->SceneChunk->GetHousingSettings();
             if (housingSettings == null)
             {
                 logger.LogWarning("HousingSettings is null");

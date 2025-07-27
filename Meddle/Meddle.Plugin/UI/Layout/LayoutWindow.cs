@@ -411,6 +411,10 @@ public partial class LayoutWindow : ITab
             {
                 flags |= UiUtil.ExportConfigDrawFlags.ShowBgPartOptions;
             }
+            else if (instances.Any(t => t is ParsedSharedInstance sh && sh.Flatten().Any(i => i is ParsedBgPartsInstance { IsVisible: false })))
+            {
+                flags |= UiUtil.ExportConfigDrawFlags.ShowBgPartOptions;
+            }
             if (instances.Any(t => (t.Type & ParsedInstanceType.Terrain) != 0))
             {
                 flags |= UiUtil.ExportConfigDrawFlags.ShowTerrainOptions;

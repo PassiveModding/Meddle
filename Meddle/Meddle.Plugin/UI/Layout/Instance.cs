@@ -31,6 +31,9 @@ public partial class LayoutWindow
     
     private unsafe void DrawControlsEvil(ParsedInstance instance)
     {
+        // validate instance still exists
+        if (currentLayout.All(i => i.Id != instance.Id)) return;
+        
         var layoutInstance = (ILayoutInstance*)instance.Id;
         var graphics = layoutInstance->GetGraphics();
         if (graphics == null) return;
@@ -88,8 +91,12 @@ public partial class LayoutWindow
             ImGui.Text($"Position: {instance.Transform.Translation}");
             ImGui.Text($"Rotation: {instance.Transform.Rotation}");
             ImGui.Text($"Scale: {instance.Transform.Scale}");
-            // DrawControlsEvil(instance);
-            
+
+            if (config.SecretConfig == "Kweh")
+            {
+                DrawControlsEvil(instance);
+            }
+
             if (instance is IPathInstance pathedInstance)
             {
                 UiUtil.Text($"Full Path: {pathedInstance.Path.FullPath}", pathedInstance.Path.FullPath);
@@ -194,6 +201,11 @@ public partial class LayoutWindow
         {
             BgObject* drawObject = bgPartLayout->GraphicsObject;
             UiUtil.Text($"Graphics Object {(nint)drawObject:X8}", $"{(nint)drawObject:X8}");
+            if (bg.BgChangeMaterial != null)
+            {
+                ImGui.Text($"BgChangeMaterialPath: {bg.BgChangeMaterial.Value.MaterialPath}");
+            }
+            
             using var disabled = ImRaii.Disabled( mdlMaterialWindowManager.HasWindow(drawObject->ModelResourceHandle));
             if (ImGui.Button("Open Material Window"))
             {

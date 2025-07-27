@@ -36,8 +36,8 @@ public class UpdateWindow : Window
         },
         new()
         {
-            Tag = "Decal Support and MultiTrack recording",
-            Date = "2025-07-22",
+            Tag = "Decal Support, MultiTrack recording and Housing Improvements",
+            Date = "2025-07-27",
             Changes =
             [
                 new TextUpdateLine(" + Added support for exporting decal textures for characters"),
@@ -48,6 +48,9 @@ public class UpdateWindow : Window
                 new TextUpdateLine(" + Added support for exporting environment ambient, sun and moon lighting from layout tab"),
                 new TextUpdateLine(" + Added option to include shared groups when only a subset of the group is within range in the layout tab"),
                 new TextUpdateLine(" + Added support for many missed texture types which are less frequently used but still supported by the game"),
+                new TextUpdateLine(" + Fixed issues with staining on certain housing items"),
+                new TextUpdateLine(" + Added support for BGChange objects (housing wall and floor customization) exports"),
+                new TextUpdateLine(" + Exported housing objects should now be named after their in-game names instead of their paths"),
             ]
         }
     ];

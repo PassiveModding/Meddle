@@ -265,18 +265,20 @@ public class ParsedBgPartsInstance : ParsedInstance, IPathInstance, IStainableIn
 {
     public bool IsVisible { get; }
     public HandleString Path { get; }
+    public (int BGChangeMaterialIndex, string MaterialPath)? BgChangeMaterial { get; }
 
-    public ParsedBgPartsInstance(nint id, bool isVisible, Transform transform, string path) : base(id, ParsedInstanceType.BgPart, transform)
+    public ParsedBgPartsInstance(nint id, bool isVisible, Transform transform, string path, (int BGChangeMaterialIndex, string MaterialPath)? bgChangeMaterial) : base(id, ParsedInstanceType.BgPart, transform)
     {
         IsVisible = isVisible;
         Path = path;
+        BgChangeMaterial = bgChangeMaterial;
     }
 
     public ParsedStain? Stain { get; set; }
 
     public bool Search(string query)
     {
-        return Path.FullPath.Contains(query, StringComparison.OrdinalIgnoreCase) || 
+        return Path.FullPath.Contains(query, StringComparison.OrdinalIgnoreCase) ||
                Path.GamePath.Contains(query, StringComparison.OrdinalIgnoreCase);
     }
 }
