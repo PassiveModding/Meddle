@@ -25,6 +25,6 @@ public class ComposerFactory : IService
                                                      Configuration.ExportConfiguration exportConfig,
                                                      CancellationToken cancellationToken = default)
     {
-        return new CharacterComposer(pack, exportConfig, outDir);
+        return new CharacterComposer(pack, exportConfig, outDir, cancellationToken);
     }
 }

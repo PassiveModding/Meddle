@@ -66,7 +66,7 @@ public unsafe class LiveCharacterTab : ITab
 
     private readonly Dictionary<Pointer<CSHuman>, (CustomizeData, CustomizeParameter)> humanCustomizeData = new();
     private ICharacter? selectedCharacter;
-    private ExportProgress? progress;
+    private ProgressWrapper? progress;
     private bool requestedPopup;
     private Action? drawExportSettingsCallback;
     
@@ -107,7 +107,7 @@ public unsafe class LiveCharacterTab : ITab
 
     public void Draw()
     {
-        LayoutWindow.DrawProgress(exportTask, progress, cancelToken);
+        UiUtil.DrawProgress(exportTask, progress, cancelToken);
         commonUi.DrawCharacterSelect(ref selectedCharacter);
         
         DrawSelectedCharacter();
@@ -314,8 +314,11 @@ public unsafe class LiveCharacterTab : ITab
                                                     var scene = new SceneBuilder();
                                                     var characterRoot = new NodeBuilder($"Character-{name}");
                                                     scene.AddNode(characterRoot);
-                                                    progress = new ExportProgress(characterInfo.Models.Length, "Character");
-                                                    composer.Compose(characterInfo, scene, characterRoot, progress);
+                                                    progress = new ProgressWrapper
+                                                    {
+                                                        Progress = new ExportProgress(characterInfo.Models.Length, "Character")
+                                                    };
+                                                    composer.Compose(characterInfo, scene, characterRoot, progress.Progress);
                                                     var modelRoot = scene.ToGltf2();
                                                     ExportUtil.SaveAsType(modelRoot, exportConfig.ExportType, path, name);
                                                     Process.Start("explorer.exe", path);

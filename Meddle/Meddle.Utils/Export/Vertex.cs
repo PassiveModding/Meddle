@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using Meddle.Utils.Files.Structs.Model;
+using Microsoft.Extensions.Logging;
 
 namespace Meddle.Utils.Export;
 
@@ -30,17 +31,25 @@ public unsafe struct Vertex
         Color = 7,        // (UsageIndex +) 3 => COLOR0
     }
 
+    // public Vector3? Position;
+    // public float[]? BlendWeights;
+    // public byte[]? BlendIndices;
+    // public Vector3? Normal;
+    // public Vector4? TexCoord;
+    // public Vector4? TexCoord2; // only using X/Y afaik
+    // public Vector4? Color;
+    // public Vector4? Color2;
+    // public Vector4? Flow;
+    // public Vector4? Binormal;
     public Vector3? Position;
     public float[]? BlendWeights;
     public byte[]? BlendIndices;
-    public Vector3? Normal;
-    public Vector4? TexCoord;
-    public Vector4? TexCoord2; // only using X/Y afaik
-    public Vector4? Color;
-    public Vector4? Color2;
-    public Vector4? Flow;
-    public Vector4? Binormal;
-    
+    public Vector3[]? Normals;
+    public Vector2[]? TexCoords;
+    public Vector4[]? Colors;
+    public Vector4[]? Flows;
+    public Vector4[]? Binormals;
+
     public static Vector3 ReadVector3(ReadOnlySpan<byte> buffer, VertexType type)
     {
         fixed (byte* b = buffer)
@@ -110,6 +119,26 @@ public unsafe struct Vertex
         }
     }
     
+    private static void SetElement<T>(ref T[]? array, int startIndex, params Span<T> values) where T : struct
+    {
+        if (array == null)
+        {
+            // initialize the array if it's null
+            array = new T[startIndex + values.Length];
+        }
+        
+        if (array.Length < startIndex + values.Length)
+        {
+            // resize the array if it's too small
+            Array.Resize(ref array, startIndex + values.Length);
+        }
+        
+        for (int i = 0; i < values.Length; i++)
+        {
+            array[startIndex + i] = values[i];
+        }
+    }
+    
     public static void Apply(ref Vertex vertex, ReadOnlySpan<byte> buffer, VertexElement element)
     {
         var buf = buffer[element.Offset..];
@@ -117,33 +146,46 @@ public unsafe struct Vertex
         {
             case VertexUsage.Position:
                 vertex.Position = ReadVector3(buf, (VertexType)element.Type);
+                if (element.UsageIndex > 0)
+                {
+                    Global.Logger.LogWarning($"Vertex usage {element.Usage} with index {element.UsageIndex} is not supported for Position, only index 0 is valid.");
+                }
                 break;
             case VertexUsage.BlendWeights:
                 vertex.BlendWeights = ReadFloatArray(buf, (VertexType)element.Type);
+                if (element.UsageIndex > 0)
+                {
+                    Global.Logger.LogWarning($"Vertex usage {element.Usage} with index {element.UsageIndex} is not supported for BlendWeights, only index 0 is valid.");
+                }
                 break;
             case VertexUsage.BlendIndices:
                 vertex.BlendIndices = ReadByteArray(buf, (VertexType)element.Type);
+                if (element.UsageIndex > 0)
+                {
+                    Global.Logger.LogWarning($"Vertex usage {element.Usage} with index {element.UsageIndex} is not supported for BlendIndices, only index 0 is valid.");
+                }
                 break;
             case VertexUsage.Normal:
-                vertex.Normal = ReadVector3(buf, (VertexType)element.Type);
+                //vertex.Normal = ReadVector3(buf, (VertexType)element.Type);
+                SetElement(ref vertex.Normals, element.UsageIndex, ReadVector3(buf, (VertexType)element.Type));
                 break;
-            case VertexUsage.TexCoord when element.UsageIndex == 0:
-                vertex.TexCoord = ReadVector4(buf, (VertexType)element.Type);
+            case VertexUsage.TexCoord:
+                var texCoord = ReadVector4(buf, (VertexType)element.Type);
+                var (v1, v2) = (new Vector2(texCoord.X, texCoord.Y), new Vector2(texCoord.Z, texCoord.W));
+                var index = element.UsageIndex * 2;
+                SetElement(ref vertex.TexCoords, index, v1, v2);
                 break;
-            case VertexUsage.TexCoord when element.UsageIndex != 0:
-                vertex.TexCoord2 = ReadVector4(buf, (VertexType)element.Type);
-                break;
-            case VertexUsage.Color when element.UsageIndex == 0:
-                vertex.Color = ReadVector4(buf, (VertexType)element.Type);
-                break;
-            case VertexUsage.Color when element.UsageIndex != 0:
-                vertex.Color2 = ReadVector4(buf, (VertexType)element.Type);
+            case VertexUsage.Color:
+                //vertex.Color = ReadVector4(buf, (VertexType)element.Type);
+                SetElement(ref vertex.Colors, element.UsageIndex, ReadVector4(buf, (VertexType)element.Type));
                 break;
             case VertexUsage.Flow:
-                vertex.Flow = ReadVector4(buf, (VertexType)element.Type);
+                //vertex.Flow = ReadVector4(buf, (VertexType)element.Type);
+                SetElement(ref vertex.Flows, element.UsageIndex, ReadVector4(buf, (VertexType)element.Type));
                 break;
             case VertexUsage.Binormal:
-                vertex.Binormal = ReadVector4(buf, (VertexType)element.Type);
+                //vertex.Binormal = ReadVector4(buf, (VertexType)element.Type);
+                SetElement(ref vertex.Binormals, element.UsageIndex, ReadVector4(buf, (VertexType)element.Type));
                 break;
             default:
                 throw new Exception($"Unsupported usage {element.Usage} [{element.Type}]");

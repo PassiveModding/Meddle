@@ -1,10 +1,10 @@
 using System.Numerics;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Meddle.Utils.Constants;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
-using Meddle.Utils.Materials;
 using Microsoft.Extensions.Logging;
 using SharpGLTF.Geometry;
 using SharpGLTF.Geometry.VertexTypes;
@@ -41,7 +41,7 @@ public class MeshBuilder
         MaterialBuilder = materialBuilder;
         
         GeometryT = GetVertexGeometryType(Mesh.Vertices);
-        MaterialT = GetVertexMaterialType(Mesh.Vertices);
+        MaterialT = GetVertexMaterialType(Mesh);
         SkinningT = GetVertexSkinningType(Mesh.Vertices, boneMap != null);
         VertexBuilderT = typeof(VertexBuilder<,,>).MakeGenericType(GeometryT, MaterialT, SkinningT);
         MeshBuilderT =
@@ -167,7 +167,7 @@ public class MeshBuilder
         var vertexBuilderParams = new object[]
         {
             CreateGeometryParamCache(vertex, GeometryT, skinningWeights),
-            CreateMaterialParamCache(vertex, MaterialT, MaterialBuilder),
+            CreateMaterialParamCache(vertex, MaterialT),
             skinning
         };
         return (IVertexBuilder)Activator.CreateInstance(VertexBuilderT, vertexBuilderParams)!;
@@ -181,12 +181,12 @@ public class MeshBuilder
             return typeof(VertexPosition);
         }
 
-        if (vertex[0].Binormal != null)
+        if (vertex[0].Binormals != null)
         {
             return typeof(VertexPositionNormalTangent);
         }
 
-        if (vertex[0].Normal != null)
+        if (vertex[0].Normals != null)
         {
             return typeof(VertexPositionNormal);
         }
@@ -223,12 +223,17 @@ public class MeshBuilder
             case not null when type == typeof(VertexPosition):
                 return new VertexPosition(currentPos);
             case not null when type == typeof(VertexPositionNormal):
-                return new VertexPositionNormal(currentPos, vertex.Normal!.Value.SanitizeNormal());
+                return new VertexPositionNormal(currentPos, vertex.Normals![0].SanitizeNormal());
             case not null when type == typeof(VertexPositionNormalTangent):
                 // Tangent W should be 1 or -1, but sometimes XIV has their -1 as 0?
+            {
+                //var bitangent = (vertex.Binormals[0] with { W = vertex.Binormals[0].W == 1 ? 1 : -1 });
+                var bitangent = vertex.Binormals![0] * 2 - Vector4.One;
+                
                 return new VertexPositionNormalTangent(currentPos, 
-                                                       vertex.Normal!.Value.SanitizeNormal(), 
-                                                       (vertex.Binormal!.Value with { W = vertex.Binormal.Value.W == 1 ? 1 : -1 }).SanitizeTangent()); 
+                                                    vertex.Normals![0].SanitizeNormal(), 
+                                                    bitangent.SanitizeTangent());
+            } 
             default:
                 Global.Logger.LogWarning("Unknown vertex type, defaulting to VertexPosition {Vertex}", JsonSerializer.Serialize(vertex, new JsonSerializerOptions
                 {
@@ -241,155 +246,146 @@ public class MeshBuilder
     }
 
     /// <summary>Obtain the correct material type for a set of vertices.</summary>
-    private static Type GetVertexMaterialType(IReadOnlyList<Vertex> vertex)
+    private static Type GetVertexMaterialType(Mesh mesh)
     {
-        if (vertex.Count == 0)
+        var vertices = mesh.Vertices;
+        if (vertices.Count == 0)
         {
             return typeof(VertexColor1);
         }
 
-        var firstVertex = vertex[0];
-        // (UsageIndex +) 8 => TEXCOORD_0
-        // (UsageIndex +) 3 => COLOR0
-
-        var colors = 0;
-        if (firstVertex.Color != null) colors++;
-        if (firstVertex.Color2 != null) colors++;
-        
-        var texCoords = 0;
-        if (firstVertex.TexCoord != null) texCoords += 2;
-        if (firstVertex.TexCoord2 != null) texCoords += 2;
-
-        var type = (colors, texCoords) switch
+        var firstVertex = vertices[0];
+        var type = (firstVertex.Colors?.Length, firstVertex.TexCoords?.Length) switch
         {
-            (2, 0) => typeof(VertexColor2),
-            (2, 1) => typeof(VertexColor2Texture1),
-            (2, 2) => typeof(VertexColor2Texture2),
-            (2, 3) => typeof(VertexColor2Texture3),
-            (2, 4) => typeof(VertexColor2Texture4),
-            (1, 0) => typeof(VertexColor1),
+            // Note: some terrain use more texcoords, export limits to 4
+            (>= 2, null or 0) => typeof(VertexColor2),
+            (>= 2, 1) => typeof(VertexColor2Texture1),
+            (>= 2, 2) => typeof(VertexColor2Texture2),
+            (>= 2, 3) => typeof(VertexColor2Texture3),
+            (>= 2, >= 4) => typeof(VertexColor2Texture4),
+            (1, null or 0) => typeof(VertexColor1),
             (1, 1) => typeof(VertexColor1Texture1),
             (1, 2) => typeof(VertexColor1Texture2),
             (1, 3) => typeof(VertexColor1Texture3),
-            (1, 4) => typeof(VertexColor1Texture4),
-            (0, 0) => typeof(VertexEmpty),
-            (0, 1) => typeof(VertexTexture1),
-            (0, 2) => typeof(VertexTexture2),
-            (0, 3) => typeof(VertexTexture3),
-            (0, 4) => typeof(VertexTexture4),
+            (1, >= 4) => typeof(VertexColor1Texture4),
+            (null or 0, null or 0) => typeof(VertexEmpty),
+            (null or 0, 1) => typeof(VertexTexture1),
+            (null or 0, 2) => typeof(VertexTexture2),
+            (null or 0, 3) => typeof(VertexTexture3),
+            (null or 0, >= 4) => typeof(VertexTexture4),
             _ => null
         };
 
+        
+        StringBuilder warnings = new StringBuilder();
+        if (firstVertex.TexCoords?.Length > 4)
+        {
+            warnings.AppendLine($"Vertex has more than 4 texture coordinates, only the first 4 will be used. TexCoords: {firstVertex.TexCoords.Length}");
+        }
+        
+        if (firstVertex.Colors?.Length > 2)
+        {
+            warnings.AppendLine($"Vertex has more than 2 color sets, only the first 2 will be used. Colors: {firstVertex.Colors.Length}");
+        }
+
         if (type == null)
         {
-            Global.Logger.LogWarning("Unknown vertex material type, defaulting to VertexColor1");
+            warnings.AppendLine($"Unknown vertex type, defaulting to VertexColor1. Colors: {firstVertex.Colors?.Length}, TexCoords: {firstVertex.TexCoords?.Length}");
             type = typeof(VertexColor1);
+        }
+        
+        if (warnings.Length > 0)
+        {
+            Global.Logger.LogWarning("[{Path}] Mesh {MeshIdx}\n{Warnings}\n{Vertex}",
+                                     mesh.Path,
+                                     mesh.MeshIdx,
+                                     warnings.ToString().TrimEnd(),
+                                     JsonSerializer.Serialize(firstVertex, new JsonSerializerOptions
+                                     {
+                                         WriteIndented = true,
+                                         IncludeFields = true
+                                     }));
         }
         
         return type;
     }
     
-    private static Vector4 GetColor(Vertex vertex, MaterialBuilder materialBuilder)
+    private static Vector4 GetColor(Vertex vertex)
     {
-        // Some models have a color component, but it's packed data, so we don't use it as color
-        if (materialBuilder is IVertexPaintMaterialBuilder paintBuilder)
-        {
-            return paintBuilder.VertexPaint switch
-            {
-                true => vertex.Color ?? new Vector4(0, 0, 0, 0),
-                false => new Vector4(1, 1, 1, 1)
-            };
-        }
-
-        return new Vector4(1, 1, 1, 1);
+        return vertex.Colors?[0] ?? new Vector4(1, 1, 1, 1);
     }
     
-    private static IVertexMaterial CreateMaterialParamCache(Vertex vertex, Type type, MaterialBuilder materialBuilder)
+    private static IVertexMaterial CreateMaterialParamCache(Vertex vertex, Type type)
     {
         if (type == typeof(VertexColor2))
         {
-            return new VertexColor2(GetColor(vertex, materialBuilder), vertex.Color2!.Value);
+            return new VertexColor2(GetColor(vertex), vertex.Colors![1]);
         }
         
         if (type == typeof(VertexColor2Texture1))
         {
-            return new VertexColor2Texture1(GetColor(vertex, materialBuilder), vertex.Color2!.Value, ToVec2(vertex.TexCoord!.Value).XY);
+            return new VertexColor2Texture1(GetColor(vertex), vertex.Colors![1], vertex.TexCoords![0]);
         }
         
         if (type == typeof(VertexColor2Texture2))
         {
-            var texCoord = ToVec2(vertex.TexCoord!.Value);
-            return new VertexColor2Texture2(GetColor(vertex, materialBuilder), vertex.Color2!.Value, texCoord.XY, texCoord.ZW);
+            return new VertexColor2Texture2(GetColor(vertex), vertex.Colors![1], vertex.TexCoords![0], vertex.TexCoords![1]);
         }
         
         if (type == typeof(VertexColor2Texture3))
         {
-            var texCoord = ToVec2(vertex.TexCoord!.Value);
-            var texCoord2 = ToVec2(vertex.TexCoord2!.Value);
-            return new VertexColor2Texture3(GetColor(vertex, materialBuilder), vertex.Color2!.Value, texCoord.XY, texCoord.ZW, texCoord2.XY);
+            return new VertexColor2Texture3(GetColor(vertex), vertex.Colors![1], vertex.TexCoords![0], vertex.TexCoords![1], vertex.TexCoords![2]);
         }
         
         if (type == typeof(VertexColor2Texture4))
         {
-            var texCoord = ToVec2(vertex.TexCoord!.Value);
-            var texCoord2 = ToVec2(vertex.TexCoord2!.Value);
-            return new VertexColor2Texture4(GetColor(vertex, materialBuilder), vertex.Color2!.Value, texCoord.XY, texCoord.ZW, texCoord2.XY, texCoord2.ZW);
+            return new VertexColor2Texture4(GetColor(vertex), vertex.Colors![1], vertex.TexCoords![0], vertex.TexCoords![1], vertex.TexCoords![2],
+                                            vertex.TexCoords![3]);
         }
         
         if (type == typeof(VertexColor1))
         {
-            return new VertexColor1(GetColor(vertex, materialBuilder));
+            return new VertexColor1(GetColor(vertex));
         }
         
         if (type == typeof(VertexColor1Texture1))
         {
-            return new VertexColor1Texture1(GetColor(vertex, materialBuilder), ToVec2(vertex.TexCoord!.Value).XY);
+            return new VertexColor1Texture1(GetColor(vertex), vertex.TexCoords![0]);
         }
         
         if (type == typeof(VertexColor1Texture2))
         {
-            var texCoord = ToVec2(vertex.TexCoord!.Value);
-            return new VertexColor1Texture2(GetColor(vertex, materialBuilder), texCoord.XY, texCoord.ZW);
+            return new VertexColor1Texture2(GetColor(vertex), vertex.TexCoords![0], vertex.TexCoords![1]);
         }
         
         if (type == typeof(VertexColor1Texture3))
         {
-            var texCoord = ToVec2(vertex.TexCoord!.Value);
-            (Vector2 xy, Vector2 zw) texCoord2 = vertex.TexCoord2 != null ? ToVec2(vertex.TexCoord2!.Value) : (Vector2.Zero, Vector2.Zero);
-            return new VertexColor1Texture3(GetColor(vertex, materialBuilder), texCoord.XY, texCoord.ZW, texCoord2.xy);
+            return new VertexColor1Texture3(GetColor(vertex), vertex.TexCoords![0], vertex.TexCoords![1], vertex.TexCoords![2]);
         }
         
         if (type == typeof(VertexColor1Texture4))
         {
-            var texCoord = ToVec2(vertex.TexCoord!.Value);
-            (Vector2 xy, Vector2 zw) texCoord2 = vertex.TexCoord2 != null ? ToVec2(vertex.TexCoord2!.Value) : (Vector2.Zero, Vector2.Zero);
-            return new VertexColor1Texture4(GetColor(vertex, materialBuilder), texCoord.XY, texCoord.ZW, texCoord2.xy, texCoord2.zw);
+            return new VertexColor1Texture4(GetColor(vertex), vertex.TexCoords![0], vertex.TexCoords![1], vertex.TexCoords![2], vertex.TexCoords![3]);
         }
         
         if (type == typeof(VertexTexture1))
         {
-            return new VertexTexture1(ToVec2(vertex.TexCoord!.Value).XY);
+            return new VertexTexture1(vertex.TexCoords![0]);
         }
         
         if (type == typeof(VertexTexture2))
         {
-            var texCoord = ToVec2(vertex.TexCoord!.Value);
-            return new VertexTexture2(texCoord.XY, texCoord.ZW);
+            return new VertexTexture2(vertex.TexCoords![0], vertex.TexCoords[1]);
         }
         
         if (type == typeof(VertexTexture3))
         {
-            var texCoord = ToVec2(vertex.TexCoord!.Value);
-            (Vector2 xy, Vector2 zw) texCoord2 = vertex.TexCoord2 != null ? ToVec2(vertex.TexCoord2!.Value) : (Vector2.Zero, Vector2.Zero);
-            return new VertexTexture3(texCoord.XY, texCoord.ZW, texCoord2.xy);
+            return new VertexTexture3(vertex.TexCoords![0], vertex.TexCoords[1], vertex.TexCoords[2]);
         }
         
         if (type == typeof(VertexTexture4))
         {
-            var texCoord = ToVec2(vertex.TexCoord!.Value);
-            
-            (Vector2 xy, Vector2 zw) texCoord2 = vertex.TexCoord2 != null ? ToVec2(vertex.TexCoord2!.Value) : (Vector2.Zero, Vector2.Zero);
-            return new VertexTexture4(texCoord.XY, texCoord.ZW, texCoord2.xy, texCoord2.zw);
+            return new VertexTexture4(vertex.TexCoords![0], vertex.TexCoords[1], vertex.TexCoords[2], vertex.TexCoords[3]);
         }
         
         return new VertexEmpty();
@@ -424,7 +420,7 @@ public class MeshBuilder
         for (var k = 0; k < vertex.BlendIndices.Length; k++)
         {
             var boneIndex = vertex.BlendIndices[k];
-            var boneWeight = vertex.BlendWeights != null ? vertex.BlendWeights[k] : 0;
+            var boneWeight = vertex.BlendWeights != null ? vertex.BlendWeights![k] : 0;
             
             if (Mesh.BoneTable == null) continue;
             var boneName = Mesh.BoneTable[boneIndex];
@@ -458,6 +454,6 @@ public class MeshBuilder
         };
     }
 
-    private static Vector3 ToVec3(Vector4 v) => new(v.X, v.Y, v.Z);
-    private static (Vector2 XY, Vector2 ZW) ToVec2(Vector4 v) => (new(v.X, v.Y), new(v.Z, v.W));
+    // private static Vector3 ToVec3(Vector4 v) => new(v.X, v.Y, v.Z);
+    // private static (Vector2 XY, Vector2 ZW) ToVec2(Vector4 v) => (new(v.X, v.Y), new(v.Z, v.W));
 }

@@ -90,7 +90,7 @@ public class ComposerCache
                 CacheFile(path);
             }
             
-            if (mdlCache.Count > 100)
+            if (mdlCache.Count > 1000)
             {
                 var toRemove = mdlCache.OrderBy(x => x.Value.LastAccess).First();
                 mdlCache.TryRemove(toRemove.Key, out _);
@@ -118,7 +118,7 @@ public class ComposerCache
                 mtrlPathCache.TryAdd(path, cachePath);
             }
             
-            if (mtrlCache.Count > 100)
+            if (mtrlCache.Count > 1000)
             {
                 // evict least recently accessed
                 var toRemove = mtrlCache.OrderBy(x => x.Value.LastAccess).First();
@@ -290,7 +290,7 @@ public class ComposerCache
             materialName = $"{Path.GetFileNameWithoutExtension(mtrlPath)}_{mtrlFile.GetShaderPackageName()}";
         }
 
-        var materialBuilder = new RawMaterialBuilder(materialName);
+        var materialBuilder = new MaterialBuilder(materialName);
         foreach (var texture in material.TextureUsageDict)
         {
             // ensure texture gets saved to cache dir.

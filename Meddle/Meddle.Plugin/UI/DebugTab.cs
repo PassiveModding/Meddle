@@ -18,6 +18,7 @@ using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.Services.UI;
+using Meddle.Plugin.UI.Layout;
 using Meddle.Plugin.Utils;
 using Meddle.Utils.Constants;
 using Meddle.Utils.Files;
@@ -364,8 +365,7 @@ public class DebugTab : ITab
                                                     var composer = composerFactory.CreateComposer(exportPath,
                                                                                                   configClone,
                                                                                                   cancellationTokenSource.Token);
-                                                    var progress = new ExportProgress(1, "Instances");
-                                                    composer.Compose([stubInstance], progress);
+                                                    composer.Compose([stubInstance], new ProgressWrapper());
                                                     Process.Start("explorer.exe", exportPath);
                                                 }, cancellationTokenSource.Token);
                                             }, config.ExportDirectory);

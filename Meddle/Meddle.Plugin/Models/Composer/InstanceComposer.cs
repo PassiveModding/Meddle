@@ -1,8 +1,10 @@
-﻿using System.Numerics;
+﻿using System.Collections.Concurrent;
+using System.Numerics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Models.Structs;
+using Meddle.Plugin.UI.Layout;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Export;
@@ -22,13 +24,20 @@ public class ExportProgress
         Total = total;
         Name = name;
     }
-    
-    public int Progress;
+
+    private int _progress;
+    public int Progress { get { return _progress; } }
+    public void IncrementProgress(int amount = 1)
+    {
+        Interlocked.Add(ref _progress, amount);
+        Parent?.IncrementProgress(amount);
+    }
     public int Total;
     public bool IsComplete;
     public string? Name;
+    public ExportProgress? Parent;
     
-    public List<ExportProgress> Children = [];
+    public readonly ConcurrentBag<ExportProgress> Children = [];
 }
 
 public class InstanceComposer
@@ -97,59 +106,64 @@ public class InstanceComposer
 
         var orderedInstances = group.OrderBy(x => x.Transform.Translation.LengthSquared()).ToArray();
         var lastSceneIdx = 0;
-
-        for (var i = 0; i < orderedInstances.Length; i++)
-        {
-            if (cancellationToken.IsCancellationRequested) break;
-            progress.Progress++;
-            try
-            {
-                if (ComposeInstance(orderedInstances[i], scene, progress) != null)
-                {
-                    var stats = scenes[scene];
-                    stats.Instances++;
-                    if (stats.Instances > 100 || scene.Instances.Count > 100)
-                    {
-                        Plugin.Logger?.LogDebug("Saving scene {key} {startIdx:D4}-{endIdx:D4} Instances: {instances} Nodes: {nodes}", 
-                                                group.Key, lastSceneIdx, i, stats.Instances, scene.Instances.Count);
-                        SaveScene(scene, $"{group.Key}_{lastSceneIdx:D4}-{i:D4}");
-                        scenes[scene].Saved = true;
-                        lastSceneIdx = i;
         
-                        scene = new SceneBuilder();
-                        scenes.Add(scene, new SceneStats());
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                try
-                {
-                    var blob = JsonSerializer.Serialize(orderedInstances[i], MaterialComposer.JsonOptions);
-                    Plugin.Logger?.LogError(ex, 
-                                            "Failed to compose instance {instance} {instanceType}\n{Message}\b{Blob}", 
-                                            orderedInstances[i].Id, 
-                                            orderedInstances[i].Type, 
-                                            ex.Message, blob);
-                }
-                catch (Exception ex2)
-                {
-                    Plugin.Logger?.LogError(new AggregateException(ex, ex2), 
-                                            "Failed to compose instance {instance} {instanceType}\n{Message}", 
-                                            orderedInstances[i].Id, 
-                                            orderedInstances[i].Type,
-                        ex.Message);
-                }
-            }
-        }
+        var orderedInstanceChunks = orderedInstances
+            .Select((x, i) => new { Index = i, Value = x })
+            .GroupBy(x => x.Index / 100)
+            .Select(g => g.Select(x => x.Value).ToArray())
+            .ToArray();
 
+        // for (var i = 0; i < orderedInstances.Length; i++)
+        // {
+        //     if (cancellationToken.IsCancellationRequested) break;
+        //     progress.IncrementProgress();
+        //     try
+        //     {
+        //         if (ComposeInstance(orderedInstances[i], scene, progress) != null)
+        //         {
+        //             var stats = scenes[scene];
+        //             stats.Instances++;
+        //             if (stats.Instances > 100 || scene.Instances.Count > 100)
+        //             {
+        //                 Plugin.Logger?.LogDebug("Saving scene {key} {startIdx:D4}-{endIdx:D4} Instances: {instances} Nodes: {nodes}", 
+        //                                         group.Key, lastSceneIdx, i, stats.Instances, scene.Instances.Count);
+        //                 SaveScene(scene, $"{group.Key}_{lastSceneIdx:D4}-{i:D4}");
+        //                 scenes[scene].Saved = true;
+        //                 lastSceneIdx = i;
+        //
+        //                 scene = new SceneBuilder();
+        //                 scenes.Add(scene, new SceneStats());
+        //             }
+        //         }
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         try
+        //         {
+        //             var blob = JsonSerializer.Serialize(orderedInstances[i], MaterialComposer.JsonOptions);
+        //             Plugin.Logger?.LogError(ex, 
+        //                                     "Failed to compose instance {instance} {instanceType}\n{Message}\b{Blob}", 
+        //                                     orderedInstances[i].Id, 
+        //                                     orderedInstances[i].Type, 
+        //                                     ex.Message, blob);
+        //         }
+        //         catch (Exception ex2)
+        //         {
+        //             Plugin.Logger?.LogError(new AggregateException(ex, ex2), 
+        //                                     "Failed to compose instance {instance} {instanceType}\n{Message}", 
+        //                                     orderedInstances[i].Id, 
+        //                                     orderedInstances[i].Type,
+        //                 ex.Message);
+        //         }
+        //     }
+        // }
+        
+          
         SaveRemainingScenes(group.Key, lastSceneIdx, orderedInstances.Length, scenes);
     }
     
-    public void Compose(ParsedInstance[] instances, ExportProgress progress)
+    public void Compose(ParsedInstance[] instances, ProgressWrapper wrapper)
     {
-        progress.Total = instances.Length;
-        progress.Progress = 0;
         try
         {
             var instanceBlob = JsonSerializer.Serialize(instances, MaterialComposer.JsonOptions);
@@ -163,11 +177,37 @@ public class InstanceComposer
         composerCache.SaveArrayTextures();
 
         var instanceGroups = instances.GroupBy(x => x.Type);
+        // place characters and shared last to reduce shifting in ui
+        instanceGroups = instanceGroups
+            .OrderByDescending(x => x.Key == ParsedInstanceType.Character)
+            .ThenByDescending(x => x.Key == ParsedInstanceType.SharedGroup)
+            .ThenBy(x => x.Key)
+            .ToArray();
         
-        foreach (var group in instanceGroups)
+        // foreach (var group in instanceGroups)
+        // {
+        //     ComposeInstanceGroup(group, progress);
+        // }
+        wrapper.Progress = new ExportProgress(instances.Length, "Composing Instances");
+        Parallel.ForEach(instanceGroups, group =>
         {
-            ComposeInstanceGroup(group, progress);
-        }
+            if (cancellationToken.IsCancellationRequested) return;
+            Plugin.Logger?.LogInformation("Composing instances of type {InstanceType} ({InstanceCount})", group.Key, group.Count());
+            var groupProgress = new ExportProgress(group.Count(), $"Composing {group.Key}")
+            {
+                Parent = wrapper.Progress
+            };
+            wrapper.Progress.Children.Add(groupProgress);
+            try
+            {
+                ComposeInstanceGroup(group, groupProgress);
+            }
+            catch (Exception ex)
+            {
+                Plugin.Logger?.LogError(ex, "Failed to compose instance group {InstanceType}\n{Message}", group.Key, ex.Message);
+            }
+            groupProgress.IsComplete = true;
+        });
         
         Plugin.Logger?.LogInformation("Finished composing instances");
     }
@@ -265,7 +305,7 @@ public class InstanceComposer
             Plugin.Logger?.LogWarning("Character instance {InstanceId} has no character info", instance.Id);
             return null;
         }
-        var characterComposer = new CharacterComposer(composerCache, exportConfig);
+        var characterComposer = new CharacterComposer(composerCache, exportConfig, cancellationToken);
         var root = new NodeBuilder($"{instance.Type}_{instance.Name}_{instance.Id}");
         
         var characterProgress = new ExportProgress(instance.CharacterInfo.Models.Length, "Character Meshes");
@@ -318,6 +358,7 @@ public class InstanceComposer
             bool validChild = false;
             foreach (var child in instance.Children)
             {
+                if (cancellationToken.IsCancellationRequested) break;
                 var childNode = ComposeInstance(child, scene, sharedGroupProgress);
                 if (childNode != null)
                 {
@@ -422,6 +463,7 @@ public class InstanceComposer
 
         foreach (var (i, platePos, distance) in terrainPlates)
         {
+            if (cancellationToken.IsCancellationRequested) break;
             Plugin.Logger?.LogInformation("Parsing plate {i}", i);
             var plateTransform = new Transform(new Vector3(platePos.X, 0, platePos.Y), Quaternion.Identity, Vector3.One);
             if (exportConfig.LimitTerrainExportRange)
@@ -431,7 +473,7 @@ public class InstanceComposer
                 {
                     Plugin.Logger?.LogDebug("Skipping plate {i} at distance {distance} from search origin {searchOrigin} (limit: {limit})",
                                             i, distance, searchOrigin, exportConfig.TerrainExportDistance);
-                    terrainProgress.Progress++;
+                    terrainProgress.IncrementProgress();
                     continue;
                 }
             }
@@ -466,7 +508,7 @@ public class InstanceComposer
 
             plateRoot.SetLocalTransform(plateTransform.AffineTransform, true);
             root.AddNode(plateRoot);
-            terrainProgress.Progress++;
+            terrainProgress.IncrementProgress();
         }
         
         terrainProgress.IsComplete = true;
@@ -518,7 +560,7 @@ public class InstanceComposer
     {
         if (instance.Light.Range <= 0)
         {
-            Plugin.Logger?.LogWarning("Light {LightId} has a range of 0 or less ({Range})", instance.Id, instance.Light.Range);
+            // Plugin.Logger?.LogWarning("Light {LightId} has a range of 0 or less ({Range})", instance.Id, instance.Light.Range);
             return null;
         }
         

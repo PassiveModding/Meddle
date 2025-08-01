@@ -4,6 +4,7 @@ namespace Meddle.Utils.Export;
 
 public class Mesh
 {
+    public string? Path { get; set; }
     public int MeshIdx { get; }
     public ushort MaterialIdx { get; }
     

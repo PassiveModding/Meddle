@@ -7,7 +7,9 @@ using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.Interop;
 using ImGuiNET;
 using Meddle.Plugin.Models;
+using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Skeletons;
+using Meddle.Plugin.UI.Layout;
 using Meddle.Utils.Files.Structs.Material;
 using SharpGLTF.Transforms;
 using CustomizeData = Meddle.Utils.Export.CustomizeData;
@@ -29,6 +31,55 @@ public static class UiUtil
             }
         }
     }
+    
+    public static void DrawProgress(Task exportTask, ProgressWrapper? progressWrapper, CancellationTokenSource cancelToken)
+    {
+        if (exportTask.IsFaulted)
+        {
+            ImGui.TextColored(new Vector4(1, 0, 0, 1), "Export failed");
+            ImGui.TextWrapped(exportTask.Exception?.ToString());
+        }
+        
+        if (exportTask.IsCompleted) return;
+        
+        ImGui.Text("Export in progress..."); 
+        ImGui.SameLine();
+        using (var disabled = ImRaii.Disabled(cancelToken.IsCancellationRequested))
+        {
+            if (ImGui.Button(cancelToken.IsCancellationRequested ? "Cancelling..." : "Cancel"))
+            {
+                cancelToken.Cancel();
+            }
+        }
+        
+        if (progressWrapper is {Progress: not null})
+        {
+            DrawProgressRecursive(progressWrapper.Progress);
+        }
+
+        return;
+
+        void DrawProgressRecursive(ExportProgress rProgress)
+        {
+            if (rProgress.IsComplete) return;
+            ImGui.Text($"{(rProgress.Name != null ? $"{rProgress.Name} " : null)}Exporting {rProgress.Progress} of {rProgress.Total}");
+            ImGui.ProgressBar(rProgress.Progress / (float)rProgress.Total, new Vector2(-1, 0), rProgress.Name ?? "");
+            if (rProgress.Children.Count > 0)
+            {
+                using var indent = ImRaii.PushIndent();
+                foreach (var child in rProgress.Children)
+                {
+                    if (child == rProgress)
+                    {
+                        ImGui.Text("Recursive progress detected, skipping");
+                        continue;
+                    }
+                    DrawProgressRecursive(child);
+                }
+            }
+        }
+    }
+
 
     [Flags]
     public enum ExportConfigDrawFlags
