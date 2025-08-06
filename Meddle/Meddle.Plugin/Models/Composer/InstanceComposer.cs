@@ -106,57 +106,57 @@ public class InstanceComposer
 
         var orderedInstances = group.OrderBy(x => x.Transform.Translation.LengthSquared()).ToArray();
         var lastSceneIdx = 0;
-        
-        var orderedInstanceChunks = orderedInstances
-            .Select((x, i) => new { Index = i, Value = x })
-            .GroupBy(x => x.Index / 100)
-            .Select(g => g.Select(x => x.Value).ToArray())
-            .ToArray();
 
-        // for (var i = 0; i < orderedInstances.Length; i++)
-        // {
-        //     if (cancellationToken.IsCancellationRequested) break;
-        //     progress.IncrementProgress();
-        //     try
-        //     {
-        //         if (ComposeInstance(orderedInstances[i], scene, progress) != null)
-        //         {
-        //             var stats = scenes[scene];
-        //             stats.Instances++;
-        //             if (stats.Instances > 100 || scene.Instances.Count > 100)
-        //             {
-        //                 Plugin.Logger?.LogDebug("Saving scene {key} {startIdx:D4}-{endIdx:D4} Instances: {instances} Nodes: {nodes}", 
-        //                                         group.Key, lastSceneIdx, i, stats.Instances, scene.Instances.Count);
-        //                 SaveScene(scene, $"{group.Key}_{lastSceneIdx:D4}-{i:D4}");
-        //                 scenes[scene].Saved = true;
-        //                 lastSceneIdx = i;
-        //
-        //                 scene = new SceneBuilder();
-        //                 scenes.Add(scene, new SceneStats());
-        //             }
-        //         }
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         try
-        //         {
-        //             var blob = JsonSerializer.Serialize(orderedInstances[i], MaterialComposer.JsonOptions);
-        //             Plugin.Logger?.LogError(ex, 
-        //                                     "Failed to compose instance {instance} {instanceType}\n{Message}\b{Blob}", 
-        //                                     orderedInstances[i].Id, 
-        //                                     orderedInstances[i].Type, 
-        //                                     ex.Message, blob);
-        //         }
-        //         catch (Exception ex2)
-        //         {
-        //             Plugin.Logger?.LogError(new AggregateException(ex, ex2), 
-        //                                     "Failed to compose instance {instance} {instanceType}\n{Message}", 
-        //                                     orderedInstances[i].Id, 
-        //                                     orderedInstances[i].Type,
-        //                 ex.Message);
-        //         }
-        //     }
-        // }
+        // var orderedInstanceChunks = orderedInstances
+        //     .Select((x, i) => new { Index = i, Value = x })
+        //     .GroupBy(x => x.Index / 100)
+        //     .Select(g => g.Select(x => x.Value).ToArray())
+        //     .ToArray();
+
+        for (var i = 0; i < orderedInstances.Length; i++)
+        {
+            if (cancellationToken.IsCancellationRequested) break;
+            progress.IncrementProgress();
+            try
+            {
+                if (ComposeInstance(orderedInstances[i], scene, progress) != null)
+                {
+                    var stats = scenes[scene];
+                    stats.Instances++;
+                    if (stats.Instances > 100 || scene.Instances.Count > 100)
+                    {
+                        Plugin.Logger?.LogDebug("Saving scene {key} {startIdx:D4}-{endIdx:D4} Instances: {instances} Nodes: {nodes}", 
+                                                group.Key, lastSceneIdx, i, stats.Instances, scene.Instances.Count);
+                        SaveScene(scene, $"{group.Key}_{lastSceneIdx:D4}-{i:D4}");
+                        scenes[scene].Saved = true;
+                        lastSceneIdx = i;
+        
+                        scene = new SceneBuilder();
+                        scenes.Add(scene, new SceneStats());
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                try
+                {
+                    var blob = JsonSerializer.Serialize(orderedInstances[i], MaterialComposer.JsonOptions);
+                    Plugin.Logger?.LogError(ex, 
+                                            "Failed to compose instance {instance} {instanceType}\n{Message}\b{Blob}", 
+                                            orderedInstances[i].Id, 
+                                            orderedInstances[i].Type, 
+                                            ex.Message, blob);
+                }
+                catch (Exception ex2)
+                {
+                    Plugin.Logger?.LogError(new AggregateException(ex, ex2), 
+                                            "Failed to compose instance {instance} {instanceType}\n{Message}", 
+                                            orderedInstances[i].Id, 
+                                            orderedInstances[i].Type,
+                        ex.Message);
+                }
+            }
+        }
         
           
         SaveRemainingScenes(group.Key, lastSceneIdx, orderedInstances.Length, scenes);
