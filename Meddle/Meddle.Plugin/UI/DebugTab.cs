@@ -11,7 +11,7 @@ using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Render;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.Havok.Animation.Rig;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Layout;
@@ -424,7 +424,7 @@ public class DebugTab : ITab
 
             var tex = textureProvider.GetFromGame(exportPathInput);
             var wrap = tex.GetWrapOrEmpty();
-            ImGui.Image(wrap.ImGuiHandle, new Vector2(availableWidth, availableWidth * wrap.Height / wrap.Width));
+            ImGui.Image(wrap.Handle, new Vector2(availableWidth, availableWidth * wrap.Height / wrap.Width));
         }
     }
     private readonly TextureCache textureCache;

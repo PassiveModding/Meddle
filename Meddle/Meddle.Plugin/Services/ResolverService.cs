@@ -235,7 +235,7 @@ public class ResolverService : IService
             }
             
             var material = materialPtr.Value;
-            var materialPath = material->MaterialResourceHandle->ResourceHandle.FileName.ParseString();
+            var materialPath = material->MaterialResourceHandle->FileName.ParseString();
             var materialPathFromModel =
                 model->ModelResourceHandle->GetMaterialFileNameBySlot((uint)mtrlIdx);
             var shaderName = material->MaterialResourceHandle->ShpkName;
@@ -354,7 +354,7 @@ public class ResolverService : IService
                 continue;
             }
             
-            var materialPath = material->ResourceHandle.FileName.ParseString();
+            var materialPath = material->FileName.ParseString();
             var pathFromModel = handle->GetMaterialFileNameBySlot((uint)i);
             var shaderName = material->ShpkName;
             IColorTableSet? colorTable = null;

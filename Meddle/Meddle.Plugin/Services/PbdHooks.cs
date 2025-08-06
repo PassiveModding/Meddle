@@ -6,7 +6,7 @@ namespace Meddle.Plugin.Services;
 
 public class PbdHooks : IDisposable, IService
 {
-    public const string HumanCreateDeformerSig = "40 53 48 83 EC 20 4C 8B C1 83 FA 0D";
+    public const string HumanCreateDeformerSig = "48 89 5C 24 ?? 57 48 83 EC 30 4C 8B C1 ";
     private readonly Dictionary<nint, Dictionary<uint, DeformerCachedStruct>> deformerCache = new();
     private readonly ILogger<PbdHooks> logger;
     private readonly Hook<HumanCreateDeformerDelegate>? humanCreateDeformerHook;

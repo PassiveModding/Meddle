@@ -4,7 +4,7 @@ using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface.Utility.Raii;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.Interop;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Services.UI;
@@ -239,7 +239,7 @@ public class MaterialParameterTab : ITab
                     continue;
 
                 var materialParams = material->MaterialParameterCBuffer->TryGetBuffer<float>();
-                var mtrlFileName = material->MaterialResourceHandle->ResourceHandle.FileName.ParseString();
+                var mtrlFileName = material->MaterialResourceHandle->FileName.ParseString();
                 if (mtrlConstantCache.TryGetValue(mtrlFileName, out var mtrlConstants))
                 {
                     mtrlConstants.CopyTo(materialParams);
@@ -275,7 +275,7 @@ public class MaterialParameterTab : ITab
                     if (material == null)
                         continue;
 
-                    var mtrlFileName = material->MaterialResourceHandle->ResourceHandle.FileName.ParseString();
+                    var mtrlFileName = material->MaterialResourceHandle->FileName.ParseString();
 
                     if (!materialCache.TryGetValue(mtrlFileName, out var materialPtr))
                     {

@@ -9,7 +9,7 @@ using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Common.Math;
 using FFXIVClientStructs.Interop;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Layout;
@@ -743,7 +743,7 @@ public unsafe class LiveCharacterTab : ITab
 
         using var materialId = ImRaii.PushId($"{(nint)material}");
         var materialFileName = material->MaterialResourceHandle->FileName.ParseString();
-        var materialName = model->ModelResourceHandle->GetMaterialFileNameBySlot((uint)materialIdx);
+        var materialName = model->ModelResourceHandle->GetMaterialFileNameBySlot((uint)materialIdx).ToString();
 
         // in same row as model export button, draw button for export material
         ImGui.TableNextRow();
@@ -1047,7 +1047,7 @@ public unsafe class LiveCharacterTab : ITab
                 return wrap;
             });
 
-            ImGui.Image(wrap.ImGuiHandle, new Vector2(displayWidth, displayHeight));
+            ImGui.Image(wrap.Handle, new Vector2(displayWidth, displayHeight));
         }
     }
 

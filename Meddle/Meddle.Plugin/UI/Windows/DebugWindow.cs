@@ -1,5 +1,5 @@
 ﻿using System.Numerics;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using Meddle.Plugin.Models;
 using Microsoft.Extensions.Logging;
 
