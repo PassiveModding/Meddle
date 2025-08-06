@@ -93,10 +93,10 @@ public partial class LayoutWindow
             ImGui.Text($"Rotation: {instance.Transform.Rotation}");
             ImGui.Text($"Scale: {instance.Transform.Scale}");
 
-            if (config.SecretConfig == "Kweh")
-            {
-                DrawControlsEvil(instance);
-            }
+            // if (config.SecretConfig == "Kweh")
+            // {
+            //     DrawControlsEvil(instance);
+            // }
 
             if (instance is IPathInstance pathedInstance)
             {
