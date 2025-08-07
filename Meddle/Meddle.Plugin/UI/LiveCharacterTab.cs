@@ -108,7 +108,7 @@ public unsafe class LiveCharacterTab : ITab
     public void Draw()
     {
         UiUtil.DrawProgress(exportTask, progress, cancelToken);
-        commonUi.DrawCharacterSelect(ref selectedCharacter);
+        commonUi.DrawCharacterSelect(ref selectedCharacter, ObjectUtil.ValidationFlags.IsVisible);
         
         DrawSelectedCharacter();
         fileDialog.Draw();

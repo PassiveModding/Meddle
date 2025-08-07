@@ -24,8 +24,19 @@ public static class ObjectUtil
         return $"<X: {vector.X:0.00} Y: {vector.Y:0.00} Z: {vector.Z:0.00} W: {vector.W:0.00}>";
     }
 
-    public static unsafe bool IsValidHuman(this ICharacter obj)
+    [Flags]
+    public enum ValidationFlags
     {
+        None = 0,
+        IsVisible = 1 << 0
+    }
+    
+    public static unsafe bool IsValidHuman(this ICharacter obj, ValidationFlags flags = ValidationFlags.None)
+    {
+        if (!obj.IsValid())
+        {
+            return false;
+        }
         var drawObject = ((CSCharacter*)obj.Address)->GameObject.DrawObject;
         if (drawObject == null)
             return false;
@@ -34,7 +45,7 @@ public static class ObjectUtil
         if (((CharacterBase*)drawObject)->GetModelType() != CharacterBase.ModelType.Human)
             return false;
 
-        if (!drawObject->IsVisible)
+        if (flags.HasFlag(ValidationFlags.IsVisible) && !drawObject->IsVisible)
         {
             return false;
         }
@@ -42,15 +53,19 @@ public static class ObjectUtil
         return true;
     }
 
-    public static unsafe bool IsValidCharacterBase(this ICharacter obj)
+    public static unsafe bool IsValidCharacterBase(this ICharacter obj, ValidationFlags flags = ValidationFlags.None)
     {
+        if (!obj.IsValid())
+        {
+            return false;
+        }
         var drawObject = ((CSCharacter*)obj.Address)->GameObject.DrawObject;
         if (drawObject == null)
             return false;
         if (drawObject->Object.GetObjectType() != ObjectType.CharacterBase)
             return false;
 
-        if (!drawObject->IsVisible)
+        if (flags.HasFlag(ValidationFlags.IsVisible) && !drawObject->IsVisible)
         {
             return false;
         }
