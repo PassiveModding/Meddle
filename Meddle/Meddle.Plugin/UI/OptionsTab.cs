@@ -160,6 +160,20 @@ public class OptionsTab : ITab
             config.DisableGposeUiHide = disableGposeUiHide;
             config.Save();
         }
+        
+        var displayDebugInfo = config.DisplayDebugInfo;
+        if (ImGui.Checkbox("Display Debug Info", ref displayDebugInfo))
+        {
+            config.DisplayDebugInfo = displayDebugInfo;
+            config.Save();
+        }
+        
+        var openFolderOnExport = config.OpenFolderOnExport;
+        if (ImGui.Checkbox("Open Folder on export completion", ref openFolderOnExport))
+        {
+            config.OpenFolderOnExport = openFolderOnExport;
+            config.Save();
+        }
     }
     
     // private void DrawCharacterTextureMode()

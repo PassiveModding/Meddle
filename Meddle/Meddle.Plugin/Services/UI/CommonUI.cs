@@ -171,8 +171,14 @@ public class CommonUi : IDisposable, IService
         var name = obj.Name.TextValue;
         if (obj.ObjectKind == ObjectKind.Player && !string.IsNullOrWhiteSpace(config.PlayerNameOverride))
             name = config.PlayerNameOverride;
+        string prefix = string.Empty;
+        if (config.DisplayDebugInfo)
+        {
+            prefix = $"[{obj.Address:X8}:{obj.GameObjectId:X}]";
+        }
+        
         return
-            $"[{obj.Address:X8}:{obj.GameObjectId:X}][{obj.ObjectKind}][{modelType}] - " +
+            $"{prefix}[{obj.ObjectKind}][{modelType}] - " +
             $"{(string.IsNullOrWhiteSpace(name) ? "Unnamed" : name)} - " +
             $"{clientState.GetDistanceToLocalPlayer(obj).Length():0.00}y##{obj.GameObjectId}";
     }
