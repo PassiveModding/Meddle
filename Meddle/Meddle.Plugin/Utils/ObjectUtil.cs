@@ -33,10 +33,6 @@ public static class ObjectUtil
     
     public static unsafe bool IsValidHuman(this ICharacter obj, ValidationFlags flags = ValidationFlags.None)
     {
-        if (!obj.IsValid())
-        {
-            return false;
-        }
         var drawObject = ((CSCharacter*)obj.Address)->GameObject.DrawObject;
         if (drawObject == null)
             return false;
@@ -56,9 +52,7 @@ public static class ObjectUtil
     public static unsafe bool IsValidCharacterBase(this ICharacter obj, ValidationFlags flags = ValidationFlags.None)
     {
         if (!obj.IsValid())
-        {
             return false;
-        }
         var drawObject = ((CSCharacter*)obj.Address)->GameObject.DrawObject;
         if (drawObject == null)
             return false;
