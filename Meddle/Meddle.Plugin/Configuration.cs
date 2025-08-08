@@ -29,6 +29,8 @@ public partial class Configuration : IPluginConfiguration
     public bool DisableGposeUiHide { get; set; } = true;
     public string ExportDirectory { get; set; } = Plugin.DefaultExportDirectory;
     public string SecretConfig { get; set; } = string.Empty;
+    public bool DisplayDebugInfo { get; set; }
+    public bool OpenFolderOnExport { get; set; } = true;
     
     /// <summary>
     /// Used to hide names in the UI

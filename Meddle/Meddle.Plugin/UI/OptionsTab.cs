@@ -2,7 +2,7 @@
 using System.Numerics;
 using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using Meddle.Plugin.Models;
 using Microsoft.Extensions.Logging;
 
@@ -158,6 +158,20 @@ public class OptionsTab : ITab
         if (ImGui.Checkbox("Disable Gpose UI Hide", ref disableGposeUiHide))
         {
             config.DisableGposeUiHide = disableGposeUiHide;
+            config.Save();
+        }
+        
+        var displayDebugInfo = config.DisplayDebugInfo;
+        if (ImGui.Checkbox("Display Debug Info", ref displayDebugInfo))
+        {
+            config.DisplayDebugInfo = displayDebugInfo;
+            config.Save();
+        }
+        
+        var openFolderOnExport = config.OpenFolderOnExport;
+        if (ImGui.Checkbox("Open Folder on export completion", ref openFolderOnExport))
+        {
+            config.OpenFolderOnExport = openFolderOnExport;
             config.Save();
         }
     }

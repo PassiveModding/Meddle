@@ -2,7 +2,7 @@
 using System.Numerics;
 using System.Reflection;
 using Dalamud.Interface.Utility.Raii;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using Meddle.Plugin.Models;
 
 namespace Meddle.Plugin.UI;

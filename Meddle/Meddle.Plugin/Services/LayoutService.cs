@@ -253,16 +253,23 @@ public class LayoutService : IService, IDisposable
         if (typedInstance->DecalPtr == null || typedInstance->DecalPtr->DecalItem == null)
             return null;
 
+        var transform = decalLayout->GetTransformImpl();
+        if (transform == null)
+            return null;
+        
         var decalData = typedInstance->DecalPtr->DecalItem;
         var diffuseTex = decalData->TexDiffuse;
+        var diffusePath = diffuseTex != null ? diffuseTex->FileName.ParseString() : string.Empty;
         var normalTex = decalData->TexNormal;
+        var normalPath = normalTex != null ? normalTex->FileName.ParseString() : string.Empty;
         var specularTex = decalData->TexSpecular;
+        var specularPath = specularTex != null ? specularTex->FileName.ParseString() : string.Empty;
 
         return new ParsedWorldDecalInstance((nint)decalLayout,
-                                       new Transform(*decalLayout->GetTransformImpl()),
-                                       diffuseTex->FileName.ParseString(),
-                                       normalTex->FileName.ParseString(),
-                                       specularTex->FileName.ParseString());
+                                       new Transform(*transform),
+                                       diffusePath,
+                                       normalPath,
+                                       specularPath);
     }
 
     private unsafe ParsedLightInstance? ParsedLightInstance(Pointer<ILayoutInstance> lightPtr)

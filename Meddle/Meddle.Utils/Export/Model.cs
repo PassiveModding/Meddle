@@ -130,8 +130,11 @@ public unsafe class Model
                 if (meshIndices.Length != mesh.IndexCount)
                     throw new ArgumentException($"Mesh {i} has {meshIndices.Length} indices, but {mesh.IndexCount} were expected");
 
-                
-                meshes.Add(new Mesh(file, i, meshVertices, mesh.StartIndex, meshIndices, AttributeMasks.ToArray()));
+
+                meshes.Add(new Mesh(file, i, meshVertices, mesh.StartIndex, meshIndices, AttributeMasks.ToArray())
+                {
+                    Path = HandlePath,
+                });
             }
         }
         

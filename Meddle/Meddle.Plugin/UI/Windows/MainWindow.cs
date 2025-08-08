@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Numerics;
 using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.UI.Layout;
 using Microsoft.Extensions.Logging;
@@ -15,9 +15,13 @@ public sealed class MainWindow : MeddleWindowBase
     private readonly DebugWindow debugWindow;
     private readonly LayoutWindow layoutWindow;
     private readonly UpdateWindow updateWindow;
+    private readonly Configuration config;
     private readonly ITab[] tabs;
 
-    public MainWindow(IEnumerable<ITab> tabs, ILogger<MainWindow> log, DebugWindow debugWindow, LayoutWindow layoutWindow, UpdateWindow updateWindow) : 
+    public MainWindow(IEnumerable<ITab> tabs, ILogger<MainWindow> log, 
+                      DebugWindow debugWindow, 
+                      LayoutWindow layoutWindow, UpdateWindow updateWindow,
+                      Configuration config) : 
         base(log, "Meddle", ImGuiWindowFlags.MenuBar)
     {
         this.tabs = tabs.OrderBy(x => x.Order).Where(x => x.MenuType == MenuType.Default).ToArray();
@@ -25,6 +29,7 @@ public sealed class MainWindow : MeddleWindowBase
         this.debugWindow = debugWindow;
         this.layoutWindow = layoutWindow;
         this.updateWindow = updateWindow;
+        this.config = config;
         SizeConstraints = new WindowSizeConstraints
         {
             MinimumSize = new Vector2(375, 350),
@@ -32,27 +37,11 @@ public sealed class MainWindow : MeddleWindowBase
         };
     }
     
-    private void DrawMenuFont(FontAwesomeIcon icon, string tooltip, Action click)
-    {
-        using (ImRaii.PushFont(UiBuilder.IconFont))
-        {
-            if (ImGui.MenuItem(icon.ToIconString()))
-            {
-                click();
-            }
-        }
-
-        if (ImGui.IsItemHovered())
-        {
-            ImGui.SetTooltip(tooltip);
-        }
-    }
-    
     protected override void BeforeDraw()
     {
         if (ImGui.BeginMenuBar())
         {
-            if (ImGui.MenuItem("Debug"))
+            if (config.DisplayDebugInfo && ImGui.MenuItem("Debug"))
             {
                 debugWindow.IsOpen = true;
             }

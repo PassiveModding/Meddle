@@ -9,7 +9,7 @@ using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Common.Math;
 using FFXIVClientStructs.Interop;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Layout;
@@ -66,7 +66,7 @@ public unsafe class LiveCharacterTab : ITab
 
     private readonly Dictionary<Pointer<CSHuman>, (CustomizeData, CustomizeParameter)> humanCustomizeData = new();
     private ICharacter? selectedCharacter;
-    private ExportProgress? progress;
+    private ProgressWrapper? progress;
     private bool requestedPopup;
     private Action? drawExportSettingsCallback;
     
@@ -107,8 +107,8 @@ public unsafe class LiveCharacterTab : ITab
 
     public void Draw()
     {
-        LayoutWindow.DrawProgress(exportTask, progress, cancelToken);
-        commonUi.DrawCharacterSelect(ref selectedCharacter);
+        UiUtil.DrawProgress(exportTask, progress, cancelToken);
+        commonUi.DrawCharacterSelect(ref selectedCharacter, ObjectUtil.ValidationFlags.IsVisible);
         
         DrawSelectedCharacter();
         fileDialog.Draw();
@@ -314,11 +314,17 @@ public unsafe class LiveCharacterTab : ITab
                                                     var scene = new SceneBuilder();
                                                     var characterRoot = new NodeBuilder($"Character-{name}");
                                                     scene.AddNode(characterRoot);
-                                                    progress = new ExportProgress(characterInfo.Models.Length, "Character");
-                                                    composer.Compose(characterInfo, scene, characterRoot, progress);
+                                                    progress = new ProgressWrapper
+                                                    {
+                                                        Progress = new ExportProgress(characterInfo.Models.Length, "Character")
+                                                    };
+                                                    composer.Compose(characterInfo, scene, characterRoot, progress.Progress);
                                                     var modelRoot = scene.ToGltf2();
                                                     ExportUtil.SaveAsType(modelRoot, exportConfig.ExportType, path, name);
-                                                    Process.Start("explorer.exe", path);
+                                                    if (config.OpenFolderOnExport)
+                                                    {
+                                                        Process.Start("explorer.exe", path);
+                                                    }
                                                 });
                                             }, config.ExportDirectory);
 
@@ -740,7 +746,7 @@ public unsafe class LiveCharacterTab : ITab
 
         using var materialId = ImRaii.PushId($"{(nint)material}");
         var materialFileName = material->MaterialResourceHandle->FileName.ParseString();
-        var materialName = model->ModelResourceHandle->GetMaterialFileNameBySlot((uint)materialIdx);
+        var materialName = model->ModelResourceHandle->GetMaterialFileNameBySlot((uint)materialIdx).ToString();
 
         // in same row as model export button, draw button for export material
         ImGui.TableNextRow();
@@ -810,7 +816,10 @@ public unsafe class LiveCharacterTab : ITab
                                                     var textureBytes = memoryStream.ToArray();
                                                     File.WriteAllBytes(filePath, textureBytes);
                                                 }
-                                                Process.Start("explorer.exe", path);
+                                                if (config.OpenFolderOnExport)
+                                                {
+                                                    Process.Start("explorer.exe", path);
+                                                }
                                             }, config.ExportDirectory);
             }
 
@@ -1044,7 +1053,7 @@ public unsafe class LiveCharacterTab : ITab
                 return wrap;
             });
 
-            ImGui.Image(wrap.ImGuiHandle, new Vector2(displayWidth, displayHeight));
+            ImGui.Image(wrap.Handle, new Vector2(displayWidth, displayHeight));
         }
     }
 

@@ -1,8 +1,8 @@
 ﻿using System.Numerics;
+using Dalamud.Bindings.ImGui;
 using Dalamud.Hooking;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
-using ImGuiNET;
 using Lumina.Excel.Sheets;
 using Meddle.Plugin.Utils;
 using Microsoft.Extensions.Logging;
@@ -12,10 +12,10 @@ namespace Meddle.Plugin.Services;
 public unsafe class StainHooks : IDisposable, IService
 {
     private readonly ILogger<PbdHooks> logger;
-    private const string HumanGetDyeForSlotSignature = "83 FA 09 77 1A 8B C2";
+    private const string HumanGetDyeForSlotSignature = "83 FA 09 77 16 8B D2";
     private readonly Hook<HumanGetDyeForSlotDelegate>? humanGetDyeForSlotHook;
     private delegate uint HumanGetDyeForSlotDelegate(Human* a1, uint a2, uint a3);
-    private const string DemiHumanGetDyeForSlotSignature = "8B C2 48 8D 14 40 48 8B 81 ?? ?? ?? ?? 48 8D 0C D0 41 8B C0 0F B6 44 01 ?? C3 CC";
+    private const string DemiHumanGetDyeForSlotSignature = "44 8B CA 49 C1 E1 05 4C 03 89 ?? ?? ?? ??";
     private readonly Hook<DemiHumanGetDyeForSlotDelegate>? demiHumanGetDyeForSlotHook;
     private delegate uint DemiHumanGetDyeForSlotDelegate(CharacterBase* a1, uint a2, uint a3);
     private const string WeaponGetDyeForSlotSignature = "48 8B 81 ?? ?? ?? ?? 41 8B D0 0F B6 44 10 ??";

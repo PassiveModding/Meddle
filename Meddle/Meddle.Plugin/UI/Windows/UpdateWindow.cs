@@ -1,20 +1,22 @@
 ﻿using System.Diagnostics;
+using System.Numerics;
 using System.Reflection;
 using Dalamud.Interface.Windowing;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Utility.Raii;
 
 namespace Meddle.Plugin.UI.Windows;
 
 public class UpdateWindow : Window
 {
     private readonly Configuration config;
-    public UpdateWindow(Configuration config) : base("Updates", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
+    public UpdateWindow(Configuration config) : base("Meddle Updates")
     {
         this.config = config;
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new System.Numerics.Vector2(400, 300),
-            MaximumSize = new System.Numerics.Vector2(800, 600)
+            MinimumSize = new Vector2(400, 300),
+            MaximumSize = new Vector2(800, 600)
         };
     }
 
@@ -51,6 +53,22 @@ public class UpdateWindow : Window
                 new TextUpdateLine(" + Fixed issues with staining on certain housing items"),
                 new TextUpdateLine(" + Added support for BGChange objects (housing wall and floor customization) exports"),
                 new TextUpdateLine(" + Exported housing objects should now be named after their in-game names instead of their paths"),
+            ]
+        },
+        new()
+        {
+            Tag = "Patch 7.3 Support",
+            Date = "2025-08-08",
+            Changes =
+            [
+                new TextUpdateLine(" + Support for patch 7.3 changes."),
+                new TextUpdateLine(" + Fixes for offscreen characters not being recorded in the animation tab."),
+                new TextUpdateLine(" + Fixes decal parsing during zone changes."),
+                new TextUpdateLine(" + Updated vertex handling for better support of multiple usage indexes."),
+                new TextUpdateLine(" + Improved progress drawing for layout exports."),
+                new TextUpdateLine(" + Improved responsiveness of cancel button during exports."),
+                new TextUpdateLine(" + Added option to disable automatic opening of folder after export."),
+                new TextUpdateLine(" + Clean up info in character selector to avoid clutter. (This can be re-enabled in options with the Debug Info option.)"),
             ]
         }
     ];
@@ -95,45 +113,83 @@ public class UpdateWindow : Window
     public override void Draw()
     {
         ImGui.Text("Meddle Version: " + Assembly.GetExecutingAssembly().GetName().Version);
-        ImGui.Separator();
 
-        if (ImGui.Button("Carrd"))
+        // option to disable this window from opening automatically
+        var showUpdateWindow = config.UpdateConfig.ShowUpdateWindow;
+        if (ImGui.Checkbox("Automatically open this window when there are new release notes", ref showUpdateWindow))
         {
-            Process.Start(new ProcessStartInfo
+            config.UpdateConfig.ShowUpdateWindow = showUpdateWindow;
+            config.Save();
+        }
+        
+        ImGui.Separator();
+        
+        Vector2 mainButtonSize = new(150, 0);
+        using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.5f, 0.2f, 0.6f, 1)))
+        {
+            if (ImGui.Button("Carrd", mainButtonSize))
             {
-                FileName = Constants.CarrdUrl,
-                UseShellExecute = true
-            });
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = Constants.CarrdUrl,
+                    UseShellExecute = true
+                });
+            }
         }
         
         ImGui.SameLine();
         
-        if (ImGui.Button("Ko-fi"))
+        using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.7f, 0, 0, 1)))
         {
-            Process.Start(new ProcessStartInfo
+            if (ImGui.Button("Ko-fi", mainButtonSize))
             {
-                FileName = Constants.KoFiUrl,
-                UseShellExecute = true
-            });
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = Constants.KoFiUrl,
+                    UseShellExecute = true
+                });
+            }
+        }
+        
+        ImGui.SameLine();
+
+        using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.3f, 0.3f, 1f, 1)))
+        {
+            if (ImGui.Button("Discord", mainButtonSize))
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = Constants.DiscordUrl,
+                    UseShellExecute = true
+                });
+            }
         }
         
         ImGui.SameLine();
         
-        if (ImGui.Button("Discord"))
+        using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.95f, 0.54f, 0.15f, 1)))
         {
-            Process.Start(new ProcessStartInfo
+            if (ImGui.Button("MeddleTools Blender Addon", new (200, 0)))
             {
-                FileName = Constants.DiscordUrl,
-                UseShellExecute = true
-            });
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = Constants.MeddleToolsUrl,
+                    UseShellExecute = true
+                });
+            }
         }
-        
+
         ImGui.Separator();
         
         for (var i = UpdateLogs.Count - 1; i >= 0; i--)
         {
             var update = UpdateLogs[i];
-            if (ImGui.CollapsingHeader($"{update.Tag} - {update.Date}", ImGuiTreeNodeFlags.DefaultOpen))
+            var flags = ImGuiTreeNodeFlags.None;
+            if (i == UpdateLogs.Count - 1)
+            {
+                flags |= ImGuiTreeNodeFlags.DefaultOpen;
+            }
+            if (ImGui.CollapsingHeader($"{update.Tag} - {update.Date}", flags))
             {
                 foreach (var change in update.Changes)
                 {

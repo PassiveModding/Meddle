@@ -4,7 +4,7 @@ using Dalamud.Interface.Utility.Raii;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Layer;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Utils;
 using Meddle.Utils.Export;
@@ -43,6 +43,7 @@ public partial class LayoutWindow
         if (ImGui.DragFloat3("Position", ref translation, 0.1f))
         {
             // WARNING: Don't use this, it will move the collision of the object, instead just set translation on the graphics back
+            // var bgPartPtr = (BgPartsLayoutInstance*)instance.Id;
             // bgPartPtr->SetTranslationImpl(&translation);
             graphics->Position = translation;
         }
@@ -92,10 +93,10 @@ public partial class LayoutWindow
             ImGui.Text($"Rotation: {instance.Transform.Rotation}");
             ImGui.Text($"Scale: {instance.Transform.Scale}");
 
-            if (config.SecretConfig == "Kweh")
-            {
-                DrawControlsEvil(instance);
-            }
+            // if (config.SecretConfig == "Kweh")
+            // {
+            //     DrawControlsEvil(instance);
+            // }
 
             if (instance is IPathInstance pathedInstance)
             {
@@ -526,6 +527,6 @@ public partial class LayoutWindow
             displayHeight *= ratio;
         }
         
-        ImGui.Image(wrap.ImGuiHandle, new Vector2(displayWidth, displayHeight));
+        ImGui.Image(wrap.Handle, new Vector2(displayWidth, displayHeight));
     }
 }

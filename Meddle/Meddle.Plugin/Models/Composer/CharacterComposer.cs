@@ -19,16 +19,19 @@ public class CharacterComposer
     
     private readonly ComposerCache composerCache;
     private readonly Configuration.ExportConfiguration exportConfig;
-    
-    public CharacterComposer(ComposerCache composerCache, Configuration.ExportConfiguration exportConfig)
+    private readonly CancellationToken cancellationToken;
+
+    public CharacterComposer(ComposerCache composerCache, Configuration.ExportConfiguration exportConfig, CancellationToken cancellationToken)
     {
         this.composerCache = composerCache;
         this.exportConfig = exportConfig;
+        this.cancellationToken = cancellationToken;
     }
     
-    public CharacterComposer(SqPack pack, Configuration.ExportConfiguration exportConfig, string outDir)
+    public CharacterComposer(SqPack pack, Configuration.ExportConfiguration exportConfig, string outDir, CancellationToken cancellationToken)
     {
         this.exportConfig = exportConfig;
+        this.cancellationToken = cancellationToken;
         Directory.CreateDirectory(outDir);
         var cacheDir = Path.Combine(outDir, "cache");
         Directory.CreateDirectory(cacheDir);
@@ -392,6 +395,12 @@ public class CharacterComposer
         
         foreach (var t in characterInfo.Models)
         {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                Plugin.Logger?.LogInformation("Export cancelled, stopping model processing");
+                break;
+            }
+            
             try
             {
                 HandleModel(characterInfo, t, 
@@ -403,11 +412,17 @@ public class CharacterComposer
                 Plugin.Logger?.LogError(e, "Failed to handle model\n{Message}\n{ModelInfo}", e.Message, JsonSerializer.Serialize(t, MaterialComposer.JsonOptions));
             }
             
-            rootProgress.Progress++;
+            rootProgress.IncrementProgress();
         }
         
         foreach (var t in characterInfo.Attaches)
         {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                Plugin.Logger?.LogInformation("Export cancelled, stopping attach processing");
+                break;
+            }
+            
             ExportProgress? attachProgress = null;
             try
             {

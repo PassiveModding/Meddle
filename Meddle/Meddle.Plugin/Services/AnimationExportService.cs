@@ -13,10 +13,12 @@ namespace Meddle.Plugin.Services;
 public class AnimationExportService : IDisposable, IService
 {
     private readonly ILogger<AnimationExportService> logger;
+    private readonly Configuration config;
 
-    public AnimationExportService(ILogger<AnimationExportService> logger)
+    public AnimationExportService(ILogger<AnimationExportService> logger, Configuration config)
     {
         this.logger = logger;
+        this.config = config;
     }
 
     public void Dispose()
@@ -68,7 +70,10 @@ public class AnimationExportService : IDisposable, IService
                 sceneGraph.SaveGLTF(outputPath);
             }
 
-            Process.Start("explorer.exe", folder);
+            if (config.OpenFolderOnExport)
+            {
+                Process.Start("explorer.exe", folder);
+            }
             logger.LogInformation("Export complete");
         }
         catch (Exception e)

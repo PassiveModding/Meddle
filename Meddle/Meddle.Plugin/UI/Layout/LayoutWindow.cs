@@ -4,7 +4,7 @@ using Dalamud.Interface;
 using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Layout;
@@ -44,7 +44,7 @@ public partial class LayoutWindow : ITab
     private Vector3 playerPosition;
     private Action? drawExportSettingsCallback;
     private Task exportTask = Task.CompletedTask;
-    private ExportProgress? progress;
+    private ProgressWrapper? progress;
 
     private string? lastError;
     private string search = "";
@@ -84,7 +84,7 @@ public partial class LayoutWindow : ITab
     {
         try
         {
-            DrawProgress(exportTask, progress, cancelToken);
+            UiUtil.DrawProgress(exportTask, progress, cancelToken);
 
             if (shouldUpdateState)
             {
@@ -268,51 +268,7 @@ public partial class LayoutWindow : ITab
         }
         layoutService.SearchOrigin = searchOrigin;
     }
-
-
-    public static void DrawProgress(Task exportTask, ExportProgress? progress, CancellationTokenSource cancelToken)
-    {
-        if (exportTask.IsFaulted)
-        {
-            ImGui.TextColored(new Vector4(1, 0, 0, 1), "Export failed");
-            ImGui.TextWrapped(exportTask.Exception?.ToString());
-        }
-        
-        if (exportTask.IsCompleted) return;
-
-        if (progress != null)
-        {
-            DrawProgressRecursive(progress);
-        }
-
-        if (ImGui.Button("Cancel"))
-        {
-            cancelToken.Cancel();
-        }
-        
-        return;
-
-        void DrawProgressRecursive(ExportProgress rProgress)
-        {
-            if (rProgress.IsComplete) return;
-            ImGui.Text($"Exporting {rProgress.Progress} of {rProgress.Total}");
-            ImGui.ProgressBar(rProgress.Progress / (float)rProgress.Total, new Vector2(-1, 0), rProgress.Name ?? "");
-            if (rProgress.Children.Count > 0)
-            {
-                using var indent = ImRaii.PushIndent();
-                foreach (var child in rProgress.Children)
-                {
-                    if (child == rProgress)
-                    {
-                        ImGui.Text("Recursive progress detected, skipping");
-                        continue;
-                    }
-                    DrawProgressRecursive(child);
-                }
-            }
-        }
-    }
-
+    
     private void DrawExportSingle(ParsedInstance instance)
     {
         using (ImRaii.PushFont(UiBuilder.IconFont))
@@ -474,9 +430,12 @@ public partial class LayoutWindow : ITab
                                                     var composer = composerFactory.CreateComposer(path,
                                                                                                   exportConfig,
                                                                                                   cancelToken.Token);
-                                                    progress = new ExportProgress(filteredInstanceArray.Length, "Instances");
+                                                    progress = new ProgressWrapper();
                                                     composer.Compose(filteredInstanceArray, progress);
-                                                    Process.Start("explorer.exe", path);
+                                                    if (config.OpenFolderOnExport)
+                                                    {
+                                                        Process.Start("explorer.exe", path);
+                                                    }
                                                 }, cancelToken.Token);
                                             }, config.ExportDirectory);
 
@@ -496,4 +455,9 @@ public partial class LayoutWindow : ITab
             ImGui.EndPopup();
         }
     }
+}
+
+public class ProgressWrapper
+{
+    public ExportProgress? Progress { get; set; }
 }

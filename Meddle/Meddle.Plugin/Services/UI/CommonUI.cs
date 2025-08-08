@@ -7,7 +7,7 @@ using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 using Meddle.Plugin.Utils;
 using ObjectKind = Dalamud.Game.ClientState.Objects.Enums.ObjectKind;
 
@@ -27,12 +27,12 @@ public class CommonUi : IDisposable, IService
         this.config = config;
     }
     
-    public unsafe ICharacter[] GetCharacters()
+    public unsafe ICharacter[] GetCharacters(ObjectUtil.ValidationFlags flags = ObjectUtil.ValidationFlags.None)
     {
         if (clientState.LocalPlayer != null)
         {
             return objectTable.OfType<ICharacter>()
-                              .Where(obj => obj.IsValid() && obj.IsValidCharacterBase())
+                              .Where(obj => obj.IsValid() && obj.IsValidCharacterBase(flags))
                               .OrderBy(c => clientState.GetDistanceToLocalPlayer(c).LengthSquared())
                               .ToArray();
         }
@@ -40,15 +40,15 @@ public class CommonUi : IDisposable, IService
         {
             // login/char creator produces "invalid" characters but are still usable I guess
             return objectTable.OfType<ICharacter>()
-                              .Where(obj => obj.IsValidHuman())
+                              .Where(obj => obj.IsValidHuman(flags))
                               .OrderBy(c => clientState.GetDistanceToLocalPlayer(c).LengthSquared())
                               .ToArray();
         }
     }
 
-    public unsafe void DrawMultiCharacterSelect(ref List<ICharacter> selectedCharacters)
+    public unsafe void DrawMultiCharacterSelect(ref List<ICharacter> selectedCharacters, ObjectUtil.ValidationFlags flags = ObjectUtil.ValidationFlags.None)
     {
-        ICharacter[] objects = GetCharacters();
+        ICharacter[] objects = GetCharacters(flags);
 
         ImGui.Text("Select Characters");
         using var combo = ImRaii.Combo("##MultiCharacter", $"{selectedCharacters.Count} Selected");
@@ -76,16 +76,16 @@ public class CommonUi : IDisposable, IService
         // remove entries which cannot be found in the object table
         foreach (var character in selectedCharacters.ToArray())
         {
-            if (!objectTable.Contains(character) || !character.IsValid() || !character.IsValidCharacterBase())
+            if (!character.IsValidCharacterBase())
             {
                 selectedCharacters.Remove(character);
             }
         }
     }
 
-    public unsafe void DrawCharacterSelect(ref ICharacter? selectedCharacter)
+    public unsafe void DrawCharacterSelect(ref ICharacter? selectedCharacter, ObjectUtil.ValidationFlags flags = ObjectUtil.ValidationFlags.None)
     {
-        ICharacter[] objects = GetCharacters();
+        ICharacter[] objects = GetCharacters(flags);
 
         selectedCharacter ??= objects.FirstOrDefault() ?? clientState.LocalPlayer;
 
@@ -115,7 +115,7 @@ public class CommonUi : IDisposable, IService
             if (clientState.LocalPlayer is {TargetObject: not null})
             {
                 var target = clientState.LocalPlayer.TargetObject;
-                if (target is ICharacter targetCharacter && targetCharacter.IsValid() && targetCharacter.IsValidCharacterBase())
+                if (target is ICharacter targetCharacter && targetCharacter.IsValidCharacterBase())
                 {
                     selectedCharacter = targetCharacter;
                 }
@@ -171,8 +171,14 @@ public class CommonUi : IDisposable, IService
         var name = obj.Name.TextValue;
         if (obj.ObjectKind == ObjectKind.Player && !string.IsNullOrWhiteSpace(config.PlayerNameOverride))
             name = config.PlayerNameOverride;
+        string prefix = string.Empty;
+        if (config.DisplayDebugInfo)
+        {
+            prefix = $"[{obj.Address:X8}:{obj.GameObjectId:X}]";
+        }
+        
         return
-            $"[{obj.Address:X8}:{obj.GameObjectId:X}][{obj.ObjectKind}][{modelType}] - " +
+            $"{prefix}[{obj.ObjectKind}][{modelType}] - " +
             $"{(string.IsNullOrWhiteSpace(name) ? "Unnamed" : name)} - " +
             $"{clientState.GetDistanceToLocalPlayer(obj).Length():0.00}y##{obj.GameObjectId}";
     }
