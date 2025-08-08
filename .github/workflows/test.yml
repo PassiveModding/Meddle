@@ -26,7 +26,7 @@ jobs:
             fail-fast: false
             matrix:
                 dotnet-version: [ 9.0.x ] # Can add multiple .NET versions here to test against (For example, testing a new version of .NET before it's released)
-                dalamud-version: [ "stg_latest", "latest", "api13_latest" ] # Can add multiple Dalamud branches here to test against (For example, testing against Dalamud staging)
+                dalamud-version: [ "stg_latest", "latest" ] # Can add multiple Dalamud branches here to test against (For example, testing against Dalamud staging)
         env:
             DALAMUD_HOME: /tmp/dalamud
             IsCI: true
