@@ -199,8 +199,26 @@ public class LayoutService : IService, IDisposable
             return null;
 
         var instanceLayout = instancePtr.Value;
-        switch (instanceLayout->Id.Type)
+        var type = instanceLayout->Id.Type;
+        var pos = instanceLayout->GetTranslationImpl();
+        if (pos != null)
         {
+            if (Vector3.Distance(SearchOrigin, *pos) > config.LayoutConfig.WorldCutoffDistance)
+            {
+                return null;
+            }
+        }
+        
+        switch (type)
+        {
+            case InstanceType.Decal when !config.LayoutConfig.DrawTypes.HasFlag(ParsedInstanceType.Decal):
+                return null;
+            case InstanceType.Light when !config.LayoutConfig.DrawTypes.HasFlag(ParsedInstanceType.Light):
+                return null;
+            case InstanceType.BgPart when !config.LayoutConfig.DrawTypes.HasFlag(ParsedInstanceType.BgPart):
+                return null;
+            case InstanceType.SharedGroup when !config.LayoutConfig.DrawTypes.HasFlag(ParsedInstanceType.SharedGroup):
+                return null;
             case InstanceType.BgPart:
             {
                 var bgPart = (BgPartsLayoutInstance*)instanceLayout;
@@ -225,6 +243,8 @@ public class LayoutService : IService, IDisposable
             }
             default:
             {
+                if (!config.LayoutConfig.DrawTypes.HasFlag(ParsedInstanceType.Unsupported))
+                    return null;
                 var primaryPath = instanceLayout->GetPrimaryPath();
                 string? path = null;
                 if (primaryPath.HasValue)
