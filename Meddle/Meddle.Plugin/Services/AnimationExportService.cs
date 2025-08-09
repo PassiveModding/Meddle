@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
 using Meddle.Plugin.Models;
+using Meddle.Plugin.UI;
 using Meddle.Plugin.Utils;
 using Microsoft.Extensions.Logging;
 using SharpGLTF.Geometry;
@@ -28,8 +29,7 @@ public class AnimationExportService : IDisposable, IService
 
     public void ExportAnimation(
         List<(DateTime, AttachSet[])> frames,
-        bool includePositionalData,
-        string path,
+        AnimationExportSettings settings,
         CancellationToken token = default)
     {
         try
@@ -37,7 +37,7 @@ public class AnimationExportService : IDisposable, IService
             var boneSets = SkeletonUtils.GetAnimatedBoneMap(frames.ToArray());
             var startTime = frames.Min(x => x.Item1);
             //var folder = GetPathForOutput();
-            var folder = path;
+            var folder = settings.Path;
             Directory.CreateDirectory(folder);
             foreach (var (id, (bones, root, timeline)) in boneSets)
             {
@@ -47,7 +47,7 @@ public class AnimationExportService : IDisposable, IService
                 var rootNode = new NodeBuilder(id);
                 rootNode.AddNode(root);
 
-                if (includePositionalData)
+                if (settings.IncludePositionalData)
                 {
                     var startPos = timeline.First().Attach.Transform.Translation;
                     foreach (var frameTime in timeline)
@@ -57,7 +57,11 @@ public class AnimationExportService : IDisposable, IService
                         var rot = frameTime.Attach.Transform.Rotation;
                         var scale = frameTime.Attach.Transform.Scale;
                         var time = SkeletonUtils.TotalSeconds(frameTime.Time, startTime);
-                        root.UseTranslation().UseTrackBuilder("pose").WithPoint(time, pos - startPos);
+                        if (!settings.IncludeRelativePosition)
+                        {
+                            pos -= startPos;
+                        }
+                        root.UseTranslation().UseTrackBuilder("pose").WithPoint(time, pos);
                         root.UseRotation().UseTrackBuilder("pose").WithPoint(time, rot);
                         root.UseScale().UseTrackBuilder("pose").WithPoint(time, scale);
                     }

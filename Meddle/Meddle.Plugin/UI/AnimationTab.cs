@@ -16,6 +16,11 @@ using SharpGLTF.Transforms;
 
 namespace Meddle.Plugin.UI;
 
+public record AnimationExportSettings(
+    bool IncludePositionalData,
+    bool IncludeRelativePosition,
+    string Path);
+
 public class AnimationTab : ITab
 {
     private readonly AnimationExportService animationExportService;
@@ -26,7 +31,10 @@ public class AnimationTab : ITab
     private readonly ILogger<AnimationTab> logger;
     private bool captureAnimation;
     private bool includePositionalData;
+    private bool includeRelativePosition;
+    private bool requestedPopup;
     private int intervalMs = 100;
+    private Action? drawExportSettingsCallback;
     public MenuType MenuType => MenuType.Default;
     private readonly FileDialogManager fileDialog = new()
     {
@@ -91,16 +99,48 @@ public class AnimationTab : ITab
         
         if (ImGui.Button("Export"))
         {
+            requestedPopup = true;
             var folderName = $"Animation-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
-            fileDialog.SaveFolderDialog("Save Animation", folderName, (result, path) =>
+            drawExportSettingsCallback = () =>
             {
-                if (!result) return;
-                animationExportService.ExportAnimation(frames, includePositionalData, path);
-            }, config.ExportDirectory); 
-        }
+                if (!ImGui.BeginPopup("AnimationExportSettingsPopup", ImGuiWindowFlags.AlwaysAutoResize))
+                {
+                    return;
+                }
+                try
+                {
+                    ImGui.Checkbox("Include Positional Data", ref includePositionalData);
+                    
+                    using (var disabled = ImRaii.Disabled(!includePositionalData))
+                    {
+                        ImGui.Checkbox("Relative Position", ref includeRelativePosition);
+                    }
+                    
+                    if (ImGui.Button("Export"))
+                    {
+                        var settings = new AnimationExportSettings(includePositionalData, includeRelativePosition, folderName);
+                        fileDialog.SaveFolderDialog("Save Animation", folderName, (result, path) =>
+                        {
+                            if (!result) return;
+                            animationExportService.ExportAnimation(frames, settings with{ Path = path }, CancellationToken.None);
+                        }, config.ExportDirectory); 
+                        drawExportSettingsCallback = null;
+                        ImGui.CloseCurrentPopup();
+                    }
+                    ImGui.SameLine();
+                    if (ImGui.Button("Cancel"))
+                    {
+                        drawExportSettingsCallback = null;
+                        ImGui.CloseCurrentPopup();
+                    }
+                }
+                finally
+                {
+                    ImGui.EndPopup();
+                }
+            };
 
-        ImGui.SameLine();
-        ImGui.Checkbox("Include Positional Data", ref includePositionalData);
+        }
         
         ImGui.Separator();
 
@@ -114,6 +154,15 @@ public class AnimationTab : ITab
         }
         
         fileDialog.Draw();
+        if (requestedPopup)
+        {
+            ImGui.OpenPopup("AnimationExportSettingsPopup");
+            requestedPopup = false;
+        }
+        if (drawExportSettingsCallback != null)
+        {
+            drawExportSettingsCallback();
+        }
     }
 
     public void Dispose()
