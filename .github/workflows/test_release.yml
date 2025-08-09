@@ -10,7 +10,6 @@ on:
     push:
         tags:
             - "testing_v*"
-            - "testing_*_v*"
         
 # So we can use the GitHub API to create releases with the run token.
 permissions:
@@ -42,14 +41,12 @@ jobs:
               run: |
                   tag=${{ github.ref_name }}
                   
-                  # Check if tag matches the new pattern (testing_{custom_path}_v{version})
-                  if [[ $tag =~ ^testing_(.+)_v(.+)$ ]]; then
-                      custom_path="${BASH_REMATCH[1]}"
-                      version="${BASH_REMATCH[2]}"
-                      download_path="${BASH_REMATCH[1]}"
-                  # Check if tag matches the original pattern (testing_v{version})
+                  # Check if tag matches the custom branch pattern (testing_v{version}_{custom_path})
+                  if [[ $tag =~ ^testing_v(.+)_(.+)$ ]]; then
+                      version="${BASH_REMATCH[1]}"
+                      download_path="${BASH_REMATCH[2]}"
+                  # Check if tag matches the default pattern (testing_v{version})
                   elif [[ $tag =~ ^testing_v(.+)$ ]]; then
-                      custom_path="latest"
                       version="${BASH_REMATCH[1]}"
                       download_path=""
                   else
@@ -57,10 +54,8 @@ jobs:
                       exit 1
                   fi
                   
-                  echo "CUSTOM_PATH=$custom_path" >> $GITHUB_ENV
                   echo "VERSION=$version" >> $GITHUB_ENV
                   echo "DOWNLOAD_PATH=$download_path" >> $GITHUB_ENV
-                  echo "Custom Path: $custom_path"
                   echo "Download Path: $download_path"
                   echo "Version: $version"
 
@@ -80,6 +75,7 @@ jobs:
 
             - name: Build plugin in release mode
               run: |
+                  echo "Building Meddle.Plugin version: ${{ env.VERSION }}"
                   dotnet build -c Release --no-restore --nologo -o ./bin/Release \
                   -p:Version=${{ env.VERSION }} \
                   -p:AssemblyVersion=${{ env.VERSION }} \
