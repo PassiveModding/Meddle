@@ -18,7 +18,7 @@ namespace Meddle.Plugin.UI;
 
 public record AnimationExportSettings(
     bool IncludePositionalData,
-    bool IncludeRelativePosition,
+    bool IncludeAbsolutePosition,
     string Path);
 
 public class AnimationTab : ITab
@@ -31,7 +31,7 @@ public class AnimationTab : ITab
     private readonly ILogger<AnimationTab> logger;
     private bool captureAnimation;
     private bool includePositionalData;
-    private bool includeRelativePosition;
+    private bool includeAbsolutePosition;
     private bool requestedPopup;
     private int intervalMs = 100;
     private Action? drawExportSettingsCallback;
@@ -113,16 +113,18 @@ public class AnimationTab : ITab
                     
                     using (var disabled = ImRaii.Disabled(!includePositionalData))
                     {
-                        ImGui.Checkbox("Relative Position", ref includeRelativePosition);
+                        ImGui.Checkbox("Absolute Position", ref includeAbsolutePosition);
+                        ImGui.SameLine();
+                        UiUtil.HintCircle("When checked, the position will be treated as world position, otherwise it will be relative to the first frame.");
                     }
                     
                     if (ImGui.Button("Export"))
                     {
-                        var settings = new AnimationExportSettings(includePositionalData, includeRelativePosition, folderName);
+                        var settings = new AnimationExportSettings(includePositionalData, includeAbsolutePosition, folderName);
                         fileDialog.SaveFolderDialog("Save Animation", folderName, (result, path) =>
                         {
                             if (!result) return;
-                            animationExportService.ExportAnimation(frames, settings with{ Path = path }, CancellationToken.None);
+                            animationExportService.ExportAnimation(frames, settings with { Path = path }, CancellationToken.None);
                         }, config.ExportDirectory); 
                         drawExportSettingsCallback = null;
                         ImGui.CloseCurrentPopup();

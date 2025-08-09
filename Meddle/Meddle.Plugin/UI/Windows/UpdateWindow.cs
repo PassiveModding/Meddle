@@ -69,6 +69,7 @@ public class UpdateWindow : Window
                 new TextUpdateLine(" + Improved responsiveness of cancel button during exports."),
                 new TextUpdateLine(" + Added option to disable automatic opening of folder after export."),
                 new TextUpdateLine(" + Clean up info in character selector to avoid clutter. (This can be re-enabled in options with the Debug Info option.)"),
+                new TextUpdateLine(" + Added option for relative position export in the animation tab"),
             ]
         }
     ];

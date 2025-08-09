@@ -57,7 +57,7 @@ public class AnimationExportService : IDisposable, IService
                         var rot = frameTime.Attach.Transform.Rotation;
                         var scale = frameTime.Attach.Transform.Scale;
                         var time = SkeletonUtils.TotalSeconds(frameTime.Time, startTime);
-                        if (!settings.IncludeRelativePosition)
+                        if (!settings.IncludeAbsolutePosition)
                         {
                             pos -= startPos;
                         }
