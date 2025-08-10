@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Skeletons;
+using Meddle.Plugin.UI;
 using Meddle.Utils;
 using Microsoft.Extensions.Logging;
 using SharpGLTF.Scenes;
@@ -102,7 +103,14 @@ public static class SkeletonUtils
             {
                 foreach (var bone in map.List)
                 {
-                    ApplyPose(bone, skeleton, poseMode, 0);
+                    //ApplyPose(bone, skeleton, poseMode, 0);
+                    var boneTransform = GetBoneTransform(skeleton, bone);
+                    if (boneTransform == null)
+                    {
+                        continue;
+                    }
+    
+                    AddBoneKeyframe(bone, poseMode, 0, boneTransform.Value);
                 }
             }
         }
@@ -111,17 +119,19 @@ public static class SkeletonUtils
     }
     
 
-    private static void ApplyPose(BoneNodeBuilder bone, 
-                                  ParsedSkeleton skeleton, 
-                                  PoseMode poseMode, 
-                                  float time)
+    private static void ApplyPose(
+        BoneNodeBuilder bone,
+        BoneNodeBuilder root,
+        AttachSet attachSet,
+        PoseMode poseMode,
+        float time)
     {
         if (poseMode == PoseMode.None)
         {
             return; // no pose applied
         }
         
-        var boneTransform = GetBoneTransform(skeleton, bone);
+        var boneTransform = GetBoneTransform(attachSet.Skeleton, bone);
         if (boneTransform == null)
         {
             return;
@@ -135,7 +145,9 @@ public static class SkeletonUtils
         var maps = GetBoneMaps(skeleton, poseMode);
         if (maps.Length == 0)
         {
-            throw new InvalidOperationException("No roots were found");
+            root = null;
+            return [];
+            //throw new InvalidOperationException("No roots were found");
         }
 
         // only known instance of this thus far is the Air-Wheeler A9 mount
@@ -153,7 +165,7 @@ public static class SkeletonUtils
     }
 
     public record AttachGrouping(List<BoneNodeBuilder> Bones, BoneNodeBuilder? Root, List<(DateTime Time, AttachSet Attach)> Timeline);
-    public static Dictionary<string, AttachGrouping> GetAnimatedBoneMap((DateTime Time, AttachSet[] Attaches)[] frames)
+    public static Dictionary<string, AttachGrouping> GetAnimatedBoneMap((DateTime Time, AttachSet[] Attaches)[] frames, AnimationExportSettings settings)
     {
         var attachDict = new Dictionary<string, AttachGrouping>();
         var attachTimelines = new Dictionary<string, List<(DateTime Time, AttachSet Attach)>>();
@@ -175,15 +187,18 @@ public static class SkeletonUtils
         var startTime = frames.Min(x => x.Time);
         foreach (var (attachId, timeline) in attachTimelines)
         {
-            ProcessTimeline(attachId, timeline, attachDict, startTime);
+            ProcessTimeline(attachId, timeline, attachDict, startTime, settings);
         }
 
         return attachDict;
     }
 
-    private static void ProcessTimeline(string attachId, List<(DateTime Time, AttachSet Attach)> timeline, 
-                                        Dictionary<string, AttachGrouping> attachDict,
-                                        DateTime startTime)
+    private static void ProcessTimeline(
+        string attachId,
+        List<(DateTime Time, AttachSet Attach)> timeline,
+        Dictionary<string, AttachGrouping> attachDict,
+        DateTime startTime,
+        AnimationExportSettings settings)
     {
         if (!attachDict.TryGetValue(attachId, out var attachBoneMap))
         {
@@ -196,7 +211,6 @@ public static class SkeletonUtils
             return; // no frames for this attach
         }
 
-        var firstAttach = timeline.First().Attach;
         // Track last transform and last frame time for each bone
         var lastTransforms = new Dictionary<string, (AffineTransform Transform, float Time, bool KeyframeSet)>();
         foreach (var time in timeline.Select(x => x.Time).Distinct())
@@ -234,7 +248,7 @@ public static class SkeletonUtils
                 var boneName = attachBone.BoneName;
                 if (!lastTransforms.TryGetValue(boneName, out var value) || IsLastFrameInTimeline(timeline, frame.Time))
                 {
-                    ApplyPose(bone, frame.Attach.Skeleton, PoseMode.Local, frameTime);
+                    ApplyPose(bone, attachRoot, frame.Attach, PoseMode.Local, frameTime);
                     lastTransforms[boneName] = (currentTransform.Value, frameTime, true);
                 }
                 else
@@ -245,25 +259,42 @@ public static class SkeletonUtils
                     {
                         // No change, just update last info
                         lastTransforms[boneName] = (lastTransform, frameTime, keyframeSet);
-                        var positionDelta = currentTransform.Value.Translation - lastTransform.Translation;
-                        var scaleDelta = currentTransform.Value.Scale - lastTransform.Scale;
-                        var rotationDelta = currentTransform.Value.Rotation - lastTransform.Rotation;
-                        var length = positionDelta.Length() + scaleDelta.Length() + rotationDelta.Length();
-                        Plugin.Logger?.LogDebug("No change for bone {BoneName} at time {Time}, length: {Length}",
-                                                boneName, frameTime, length);
                         continue;
                     }
                     // Change detected
                     if (!keyframeSet)
                     {
                         // Add keyframe for last frame
-                        ApplyPose(bone, frame.Attach.Skeleton, PoseMode.Local, lastTime);
+                        ApplyPose(bone, attachRoot, frame.Attach, PoseMode.Local, lastTime);
                     }
                     // Add keyframe for current frame
-                    ApplyPose(bone, frame.Attach.Skeleton, PoseMode.Local, frameTime);
+                    ApplyPose(bone, attachRoot, frame.Attach, PoseMode.Local, frameTime);
                     lastTransforms[boneName] = (currentTransform.Value, frameTime, true);
                 }
             }
+
+            // var startPos = firstFrame.Attach.Transform.Translation;
+            // var pos = frame.Attach.Transform.Translation;
+            // var rot = frame.Attach.Transform.Rotation;
+            // var scale = frame.Attach.Transform.Scale;
+            // var relativeTranslation = pos - startPos;
+            // attachRoot.UseScale().UseTrackBuilder("root").WithPoint(frameTime, scale);
+            // attachRoot.UseRotation().UseTrackBuilder("root").WithPoint(frameTime, rot);
+            // attachRoot.UseTranslation().UseTrackBuilder("root").WithPoint(frameTime, relativeTranslation);
+            
+            // if (settings.IncludePositionalData)
+            // {
+            //     // If positional data is included, apply the translation and rotation to the root
+            //
+            //     if (!settings.IncludeAbsolutePosition)
+            //     {
+            //         pos -= startPos;
+            //     }
+            //     
+            //     attachRoot.UseScale().UseTrackBuilder("pose").WithPoint(frameTime, scale);
+            //     attachRoot.UseRotation().UseTrackBuilder("pose").WithPoint(frameTime, rot);
+            //     attachRoot.UseTranslation().UseTrackBuilder("pose").WithPoint(frameTime, pos);
+            // }
             
             attachDict[attachId] = attachBoneMap;
         }
@@ -309,7 +340,7 @@ public static class SkeletonUtils
                Math.Abs(a.W - b.W) < tolerance;
     }
     
-    private static AffineTransform? GetBoneTransform(ParsedSkeleton skeleton, BoneNodeBuilder bone)
+    public static AffineTransform? GetBoneTransform(ParsedSkeleton skeleton, BoneNodeBuilder bone)
     {
         var partial = skeleton.PartialSkeletons[bone.PartialSkeletonIndex];
         if (partial.Poses.Count == 0) return null;
