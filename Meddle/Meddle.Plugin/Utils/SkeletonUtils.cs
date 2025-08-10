@@ -197,10 +197,11 @@ public static class SkeletonUtils
         }
 
         var firstAttach = timeline.First().Attach;
+        // Track last transform and last frame time for each bone
+        var lastTransforms = new Dictionary<string, (AffineTransform Transform, float Time, bool KeyframeSet)>();
         foreach (var time in timeline.Select(x => x.Time).Distinct())
         {
             var frame = timeline.FirstOrDefault(x => x.Time == time);
-            var nextFrame = timeline.FirstOrDefault(x => x.Time > time);
             var frameTime = TotalSeconds(frame.Time, startTime);
 
             // get the bone map for this attach
@@ -223,27 +224,56 @@ public static class SkeletonUtils
 
                 // find the bone in the attachBoneMap
                 var bone = attachBoneMap.Bones.FirstOrDefault(x => x.BoneName.Equals(attachBone.BoneName, StringComparison.OrdinalIgnoreCase));
-                bool firstOccurrence = false;
                 if (bone == null)
                 {
                     attachBoneMap.Bones.Add(attachBone);
                     bone = attachBone;
-                    firstOccurrence = true;
                 }
 
-                var nextFrameBone = nextFrame != default ? GetBoneTransform(nextFrame.Attach.Skeleton, attachBone) : null;
-                if (!firstOccurrence && nextFrameBone != null && IsSameTransform(nextFrameBone.Value, currentTransform.Value))
+                // Keyframe logic
+                var boneName = attachBone.BoneName;
+                if (!lastTransforms.TryGetValue(boneName, out var value) || IsLastFrameInTimeline(timeline, frame.Time))
                 {
-                    continue; // skip applying if next frame is identical
+                    ApplyPose(bone, frame.Attach.Skeleton, PoseMode.Local, frameTime);
+                    lastTransforms[boneName] = (currentTransform.Value, frameTime, true);
                 }
-                
-                // apply the pose to the bone
-                ApplyPose(bone, frame.Attach.Skeleton, PoseMode.Local, frameTime);
+                else
+                {
+                    var (lastTransform, lastTime, keyframeSet) = value;
+
+                    if (IsSameTransform(currentTransform.Value, lastTransform))
+                    {
+                        // No change, just update last info
+                        lastTransforms[boneName] = (lastTransform, frameTime, keyframeSet);
+                        var positionDelta = currentTransform.Value.Translation - lastTransform.Translation;
+                        var scaleDelta = currentTransform.Value.Scale - lastTransform.Scale;
+                        var rotationDelta = currentTransform.Value.Rotation - lastTransform.Rotation;
+                        var length = positionDelta.Length() + scaleDelta.Length() + rotationDelta.Length();
+                        Plugin.Logger?.LogDebug("No change for bone {BoneName} at time {Time}, length: {Length}",
+                                                boneName, frameTime, length);
+                        continue;
+                    }
+                    // Change detected
+                    if (!keyframeSet)
+                    {
+                        // Add keyframe for last frame
+                        ApplyPose(bone, frame.Attach.Skeleton, PoseMode.Local, lastTime);
+                    }
+                    // Add keyframe for current frame
+                    ApplyPose(bone, frame.Attach.Skeleton, PoseMode.Local, frameTime);
+                    lastTransforms[boneName] = (currentTransform.Value, frameTime, true);
+                }
             }
             
             ApplyRootTransform(attachRoot, frame.Attach.Transform, firstAttach.Transform, frameTime);
             attachDict[attachId] = attachBoneMap;
         }
+    }
+    
+    private static bool IsLastFrameInTimeline(
+        List<(DateTime Time, AttachSet Attach)> timeline, DateTime time)
+    {
+        return timeline.LastOrDefault().Time == time;
     }
     
     private static void AddBoneKeyframe(BoneNodeBuilder bone, PoseMode poseMode, float time, AffineTransform transform)
@@ -257,12 +287,27 @@ public static class SkeletonUtils
         }
     }
 
-    private static bool IsSameTransform(AffineTransform? current, AffineTransform? previous)
+    // Helper to compare transforms with tolerance
+    private static bool IsSameTransform(AffineTransform current, AffineTransform previous, float tolerance = 0.0001f)
     {
-        if (current == null || previous == null)
-            return false;
+        return IsVectorSame(current.Scale, previous.Scale, tolerance) &&
+               IsQuaternionSame(current.Rotation, previous.Rotation, tolerance) &&
+               IsVectorSame(current.Translation, previous.Translation, tolerance);
+    }
 
-        return current.Equals(previous);
+    private static bool IsVectorSame(System.Numerics.Vector3 a, System.Numerics.Vector3 b, float tolerance)
+    {
+        return Math.Abs(a.X - b.X) < tolerance &&
+               Math.Abs(a.Y - b.Y) < tolerance &&
+               Math.Abs(a.Z - b.Z) < tolerance;
+    }
+
+    private static bool IsQuaternionSame(System.Numerics.Quaternion a, System.Numerics.Quaternion b, float tolerance)
+    {
+        return Math.Abs(a.X - b.X) < tolerance &&
+               Math.Abs(a.Y - b.Y) < tolerance &&
+               Math.Abs(a.Z - b.Z) < tolerance &&
+               Math.Abs(a.W - b.W) < tolerance;
     }
     
     private static void ApplyRootTransform(BoneNodeBuilder attachRoot, AffineTransform currentTransform, AffineTransform firstTransform, float frameTime)
@@ -271,6 +316,7 @@ public static class SkeletonUtils
         
         attachRoot.UseScale().UseTrackBuilder("root").WithPoint(frameTime, currentTransform.Scale);
         attachRoot.UseRotation().UseTrackBuilder("root").WithPoint(frameTime, currentTransform.Rotation);
+
         attachRoot.UseTranslation().UseTrackBuilder("root").WithPoint(frameTime, relativeTranslation);
     }
     
