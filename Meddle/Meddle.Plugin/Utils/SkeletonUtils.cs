@@ -1,4 +1,5 @@
-﻿using Meddle.Plugin.Models;
+﻿using System.ComponentModel;
+using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Skeletons;
 using Meddle.Utils;
 using Microsoft.Extensions.Logging;
@@ -11,10 +12,12 @@ public static class SkeletonUtils
 {
     public enum PoseMode
     {
+        [Description("Reference Pose")]
         None,
+        [Description("Reference Pose with Scale")]
         LocalScaleOnly,
-        Local,
-        // Model
+        [Description("Pose")]
+        Local
     }
     
     public static (List<BoneNodeBuilder> List, BoneNodeBuilder Root)[] GetBoneMaps(
