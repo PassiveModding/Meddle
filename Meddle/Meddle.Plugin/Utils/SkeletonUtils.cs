@@ -265,7 +265,6 @@ public static class SkeletonUtils
                 }
             }
             
-            ApplyRootTransform(attachRoot, frame.Attach.Transform, firstAttach.Transform, frameTime);
             attachDict[attachId] = attachBoneMap;
         }
     }
@@ -308,16 +307,6 @@ public static class SkeletonUtils
                Math.Abs(a.Y - b.Y) < tolerance &&
                Math.Abs(a.Z - b.Z) < tolerance &&
                Math.Abs(a.W - b.W) < tolerance;
-    }
-    
-    private static void ApplyRootTransform(BoneNodeBuilder attachRoot, AffineTransform currentTransform, AffineTransform firstTransform, float frameTime)
-    {
-        var relativeTranslation = currentTransform.Translation - firstTransform.Translation;
-        
-        attachRoot.UseScale().UseTrackBuilder("root").WithPoint(frameTime, currentTransform.Scale);
-        attachRoot.UseRotation().UseTrackBuilder("root").WithPoint(frameTime, currentTransform.Rotation);
-
-        attachRoot.UseTranslation().UseTrackBuilder("root").WithPoint(frameTime, relativeTranslation);
     }
     
     private static AffineTransform? GetBoneTransform(ParsedSkeleton skeleton, BoneNodeBuilder bone)
