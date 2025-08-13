@@ -564,9 +564,10 @@ public unsafe class LiveCharacterTab : ITab
             {
                 ImGui.Text("No deformer info found");
             }
-            
-            using (var disableMatParam = ImRaii.Disabled(mdlMaterialWindowManager.HasWindow(mPtr.Value->ModelResourceHandle)))
+
+            if (config.DisplayDebugInfo)
             {
+                using var disableMatParam = ImRaii.Disabled(mdlMaterialWindowManager.HasWindow(mPtr.Value->ModelResourceHandle));
                 // Note; since character materials are stored in model->Materials instead of model->ModelResourceHandle->Materials, 
                 if (ImGui.Button("Open Material Window"))
                 {
