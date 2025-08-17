@@ -137,9 +137,9 @@ public static class UiUtil
             }
             
             ImGui.SameLine();
-            HintCircle("Reference Pose (None): Export will not include a pose track.\n" +
-                       "Reference Pose with Scale (LocalScaleOnly): Export will include only scaling on the pose track.\n" +
-                       "[default]Pose (Local): Export will include scaling, rotation and translation on the pose track.");
+            HintCircle($"Reference Pose ({nameof(SkeletonUtils.PoseMode.None)}): Export will not include a pose track.\n" +
+                       $"Reference Pose with Scale ({nameof(SkeletonUtils.PoseMode.LocalScaleOnly)}): Export will include only scaling on the pose track.\n" +
+                       $"[default]Pose ({nameof(SkeletonUtils.PoseMode.Local)}): Export will include scaling, rotation and translation on the pose track.");
         }
         
         if (flags.HasFlag(ExportConfigDrawFlags.ShowUseDeformer))
