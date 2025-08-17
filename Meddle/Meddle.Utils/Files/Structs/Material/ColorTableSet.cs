@@ -196,13 +196,21 @@ public readonly struct ColorTable
         {
             Rows = Rows.ToArray().Select(r => new
             {
-                r.Diffuse, r.GlossStrength, r.Scalar3,
-                r.Specular, r.SpecularStrength, r.Scalar7,
-                r.Emissive, r.Scalar11,
-                r.SheenRate, r.SheenTint, r.SheenAptitude, r.Scalar15,
-                r.Roughness, r.Scalar17, r.Metalness, r.Anisotropy,
-                r.Scalar20, r.SphereMask, r.Scalar22, r.Scalar23,
-                r.ShaderId, r.TileIndex, r.TileAlpha, r.SphereIndex,
+                // 0,1,2     3                   3
+                r.Diffuse,   r.GlossStrength,    r.Scalar3,
+                // 4,5,6     7                   7
+                r.Specular,  r.SpecularStrength, r.Scalar7,
+                // 8,9,10    11                  
+                r.Emissive,  r.Scalar11,
+                // 12        13                  14               15
+                r.SheenRate, r.SheenTint,        r.SheenAptitude, r.Scalar15,
+                // 16        17                  18               19
+                r.Roughness, r.Scalar17,         r.Metalness,     r.Anisotropy,
+                // 20        21                  22               23
+                r.Scalar20,  r.SphereMask,       r.Scalar22,      r.Scalar23,
+                // 24        25                  26               27
+                r.ShaderId,  r.TileIndex,        r.TileAlpha,     r.SphereIndex,
+                // 28,29,30,31
                 r.TileMatrix
             }).ToArray()
         };
