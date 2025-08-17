@@ -121,6 +121,12 @@ public static class UiUtil
         HintCircle("Select the type of export to use, GLTF is recommended for most cases.\n" +
                    "GLB is a binary version of GLTF, and OBJ is a legacy format that is not recommended for most cases.");
 
+        if (exportType.HasFlag(ExportType.OBJ))
+        {
+            // draw warning that OBJ is not recommended
+            ImGui.TextColored(new Vector4(1, 0, 0, 1), "OBJ export is not recommended and may not work as expected.");
+        }
+
         if (flags.HasFlag(ExportConfigDrawFlags.ShowExportPose))
         {
             var poseMode = exportConfiguration.PoseMode;
