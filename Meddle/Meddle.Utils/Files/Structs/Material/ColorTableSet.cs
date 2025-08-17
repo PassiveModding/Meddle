@@ -1,4 +1,6 @@
-﻿using SkiaSharp;
+﻿using System.Numerics;
+using System.Runtime.CompilerServices;
+using SkiaSharp;
 
 namespace Meddle.Utils.Files.Structs.Material;
 
@@ -103,7 +105,7 @@ public readonly struct LegacyColorTable
     public const int LegacyNumRows = 16;
     public const int Size = LegacyNumRows * LegacyColorTableRow.Size;
     private readonly LegacyColorTableRow[] rows;
-    private readonly byte[] buffer;
+    private readonly ShortVec4[][] buffer; 
     public static readonly (int Width, int Height) TextureSize = (8, 16);
     public SkTexture ToTexture()
     {
@@ -112,11 +114,7 @@ public readonly struct LegacyColorTable
         {
             for (int y = 0; y < TextureSize.Height; y++)
             {
-                // get exact byte index in the buffer
-                const int bytesPerPixel = 8;
-                var byteIndex = (y * TextureSize.Width + x) * bytesPerPixel;
-                var color = ColorTableUtil.GetColor(byteIndex, buffer);
-                texture[x, y] = color;
+                texture[x, y] = buffer[y][x].ToSkColor();
             }
         }
         return texture;
@@ -126,7 +124,15 @@ public readonly struct LegacyColorTable
     {
         var pos = reader.Position;
         rows = reader.Read<LegacyColorTableRow>(LegacyNumRows).ToArray();
-        buffer = reader.ReadByteString(pos, Size).ToArray();
+        reader.Seek(pos, SeekOrigin.Begin);
+        buffer = new ShortVec4[LegacyNumRows][];
+        reader.Seek(pos, SeekOrigin.Begin);
+        const int itemsPerRow = LegacyColorTableRow.Size / ShortVec4.Size;
+        for (int i = 0; i < LegacyNumRows; i++)
+        {
+            var rowBuffer = reader.Read<ShortVec4>(itemsPerRow).ToArray();
+            buffer[i] = rowBuffer;
+        }
     }
     
     public object ToObject()
@@ -148,44 +154,22 @@ public readonly struct LegacyColorTable
     }
 }
 
-public static class ColorTableUtil
-{
-    public static SKColor GetColor(int offset, byte[] buf)
-    {
-        byte r = GetRgbChannelVal(offset, buf);
-        byte g = GetRgbChannelVal(offset + 2, buf);
-        byte b = GetRgbChannelVal(offset + 4, buf);
-        byte a = GetRgbChannelVal(offset + 6, buf);
-        return new SKColor(r, g, b, a);
-    }
-
-    public static byte GetRgbChannelVal(int offset, byte[] buf)
-    {
-        byte[] ushortBuf = [ buf[offset], buf[offset + 1] ];
-        ushort sVal = BitConverter.ToUInt16(ushortBuf, 0);
-        float fVal = (float)BitConverter.UInt16BitsToHalf(sVal);
-        return (byte)(fVal * 255f);
-    }
-}
-
 public readonly struct ColorTable
 {
     public const int NumRows = 32;
     public const int Size = NumRows * ColorTableRow.Size;
     private readonly ColorTableRow[] rows;
-    private readonly byte[] buffer;
+    private readonly ShortVec4[][] buffer;
     public static readonly (int Width, int Height) TextureSize = (8, 32);
+    
     public SkTexture ToTexture()
     {
-        // row is 64 bytes
         var texture = new SkTexture(TextureSize.Width, TextureSize.Height);
         for (int x = 0; x < TextureSize.Width; x++)
         {
             for (int y = 0; y < TextureSize.Height; y++)
             {
-                var byteIndex = (y * TextureSize.Width + x) * 8;
-                var color = ColorTableUtil.GetColor(byteIndex, buffer);
-                texture[x, y] = color;
+                texture[x, y] = buffer[y][x].ToSkColor();
             }
         }
         return texture;
@@ -196,7 +180,14 @@ public readonly struct ColorTable
     {
         var pos = reader.Position;
         rows = reader.Read<ColorTableRow>(NumRows).ToArray();
-        buffer = reader.ReadByteString(pos, Size).ToArray();
+        buffer = new ShortVec4[NumRows][];
+        reader.Seek(pos, SeekOrigin.Begin);
+        const int itemsPerRow = ColorTableRow.Size / ShortVec4.Size;
+        for (int i = 0; i < NumRows; i++)
+        {
+            var rowBuffer = reader.Read<ShortVec4>(itemsPerRow).ToArray();
+            buffer[i] = rowBuffer;
+        }
     }
     
     public object ToObject()

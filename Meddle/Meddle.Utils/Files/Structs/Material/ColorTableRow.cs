@@ -1,5 +1,7 @@
 ﻿using System.Numerics;
 using System.Runtime.InteropServices;
+using SkiaSharp;
+
 // ReSharper disable InconsistentNaming
 namespace Meddle.Utils.Files.Structs.Material;
 
@@ -20,18 +22,48 @@ namespace Meddle.Utils.Files.Structs.Material;
 /// </code>
 /// </summary>
 [StructLayout(LayoutKind.Explicit, Size = Size)]
-public struct ColorTableRow
+public struct ShortVec4
 {
-    [StructLayout(LayoutKind.Explicit, Size = 0x8)]
-    public struct ShortVec4
+    public const int Size = 0x8;
+    [FieldOffset(0x0)] public ushort X;
+    [FieldOffset(0x2)] public ushort Y;
+    [FieldOffset(0x4)] public ushort Z;
+    [FieldOffset(0x6)] public ushort W;
+    
+    public static float ToFloat(ushort value)
+        => (float)BitConverter.UInt16BitsToHalf(value);
+
+    public static ushort FromFloat(float value)
+        => BitConverter.HalfToUInt16Bits((Half)value);
+
+    public Vector4 ToVector4()
     {
-        [FieldOffset(0x0)] public ushort X;
-        [FieldOffset(0x2)] public ushort Y;
-        [FieldOffset(0x4)] public ushort Z;
-        [FieldOffset(0x6)] public ushort W;
+        return new Vector4(ToFloat(X), ToFloat(Y), ToFloat(Z), ToFloat(W));
     }
     
+    private static Vector4 Clamp(Vector4 v, float min, float max)
+    {
+        return new Vector4(
+            Math.Clamp(v.X, min, max),
+            Math.Clamp(v.Y, min, max),
+            Math.Clamp(v.Z, min, max),
+            Math.Clamp(v.W, min, max)
+        );
+    }
+    
+    public SKColor ToSkColor()
+    {
+        var color = ToVector4();
+        var c = Clamp(color, 0, 1);
+        return new SKColor((byte)(c.X * 255), (byte)(c.Y * 255), (byte)(c.Z * 255), (byte)(c.W * 255));
+    }
+}
+
+[StructLayout(LayoutKind.Explicit, Size = Size)]
+public struct ColorTableRow
+{
     public const int Size = 0x40;
+    [FieldOffset(0x0)] public unsafe fixed ushort Data[Size/2];
     [FieldOffset(0x0)] public ShortVec4 _diffuse;
     [FieldOffset(0x8)] public ShortVec4 _specular;
     [FieldOffset(0x10)] public ShortVec4 _emissive;
@@ -41,103 +73,97 @@ public struct ColorTableRow
     [FieldOffset(0x30)] public ShortVec4 _idxData;
     [FieldOffset(0x38)] public ShortVec4 _tile;
 
-    private static float ToFloat(ushort value)
-        => (float)BitConverter.UInt16BitsToHalf(value);
-
-    private static ushort FromFloat(float value)
-        => BitConverter.HalfToUInt16Bits((Half)value);
-
     public Vector3 Diffuse
     {
-        readonly get => new Vector3(ToFloat(_diffuse.X), ToFloat(_diffuse.Y), ToFloat(_diffuse.Z));
+        readonly get => new Vector3(ShortVec4.ToFloat(_diffuse.X), ShortVec4.ToFloat(_diffuse.Y), ShortVec4.ToFloat(_diffuse.Z));
         set
         {
-            _diffuse.X = FromFloat(value.X);
-            _diffuse.Y = FromFloat(value.Y);
-            _diffuse.Z = FromFloat(value.Z);
+            _diffuse.X = ShortVec4.FromFloat(value.X);
+            _diffuse.Y = ShortVec4.FromFloat(value.Y);
+            _diffuse.Z = ShortVec4.FromFloat(value.Z);
         }
     }
 
     public float GlossStrength
     {
-        readonly get => ToFloat(_diffuse.W);
-        set => _diffuse.W = FromFloat(value);
+        readonly get => ShortVec4.ToFloat(_diffuse.W);
+        set => _diffuse.W = ShortVec4.FromFloat(value);
     }
     
     public Vector3 Specular
     {
-        readonly get => new Vector3(ToFloat(_specular.X), ToFloat(_specular.Y), ToFloat(_specular.Z));
+        readonly get => new Vector3(ShortVec4.ToFloat(_specular.X), ShortVec4.ToFloat(_specular.Y), ShortVec4.ToFloat(_specular.Z));
         set
         {
-            _specular.X = FromFloat(value.X);
-            _specular.Y = FromFloat(value.Y);
-            _specular.Z = FromFloat(value.Z);
+            _specular.X = ShortVec4.FromFloat(value.X);
+            _specular.Y = ShortVec4.FromFloat(value.Y);
+            _specular.Z = ShortVec4.FromFloat(value.Z);
         }
     }
     
     public float SpecularStrength
     {
-        readonly get => ToFloat(_specular.W);
-        set => _specular.W = FromFloat(value);
+        readonly get => ShortVec4.ToFloat(_specular.W);
+        set => _specular.W = ShortVec4.FromFloat(value);
     }
 
     public Vector3 Emissive
     {
-        readonly get => new Vector3(ToFloat(_emissive.X), ToFloat(_emissive.Y), ToFloat(_emissive.Z));
+        readonly get => new Vector3(ShortVec4.ToFloat(_emissive.X), ShortVec4.ToFloat(_emissive.Y), ShortVec4.ToFloat(_emissive.Z));
         set
         {
-            _emissive.X = FromFloat(value.X);
-            _emissive.Y = FromFloat(value.Y);
-            _emissive.Z = FromFloat(value.Z);
+            _emissive.X = ShortVec4.FromFloat(value.X);
+            _emissive.Y = ShortVec4.FromFloat(value.Y);
+            _emissive.Z = ShortVec4.FromFloat(value.Z);
         }
     }
     
     public float SheenRate
     {
-        readonly get => ToFloat(_sheen.X);
-        set => _sheen.X = FromFloat(value);
+        readonly get => ShortVec4.ToFloat(_sheen.X);
+        set => _sheen.X = ShortVec4.FromFloat(value);
     }
     
     public float SheenTint
     {
-        readonly get => ToFloat(_sheen.Y);
-        set => _sheen.Y = FromFloat(value);
+        readonly get => ShortVec4.ToFloat(_sheen.Y);
+        set => _sheen.Y = ShortVec4.FromFloat(value);
     }
     
     public float SheenAptitude
     {
-        readonly get => ToFloat(_sheen.Z);
-        set => _sheen.Z = FromFloat(value);
+        readonly get => ShortVec4.ToFloat(_sheen.Z);
+        set => _sheen.Z = ShortVec4.FromFloat(value);
     }
     
     public float Roughness
     {
-        readonly get => ToFloat(_r_u_m_a.X);
-        set => _r_u_m_a.X = FromFloat(value);
+        readonly get => ShortVec4.ToFloat(_r_u_m_a.X);
+        set => _r_u_m_a.X = ShortVec4.FromFloat(value);
     }
     
     public float Metalness
     {
-        readonly get => ToFloat(_r_u_m_a.Z);
-        set => _r_u_m_a.Z = FromFloat(value);
+        readonly get => ShortVec4.ToFloat(_r_u_m_a.Z);
+        set => _r_u_m_a.Z = ShortVec4.FromFloat(value);
     }
     
     public float Anisotropy
     {
-        readonly get => ToFloat(_r_u_m_a.W);
-        set => _r_u_m_a.W = FromFloat(value);
+        readonly get => ShortVec4.ToFloat(_r_u_m_a.W);
+        set => _r_u_m_a.W = ShortVec4.FromFloat(value);
     }
     
     // public float SpecularStrength
     // {
-    //     readonly get => ToFloat(_specular.W);
-    //     set => _specular.W = FromFloat(value);
+    //     readonly get => ShortVec4.ToFloat(_specular.W);
+    //     set => _specular.W = ShortVec4.FromFloat(value);
     // }
     //
     // public float GlossStrength
     // {
-    //     readonly get => ToFloat(_emissive.W);
-    //     set => _emissive.W = FromFloat(value);
+    //     readonly get => ShortVec4.ToFloat(_emissive.W);
+    //     set => _emissive.W = ShortVec4.FromFloat(value);
     // }
     
     public struct Matrix2x2
@@ -152,24 +178,24 @@ public struct ColorTableRow
     {
         readonly get => new()
         {
-            UU = ToFloat(_tile.X),
-            UV = ToFloat(_tile.Y),
-            VU = ToFloat(_tile.Z),
-            VV = ToFloat(_tile.W)
+            UU = ShortVec4.ToFloat(_tile.X),
+            UV = ShortVec4.ToFloat(_tile.Y),
+            VU = ShortVec4.ToFloat(_tile.Z),
+            VV = ShortVec4.ToFloat(_tile.W)
         };
         set
         {
-            _tile.X = FromFloat(value.UU);
-            _tile.Y = FromFloat(value.UV);
-            _tile.Z = FromFloat(value.VU);
-            _tile.W = FromFloat(value.VV);
+            _tile.X = ShortVec4.FromFloat(value.UU);
+            _tile.Y = ShortVec4.FromFloat(value.UV);
+            _tile.Z = ShortVec4.FromFloat(value.VU);
+            _tile.W = ShortVec4.FromFloat(value.VV);
         }
     }
     
     public float SphereMask
     {
-        readonly get => ToFloat(_unk2.Y);
-        set => _unk2.Y = FromFloat(value);
+        readonly get => ShortVec4.ToFloat(_unk2.Y);
+        set => _unk2.Y = ShortVec4.FromFloat(value);
     }
     
     public ushort ShaderId
@@ -180,15 +206,15 @@ public struct ColorTableRow
     
     public byte TileIndex
     {
-        readonly get => (byte)(ToFloat(_idxData.Y) * 64f);
-        set => _idxData.Y = FromFloat((value + 0.5f) / 64f);
+        readonly get => (byte)(ShortVec4.ToFloat(_idxData.Y) * 64f);
+        set => _idxData.Y = ShortVec4.FromFloat((value + 0.5f) / 64f);
     }
 
     
     public float TileAlpha
     {
-        readonly get => ToFloat(_idxData.Z);
-        set => _idxData.Z = FromFloat(value);
+        readonly get => ShortVec4.ToFloat(_idxData.Z);
+        set => _idxData.Z = ShortVec4.FromFloat(value);
     }
     
     public ushort SphereIndex
@@ -211,89 +237,82 @@ public struct ColorTableRow
 [StructLayout(LayoutKind.Explicit, Size = Size)]
 public struct LegacyColorTableRow
 {
-    [StructLayout(LayoutKind.Explicit, Size = 0x8)]
-    public struct ShortVec4
-    {
-        [FieldOffset(0x0)] public ushort X;
-        [FieldOffset(0x2)] public ushort Y;
-        [FieldOffset(0x4)] public ushort Z;
-        [FieldOffset(0x6)] public ushort W;
-    }
-    
+    // [StructLayout(LayoutKind.Explicit, Size = 0x8)]
+    // public struct ShortVec4
+    // {
+    //     [FieldOffset(0x0)] public ushort X;
+    //     [FieldOffset(0x2)] public ushort Y;
+    //     [FieldOffset(0x4)] public ushort Z;
+    //     [FieldOffset(0x6)] public ushort W;
+    // }
     public const int Size = 0x20;
     [FieldOffset(0x0)] public ShortVec4 _diffuse;
     [FieldOffset(0x8)] public ShortVec4 _specular;
     [FieldOffset(0x10)] public ShortVec4 _emissive;
     [FieldOffset(0x18)] public ShortVec4 _tile;
 
-    private static float ToFloat(ushort value)
-        => (float)BitConverter.UInt16BitsToHalf(value);
-
-    private static ushort FromFloat(float value)
-        => BitConverter.HalfToUInt16Bits((Half)value);
-
     public Vector3 Diffuse
     {
-        readonly get => new Vector3(ToFloat(_diffuse.X), ToFloat(_diffuse.Y), ToFloat(_diffuse.Z));
+        readonly get => new Vector3(ShortVec4.ToFloat(_diffuse.X), ShortVec4.ToFloat(_diffuse.Y), ShortVec4.ToFloat(_diffuse.Z));
         set
         {
-            _diffuse.X = FromFloat(value.X);
-            _diffuse.Y = FromFloat(value.Y);
-            _diffuse.Z = FromFloat(value.Z);
+            _diffuse.X = ShortVec4.FromFloat(value.X);
+            _diffuse.Y = ShortVec4.FromFloat(value.Y);
+            _diffuse.Z = ShortVec4.FromFloat(value.Z);
         }
     }
     
     public Vector3 Specular
     {
-        readonly get => new Vector3(ToFloat(_specular.X), ToFloat(_specular.Y), ToFloat(_specular.Z));
+        readonly get => new Vector3(ShortVec4.ToFloat(_specular.X), ShortVec4.ToFloat(_specular.Y), ShortVec4.ToFloat(_specular.Z));
         set
         {
-            _specular.X = FromFloat(value.X);
-            _specular.Y = FromFloat(value.Y);
-            _specular.Z = FromFloat(value.Z);
+            _specular.X = ShortVec4.FromFloat(value.X);
+            _specular.Y = ShortVec4.FromFloat(value.Y);
+            _specular.Z = ShortVec4.FromFloat(value.Z);
         }
     }
 
     public Vector3 Emissive
     {
-        readonly get => new Vector3(ToFloat(_emissive.X), ToFloat(_emissive.Y), ToFloat(_emissive.Z));
+        readonly get => new Vector3(ShortVec4.ToFloat(_emissive.X), ShortVec4.ToFloat(_emissive.Y), ShortVec4.ToFloat(_emissive.Z));
         set
         {
-            _emissive.X = FromFloat(value.X);
-            _emissive.Y = FromFloat(value.Y);
-            _emissive.Z = FromFloat(value.Z);
+            _emissive.X = ShortVec4.FromFloat(value.X);
+            _emissive.Y = ShortVec4.FromFloat(value.Y);
+            _emissive.Z = ShortVec4.FromFloat(value.Z);
         }
     }
     
     public float SpecularStrength
     {
-        readonly get => ToFloat(_diffuse.W);
-        set => _specular.W = FromFloat(value);
+        readonly get => ShortVec4.ToFloat(_diffuse.W);
+        set => _specular.W = ShortVec4.FromFloat(value);
     }
     
     public float GlossStrength
     {
-        readonly get => ToFloat(_specular.W);
-        set => _emissive.W = FromFloat(value);
+        readonly get => ShortVec4.ToFloat(_specular.W);
+        set => _emissive.W = ShortVec4.FromFloat(value);
     }
     
     public Vector2 MaterialRepeat
     {
-        readonly get => new Vector2(ToFloat(_tile.X), ToFloat(_tile.Y));
+        readonly get => new Vector2(ShortVec4.ToFloat(_tile.X), ShortVec4.ToFloat(_tile.Y));
         set
         {
-            _tile.X = FromFloat(value.X);
-            _tile.Y = FromFloat(value.Y);
+            _tile.X = ShortVec4.FromFloat(value.X);
+            _tile.Y = ShortVec4.FromFloat(value.Y);
         }
     }
     
     public Vector2 MaterialSkew
     {
-        readonly get => new Vector2(ToFloat(_tile.Z), ToFloat(_tile.W));
+        readonly get => new Vector2(ShortVec4.ToFloat(_tile.Z), ShortVec4.ToFloat(_tile.W));
         set
         {
-            _tile.Z = FromFloat(value.X);
-            _tile.W = FromFloat(value.Y);
+            _tile.Z = ShortVec4.FromFloat(value.X);
+            _tile.W = ShortVec4.FromFloat(value.Y);
         }
     }
     
