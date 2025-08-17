@@ -68,7 +68,6 @@ public struct ShortVec4
 public struct ColorTableRow
 {
     public const int Size = 0x40;
-    [FieldOffset(0x0)] public unsafe fixed ushort Data[Size/2];
     [FieldOffset(0x0)] public ShortVec4 _diffuse;
     [FieldOffset(0x8)] public ShortVec4 _specular;
     [FieldOffset(0x10)] public ShortVec4 _emissive;
