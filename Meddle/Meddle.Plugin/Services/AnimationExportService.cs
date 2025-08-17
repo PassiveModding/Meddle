@@ -82,10 +82,7 @@ public class AnimationExportService : IDisposable, IService
                 sceneGraph.SaveGLTF(outputPath);
             }
 
-            if (config.OpenFolderOnExport)
-            {
-                Process.Start("explorer.exe", folder);
-            }
+            ExportUtil.OpenExportFolderInExplorer(folder, config, token);
             logger.LogInformation("Export complete");
         }
         catch (Exception e)

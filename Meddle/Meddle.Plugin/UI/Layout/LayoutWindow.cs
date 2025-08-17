@@ -432,10 +432,7 @@ public partial class LayoutWindow : ITab
                                                                                                   cancelToken.Token);
                                                     progress = new ProgressWrapper();
                                                     composer.Compose(filteredInstanceArray, progress);
-                                                    if (config.OpenFolderOnExport)
-                                                    {
-                                                        Process.Start("explorer.exe", path);
-                                                    }
+                                                    ExportUtil.OpenExportFolderInExplorer(path, config, cancelToken.Token);
                                                 }, cancelToken.Token);
                                             }, config.ExportDirectory);
 

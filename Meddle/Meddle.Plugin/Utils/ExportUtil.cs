@@ -1,4 +1,7 @@
 ﻿using System.Numerics;
+using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.ImGuiNotification;
+using Dalamud.Plugin.Services;
 using Meddle.Plugin.Models;
 using SharpGLTF.Schema2;
 using SharpGLTF.Validation;
@@ -14,7 +17,67 @@ public static class ExportUtil
         JsonIndented = false,
     };
     
-    public static void SaveAsType(this ModelRoot? gltf, ExportType typeFlags, string path, string name)
+    public static void OpenExportFolderInExplorer(string path, Configuration config, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
+        {
+            throw new ArgumentException("Path is null or does not exist.", nameof(path));
+        }
+
+        var notification = cancellationToken.IsCancellationRequested
+                               ? new Notification
+                               {
+                                   Content = $"Export to {path} was cancelled.",
+                                   Type = NotificationType.Warning,
+                                   RespectUiHidden = false,
+                                   ShowIndeterminateIfNoExpiry = true,
+                                   Minimized = false
+                               }
+                               : new Notification
+                               {
+                                   Content = $"Exported files to {path}",
+                                   Type = NotificationType.Success,
+                                   RespectUiHidden = false,
+                                   ShowIndeterminateIfNoExpiry = true,
+                                   Minimized = false
+                               };
+        
+        var activeNotification = Plugin.NotificationManager.AddNotification(notification);
+
+        activeNotification.DrawActions += args => DrawOpenFolderButton();
+        
+        if (config.OpenFolderOnExport)
+        {
+            OpenFolder(path);
+        }
+        return;
+        void DrawOpenFolderButton()
+        {
+            if (ImGui.Button("Open Folder"))
+            {
+                OpenFolder(path);
+                activeNotification.DismissNow();
+            }
+        }
+        
+        void OpenFolder(string folderPath)
+        {
+            if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath))
+            {
+                throw new ArgumentException("Folder path is null or does not exist.", nameof(folderPath));
+            }
+            
+            var fullPath = Path.GetFullPath(folderPath);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "explorer",
+                Arguments = fullPath,
+                UseShellExecute = true
+            });
+        }
+    }
+    
+    public static void SaveAsType(ModelRoot? gltf, ExportType typeFlags, string path, string name)
     {
         if (typeFlags.HasFlag(ExportType.GLTF))
         {

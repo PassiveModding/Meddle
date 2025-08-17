@@ -299,6 +299,11 @@ public class ComposerCache
                 var buf = tex.Bitmap.Bytes;
                 var hash = System.Security.Cryptography.SHA256.HashData(buf);
                 var hashStr = Convert.ToHexStringLower(hash);
+                // truncate the hash to 8 characters for the filename.
+                if (hashStr.Length > 8)
+                {
+                    hashStr = hashStr[..8];
+                }
                 var mtrlPathWithoutExtension = Path.GetFileNameWithoutExtension(mtrlPath);
                 var colorTablePath = Path.Combine(colorTableCacheDir, $"{mtrlPathWithoutExtension}_{materialInfo.Shpk}_{hashStr}.png");
                 if (!File.Exists(colorTablePath))

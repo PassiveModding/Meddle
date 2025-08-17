@@ -321,10 +321,7 @@ public unsafe class LiveCharacterTab : ITab
                                                     composer.Compose(characterInfo, scene, characterRoot, progress.Progress);
                                                     var modelRoot = scene.ToGltf2();
                                                     ExportUtil.SaveAsType(modelRoot, exportConfig.ExportType, path, name);
-                                                    if (config.OpenFolderOnExport)
-                                                    {
-                                                        Process.Start("explorer.exe", path);
-                                                    }
+                                                    ExportUtil.OpenExportFolderInExplorer(path, config, cancelToken.Token);
                                                 });
                                             }, config.ExportDirectory);
 
@@ -817,10 +814,7 @@ public unsafe class LiveCharacterTab : ITab
                                                     var textureBytes = memoryStream.ToArray();
                                                     File.WriteAllBytes(filePath, textureBytes);
                                                 }
-                                                if (config.OpenFolderOnExport)
-                                                {
-                                                    Process.Start("explorer.exe", path);
-                                                }
+                                                ExportUtil.OpenExportFolderInExplorer(path, config, CancellationToken.None);
                                             }, config.ExportDirectory);
             }
 

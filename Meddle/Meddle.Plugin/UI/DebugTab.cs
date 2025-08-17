@@ -343,7 +343,7 @@ public class DebugTab : ITab
                                 var outPath = Path.Combine(exportPath, Path.GetFileName(exportPathInput));
                                 Directory.CreateDirectory(exportPath);
                                 File.WriteAllBytes(outPath, data.Value.file.RawData.ToArray());
-                                Process.Start("explorer.exe", exportPath);
+                                ExportUtil.OpenExportFolderInExplorer(exportPath, config, cancellationTokenSource.Token);
                             }, config.ExportDirectory);
         }
 
@@ -366,7 +366,7 @@ public class DebugTab : ITab
                                                                                                   configClone,
                                                                                                   cancellationTokenSource.Token);
                                                     composer.Compose([stubInstance], new ProgressWrapper());
-                                                    Process.Start("explorer.exe", exportPath);
+                                                    ExportUtil.OpenExportFolderInExplorer(exportPath, config, cancellationTokenSource.Token);
                                                 }, cancellationTokenSource.Token);
                                             }, config.ExportDirectory);
             }
@@ -410,8 +410,7 @@ public class DebugTab : ITab
                                                     texture.Bitmap.Encode(memoryStream, SKEncodedImageFormat.Png, 100);
                                                     var textureBytes = memoryStream.ToArray();
                                                     File.WriteAllBytes(Path.ChangeExtension(outPath, ".png"), textureBytes);
-                                                    
-                                                    Process.Start("explorer.exe", exportPath);
+                                                    ExportUtil.OpenExportFolderInExplorer(exportPath, config, cancellationTokenSource.Token);
                                                 }, cancellationTokenSource.Token);
                                             }, config.ExportDirectory);
             }
