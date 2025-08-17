@@ -36,7 +36,7 @@ public partial class Configuration
 #pragma warning disable CS0618 // Type or member is obsolete
         if (Version == 1)
         {
-            Plugin.Logger?.LogInformation("Migrating configuration from version 1 to 2");
+            Plugin.Logger.LogInformation("Migrating configuration from version 1 to 2");
             if (DisableAutomaticUiHide == false)
             {
                 DisableAutomaticUiHide = true;
@@ -53,7 +53,7 @@ public partial class Configuration
         
         if (Version == 2)
         {
-            Plugin.Logger?.LogInformation("Migrating configuration from version 2 to 3");
+            Plugin.Logger.LogInformation("Migrating configuration from version 2 to 3");
             
             LayoutConfig.DrawTypes = LayoutWindow.DefaultDrawTypes;
             
@@ -63,7 +63,7 @@ public partial class Configuration
 
         if (Version == 3)
         {
-            Plugin.Logger?.LogInformation("Migrating configuration from version 3 to 4");
+            Plugin.Logger.LogInformation("Migrating configuration from version 3 to 4");
             LayoutConfig.WorldDotColor = WorldDotColor;
             LayoutConfig.WorldCutoffDistance = WorldCutoffDistance;
             LayoutConfig.DrawTypes |= ParsedInstanceType.Decal | ParsedInstanceType.EnvLighting;

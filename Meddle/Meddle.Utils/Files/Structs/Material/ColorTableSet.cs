@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+﻿using SkiaSharp;
 
 namespace Meddle.Utils.Files.Structs.Material;
 
@@ -101,11 +101,35 @@ public readonly struct ColorDyeTable
 public readonly struct LegacyColorTable
 {
     public const int LegacyNumRows = 16;
+    public const int Size = LegacyNumRows * LegacyColorTableRow.Size;
     private readonly LegacyColorTableRow[] rows;
+    private readonly byte[] buffer;
+    public static readonly (int Width, int Height) TextureSize = (8, 16);
+    public SkTexture ToTexture()
+    {
+        var texture = new SkTexture(TextureSize.Width, TextureSize.Height);
+        for (int x = 0; x < TextureSize.Width; x++)
+        {
+            for (int y = 0; y < TextureSize.Height; y++)
+            {
+                // get exact byte index in the buffer
+                const int bytesPerPixel = 4;
+                var byteIndex = (y * TextureSize.Width + x) * bytesPerPixel;
+                var r = buffer[byteIndex];
+                var g = buffer[byteIndex + 1];
+                var b = buffer[byteIndex + 2];
+                var a = buffer[byteIndex + 3];
+                texture[x, y] = new SKColor(r, g, b, a);
+            }
+        }
+        return texture;
+    }
     public ReadOnlySpan<LegacyColorTableRow> Rows => new(rows);
     public LegacyColorTable(ref SpanBinaryReader reader)
     {
+        var pos = reader.Position;
         rows = reader.Read<LegacyColorTableRow>(LegacyNumRows).ToArray();
+        buffer = reader.ReadByteString(pos, Size).ToArray();
     }
     
     public object ToObject()
@@ -127,25 +151,25 @@ public readonly struct LegacyColorTable
     }
     
     // normal pixel A channel on legacy normal as a float from 0-1
-    public LegacyColorTableRow GetBlendedPair(float normalPixelW)
-    {
-        var indices = TableRow.GetTableRowIndices(normalPixelW);
-        var row0 = Rows[indices.Previous];
-        var row1 = Rows[indices.Next];
-        var stepped = Rows[indices.Stepped];
-
-        return new LegacyColorTableRow
-        {
-            Diffuse = Vector3.Clamp(Vector3.Lerp(row0.Diffuse, row1.Diffuse, indices.Weight), Vector3.Zero, Vector3.One),
-            Specular = Vector3.Clamp(Vector3.Lerp(row0.Specular, row1.Specular, indices.Weight), Vector3.Zero, Vector3.One),
-            SpecularStrength = float.Lerp(row0.SpecularStrength, row1.SpecularStrength, indices.Weight),
-            Emissive = Vector3.Clamp(Vector3.Lerp(row0.Emissive, row1.Emissive, indices.Weight), Vector3.Zero, Vector3.One),
-            GlossStrength = float.Lerp(row0.GlossStrength, row1.GlossStrength, indices.Weight),
-            MaterialRepeat = stepped.MaterialRepeat,
-            MaterialSkew = stepped.MaterialSkew,
-            TileIndex = stepped.TileIndex
-        };
-    }
+    // public LegacyColorTableRow GetBlendedPair(float normalPixelW)
+    // {
+    //     var indices = TableRow.GetTableRowIndices(normalPixelW);
+    //     var row0 = Rows[indices.Previous];
+    //     var row1 = Rows[indices.Next];
+    //     var stepped = Rows[indices.Stepped];
+    //
+    //     return new LegacyColorTableRow
+    //     {
+    //         Diffuse = Vector3.Clamp(Vector3.Lerp(row0.Diffuse, row1.Diffuse, indices.Weight), Vector3.Zero, Vector3.One),
+    //         Specular = Vector3.Clamp(Vector3.Lerp(row0.Specular, row1.Specular, indices.Weight), Vector3.Zero, Vector3.One),
+    //         SpecularStrength = float.Lerp(row0.SpecularStrength, row1.SpecularStrength, indices.Weight),
+    //         Emissive = Vector3.Clamp(Vector3.Lerp(row0.Emissive, row1.Emissive, indices.Weight), Vector3.Zero, Vector3.One),
+    //         GlossStrength = float.Lerp(row0.GlossStrength, row1.GlossStrength, indices.Weight),
+    //         MaterialRepeat = stepped.MaterialRepeat,
+    //         MaterialSkew = stepped.MaterialSkew,
+    //         TileIndex = stepped.TileIndex
+    //     };
+    // }
     
     public struct TableRow
     {
@@ -175,28 +199,53 @@ public readonly struct LegacyColorTable
 public readonly struct ColorTable
 {
     public const int NumRows = 32;
+    public const int Size = NumRows * ColorTableRow.Size;
     private readonly ColorTableRow[] rows;
+    private readonly byte[] buffer;
+    public static readonly (int Width, int Height) TextureSize = (8, 32);
+    public SkTexture ToTexture()
+    {
+        var texture = new SkTexture(TextureSize.Width, TextureSize.Height);
+        for (int x = 0; x < TextureSize.Width; x++)
+        {
+            for (int y = 0; y < TextureSize.Height; y++)
+            {
+                // get exact byte index in the buffer
+                const int bytesPerPixel = 4;
+                var byteIndex = (y * TextureSize.Width + x) * bytesPerPixel;
+                var r = buffer[byteIndex];
+                var g = buffer[byteIndex + 1];
+                var b = buffer[byteIndex + 2];
+                var a = buffer[byteIndex + 3];
+                texture[x, y] = new SKColor(r, g, b, a);
+            }
+        }
+        return texture;
+    }
+    
     public ReadOnlySpan<ColorTableRow> Rows => new(rows);
     public ColorTable(ref SpanBinaryReader reader)
     {
+        var pos = reader.Position;
         rows = reader.Read<ColorTableRow>(NumRows).ToArray();
+        buffer = reader.ReadByteString(pos, Size).ToArray();
     }
 
-    public (ColorTableRow row0, ColorTableRow row1) GetPair(int weight)
-    {
-        var weightArr = new byte[]
-        {
-            0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
-            0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF
-        };
-
-        var nearestPair = weightArr.MinBy(v => Math.Abs(v - weight));
-        var pairIdx = Array.IndexOf(weightArr, nearestPair) * 2;
-        var pair0 = rows[pairIdx];
-        var pair1 = rows[pairIdx + 1];
-
-        return (pair0, pair1);
-    }
+    // public (ColorTableRow row0, ColorTableRow row1) GetPair(int weight)
+    // {
+    //     var weightArr = new byte[]
+    //     {
+    //         0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+    //         0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF
+    //     };
+    //
+    //     var nearestPair = weightArr.MinBy(v => Math.Abs(v - weight));
+    //     var pairIdx = Array.IndexOf(weightArr, nearestPair) * 2;
+    //     var pair0 = rows[pairIdx];
+    //     var pair1 = rows[pairIdx + 1];
+    //
+    //     return (pair0, pair1);
+    // }
     
     public object ToObject()
     {

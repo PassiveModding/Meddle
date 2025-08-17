@@ -42,12 +42,12 @@ public class CharacterComposer
     {
         if (m.Path.GamePath.Contains("b0003_top"))
         {
-            Plugin.Logger?.LogDebug("Skipping model {ModelPath}", m.Path.GamePath);
+            Plugin.Logger.LogDebug("Skipping model {ModelPath}", m.Path.GamePath);
             return;
         }
         
         var mdlFile = composerCache.GetMdlFile(m.Path.FullPath);
-        Plugin.Logger?.LogInformation("Loaded model {modelPath}", m.Path.FullPath);
+        Plugin.Logger.LogInformation("Loaded model {modelPath}", m.Path.FullPath);
         var materialBuilders = new MaterialBuilder[m.Materials.Length];
         for (int i = 0; i < m.Materials.Length; i++)
         {
@@ -62,12 +62,11 @@ public class CharacterComposer
             {
                 materialBuilders[i] = composerCache.ComposeMaterial(materialInfo.Path.FullPath, 
                                                                     materialInfo: materialInfo, 
-                                                                    characterInfo: characterInfo, 
-                                                                    colorTableSet: materialInfo.ColorTable);
+                                                                    characterInfo: characterInfo);
             }
             catch (Exception e)
             {
-                Plugin.Logger?.LogError(e, "Failed to load material\n{Message}\n{MaterialInfo}", e.Message, 
+                Plugin.Logger.LogError(e, "Failed to load material\n{Message}\n{MaterialInfo}", e.Message, 
                                         JsonSerializer.Serialize(m.Materials[i], 
                                             MaterialComposer.JsonOptions));
                 materialBuilders[i] = new MaterialBuilder("error");
@@ -91,7 +90,7 @@ public class CharacterComposer
                 deform = ((GenderRace)m.Deformer.Value.DeformerId,
                              (GenderRace)m.Deformer.Value.RaceSexId,
                              new RaceDeformer(pbdFile, skinningContext.Bones));
-                Plugin.Logger?.LogDebug("Using deformer pbd {Path}", m.Deformer.Value.PbdPath);
+                Plugin.Logger.LogDebug("Using deformer pbd {Path}", m.Deformer.Value.PbdPath);
             }
             else
             {
@@ -197,7 +196,7 @@ public class CharacterComposer
         if (rootBone == null) throw new InvalidOperationException("Root bone not found");
         var attachName = attachData.Owner.Skeleton.PartialSkeletons[attach.PartialSkeletonIdx]
                                    .HkSkeleton!.BoneNames[(int)attach.BoneIdx];
-        Plugin.Logger?.LogInformation("Attaching {AttachName} to {RootBone}", attachName, rootBone.BoneName);
+        Plugin.Logger.LogInformation("Attaching {AttachName} to {RootBone}", attachName, rootBone.BoneName);
         lock (attachLock)
         {
             Interlocked.Increment(ref attachSuffix);
@@ -252,11 +251,11 @@ public class CharacterComposer
         var rootAttach = characterInfo.Attaches.FirstOrDefault(x => x.Attach.ExecuteType == 0);
         if (rootAttach == null)
         {
-            Plugin.Logger?.LogWarning("Root attach not found");
+            Plugin.Logger.LogWarning("Root attach not found");
         }
         else
         {
-            Plugin.Logger?.LogWarning("Root attach found");
+            Plugin.Logger.LogWarning("Root attach found");
             // handle root first, then attach this to the root
             var rootAttachProgress = new ExportProgress(rootAttach.Models.Length, "Root attach");
             rootProgress.Children.Add(rootAttachProgress);
@@ -343,13 +342,13 @@ public class CharacterComposer
             bones = SkeletonUtils.GetBoneMap(characterInfo.Skeleton, exportConfig.PoseMode, out rootBone);
             if (rootBone == null)
             {
-                Plugin.Logger?.LogWarning("Root bone not found");
+                Plugin.Logger.LogWarning("Root bone not found");
                 return null;
             }
         }
         catch (Exception e)
         {
-            Plugin.Logger?.LogError(e, "Failed to get bone map");
+            Plugin.Logger.LogError(e, "Failed to get bone map");
             return null;
         }
 
@@ -366,7 +365,7 @@ public class CharacterComposer
             }
             catch (Exception e)
             {
-                Plugin.Logger?.LogError(e, "Failed to handle attach {AttachData}", JsonSerializer.Serialize(new
+                Plugin.Logger.LogError(e, "Failed to handle attach {AttachData}", JsonSerializer.Serialize(new
                 {
                     AttachData = attachData.Value.Attach,
                     Owner = attachData.Value.Owner
@@ -384,7 +383,7 @@ public class CharacterComposer
             }
             catch (Exception e)
             {
-                Plugin.Logger?.LogError(e, "Failed to handle root attach {CharacterInfo}", JsonSerializer.Serialize(characterInfo, MaterialComposer.JsonOptions));
+                Plugin.Logger.LogError(e, "Failed to handle root attach {CharacterInfo}", JsonSerializer.Serialize(characterInfo, MaterialComposer.JsonOptions));
             }
         }
 
@@ -397,7 +396,7 @@ public class CharacterComposer
         {
             if (cancellationToken.IsCancellationRequested)
             {
-                Plugin.Logger?.LogInformation("Export cancelled, stopping model processing");
+                Plugin.Logger.LogInformation("Export cancelled, stopping model processing");
                 break;
             }
             
@@ -409,7 +408,7 @@ public class CharacterComposer
             }
             catch (Exception e)
             {
-                Plugin.Logger?.LogError(e, "Failed to handle model\n{Message}\n{ModelInfo}", e.Message, JsonSerializer.Serialize(t, MaterialComposer.JsonOptions));
+                Plugin.Logger.LogError(e, "Failed to handle model\n{Message}\n{ModelInfo}", e.Message, JsonSerializer.Serialize(t, MaterialComposer.JsonOptions));
             }
             
             rootProgress.IncrementProgress();
@@ -419,7 +418,7 @@ public class CharacterComposer
         {
             if (cancellationToken.IsCancellationRequested)
             {
-                Plugin.Logger?.LogInformation("Export cancelled, stopping attach processing");
+                Plugin.Logger.LogInformation("Export cancelled, stopping attach processing");
                 break;
             }
             
@@ -433,7 +432,7 @@ public class CharacterComposer
             }
             catch (Exception e)
             {
-                Plugin.Logger?.LogError(e, "Failed to handle attach {Attach}", JsonSerializer.Serialize(t, MaterialComposer.JsonOptions));
+                Plugin.Logger.LogError(e, "Failed to handle attach {Attach}", JsonSerializer.Serialize(t, MaterialComposer.JsonOptions));
             }
             finally
             {
@@ -470,7 +469,7 @@ public class CharacterComposer
                     var parent = FindLogicalParent(model, bone, bones) ?? root;
                     parent.AddNode(bone);
                     
-                    Plugin.Logger?.LogWarning("Added bone {BoneName} to {ParentBone}\n" +
+                    Plugin.Logger.LogWarning("Added bone {BoneName} to {ParentBone}\n" +
                                               "NOTE: This may break posing in some cases, you may find better results " +
                                               "deleting the bone after importing into editing software", boneName, parent.BoneName);
                     bones.Add(bone);

@@ -5,6 +5,7 @@ using Meddle.Utils.Files.SqPack;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using OtterTex;
 
 namespace Meddle.Plugin;
@@ -14,7 +15,7 @@ public sealed class Plugin : IDalamudPlugin
     public static readonly string DefaultExportDirectory = Path.Combine(Path.GetTempPath(), "Meddle.Export");
     private readonly IHost? app;
     private readonly ILogger pluginLog;
-    public static ILogger<Plugin>? Logger;
+    public static ILogger<Plugin> Logger { get; private set; } = NullLogger<Plugin>.Instance;
 
     public Plugin(IDalamudPluginInterface pluginInterface)
     {

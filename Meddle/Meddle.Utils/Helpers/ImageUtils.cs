@@ -9,18 +9,18 @@ namespace Meddle.Utils.Helpers;
 
 public static class ImageUtils
 {
-    public static int GetStride(this TexFile.TextureFormat format, int width)
-    {
-        return format switch
-        {
-            TexFile.TextureFormat.BC1_UNORM => (width + 3) / 4 * 8,
-            TexFile.TextureFormat.BC2_UNORM => (width + 3) / 4 * 16,
-            TexFile.TextureFormat.BC3_UNORM => (width + 3) / 4 * 16,
-            TexFile.TextureFormat.BC5_UNORM => width * 2,
-            TexFile.TextureFormat.BC7_UNORM => (width + 3) / 4 * 16,
-            _ => width * 4,
-        };
-    }
+    // public static int GetStride(this TexFile.TextureFormat format, int width)
+    // {
+    //     return format switch
+    //     {
+    //         TexFile.TextureFormat.BC1_UNORM => (width + 3) / 4 * 8,
+    //         TexFile.TextureFormat.BC2_UNORM => (width + 3) / 4 * 16,
+    //         TexFile.TextureFormat.BC3_UNORM => (width + 3) / 4 * 16,
+    //         TexFile.TextureFormat.BC5_UNORM => width * 2,
+    //         TexFile.TextureFormat.BC7_UNORM => (width + 3) / 4 * 16,
+    //         _ => width * 4,
+    //     };
+    // }
     
     public static TextureResource ToResource(this TexFile file)
     {
@@ -59,23 +59,23 @@ public static class ImageUtils
         }
     }
     
-    public static TexMeta GetTexMeta(TextureResource resource)
-    {
-        var meta = new TexMeta
-        {
-            Width = resource.Width,
-            Height = resource.Height,
-            Depth = 1, // 3D textures would have other values, but we're only handling kernelTexture->D3D11Texture2D
-            MipLevels = resource.MipLevels,
-            ArraySize = resource.ArraySize,
-            Format = resource.Format,
-            Dimension = resource.Dimension,
-            MiscFlags = resource.MiscFlags.HasFlag(D3DResourceMiscFlags.TextureCube) ? D3DResourceMiscFlags.TextureCube : 0,
-            MiscFlags2 = 0,
-        };
-        
-        return meta;
-    }
+    // public static TexMeta GetTexMeta(TextureResource resource)
+    // {
+    //     var meta = new TexMeta
+    //     {
+    //         Width = resource.Width,
+    //         Height = resource.Height,
+    //         Depth = 1, // 3D textures would have other values, but we're only handling kernelTexture->D3D11Texture2D
+    //         MipLevels = resource.MipLevels,
+    //         ArraySize = resource.ArraySize,
+    //         Format = resource.Format,
+    //         Dimension = resource.Dimension,
+    //         MiscFlags = resource.MiscFlags.HasFlag(D3DResourceMiscFlags.TextureCube) ? D3DResourceMiscFlags.TextureCube : 0,
+    //         MiscFlags2 = 0,
+    //     };
+    //     
+    //     return meta;
+    // }
 
     public static TexMeta GetTexMeta(TexFile tex)
     {
@@ -166,39 +166,49 @@ public static class ImageUtils
         return img;
     }
     
-    public static unsafe SkTexture ToTexture(this Image img, Vector2? resize = null)
+    public static byte[] GetRawRgbaData(TexFile tex, int arrayLevel, int mipLevel, int slice)
     {
+        var img = GetTexData(tex, arrayLevel, mipLevel, slice);
         if (img.Format != DXGIFormat.R8G8B8A8UNorm)
-            throw new ArgumentException("Image must be in RGBA format.", nameof(img));
+            throw new ArgumentException("Image must be in RGBA format.", nameof(tex));
+        
         // assume RGBA
-        var data = img.Span;
-        var bitmap = new SKBitmap(img.Width, img.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-        fixed (byte* ptr = data)
-        {
-            bitmap.InstallPixels(new SKImageInfo(img.Width, img.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul), (IntPtr)ptr, img.Width * 4);
-        }
-        
-        if (resize != null)
-        {
-            bitmap = bitmap.Resize(new SKImageInfo((int)resize.Value.X, (int)resize.Value.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul),
-                                   new SKSamplingOptions(SKCubicResampler.Mitchell));
-        }
-        
-        return new SkTexture(bitmap);
+        return img.Span.ToArray();
     }
     
-    public static SkTexture ToTexture(this TextureResource resource, Vector2 size)
-    {
-        if (resource.Width == (int)size.X && resource.Height == (int)size.Y)
-        {
-            return resource.ToTexture();
-        }
-        
-        var bitmap = resource.ToBitmap();
-        bitmap = bitmap.Resize(new SKImageInfo((int)size.X, (int)size.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul), 
-                               new SKSamplingOptions(SKCubicResampler.Mitchell));
-        return new SkTexture(bitmap);
-    }
+    // public static unsafe SkTexture ToTexture(this Image img, Vector2? resize = null)
+    // {
+    //     if (img.Format != DXGIFormat.R8G8B8A8UNorm)
+    //         throw new ArgumentException("Image must be in RGBA format.", nameof(img));
+    //     // assume RGBA
+    //     var data = img.Span;
+    //     var bitmap = new SKBitmap(img.Width, img.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
+    //     fixed (byte* ptr = data)
+    //     {
+    //         bitmap.InstallPixels(new SKImageInfo(img.Width, img.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul), (IntPtr)ptr, img.Width * 4);
+    //     }
+    //     
+    //     if (resize != null)
+    //     {
+    //         bitmap = bitmap.Resize(new SKImageInfo((int)resize.Value.X, (int)resize.Value.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul),
+    //                                new SKSamplingOptions(SKCubicResampler.Mitchell));
+    //     }
+    //     
+    //     return new SkTexture(bitmap);
+    // }
+    //
+    // public static SkTexture ToTexture(this TextureResource resource, Vector2 size)
+    // {
+    //     if (resource.Width == (int)size.X && resource.Height == (int)size.Y)
+    //     {
+    //         return resource.ToTexture();
+    //     }
+    //     
+    //     var bitmap = resource.ToBitmap();
+    //     bitmap = bitmap.Resize(new SKImageInfo((int)size.X, (int)size.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul), 
+    //                            new SKSamplingOptions(SKCubicResampler.Mitchell));
+    //     return new SkTexture(bitmap);
+    // }
     
     public static SkTexture ToTexture(this TextureResource resource, (int width, int height)? resize = null)
     {

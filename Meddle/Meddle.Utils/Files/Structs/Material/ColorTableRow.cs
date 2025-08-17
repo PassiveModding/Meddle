@@ -19,7 +19,7 @@ namespace Meddle.Utils.Files.Structs.Material;
 /// 7 (+28) |   Tile XF UU |    |   Tile XF UV |    |  Tile XF VU |    |  Tile XF VV |
 /// </code>
 /// </summary>
-[StructLayout(LayoutKind.Explicit, Size = 0x40)]
+[StructLayout(LayoutKind.Explicit, Size = Size)]
 public struct ColorTableRow
 {
     [StructLayout(LayoutKind.Explicit, Size = 0x8)]
@@ -31,6 +31,7 @@ public struct ColorTableRow
         [FieldOffset(0x6)] public ushort W;
     }
     
+    public const int Size = 0x40;
     [FieldOffset(0x0)] public ShortVec4 _diffuse;
     [FieldOffset(0x8)] public ShortVec4 _specular;
     [FieldOffset(0x10)] public ShortVec4 _emissive;
@@ -207,7 +208,7 @@ public struct ColorTableRow
 /// 3 (+12) |  TileScaleUU |  TileScaleUV | TileScaleVU | TileScaleVV   |
 /// </code>
 /// </summary>
-[StructLayout(LayoutKind.Explicit, Size = 0x20)]
+[StructLayout(LayoutKind.Explicit, Size = Size)]
 public struct LegacyColorTableRow
 {
     [StructLayout(LayoutKind.Explicit, Size = 0x8)]
@@ -219,6 +220,7 @@ public struct LegacyColorTableRow
         [FieldOffset(0x6)] public ushort W;
     }
     
+    public const int Size = 0x20;
     [FieldOffset(0x0)] public ShortVec4 _diffuse;
     [FieldOffset(0x8)] public ShortVec4 _specular;
     [FieldOffset(0x10)] public ShortVec4 _emissive;
