@@ -299,7 +299,8 @@ public class ComposerCache
                 var buf = tex.Bitmap.Bytes;
                 var hash = System.Security.Cryptography.SHA256.HashData(buf);
                 var hashStr = Convert.ToHexStringLower(hash);
-                var colorTablePath = Path.Combine(colorTableCacheDir, $"{hashStr}.png");
+                var mtrlPathWithoutExtension = Path.GetFileNameWithoutExtension(mtrlPath);
+                var colorTablePath = Path.Combine(colorTableCacheDir, $"{mtrlPathWithoutExtension}_{materialInfo.Shpk}_{hashStr}.png");
                 if (!File.Exists(colorTablePath))
                 {
                     using var fileStream = new FileStream(colorTablePath, FileMode.Create, FileAccess.Write);
