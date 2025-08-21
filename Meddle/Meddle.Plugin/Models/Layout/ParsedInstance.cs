@@ -1,9 +1,12 @@
 ﻿using System.Numerics;
+using System.Text;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Dalamud.Bindings.ImGui;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
 using Lumina.Excel.Sheets;
+using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Services;
@@ -458,6 +461,26 @@ public class ParsedMaterialInfo(string path, string pathFromModel, string shpk, 
     };
     
     public ParsedTextureInfo[] Textures { get; } = textures;
+
+    public string GetHash()
+    {
+        var hash = new StringBuilder();
+        hash.Append($"FullPath: {Path.FullPath} GamePath: {Path.GamePath} ");
+        hash.Append($"Shpk: {Shpk} ");
+        for (var i = 0; i < Textures.Length; i++)
+        {
+            var texture = Textures[i];
+            hash.Append($"Texture{i}: {texture.Path.FullPath} {texture.Path.GamePath}");
+        }
+        hash.Append($"Stain0: {Stain0?.RowId}");
+        hash.Append($"Stain1: {Stain1?.RowId}");
+        if (ColorTableBlob != null)
+        {
+            hash.Append($"ColorTable: {JsonSerializer.Serialize(ColorTableBlob, MaterialComposer.JsonOptions)}");
+        }
+
+        return hash.ToString();
+    }
 }
 
 public class ParsedModelInfo(string path, string pathFromCharacter, DeformerCachedStruct? deformer, Model.ShapeAttributeGroup? shapeAttributeGroup, ParsedMaterialInfo?[] materials, Stain? stain0, Stain? stain1) 

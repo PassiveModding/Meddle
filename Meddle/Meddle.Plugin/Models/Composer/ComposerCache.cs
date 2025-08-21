@@ -251,6 +251,19 @@ public class ComposerCache
         //         return cachedBuilder;
         //     }
         // }
+
+        string? cacheKey = null;
+        if (characterInfo != null && materialInfo != null)
+        {
+            // check cache
+            var mtrlHash = materialInfo.GetHash();
+            var characterHash = characterInfo.GetHashCode();
+            cacheKey = $"{characterHash}_{mtrlHash}";
+            if (mtrlBuilderCache.TryGetValue(cacheKey, out var cachedBuilder))
+            {
+                return cachedBuilder;
+            }
+        }
         
         var mtrlFile = GetMtrlFile(mtrlPath, out var mtrlCachePath);
         var shaderPackage = GetShaderPackage(mtrlFile.GetShaderPackageName());
@@ -367,6 +380,12 @@ public class ComposerCache
         // {
         //     mtrlBuilderCache.TryAdd(cacheKey, materialBuilder);
         // }
+        
+        if (cacheKey != null)
+        {
+            mtrlBuilderCache.TryAdd(cacheKey, materialBuilder);
+        }
+        
         return materialBuilder;
     }
 }
