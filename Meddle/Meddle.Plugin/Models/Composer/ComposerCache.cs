@@ -21,7 +21,6 @@ public class ComposerCache
     private readonly ConcurrentDictionary<string, string> mtrlPathCache = new();
     private readonly ConcurrentDictionary<string, PbdFile> pbdCache = new();
     private readonly ConcurrentDictionary<string, RefCounter<MdlFile>> mdlCache = new();
-    private readonly ConcurrentDictionary<string, MaterialBuilder> mtrlBuilderCache = new();
     
     private sealed class RefCounter<T>(T obj)
     {
@@ -233,38 +232,6 @@ public class ComposerCache
                                            IStainableInstance? stainInstance = null, 
                                            ParsedCharacterInfo? characterInfo = null)
     {
-        // bool canCacheBuilder = materialInfo == null 
-        //                        && characterInfo == null 
-        //                        && colorTableSet == null;
-        // var cacheKey = $"{mtrlPath}_{materialInfo?.Shpk ?? "default"}";
-        // if (canCacheBuilder)
-        // {
-        //     if (stainInstance != null)
-        //     {
-        //         var stainHash = stainInstance.GetStainingHash();
-        //         var stainHashStr = System.Text.Encoding.UTF8.GetString(stainHash);
-        //         cacheKey += $"_{stainHashStr}";
-        //     }
-        //     if (mtrlBuilderCache.TryGetValue(cacheKey, out var cachedBuilder))
-        //     {
-        //         Plugin.Logger.LogDebug("Using cached material builder for {cacheKey}", cacheKey);
-        //         return cachedBuilder;
-        //     }
-        // }
-
-        string? cacheKey = null;
-        if (characterInfo != null && materialInfo != null)
-        {
-            // check cache
-            var mtrlHash = materialInfo.GetHash();
-            var characterHash = characterInfo.GetHashCode();
-            cacheKey = $"{characterHash}_{mtrlHash}";
-            if (mtrlBuilderCache.TryGetValue(cacheKey, out var cachedBuilder))
-            {
-                return cachedBuilder;
-            }
-        }
-        
         var mtrlFile = GetMtrlFile(mtrlPath, out var mtrlCachePath);
         var shaderPackage = GetShaderPackage(mtrlFile.GetShaderPackageName());
         var material = new MaterialComposer(mtrlFile, mtrlPath, shaderPackage);
@@ -375,16 +342,6 @@ public class ComposerCache
         }
 
         materialBuilder.Extras = material.ExtrasNode;
-
-        // if (canCacheBuilder)
-        // {
-        //     mtrlBuilderCache.TryAdd(cacheKey, materialBuilder);
-        // }
-        
-        if (cacheKey != null)
-        {
-            mtrlBuilderCache.TryAdd(cacheKey, materialBuilder);
-        }
         
         return materialBuilder;
     }

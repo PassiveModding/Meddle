@@ -20,6 +20,7 @@ public class CharacterComposer
     private readonly ComposerCache composerCache;
     private readonly Configuration.ExportConfiguration exportConfig;
     private readonly CancellationToken cancellationToken;
+    private readonly Dictionary<ParsedCharacterInfo, Dictionary<string, MaterialBuilder>> materialCache = new();
 
     public CharacterComposer(ComposerCache composerCache, Configuration.ExportConfiguration exportConfig, CancellationToken cancellationToken)
     {
@@ -60,9 +61,22 @@ public class CharacterComposer
             
             try
             {
-                materialBuilders[i] = composerCache.ComposeMaterial(materialInfo.Path.FullPath, 
-                                                                    materialInfo: materialInfo, 
-                                                                    characterInfo: characterInfo);
+                if (!materialCache.TryGetValue(characterInfo, out var characterCache))
+                {
+                    characterCache = new Dictionary<string, MaterialBuilder>();
+                    materialCache[characterInfo] = characterCache;
+                }
+                
+                if (characterCache.TryGetValue(materialInfo.GetHash(), out var cachedBuilder))
+                {
+                    materialBuilders[i] = cachedBuilder;
+                }
+                else
+                {
+                    materialBuilders[i] = composerCache.ComposeMaterial(materialInfo.Path.FullPath,
+                                                                        materialInfo: materialInfo,
+                                                                        characterInfo: characterInfo);
+                }
             }
             catch (Exception e)
             {

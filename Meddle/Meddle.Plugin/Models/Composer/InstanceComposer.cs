@@ -388,6 +388,7 @@ public class InstanceComposer
         }
     }
     
+    private readonly Dictionary<string, Dictionary<int, MaterialBuilder>> bgPartMaterialCache = new();
     
     public NodeBuilder? ComposeBgPartsInstance(ParsedBgPartsInstance bgPartsInstance, SceneBuilder scene)
     {
@@ -416,9 +417,22 @@ public class InstanceComposer
             {
                 mtrlPath = bgChangeMaterial.Value.MaterialPath;
             }
+
+            if (!bgPartMaterialCache.TryGetValue(mtrlPath, out var bgPartMtrlCache))
+            {
+                bgPartMtrlCache = new Dictionary<int, MaterialBuilder>();
+                bgPartMaterialCache[mtrlPath] = bgPartMtrlCache;
+            }
             
-            var output = composerCache.ComposeMaterial(mtrlPath, stainInstance: bgPartsInstance);
-            materialBuilders.Add(output);
+            if (bgPartMtrlCache.TryGetValue((int?)bgPartsInstance.Stain?.RowId ?? -1, out var cachedBuilder))
+            {
+                materialBuilders.Add(cachedBuilder);
+            }
+            else
+            {
+                var output = composerCache.ComposeMaterial(mtrlPath, stainInstance: bgPartsInstance);
+                materialBuilders.Add(output);
+            }
         }
 
         var model = new Model(bgPartsInstance.Path.GamePath, mdlFile, null);
@@ -442,6 +456,8 @@ public class InstanceComposer
         return root;
     }
     
+    
+    private readonly Dictionary<ParsedTerrainInstance, Dictionary<string, MaterialBuilder>> terrainMaterialCache = new();
     public NodeBuilder ComposeTerrain(ParsedTerrainInstance terrainInstance, SceneBuilder scene, ExportProgress rootProgress)
     {
         var root = new NodeBuilder($"{terrainInstance.Type}_{terrainInstance.Path.GamePath}");
@@ -491,8 +507,21 @@ public class InstanceComposer
             var materialBuilders = new List<MaterialBuilder>();
             foreach (var mtrlPath in materials)
             {
-                var materialBuilder = composerCache.ComposeMaterial(mtrlPath);
-                materialBuilders.Add(materialBuilder);
+                if (!terrainMaterialCache.TryGetValue(terrainInstance, out var terrainMtrlCache))
+                {
+                    terrainMtrlCache = new Dictionary<string, MaterialBuilder>();
+                    terrainMaterialCache[terrainInstance] = terrainMtrlCache;
+                }
+                
+                if (terrainMtrlCache.TryGetValue(mtrlPath, out var cachedBuilder))
+                {
+                    materialBuilders.Add(cachedBuilder);
+                }
+                else
+                {
+                    var materialBuilder = composerCache.ComposeMaterial(mtrlPath);
+                    materialBuilders.Add(materialBuilder);
+                }
             }
 
             var model = new Model(mdlPath, mdlFile, null);
