@@ -121,26 +121,14 @@ public static class UiUtil
         HintCircle("Select the type of export to use, GLTF is recommended for most cases.\n" +
                    "GLB is a binary version of GLTF, and OBJ is a legacy format that is not recommended for most cases.");
 
-        // var textureMode = exportConfiguration.TextureMode;
-        // if (EnumExtensions.DrawEnumDropDown("Texture Mode", ref textureMode))
-        // {
-        //     exportConfiguration.TextureMode = textureMode;
-        //     changed = true;
-        // }
-        //
-        // if (textureMode == TextureMode.Bake)
-        // {
-        //     ImGui.TextColored(new Vector4(1, 0, 0, 1), "Baking textures is deprecated, use Raw mode with the MeddleTools Blender addon");
-        // }
+        if (exportType.HasFlag(ExportType.OBJ))
+        {
+            // draw warning that OBJ is not recommended
+            ImGui.TextColored(new Vector4(1, 0, 0, 1), "OBJ export is not recommended and may not work as expected.");
+        }
 
         if (flags.HasFlag(ExportConfigDrawFlags.ShowExportPose))
         {
-            // var exportPose = exportConfiguration.ExportPose;
-            // if (ImGui.Checkbox("Export pose", ref exportPose))
-            // {
-            //     exportConfiguration.ExportPose = exportPose;
-            //     changed = true;
-            // }
             var poseMode = exportConfiguration.PoseMode;
             if (EnumExtensions.DrawEnumDropDown("Pose Mode", ref poseMode))
             {
@@ -149,9 +137,9 @@ public static class UiUtil
             }
             
             ImGui.SameLine();
-            HintCircle("None: Export will not include a pose track.\n" +
-                       "LocalScale: Export will include only scaling on the pose track.\n" +
-                       "Local (default): Export will include scaling, rotation and translation on the pose track.");
+            HintCircle($"Reference Pose ({nameof(SkeletonUtils.PoseMode.None)}): Export will not include a pose track.\n" +
+                       $"Reference Pose with Scale ({nameof(SkeletonUtils.PoseMode.LocalScaleOnly)}): Export will include only scaling on the pose track.\n" +
+                       $"[default]Pose ({nameof(SkeletonUtils.PoseMode.Local)}): Export will include scaling, rotation and translation on the pose track.");
         }
         
         if (flags.HasFlag(ExportConfigDrawFlags.ShowUseDeformer))

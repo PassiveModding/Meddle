@@ -321,10 +321,7 @@ public unsafe class LiveCharacterTab : ITab
                                                     composer.Compose(characterInfo, scene, characterRoot, progress.Progress);
                                                     var modelRoot = scene.ToGltf2();
                                                     ExportUtil.SaveAsType(modelRoot, exportConfig.ExportType, path, name);
-                                                    if (config.OpenFolderOnExport)
-                                                    {
-                                                        Process.Start("explorer.exe", path);
-                                                    }
+                                                    ExportUtil.OpenExportFolderInExplorer(path, config, cancelToken.Token);
                                                 });
                                             }, config.ExportDirectory);
 
@@ -564,9 +561,10 @@ public unsafe class LiveCharacterTab : ITab
             {
                 ImGui.Text("No deformer info found");
             }
-            
-            using (var disableMatParam = ImRaii.Disabled(mdlMaterialWindowManager.HasWindow(mPtr.Value->ModelResourceHandle)))
+
+            if (config.DisplayDebugInfo)
             {
+                using var disableMatParam = ImRaii.Disabled(mdlMaterialWindowManager.HasWindow(mPtr.Value->ModelResourceHandle));
                 // Note; since character materials are stored in model->Materials instead of model->ModelResourceHandle->Materials, 
                 if (ImGui.Button("Open Material Window"))
                 {
@@ -816,10 +814,7 @@ public unsafe class LiveCharacterTab : ITab
                                                     var textureBytes = memoryStream.ToArray();
                                                     File.WriteAllBytes(filePath, textureBytes);
                                                 }
-                                                if (config.OpenFolderOnExport)
-                                                {
-                                                    Process.Start("explorer.exe", path);
-                                                }
+                                                ExportUtil.OpenExportFolderInExplorer(path, config, CancellationToken.None);
                                             }, config.ExportDirectory);
             }
 

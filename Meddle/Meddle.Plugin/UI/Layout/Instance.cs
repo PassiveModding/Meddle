@@ -29,26 +29,6 @@ public partial class LayoutWindow
         }
     }
     
-    private unsafe void DrawControlsEvil(ParsedInstance instance)
-    {
-        // validate instance still exists
-        if (currentLayout.All(i => i.Id != instance.Id)) return;
-        
-        var layoutInstance = (ILayoutInstance*)instance.Id;
-        var graphics = layoutInstance->GetGraphics();
-        if (graphics == null) return;
-        Vector3 translation = graphics->Position;
-
-        using var _ = ImRaii.PushId(instance.Id);
-        if (ImGui.DragFloat3("Position", ref translation, 0.1f))
-        {
-            // WARNING: Don't use this, it will move the collision of the object, instead just set translation on the graphics back
-            // var bgPartPtr = (BgPartsLayoutInstance*)instance.Id;
-            // bgPartPtr->SetTranslationImpl(&translation);
-            graphics->Position = translation;
-        }
-    }
-    
     private void DrawInstance(ParsedInstance instance, Stack<ParsedInstance> stack, Action<Stack<ParsedInstance>, ParsedInstance>? additionalOptions = null)
     {
         if (stack.Count > 10)
@@ -92,12 +72,7 @@ public partial class LayoutWindow
             ImGui.Text($"Position: {instance.Transform.Translation}");
             ImGui.Text($"Rotation: {instance.Transform.Rotation}");
             ImGui.Text($"Scale: {instance.Transform.Scale}");
-
-            // if (config.SecretConfig == "Kweh")
-            // {
-            //     DrawControlsEvil(instance);
-            // }
-
+            
             if (instance is IPathInstance pathedInstance)
             {
                 UiUtil.Text($"Full Path: {pathedInstance.Path.FullPath}", pathedInstance.Path.FullPath);
@@ -166,9 +141,11 @@ public partial class LayoutWindow
             }
             
             if (instance is ParsedBgPartsInstance bgPart)
-            {
-                // DrawCache(bgPart);
-                DrawBgObject(bgPart);
+            {        
+                if (bgPart.BgChangeMaterial != null)
+                {
+                    ImGui.Text($"BgChangeMaterialPath: {bgPart.BgChangeMaterial.Value.MaterialPath}");
+                }
             }
 
             if (instance is ParsedCharacterInstance character)
@@ -190,27 +167,6 @@ public partial class LayoutWindow
             foreach (var obj in childShared.Children)
             {
                 DrawInstance(obj, stack, additionalOptions);
-            }
-        }
-    }
-
-    private unsafe void DrawBgObject(ParsedBgPartsInstance bg)
-    {
-        BgPartsLayoutInstance* bgPartLayout = (BgPartsLayoutInstance*)bg.Id;
-    
-        if (bgPartLayout->GraphicsObject != null)
-        {
-            BgObject* drawObject = bgPartLayout->GraphicsObject;
-            UiUtil.Text($"Graphics Object {(nint)drawObject:X8}", $"{(nint)drawObject:X8}");
-            if (bg.BgChangeMaterial != null)
-            {
-                ImGui.Text($"BgChangeMaterialPath: {bg.BgChangeMaterial.Value.MaterialPath}");
-            }
-            
-            using var disabled = ImRaii.Disabled( mdlMaterialWindowManager.HasWindow(drawObject->ModelResourceHandle));
-            if (ImGui.Button("Open Material Window"))
-            {
-                mdlMaterialWindowManager.AddMaterialWindow(drawObject->ModelResourceHandle);
             }
         }
     }
@@ -268,191 +224,6 @@ public partial class LayoutWindow
             }
         }
     }
-
-    /*private void DrawCache(ParsedInstance instance)
-    {
-        if (instance is not ParsedBgPartsInstance bgPartInstance) return;
-        var mdlPath = bgPartInstance.Path.FullPath;
-        
-        if (!mdlCache.TryGetValue(mdlPath, out var cachedMdl))
-        {
-            try
-            {
-                var mdlFile = dataManager.GetFileOrReadFromDisk(mdlPath);
-                if (mdlFile == null)
-                {
-                    mdlCache[mdlPath] = null;
-                }
-                else
-                {
-                    mdlCache[mdlPath] = new MdlFile(mdlFile);
-                }
-            }
-            catch (Exception e)
-            {
-                log.LogError(e, "Failed to load mdl file");
-                mdlCache[mdlPath] = null;
-            }
-                
-            cachedMdl = mdlCache[mdlPath];
-        }
-            
-        if (cachedMdl == null)
-        {
-            ImGui.Text("No cached mdl data");
-            return;
-        }
-        
-        using var treeNode = ImRaii.TreeNode("Mdl Data");
-        if (!treeNode.Success) return;
-
-        foreach (var mtrlName in cachedMdl.GetMaterialNames().Select(x => x.Value))
-        {
-            using var materialNode = ImRaii.TreeNode(mtrlName);
-            if (!materialNode.Success) continue;
-            
-            if (!mtrlCache.TryGetValue(mtrlName, out var cachedMtrl))
-            {
-                try
-                {
-                    var mtrlFile = dataManager.GetFileOrReadFromDisk(mtrlName);
-                    if (mtrlFile == null)
-                    {
-                        mtrlCache[mtrlName] = null;
-                    }
-                    else
-                    {
-                        mtrlCache[mtrlName] = new MtrlFile(mtrlFile);
-                    }
-                }
-                catch (Exception e)
-                {
-                    log.LogError(e, "Failed to load mtrl file");
-                    mtrlCache[mtrlName] = null;
-                }
-                
-                cachedMtrl = mtrlCache[mtrlName];
-            }
-            
-            if (cachedMtrl == null)
-            {
-                ImGui.Text("No cached mtrl data");
-                continue;
-            }
-            
-            ImGui.Text($"Shader: {cachedMtrl.GetShaderPackageName()}");
-            if (!shpkCache.TryGetValue(cachedMtrl.GetShaderPackageName(), out var cachedShpk))
-            {
-                try
-                {
-                    var shpkFile = dataManager.GetFileOrReadFromDisk($"shader/sm5/shpk/{cachedMtrl.GetShaderPackageName()}");
-                    if (shpkFile == null)
-                    {
-                        shpkCache[cachedMtrl.GetShaderPackageName()] = null;
-                    }
-                    else
-                    {
-                        shpkCache[cachedMtrl.GetShaderPackageName()] = new ShpkFile(shpkFile);
-                    }
-                }
-                catch (Exception e)
-                {
-                    log.LogError(e, "Failed to load shpk file");
-                    shpkCache[cachedMtrl.GetShaderPackageName()] = null;
-                }
-                
-                cachedShpk = shpkCache[cachedMtrl.GetShaderPackageName()];
-            }
-            
-            if (cachedShpk == null)
-            {
-                ImGui.Text("No cached shpk data");
-                continue;
-            }
-
-            // var materialSet = new MaterialSet(cachedMtrl, mtrlName, cachedShpk, cachedMtrl.GetShaderPackageName(), null, null);
-            // using (var shpkContentNode = ImRaii.TreeNode("Shpk Constants"))
-            // {
-            //     if (shpkContentNode.Success)
-            //     {
-            //         foreach (var constant in materialSet.ShpkConstants)
-            //         {
-            //             ImGui.Text(Enum.IsDefined(constant.Key)
-            //                            ? $"{constant.Key}: {string.Join(", ", constant.Value)}"
-            //                            : $"{(uint)constant.Key:X8}: {string.Join(", ", constant.Value)}");
-            //         }
-            //     }
-            // }
-            //
-            // using (var mtrlContentNode = ImRaii.TreeNode("Mtrl Constants"))
-            // {
-            //     if (mtrlContentNode.Success)
-            //     {
-            //         foreach (var constant in materialSet.MtrlConstants)
-            //         {
-            //             ImGui.Text(Enum.IsDefined(constant.Key)
-            //                            ? $"{constant.Key}: {string.Join(", ", constant.Value)}"
-            //                            : $"{(uint)constant.Key:X8}: {string.Join(", ", constant.Value)}");
-            //         }
-            //     }
-            // }
-            
-            TreeNode("Shader Keys", () =>
-            {
-                foreach (var key in cachedMtrl.ShaderKeys)
-                {
-                    ImGui.Text($"{(ShaderCategory)key.Category}: {key.Value:X8}");
-                }
-            });
-            
-            TreeNode("Color Sets", () =>
-            {
-                foreach (var key in cachedMtrl.GetColorSetStrings())
-                {
-                    ImGui.Text(key.Value);
-                }
-            });
-            
-            TreeNode("UVColor Sets", () =>
-            {
-                foreach (var key in cachedMtrl.GetUvColorSetStrings())
-                {
-                    ImGui.Text(key.Value);
-                }
-            });
-            
-            TreeNode("Textures", () =>
-            {
-                foreach (var key in cachedMtrl.GetTexturePaths())
-                {
-                    ImGui.Text(key.Value);
-                }
-            });
-            
-            TreeNode("Samplers", () =>
-            {
-                foreach (var key in cachedMtrl.Samplers)
-                {
-                    ImGui.Text($"[{key.TextureIndex}]{(TextureUsage)key.SamplerId}: {key.Flags}");
-                }
-            });
-            
-            TreeNode("ColorTable", () =>
-            {
-                ImGui.Text($"Has Color Table: {cachedMtrl.HasTable}");
-                ImGui.Text($"Has Dye Table: {cachedMtrl.HasDyeTable}");
-            });
-        }
-    }*/
-    
-    // private void TreeNode(string name, Action action)
-    // {
-    //     using var node = ImRaii.TreeNode(name);
-    //     if (node.Success)
-    //     {
-    //         action();
-    //     }
-    // }
 
     private void DrawCharacter(ParsedCharacterInstance character)
     {

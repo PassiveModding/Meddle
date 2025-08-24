@@ -34,7 +34,7 @@ public class AnimationExportService : IDisposable, IService
     {
         try
         {
-            var boneSets = SkeletonUtils.GetAnimatedBoneMap(frames.ToArray());
+            var boneSets = SkeletonUtils.GetAnimatedBoneMap(frames.ToArray(), settings);
             var startTime = frames.Min(x => x.Item1);
             //var folder = GetPathForOutput();
             var folder = settings.Path;
@@ -50,13 +50,21 @@ public class AnimationExportService : IDisposable, IService
                 if (settings.IncludePositionalData)
                 {
                     var startPos = timeline.First().Attach.Transform.Translation;
-                    foreach (var frameTime in timeline)
+                    foreach (var (frameTime, attach) in timeline)
                     {
                         if (token.IsCancellationRequested) return;
-                        var pos = frameTime.Attach.Transform.Translation;
-                        var rot = frameTime.Attach.Transform.Rotation;
-                        var scale = frameTime.Attach.Transform.Scale;
-                        var time = SkeletonUtils.TotalSeconds(frameTime.Time, startTime);
+                        var pos = attach.Transform.Translation;
+                        var rot = attach.Transform.Rotation;
+                        var scale = attach.Transform.Scale;
+                        var time = SkeletonUtils.TotalSeconds(frameTime, startTime);
+                        var boneTransform = SkeletonUtils.GetBoneTransform(attach.Skeleton, root);
+                        if (boneTransform != null)
+                        {
+                            pos += boneTransform.Value.Translation;
+                            rot = boneTransform.Value.Rotation * rot;
+                            scale *= boneTransform.Value.Scale;
+                        }
+                        
                         if (!settings.IncludeAbsolutePosition)
                         {
                             pos -= startPos;
@@ -74,10 +82,7 @@ public class AnimationExportService : IDisposable, IService
                 sceneGraph.SaveGLTF(outputPath);
             }
 
-            if (config.OpenFolderOnExport)
-            {
-                Process.Start("explorer.exe", folder);
-            }
+            ExportUtil.OpenExportFolderInExplorer(folder, config, token);
             logger.LogInformation("Export complete");
         }
         catch (Exception e)

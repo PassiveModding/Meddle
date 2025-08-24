@@ -1,10 +1,12 @@
 using Dalamud.Plugin;
+using Dalamud.Plugin.Services;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.Utils;
 using Meddle.Utils.Files.SqPack;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using OtterTex;
 
 namespace Meddle.Plugin;
@@ -14,7 +16,8 @@ public sealed class Plugin : IDalamudPlugin
     public static readonly string DefaultExportDirectory = Path.Combine(Path.GetTempPath(), "Meddle.Export");
     private readonly IHost? app;
     private readonly ILogger pluginLog;
-    public static ILogger<Plugin>? Logger;
+    public static ILogger<Plugin> Logger { get; private set; } = NullLogger<Plugin>.Instance;
+    public static INotificationManager NotificationManager { get; private set; } = null!;
 
     public Plugin(IDalamudPluginInterface pluginInterface)
     {
@@ -63,6 +66,7 @@ public sealed class Plugin : IDalamudPlugin
 
             app = host.Build();
             Logger = app.Services.GetRequiredService<ILogger<Plugin>>();
+            NotificationManager = app.Services.GetRequiredService<INotificationManager>();
             Meddle.Utils.Global.Logger = app.Services.GetRequiredService<ILogger<Meddle.Utils.Global>>();
             NativeDll.Initialize(app.Services.GetRequiredService<IDalamudPluginInterface>().AssemblyLocation.DirectoryName);
 

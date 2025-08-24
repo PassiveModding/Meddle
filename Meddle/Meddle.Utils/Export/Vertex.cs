@@ -148,21 +148,21 @@ public unsafe struct Vertex
                 vertex.Position = ReadVector3(buf, (VertexType)element.Type);
                 if (element.UsageIndex > 0)
                 {
-                    Global.Logger.LogWarning($"Vertex usage {element.Usage} with index {element.UsageIndex} is not supported for Position, only index 0 is valid.");
+                    Global.Logger.LogDebug($"Vertex usage {element.Usage} with index {element.UsageIndex} is not supported for Position, only index 0 is valid.");
                 }
                 break;
             case VertexUsage.BlendWeights:
                 vertex.BlendWeights = ReadFloatArray(buf, (VertexType)element.Type);
                 if (element.UsageIndex > 0)
                 {
-                    Global.Logger.LogWarning($"Vertex usage {element.Usage} with index {element.UsageIndex} is not supported for BlendWeights, only index 0 is valid.");
+                    Global.Logger.LogDebug($"Vertex usage {element.Usage} with index {element.UsageIndex} is not supported for BlendWeights, only index 0 is valid.");
                 }
                 break;
             case VertexUsage.BlendIndices:
                 vertex.BlendIndices = ReadByteArray(buf, (VertexType)element.Type);
                 if (element.UsageIndex > 0)
                 {
-                    Global.Logger.LogWarning($"Vertex usage {element.Usage} with index {element.UsageIndex} is not supported for BlendIndices, only index 0 is valid.");
+                    Global.Logger.LogDebug($"Vertex usage {element.Usage} with index {element.UsageIndex} is not supported for BlendIndices, only index 0 is valid.");
                 }
                 break;
             case VertexUsage.Normal:

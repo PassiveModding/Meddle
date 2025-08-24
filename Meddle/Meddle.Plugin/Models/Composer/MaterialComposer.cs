@@ -157,7 +157,7 @@ public class MaterialComposer
                 mtrlConstants[id] = MemoryMarshal.Cast<uint, float>(buf.ToArray()).ToArray();
                 if (logOutOfBounds)
                 {
-                    Plugin.Logger?.LogWarning("Material constant {id} out of bounds for {mtrlPath}, {indexAndCount} greater than {shaderValuesLength}, [{values}]",
+                    Plugin.Logger.LogWarning("Material constant {id} out of bounds for {mtrlPath}, {indexAndCount} greater than {shaderValuesLength}, [{values}]",
                                               id, mtrlPath, (index, count), mtrlFile.ShaderValues.Length, string.Join(", ", buf));
                 }
             }
@@ -181,7 +181,7 @@ public class MaterialComposer
 
                 if (!shaderPackage.ResourceKeys.TryGetValue(sampler.SamplerId, out var usage))
                 {
-                    Plugin.Logger?.LogWarning("Texture sampler usage {samplerId} not found in {mtrlPath}, {gamePath}", sampler.SamplerId, mtrlPath, gamePath);
+                    Plugin.Logger.LogWarning("Texture sampler usage {samplerId} not found in {mtrlPath}, {gamePath}", sampler.SamplerId, mtrlPath, gamePath);
                     continue;
                 }
 

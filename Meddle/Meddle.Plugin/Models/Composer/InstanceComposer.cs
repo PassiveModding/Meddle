@@ -70,13 +70,13 @@ public class InstanceComposer
         var path = outDir;
         try
         {
-            Plugin.Logger?.LogInformation("Saving scene to {Path}", path);
+            Plugin.Logger.LogInformation("Saving scene to {Path}", path);
             var modelRoot = scene.ToGltf2();
             ExportUtil.SaveAsType(modelRoot, exportConfig.ExportType, path, name);
         }
         catch (Exception ex)
         {
-            Plugin.Logger?.LogError(ex, "Failed to save scene to {Path}\n{Message}", path, ex.Message);
+            Plugin.Logger.LogError(ex, "Failed to save scene to {Path}\n{Message}", path, ex.Message);
         }
     }
     
@@ -125,7 +125,7 @@ public class InstanceComposer
                     stats.Instances++;
                     if (stats.Instances > 100 || scene.Instances.Count > 100)
                     {
-                        Plugin.Logger?.LogDebug("Saving scene {key} {startIdx:D4}-{endIdx:D4} Instances: {instances} Nodes: {nodes}", 
+                        Plugin.Logger.LogDebug("Saving scene {key} {startIdx:D4}-{endIdx:D4} Instances: {instances} Nodes: {nodes}", 
                                                 group.Key, lastSceneIdx, i, stats.Instances, scene.Instances.Count);
                         SaveScene(scene, $"{group.Key}_{lastSceneIdx:D4}-{i:D4}");
                         scenes[scene].Saved = true;
@@ -141,7 +141,7 @@ public class InstanceComposer
                 try
                 {
                     var blob = JsonSerializer.Serialize(orderedInstances[i], MaterialComposer.JsonOptions);
-                    Plugin.Logger?.LogError(ex, 
+                    Plugin.Logger.LogError(ex, 
                                             "Failed to compose instance {instance} {instanceType}\n{Message}\b{Blob}", 
                                             orderedInstances[i].Id, 
                                             orderedInstances[i].Type, 
@@ -149,7 +149,7 @@ public class InstanceComposer
                 }
                 catch (Exception ex2)
                 {
-                    Plugin.Logger?.LogError(new AggregateException(ex, ex2), 
+                    Plugin.Logger.LogError(new AggregateException(ex, ex2), 
                                             "Failed to compose instance {instance} {instanceType}\n{Message}", 
                                             orderedInstances[i].Id, 
                                             orderedInstances[i].Type,
@@ -171,7 +171,7 @@ public class InstanceComposer
         }
         catch (Exception ex)
         {
-            Plugin.Logger?.LogError(ex, "Failed to save instance blob\n{Message}", ex.Message);
+            Plugin.Logger.LogError(ex, "Failed to save instance blob\n{Message}", ex.Message);
         }
         
         composerCache.SaveArrayTextures();
@@ -192,7 +192,7 @@ public class InstanceComposer
         Parallel.ForEach(instanceGroups, group =>
         {
             if (cancellationToken.IsCancellationRequested) return;
-            Plugin.Logger?.LogInformation("Composing instances of type {InstanceType} ({InstanceCount})", group.Key, group.Count());
+            Plugin.Logger.LogInformation("Composing instances of type {InstanceType} ({InstanceCount})", group.Key, group.Count());
             var groupProgress = new ExportProgress(group.Count(), $"Composing {group.Key}")
             {
                 Parent = wrapper.Progress
@@ -204,12 +204,12 @@ public class InstanceComposer
             }
             catch (Exception ex)
             {
-                Plugin.Logger?.LogError(ex, "Failed to compose instance group {InstanceType}\n{Message}", group.Key, ex.Message);
+                Plugin.Logger.LogError(ex, "Failed to compose instance group {InstanceType}\n{Message}", group.Key, ex.Message);
             }
             groupProgress.IsComplete = true;
         });
         
-        Plugin.Logger?.LogInformation("Finished composing instances");
+        Plugin.Logger.LogInformation("Finished composing instances");
     }
 
     public NodeBuilder? ComposeInstance(ParsedInstance parsedInstance, SceneBuilder scene, ExportProgress rootProgress)
@@ -302,7 +302,7 @@ public class InstanceComposer
     {
         if (instance.CharacterInfo == null)
         {
-            Plugin.Logger?.LogWarning("Character instance {InstanceId} has no character info", instance.Id);
+            Plugin.Logger.LogWarning("Character instance {InstanceId} has no character info", instance.Id);
             return null;
         }
         var characterComposer = new CharacterComposer(composerCache, exportConfig, cancellationToken);
@@ -374,7 +374,7 @@ public class InstanceComposer
             
             if (instance.Transform.Scale != Vector3.One)
             {
-                Plugin.Logger?.LogDebug("Shared group {InstanceId} has non-unity scale {Scale}", instance.Id, instance.Transform.Scale);
+                Plugin.Logger.LogDebug("Shared group {InstanceId} has non-unity scale {Scale}", instance.Id, instance.Transform.Scale);
                 extrasDict.Add("RealScale", instance.Transform.Scale);
             }
             
@@ -388,19 +388,20 @@ public class InstanceComposer
         }
     }
     
+    private readonly Dictionary<string, Dictionary<int, MaterialBuilder>> bgPartMaterialCache = new();
     
     public NodeBuilder? ComposeBgPartsInstance(ParsedBgPartsInstance bgPartsInstance, SceneBuilder scene)
     {
         if (bgPartsInstance.IsVisible == false && exportConfig.SkipHiddenBgParts)
         {
-            Plugin.Logger?.LogDebug("BgParts instance {InstanceId} is not visible and export config is set to skip hidden", bgPartsInstance.Id);
+            Plugin.Logger.LogDebug("BgParts instance {InstanceId} is not visible and export config is set to skip hidden", bgPartsInstance.Id);
             return null;
         }
         
         var mdlData = pack.GetFileOrReadFromDisk(bgPartsInstance.Path.FullPath);
         if (mdlData == null)
         {
-            Plugin.Logger?.LogWarning("Failed to load model file: {Path}", bgPartsInstance.Path.FullPath);
+            Plugin.Logger.LogWarning("Failed to load model file: {Path}", bgPartsInstance.Path.FullPath);
             return null;
         }
 
@@ -416,9 +417,22 @@ public class InstanceComposer
             {
                 mtrlPath = bgChangeMaterial.Value.MaterialPath;
             }
+
+            if (!bgPartMaterialCache.TryGetValue(mtrlPath, out var bgPartMtrlCache))
+            {
+                bgPartMtrlCache = new Dictionary<int, MaterialBuilder>();
+                bgPartMaterialCache[mtrlPath] = bgPartMtrlCache;
+            }
             
-            var output = composerCache.ComposeMaterial(mtrlPath, stainInstance: bgPartsInstance);
-            materialBuilders.Add(output);
+            if (bgPartMtrlCache.TryGetValue((int?)bgPartsInstance.Stain?.RowId ?? -1, out var cachedBuilder))
+            {
+                materialBuilders.Add(cachedBuilder);
+            }
+            else
+            {
+                var output = composerCache.ComposeMaterial(mtrlPath, stainInstance: bgPartsInstance);
+                materialBuilders.Add(output);
+            }
         }
 
         var model = new Model(bgPartsInstance.Path.GamePath, mdlFile, null);
@@ -442,6 +456,8 @@ public class InstanceComposer
         return root;
     }
     
+    
+    private readonly Dictionary<ParsedTerrainInstance, Dictionary<string, MaterialBuilder>> terrainMaterialCache = new();
     public NodeBuilder ComposeTerrain(ParsedTerrainInstance terrainInstance, SceneBuilder scene, ExportProgress rootProgress)
     {
         var root = new NodeBuilder($"{terrainInstance.Type}_{terrainInstance.Path.GamePath}");
@@ -464,14 +480,14 @@ public class InstanceComposer
         foreach (var (i, platePos, distance) in terrainPlates)
         {
             if (cancellationToken.IsCancellationRequested) break;
-            Plugin.Logger?.LogInformation("Parsing plate {i}", i);
+            Plugin.Logger.LogInformation("Parsing plate {i}", i);
             var plateTransform = new Transform(new Vector3(platePos.X, 0, platePos.Y), Quaternion.Identity, Vector3.One);
             if (exportConfig.LimitTerrainExportRange)
             {
                 var searchOrigin = terrainInstance.SearchOrigin;
                 if (distance > exportConfig.TerrainExportDistance)
                 {
-                    Plugin.Logger?.LogDebug("Skipping plate {i} at distance {distance} from search origin {searchOrigin} (limit: {limit})",
+                    Plugin.Logger.LogDebug("Skipping plate {i} at distance {distance} from search origin {searchOrigin} (limit: {limit})",
                                             i, distance, searchOrigin, exportConfig.TerrainExportDistance);
                     terrainProgress.IncrementProgress();
                     continue;
@@ -484,15 +500,28 @@ public class InstanceComposer
                 throw new Exception($"Failed to load model file {mdlPath} returned null");
             }
             
-            Plugin.Logger?.LogInformation("Loaded model {mdlPath}", mdlPath);
+            Plugin.Logger.LogInformation("Loaded model {mdlPath}", mdlPath);
             var mdlFile = new MdlFile(mdlData);
 
             var materials = mdlFile.GetMaterialNames().Select(x => x.Value).ToArray();
             var materialBuilders = new List<MaterialBuilder>();
             foreach (var mtrlPath in materials)
             {
-                var materialBuilder = composerCache.ComposeMaterial(mtrlPath);
-                materialBuilders.Add(materialBuilder);
+                if (!terrainMaterialCache.TryGetValue(terrainInstance, out var terrainMtrlCache))
+                {
+                    terrainMtrlCache = new Dictionary<string, MaterialBuilder>();
+                    terrainMaterialCache[terrainInstance] = terrainMtrlCache;
+                }
+                
+                if (terrainMtrlCache.TryGetValue(mtrlPath, out var cachedBuilder))
+                {
+                    materialBuilders.Add(cachedBuilder);
+                }
+                else
+                {
+                    var materialBuilder = composerCache.ComposeMaterial(mtrlPath);
+                    materialBuilders.Add(materialBuilder);
+                }
             }
 
             var model = new Model(mdlPath, mdlFile, null);
@@ -560,7 +589,7 @@ public class InstanceComposer
     {
         if (instance.Light.Range <= 0)
         {
-            // Plugin.Logger?.LogWarning("Light {LightId} has a range of 0 or less ({Range})", instance.Id, instance.Light.Range);
+            // Plugin.Logger.LogWarning("Light {LightId} has a range of 0 or less ({Range})", instance.Id, instance.Light.Range);
             return null;
         }
         
@@ -615,7 +644,7 @@ public class InstanceComposer
                 };
                 break;
             default:
-                Plugin.Logger?.LogWarning("Unsupported light type: {LightType}", light.LightType);
+                Plugin.Logger.LogWarning("Unsupported light type: {LightType}", light.LightType);
                 return null;
         }
 

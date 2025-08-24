@@ -1,4 +1,6 @@
 ﻿using System.Numerics;
+using System.Runtime.CompilerServices;
+using SkiaSharp;
 
 namespace Meddle.Utils.Files.Structs.Material;
 
@@ -101,11 +103,36 @@ public readonly struct ColorDyeTable
 public readonly struct LegacyColorTable
 {
     public const int LegacyNumRows = 16;
+    public const int Size = LegacyNumRows * LegacyColorTableRow.Size;
     private readonly LegacyColorTableRow[] rows;
+    private readonly ShortVec4[][] buffer; 
+    public static readonly (int Width, int Height) TextureSize = (8, 16);
+    public SkTexture ToTexture()
+    {
+        var texture = new SkTexture(TextureSize.Width, TextureSize.Height);
+        for (int x = 0; x < TextureSize.Width; x++)
+        {
+            for (int y = 0; y < TextureSize.Height; y++)
+            {
+                texture[x, y] = buffer[y][x].ToSkColor();
+            }
+        }
+        return texture;
+    }
     public ReadOnlySpan<LegacyColorTableRow> Rows => new(rows);
     public LegacyColorTable(ref SpanBinaryReader reader)
     {
+        var pos = reader.Position;
         rows = reader.Read<LegacyColorTableRow>(LegacyNumRows).ToArray();
+        reader.Seek(pos, SeekOrigin.Begin);
+        buffer = new ShortVec4[LegacyNumRows][];
+        reader.Seek(pos, SeekOrigin.Begin);
+        const int itemsPerRow = LegacyColorTableRow.Size / ShortVec4.Size;
+        for (int i = 0; i < LegacyNumRows; i++)
+        {
+            var rowBuffer = reader.Read<ShortVec4>(itemsPerRow).ToArray();
+            buffer[i] = rowBuffer;
+        }
     }
     
     public object ToObject()
@@ -125,77 +152,42 @@ public readonly struct LegacyColorTable
             }).ToArray()
         };
     }
-    
-    // normal pixel A channel on legacy normal as a float from 0-1
-    public LegacyColorTableRow GetBlendedPair(float normalPixelW)
-    {
-        var indices = TableRow.GetTableRowIndices(normalPixelW);
-        var row0 = Rows[indices.Previous];
-        var row1 = Rows[indices.Next];
-        var stepped = Rows[indices.Stepped];
-
-        return new LegacyColorTableRow
-        {
-            Diffuse = Vector3.Clamp(Vector3.Lerp(row0.Diffuse, row1.Diffuse, indices.Weight), Vector3.Zero, Vector3.One),
-            Specular = Vector3.Clamp(Vector3.Lerp(row0.Specular, row1.Specular, indices.Weight), Vector3.Zero, Vector3.One),
-            SpecularStrength = float.Lerp(row0.SpecularStrength, row1.SpecularStrength, indices.Weight),
-            Emissive = Vector3.Clamp(Vector3.Lerp(row0.Emissive, row1.Emissive, indices.Weight), Vector3.Zero, Vector3.One),
-            GlossStrength = float.Lerp(row0.GlossStrength, row1.GlossStrength, indices.Weight),
-            MaterialRepeat = stepped.MaterialRepeat,
-            MaterialSkew = stepped.MaterialSkew,
-            TileIndex = stepped.TileIndex
-        };
-    }
-    
-    public struct TableRow
-    {
-        public int Stepped;
-        public int Previous;
-        public int Next;
-        public float Weight;
-
-        public static TableRow GetTableRowIndices(float index)
-        {
-            var vBase = index * 15f;
-            var vOffFilter = index * 7.5f % 1.0f;
-            var smoothed = float.Lerp(vBase, float.Floor(vBase + 0.5f), vOffFilter * 2);
-            var stepped = float.Floor(smoothed + 0.5f);
-
-            return new TableRow
-            {
-                Stepped = (int)stepped,
-                Previous = (int)MathF.Floor(smoothed),
-                Next = (int)MathF.Ceiling(smoothed),
-                Weight = smoothed % 1
-            };
-        }
-    }
 }
 
 public readonly struct ColorTable
 {
     public const int NumRows = 32;
+    public const int Size = NumRows * ColorTableRow.Size;
     private readonly ColorTableRow[] rows;
+    private readonly ShortVec4[][] buffer;
+    public static readonly (int Width, int Height) TextureSize = (8, 32);
+    
+    public SkTexture ToTexture()
+    {
+        var texture = new SkTexture(TextureSize.Width, TextureSize.Height);
+        for (int x = 0; x < TextureSize.Width; x++)
+        {
+            for (int y = 0; y < TextureSize.Height; y++)
+            {
+                texture[x, y] = buffer[y][x].ToSkColor();
+            }
+        }
+        return texture;
+    }
+    
     public ReadOnlySpan<ColorTableRow> Rows => new(rows);
     public ColorTable(ref SpanBinaryReader reader)
     {
+        var pos = reader.Position;
         rows = reader.Read<ColorTableRow>(NumRows).ToArray();
-    }
-
-    public (ColorTableRow row0, ColorTableRow row1) GetPair(int weight)
-    {
-        var weightArr = new byte[]
+        buffer = new ShortVec4[NumRows][];
+        reader.Seek(pos, SeekOrigin.Begin);
+        const int itemsPerRow = ColorTableRow.Size / ShortVec4.Size;
+        for (int i = 0; i < NumRows; i++)
         {
-            0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
-            0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF
-        };
-
-        var nearestPair = weightArr.MinBy(v => Math.Abs(v - weight));
-        var pairIdx = Array.IndexOf(weightArr, nearestPair) * 2;
-        var pair0 = rows[pairIdx];
-        var pair1 = rows[pairIdx + 1];
-
-        return (pair0, pair1);
+            var rowBuffer = reader.Read<ShortVec4>(itemsPerRow).ToArray();
+            buffer[i] = rowBuffer;
+        }
     }
     
     public object ToObject()
@@ -204,51 +196,23 @@ public readonly struct ColorTable
         {
             Rows = Rows.ToArray().Select(r => new
             {
-                r.Diffuse,
-                r.Specular,
-                r.Emissive,
-                r.SheenRate,
-                r.SheenTint,
-                r.SheenAptitude,
-                r.Roughness,
-                r.Metalness,
-                r.Anisotropy,
-                r.SphereMask,
-                r.ShaderId,
-                r.TileIndex,
-                r.TileAlpha,
-                r.SphereIndex,
-                r.TileMatrix,
-                r.GlossStrength,
-                r.SpecularStrength,
+                // 0,1,2     3                   3
+                r.Diffuse,   r.GlossStrength,    r.Scalar3,
+                // 4,5,6     7                   7
+                r.Specular,  r.SpecularStrength, r.Scalar7,
+                // 8,9,10    11                  
+                r.Emissive,  r.Scalar11,
+                // 12        13                  14               15
+                r.SheenRate, r.SheenTint,        r.SheenAptitude, r.Scalar15,
+                // 16        17                  18               19
+                r.Roughness, r.Scalar17,         r.Metalness,     r.Anisotropy,
+                // 20        21                  22               23
+                r.Scalar20,  r.SphereMask,       r.Scalar22,      r.Scalar23,
+                // 24        25                  26               27
+                r.ShaderId,  r.TileIndex,        r.TileAlpha,     r.SphereIndex,
+                // 28,29,30,31
+                r.TileMatrix
             }).ToArray()
         };
     }
-    
-    // public ColorTableRow GetBlendedPair(int weight, int blend)
-    // {
-    //     var (row0, row1) = GetPair(weight);
-    //     var prioRow = weight < 128 ? row1 : row0;
-    //
-    //     var blendAmount = blend / 255f;
-    //     var row = new ColorTableRow
-    //     {
-    //         Diffuse = Vector3.Clamp(Vector3.Lerp(row1.Diffuse, row0.Diffuse, blendAmount), Vector3.Zero, Vector3.One),
-    //         Specular = Vector3.Clamp(Vector3.Lerp(row1.Specular, row0.Specular, blendAmount), Vector3.Zero, Vector3.One),
-    //         Emissive = Vector3.Clamp(Vector3.Lerp(row1.Emissive, row0.Emissive, blendAmount), Vector3.Zero, Vector3.One),
-    //         SheenRate = float.Lerp(row1.SheenRate, row0.SheenRate, blendAmount),
-    //         SheenTint = float.Lerp(row1.SheenTint, row0.SheenTint, blendAmount),
-    //         SheenAptitude = float.Lerp(row1.SheenAptitude, row0.SheenAptitude, blendAmount),
-    //         Roughness = float.Lerp(row1.Roughness, row0.Roughness, blendAmount),
-    //         Metalness = float.Lerp(row1.Metalness, row0.Metalness, blendAmount),
-    //         Anisotropy = float.Lerp(row1.Anisotropy, row0.Anisotropy, blendAmount),
-    //         SphereMask = float.Lerp(row1.SphereMask, row0.SphereMask, blendAmount),
-    //         GlossStrength = float.Lerp(row1.GlossStrength, row0.GlossStrength, blendAmount),
-    //         SpecularStrength = float.Lerp(row1.SpecularStrength, row0.SpecularStrength, blendAmount),
-    //         
-    //         TileIndex = prioRow.TileIndex
-    //     };
-    //
-    //     return row;
-    // }
 }

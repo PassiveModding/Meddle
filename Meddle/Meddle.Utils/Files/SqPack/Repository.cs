@@ -77,7 +77,7 @@ public class Repository : IDisposable
                                     var match = keyRegex.Match(fileName);
                                     if (!match.Success)
                                     {
-                                        Global.Logger.LogWarning("File {FileName} does not match expected pattern", fileName);
+                                        Global.Logger.LogDebug("File {FileName} does not match expected pattern", fileName);
                                         return string.Empty;
                                     }
 

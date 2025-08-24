@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Utils;
+using Meddle.Utils;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
@@ -20,7 +21,6 @@ public class ComposerCache
     private readonly ConcurrentDictionary<string, string> mtrlPathCache = new();
     private readonly ConcurrentDictionary<string, PbdFile> pbdCache = new();
     private readonly ConcurrentDictionary<string, RefCounter<MdlFile>> mdlCache = new();
-    private readonly ConcurrentDictionary<string, MaterialBuilder> mtrlBuilderCache = new();
     
     private sealed class RefCounter<T>(T obj)
     {
@@ -94,7 +94,7 @@ public class ComposerCache
             {
                 var toRemove = mdlCache.OrderBy(x => x.Value.LastAccess).First();
                 mdlCache.TryRemove(toRemove.Key, out _);
-                Plugin.Logger?.LogDebug($"Evicting model file: {toRemove.Key}");
+                Plugin.Logger.LogDebug($"Evicting model file: {toRemove.Key}");
             }
             
             return new RefCounter<MdlFile>(mdlFile);
@@ -123,7 +123,7 @@ public class ComposerCache
                 // evict least recently accessed
                 var toRemove = mtrlCache.OrderBy(x => x.Value.LastAccess).First();
                 mtrlCache.TryRemove(toRemove.Key, out _);
-                Plugin.Logger?.LogDebug("Evicting material file: {toRemove}", toRemove.Key);
+                Plugin.Logger.LogDebug("Evicting material file: {toRemove}", toRemove.Key);
             }
             
             return new RefCounter<MtrlFile>(mtrlFile);
@@ -178,7 +178,7 @@ public class ComposerCache
             var fileName = parts[^1];
             
             var trimmed = $"{dirHash}/{fileName}";
-            Plugin.Logger?.LogDebug("Cache path too long ({len} > {available}), using hash: {trimmed} for {fullPath}", len, charactersAvailable, trimmed, fullPath);
+            Plugin.Logger.LogDebug("Cache path too long ({len} > {available}), using hash: {trimmed} for {fullPath}", len, charactersAvailable, trimmed, fullPath);
             cleanPath = trimmed;
         }
         
@@ -230,28 +230,8 @@ public class ComposerCache
     public MaterialBuilder ComposeMaterial(string mtrlPath, 
                                            ParsedMaterialInfo? materialInfo = null,
                                            IStainableInstance? stainInstance = null, 
-                                           ParsedCharacterInfo? characterInfo = null, 
-                                           IColorTableSet? colorTableSet = null)
+                                           ParsedCharacterInfo? characterInfo = null)
     {
-        // bool canCacheBuilder = materialInfo == null 
-        //                        && characterInfo == null 
-        //                        && colorTableSet == null;
-        // var cacheKey = $"{mtrlPath}_{materialInfo?.Shpk ?? "default"}";
-        // if (canCacheBuilder)
-        // {
-        //     if (stainInstance != null)
-        //     {
-        //         var stainHash = stainInstance.GetStainingHash();
-        //         var stainHashStr = System.Text.Encoding.UTF8.GetString(stainHash);
-        //         cacheKey += $"_{stainHashStr}";
-        //     }
-        //     if (mtrlBuilderCache.TryGetValue(cacheKey, out var cachedBuilder))
-        //     {
-        //         Plugin.Logger?.LogDebug("Using cached material builder for {cacheKey}", cacheKey);
-        //         return cachedBuilder;
-        //     }
-        // }
-        
         var mtrlFile = GetMtrlFile(mtrlPath, out var mtrlCachePath);
         var shaderPackage = GetShaderPackage(mtrlFile.GetShaderPackageName());
         var material = new MaterialComposer(mtrlFile, mtrlPath, shaderPackage);
@@ -269,15 +249,51 @@ public class ComposerCache
         {
             material.SetPropertiesFromCharacterInfo(characterInfo);
         }
-        
-        if (colorTableSet != null)
-        {
-            material.SetPropertiesFromColorTable(colorTableSet);
-        }
 
         if (materialInfo != null)
         {
             material.SetPropertiesFromMaterialInfo(materialInfo);
+            if (materialInfo.ColorTable != null)
+            {
+                material.SetPropertiesFromColorTable(materialInfo.ColorTable);
+                // since colortables are purely in-memory, they dont have a path.
+                // going to store them in the 'ColorTables' directory in the cache with a unique name based on the hash.
+                if (materialInfo.ColorTable is ColorTableSet colorTableSet)
+                {
+                    var tex = colorTableSet.ColorTable.ToTexture();
+                    var colorTablePath = SaveColorTableTex(tex);
+                    material.SetProperty("ColorTable_PngCachePath", Path.GetRelativePath(cacheDir, colorTablePath));
+                }
+                else if (materialInfo.ColorTable is LegacyColorTableSet legacyColorTableSet)
+                {
+                    var tex = legacyColorTableSet.ColorTable.ToTexture();
+                    var colorTablePath = SaveColorTableTex(tex);
+                    material.SetProperty("LegacyColorTable_PngCachePath", Path.GetRelativePath(cacheDir, colorTablePath));
+                }
+            }
+            
+            string SaveColorTableTex(SkTexture tex)
+            {
+                var colorTableCacheDir = Path.Combine(cacheDir, "color_tables");
+                Directory.CreateDirectory(colorTableCacheDir);
+                var buf = tex.Bitmap.Bytes;
+                var hash = System.Security.Cryptography.SHA256.HashData(buf);
+                var hashStr = Convert.ToHexStringLower(hash);
+                // truncate the hash to 8 characters for the filename.
+                if (hashStr.Length > 8)
+                {
+                    hashStr = hashStr[..8];
+                }
+                var mtrlPathWithoutExtension = Path.GetFileNameWithoutExtension(mtrlPath);
+                var colorTablePath = Path.Combine(colorTableCacheDir, $"{mtrlPathWithoutExtension}_{materialInfo.Shpk}_{hashStr}.png");
+                if (!File.Exists(colorTablePath))
+                {
+                    using var fileStream = new FileStream(colorTablePath, FileMode.Create, FileAccess.Write);
+                    using var skiaStream = new SKManagedWStream(fileStream);
+                    tex.Bitmap.Encode(skiaStream, SKEncodedImageFormat.Png, 100);
+                }
+                return colorTablePath;
+            }
         }
 
         string materialName;
@@ -326,11 +342,7 @@ public class ComposerCache
         }
 
         materialBuilder.Extras = material.ExtrasNode;
-
-        // if (canCacheBuilder)
-        // {
-        //     mtrlBuilderCache.TryAdd(cacheKey, materialBuilder);
-        // }
+        
         return materialBuilder;
     }
 }

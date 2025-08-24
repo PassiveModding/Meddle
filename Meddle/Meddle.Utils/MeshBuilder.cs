@@ -235,7 +235,7 @@ public class MeshBuilder
                                                     bitangent.SanitizeTangent());
             } 
             default:
-                Global.Logger.LogWarning("Unknown vertex type, defaulting to VertexPosition {Vertex}", JsonSerializer.Serialize(vertex, new JsonSerializerOptions
+                Global.Logger.LogDebug("Unknown vertex type, defaulting to VertexPosition {Vertex}", JsonSerializer.Serialize(vertex, new JsonSerializerOptions
                 {
                     WriteIndented = true,
                     IncludeFields = true
@@ -296,7 +296,7 @@ public class MeshBuilder
         
         if (warnings.Length > 0)
         {
-            Global.Logger.LogWarning("[{Path}] Mesh {MeshIdx}\n{Warnings}\n{Vertex}",
+            Global.Logger.LogDebug("[{Path}] Mesh {MeshIdx}\n{Warnings}\n{Vertex}",
                                      mesh.Path,
                                      mesh.MeshIdx,
                                      warnings.ToString().TrimEnd(),
@@ -428,7 +428,7 @@ public class MeshBuilder
             if (boneNode == null)
             {
                 if (boneWeight == 0) continue;
-                Global.Logger.LogWarning("Bone {BoneName} not found in bone map for {Mesh} but has weight {Weight}", boneName, Mesh.MeshIdx, boneWeight);
+                Global.Logger.LogDebug("Bone {BoneName} not found in bone map for {Mesh} but has weight {Weight}", boneName, Mesh.MeshIdx, boneWeight);
                 continue;
             }
             

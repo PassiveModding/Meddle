@@ -83,7 +83,7 @@ public readonly record struct Transform
             Vector3 scale;
             if (!IsFinite(Scale))
             {
-                Plugin.Logger?.LogWarning("Transform contains non-finite scale, using default: {Scale} -> {DefaultValue}", Scale, Vector3.One);
+                Plugin.Logger.LogWarning("Transform contains non-finite scale, using default: {Scale} -> {DefaultValue}", Scale, Vector3.One);
                 scale = Vector3.One;
             }
             else
@@ -94,7 +94,7 @@ public readonly record struct Transform
             Vector3 translation;
             if (!IsFinite(Translation))
             {
-                Plugin.Logger?.LogWarning("Transform contains non-finite translation, using default: {Translation} -> {DefaultValue}", Translation, Vector3.Zero);
+                Plugin.Logger.LogWarning("Transform contains non-finite translation, using default: {Translation} -> {DefaultValue}", Translation, Vector3.Zero);
                 translation = Vector3.Zero;
             }
             else
@@ -105,7 +105,7 @@ public readonly record struct Transform
             Quaternion rotation;
             if (!IsFinite(Rotation))
             {
-                Plugin.Logger?.LogWarning("Transform contains non-finite rotation, using default: {Rotation} -> {DefaultValue}", Rotation, Quaternion.Identity);
+                Plugin.Logger.LogWarning("Transform contains non-finite rotation, using default: {Rotation} -> {DefaultValue}", Rotation, Quaternion.Identity);
                 rotation = Quaternion.Identity;
             }
             else
@@ -117,7 +117,7 @@ public readonly record struct Transform
         }
         catch (Exception ex)
         {
-            Plugin.Logger?.LogError(ex, "Failed to create AffineTransform from Transform, pos: {Position}, rot: {Rotation}, scale: {Scale}",
+            Plugin.Logger.LogError(ex, "Failed to create AffineTransform from Transform, pos: {Position}, rot: {Rotation}, scale: {Scale}",
                 Translation, Rotation, Scale);
             throw new InvalidOperationException("Failed to create AffineTransform from Transform", ex);
         }
