@@ -287,7 +287,7 @@ public class ResolverService : IService
 
         // var stain0 = stainHooks.GetStainFromCache((nint)characterBasePtr.Value, model->SlotIndex, 0);
         // var stain1 = stainHooks.GetStainFromCache((nint)characterBasePtr.Value, model->SlotIndex, 1);
-        var equipId = GetEquipmentModelId(characterBasePtr.Value, (int)model->SlotIndex);
+        var equipId = GetEquipmentModelId(characterBasePtr.Value, (HumanEquipmentSlotIndex)model->SlotIndex);
         var stain0 = equipId != null ? stainHooks.GetStain(equipId.Value.Stain0) : null;
         var stain1 = equipId != null ? stainHooks.GetStain(equipId.Value.Stain1) : null;
         
@@ -387,31 +387,33 @@ public class ResolverService : IService
         return new ParsedCharacterInfo(models.ToArray(), skeleton, StructExtensions.GetParsedAttach(characterBase), parsedHumanInfo);
     }
 
-    public struct ParsedHumanInfo
+    public record struct ParsedHumanInfo
     {
         public Meddle.Utils.Export.CustomizeParameter CustomizeParameter;
         public CustomizeData CustomizeData;
         public GenderRace GenderRace;
-        public List<ParsedMaterialInfo?> SkinSlotMaterials;
-        public EquipmentModelId[] EquipmentModelIds;
+        public IReadOnlyList<ParsedMaterialInfo?> SkinSlotMaterials;
+        public IReadOnlyList<EquipmentModelId> EquipmentModelIds;
     }
     
-    public static unsafe EquipmentModelId? GetEquipmentModelId(CharacterBase* characterBase, int slotIdx)
+    public static unsafe EquipmentModelId? GetEquipmentModelId(CharacterBase* characterBase, HumanEquipmentSlotIndex slotIdx)
     {
         if (characterBase == null)
         {
             return null;
         }
-        if (slotIdx is < 0 or >= 12)
+        
+        if (!Enum.IsDefined(slotIdx))
         {
             return null;
         }
+        
         if (characterBase->GetModelType() != CharacterBase.ModelType.Human)
         {
             return null;
         }
         var human = (Human*)characterBase;
-        var equipId = (&human->Head)[slotIdx];
+        var equipId = (&human->Head)[(int)slotIdx];
         return equipId;
     }
     
@@ -471,9 +473,9 @@ public class ResolverService : IService
             skinSlotMaterials.Add(materialInfo);
         }
         var equipData = new List<EquipmentModelId>();
-        for (var slotIdx = 0; slotIdx < 12; slotIdx++)
+        for (var slotIdx = 0; slotIdx <= (int)HumanEquipmentSlotIndex.Extra; slotIdx++)
         {
-            equipData.Add(GetEquipmentModelId(characterBase, slotIdx)!.Value);
+            equipData.Add(GetEquipmentModelId(characterBase, (HumanEquipmentSlotIndex)slotIdx)!.Value);
         }
         
         return new ParsedHumanInfo

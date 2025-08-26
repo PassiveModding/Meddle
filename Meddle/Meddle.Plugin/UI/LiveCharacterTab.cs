@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using System.Text.Json;
+﻿using System.Text.Json;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface;
 using Dalamud.Interface.ImGuiFileDialog;
@@ -14,7 +13,6 @@ using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Layout;
-using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.Services.UI;
 using Meddle.Plugin.UI.Layout;
@@ -31,8 +29,6 @@ using SharpGLTF.Scenes;
 using SkiaSharp;
 using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
 using CSCharacterBase = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.CharacterBase;
-using CSHuman = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Human;
-using CustomizeParameter = Meddle.Utils.Export.CustomizeParameter;
 using CSMaterial = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Material;
 using CSModel = FFXIVClientStructs.FFXIV.Client.Graphics.Render.Model;
 
@@ -194,7 +190,7 @@ public unsafe class LiveCharacterTab : ITab
             for (var weaponIdx = 0; weaponIdx < character->DrawData.WeaponData.Length; weaponIdx++)
             {
                 var weaponData = character->DrawData.WeaponData[weaponIdx];
-                if (weaponData.DrawObject != null)
+                if (weaponData.DrawObject != null && weaponData.IsHidden == false)
                 {
                     ImGui.Separator();
                     ImGui.Text($"Weapon {weaponIdx}");
@@ -407,6 +403,7 @@ public unsafe class LiveCharacterTab : ITab
 
         var cBase = cPtr.Value;
         var model = mPtr.Value;
+        var modelType = cBase->GetModelType();
         using var modelId = ImRaii.PushId($"{(nint)model}");
         ImGui.TableNextRow();
         var fileName = model->ModelResourceHandle->FileName.ParseString();
@@ -475,14 +472,23 @@ public unsafe class LiveCharacterTab : ITab
 
         ImGui.TableSetColumnIndex(1);
 
-        if (ImGui.CollapsingHeader($"[{model->SlotIndex}] {modelName}"))
+        var header = $"[{model->SlotIndex}]";
+        if (modelType == CSCharacterBase.ModelType.Human && Enum.IsDefined((HumanModelSlotIndex)model->SlotIndex))
+        {
+            header += $"[{(HumanModelSlotIndex)model->SlotIndex}]";
+        }
+        header += $" {modelName}";
+        if (ImGui.CollapsingHeader(header))
         {
             UiUtil.Text($"Game File Name: {modelName}", modelName);
             UiUtil.Text($"File Name: {fileName}", fileName);
             ImGui.Text($"Slot Index: {model->SlotIndex}");
-            // var stain0 = stainHooks.GetStainFromCache((nint)cPtr.Value, model->SlotIndex, 0);
-            // var stain1 = stainHooks.GetStainFromCache((nint)cPtr.Value, model->SlotIndex, 1);
-            var equipmentModelId = ResolverService.GetEquipmentModelId(cBase, (int)model->SlotIndex);
+            var equipmentModelId = ResolverService.GetEquipmentModelId(cBase, (HumanEquipmentSlotIndex)model->SlotIndex);
+            if (equipmentModelId != null)
+            {
+                ImGui.Text($"Equipment Model Id: {equipmentModelId.Value.Id}");
+                ImGui.Text($"Equipment Model Variant: {equipmentModelId.Value.Variant}");
+            }
             var stain0 = equipmentModelId != null ? stainHooks.GetStain(equipmentModelId.Value.Stain0) : null;
             var stain1 = equipmentModelId != null ? stainHooks.GetStain(equipmentModelId.Value.Stain1) : null;
             if (stain0 != null)
