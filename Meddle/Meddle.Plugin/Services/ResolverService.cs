@@ -211,8 +211,7 @@ public class ResolverService : IService
 
     private unsafe ParsedMaterialInfo? ParseMaterial(Pointer<MaterialResourceHandle> materialPtr, Pointer<Model> modelPtr, int mtrlIdx,
                                                     Dictionary<int, IColorTableSet> colorTableSets,
-                                                    (Stain Stain, Vector4 Color)? stain0,
-                                                    (Stain Stain, Vector4 Color)? stain1,
+                                                    Stain? stain0, Stain? stain1,
                                                     int? textureCountFromMaterial)
     {
         if (materialPtr == null || materialPtr.Value == null)
@@ -270,12 +269,11 @@ public class ResolverService : IService
             }
         }
 
-        var materialInfo = new ParsedMaterialInfo(materialPath, materialPathFromModel, shaderName, colorTable, textures.ToArray(), stain0?.Stain, stain1?.Stain);
+        var materialInfo = new ParsedMaterialInfo(materialPath, materialPathFromModel, shaderName, colorTable, textures.ToArray(), stain0, stain1);
         return materialInfo;
     }
     
-    public unsafe ParsedModelInfo? ParseModel(Pointer<CharacterBase> characterBasePtr, Pointer<Model> modelPtr, 
-                                              Dictionary<int, IColorTableSet> colorTableSets)
+    public unsafe ParsedModelInfo? ParseModel(Pointer<CharacterBase> characterBasePtr, Pointer<Model> modelPtr, Dictionary<int, IColorTableSet> colorTableSets)
     {
         if (modelPtr == null) return null;
         var model = modelPtr.Value;
@@ -287,8 +285,11 @@ public class ResolverService : IService
         var modelPathFromCharacter = characterBase->ResolveMdlPath(model->SlotIndex);
         var shapeAttributeGroup = StructExtensions.ParseModelShapeAttributes(model);
 
-        var stain0 = stainHooks.GetStainFromCache((nint)characterBasePtr.Value, model->SlotIndex, 0);
-        var stain1 = stainHooks.GetStainFromCache((nint)characterBasePtr.Value, model->SlotIndex, 1);
+        // var stain0 = stainHooks.GetStainFromCache((nint)characterBasePtr.Value, model->SlotIndex, 0);
+        // var stain1 = stainHooks.GetStainFromCache((nint)characterBasePtr.Value, model->SlotIndex, 1);
+        var equipId = GetEquipmentModelId(characterBasePtr.Value, (int)model->SlotIndex);
+        var stain0 = equipId != null ? stainHooks.GetStain(equipId.Value.Stain0) : null;
+        var stain1 = equipId != null ? stainHooks.GetStain(equipId.Value.Stain1) : null;
         
         var materials = new List<ParsedMaterialInfo?>();
         for (var mtrlIdx = 0; mtrlIdx < model->MaterialsSpan.Length; mtrlIdx++)
@@ -304,7 +305,7 @@ public class ResolverService : IService
         }
 
         var deform = pbdHooks.TryGetDeformer((nint)characterBasePtr.Value, model->SlotIndex);
-        var modelInfo = new ParsedModelInfo(modelPath, modelPathFromCharacter, deform, shapeAttributeGroup, materials.ToArray(), stain0?.Stain, stain1?.Stain)
+        var modelInfo = new ParsedModelInfo(modelPath, modelPathFromCharacter, deform, shapeAttributeGroup, materials.ToArray(), stain0, stain1)
         {
             ModelAddress = (nint)modelPtr.Value
         };
@@ -383,9 +384,7 @@ public class ResolverService : IService
 
         var skeleton = StructExtensions.GetParsedSkeleton(characterBase);
         var parsedHumanInfo = ParseHuman(characterBase);
-
-        return new ParsedCharacterInfo(models.ToArray(), skeleton, StructExtensions.GetParsedAttach(characterBase), 
-                                       parsedHumanInfo.CustomizeData, parsedHumanInfo.CustomizeParameter, parsedHumanInfo.GenderRace, parsedHumanInfo.SkinSlotMaterials);
+        return new ParsedCharacterInfo(models.ToArray(), skeleton, StructExtensions.GetParsedAttach(characterBase), parsedHumanInfo);
     }
 
     public struct ParsedHumanInfo
@@ -394,6 +393,26 @@ public class ResolverService : IService
         public CustomizeData CustomizeData;
         public GenderRace GenderRace;
         public List<ParsedMaterialInfo?> SkinSlotMaterials;
+        public EquipmentModelId[] EquipmentModelIds;
+    }
+    
+    public static unsafe EquipmentModelId? GetEquipmentModelId(CharacterBase* characterBase, int slotIdx)
+    {
+        if (characterBase == null)
+        {
+            return null;
+        }
+        if (slotIdx < 0 || slotIdx >= 12)
+        {
+            return null;
+        }
+        if (characterBase->GetModelType() != CharacterBase.ModelType.Human)
+        {
+            return null;
+        }
+        var human = (Human*)characterBase;
+        var equipId = (&human->Head)[slotIdx];
+        return equipId;
     }
     
     public unsafe ParsedHumanInfo ParseHuman(CharacterBase* characterBase)
@@ -406,7 +425,8 @@ public class ResolverService : IService
                 CustomizeParameter = new Meddle.Utils.Export.CustomizeParameter(),
                 CustomizeData = new CustomizeData(),
                 GenderRace = GenderRace.Unknown,
-                SkinSlotMaterials = []
+                SkinSlotMaterials = [],
+                EquipmentModelIds = []
             };
         }
         
@@ -450,13 +470,19 @@ public class ResolverService : IService
             var materialInfo = ParseMaterial(material, null, mtrlIdx, new Dictionary<int, IColorTableSet>(), null, null, null);
             skinSlotMaterials.Add(materialInfo);
         }
+        var equipData = new List<EquipmentModelId>();
+        for (var slotIdx = 0; slotIdx < 12; slotIdx++)
+        {
+            equipData.Add(GetEquipmentModelId(characterBase, slotIdx)!.Value);
+        }
         
         return new ParsedHumanInfo
         {
             CustomizeParameter = customizeParams,
             CustomizeData = customizeData,
             GenderRace = genderRace,
-            SkinSlotMaterials = skinSlotMaterials
+            SkinSlotMaterials = skinSlotMaterials,
+            EquipmentModelIds = equipData.ToArray()
         };
     }
 

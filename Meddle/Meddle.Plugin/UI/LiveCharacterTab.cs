@@ -480,20 +480,23 @@ public unsafe class LiveCharacterTab : ITab
             UiUtil.Text($"Game File Name: {modelName}", modelName);
             UiUtil.Text($"File Name: {fileName}", fileName);
             ImGui.Text($"Slot Index: {model->SlotIndex}");
-            var stain0 = stainHooks.GetStainFromCache((nint)cPtr.Value, model->SlotIndex, 0);
-            var stain1 = stainHooks.GetStainFromCache((nint)cPtr.Value, model->SlotIndex, 1);
+            // var stain0 = stainHooks.GetStainFromCache((nint)cPtr.Value, model->SlotIndex, 0);
+            // var stain1 = stainHooks.GetStainFromCache((nint)cPtr.Value, model->SlotIndex, 1);
+            var equipmentModelId = ResolverService.GetEquipmentModelId(cBase, (int)model->SlotIndex);
+            var stain0 = equipmentModelId != null ? stainHooks.GetStain(equipmentModelId.Value.Stain0) : null;
+            var stain1 = equipmentModelId != null ? stainHooks.GetStain(equipmentModelId.Value.Stain1) : null;
             if (stain0 != null)
             {
-                ImGui.Text($"Stain 0: {stain0.Value.Stain.Name.ExtractText()} ({stain0.Value.Stain.RowId})");
+                ImGui.Text($"Stain 0: {stain0.Value.Name.ExtractText()} ({stain0.Value.RowId})");
                 ImGui.SameLine();
-                ImGui.ColorButton("##Stain0", stain0.Value.Color);
+                ImGui.ColorButton("##Stain0", StainHooks.GetStainColor(stain0.Value));
             }
             
             if (stain1 != null)
             {
-                ImGui.Text($"Stain 1: {stain1.Value.Stain.Name.ExtractText()} ({stain1.Value.Stain.RowId})");
+                ImGui.Text($"Stain 1: {stain1.Value.Name.ExtractText()} ({stain1.Value.RowId})");
                 ImGui.SameLine();
-                ImGui.ColorButton("##Stain1", stain1.Value.Color);
+                ImGui.ColorButton("##Stain1", StainHooks.GetStainColor(stain1.Value));
             }
 
             UiUtil.Text($"Skeleton Ptr: {(nint)model->Skeleton:X8}", $"{(nint)model->Skeleton:X8}");

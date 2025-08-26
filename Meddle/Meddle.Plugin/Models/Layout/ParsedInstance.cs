@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Dalamud.Bindings.ImGui;
+using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
 using Lumina.Excel.Sheets;
@@ -15,6 +16,7 @@ using Meddle.Utils.Constants;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.Structs.Material;
+using CustomizeData = Meddle.Utils.Export.CustomizeData;
 using CustomizeParameter = Meddle.Utils.Export.CustomizeParameter;
 
 namespace Meddle.Plugin.Models.Layout;
@@ -510,31 +512,27 @@ public struct HandleString
 
 public record ParsedCharacterInfo
 {
-    public IReadOnlyList<ParsedMaterialInfo?>? SkinSlotMaterials;
     public IReadOnlyList<ParsedModelInfo> Models;
     public readonly ParsedSkeleton Skeleton;
-    public CustomizeData CustomizeData;
-    public CustomizeParameter CustomizeParameter;
-    public readonly GenderRace GenderRace;
     public readonly ParsedAttach Attach;
+    private readonly ResolverService.ParsedHumanInfo humanInfo;
     public IReadOnlyList<ParsedCharacterInfo> Attaches = [];
+    public CustomizeData CustomizeData => humanInfo.CustomizeData;
+    public CustomizeParameter CustomizeParameter => humanInfo.CustomizeParameter;   
+    public IReadOnlyList<ParsedMaterialInfo?> SkinSlotMaterials => humanInfo.SkinSlotMaterials;
+    public IReadOnlyList<EquipmentModelId> EquipmentModelIds => humanInfo.EquipmentModelIds;
+    public GenderRace GenderRace => humanInfo.GenderRace;
 
     public ParsedCharacterInfo(
         ParsedModelInfo[] models,
         ParsedSkeleton skeleton,
         ParsedAttach attach,
-        CustomizeData customizeData,
-        CustomizeParameter customizeParameter,
-        GenderRace genderRace,
-        List<ParsedMaterialInfo?>? skinSlotMaterials)
+        ResolverService.ParsedHumanInfo humanInfo)
     {
-        SkinSlotMaterials = skinSlotMaterials;
         Models = models;
         Skeleton = skeleton;
-        CustomizeData = customizeData;
-        CustomizeParameter = customizeParameter;
-        GenderRace = genderRace;
         Attach = attach;
+        this.humanInfo = humanInfo;
     }
 }
 
