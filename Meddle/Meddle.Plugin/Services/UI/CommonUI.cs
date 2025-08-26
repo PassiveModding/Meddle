@@ -96,18 +96,21 @@ public class CommonUi : IDisposable, IService
         }
 
         var preview = selectedCharacter != null ? GetCharacterDisplayText(selectedCharacter) : "None";
-        using var combo = ImRaii.Combo("##Character", preview);
-        if (combo)
+        using (var combo = ImRaii.Combo("##Character", preview))
         {
-            foreach (var character in objects)
+            if (combo)
             {
-                if (ImGui.Selectable(GetCharacterDisplayText(character)))
+                foreach (var character in objects)
                 {
-                    selectedCharacter = character;
+                    if (ImGui.Selectable(GetCharacterDisplayText(character)))
+                    {
+                        selectedCharacter = character;
+                    }
                 }
             }
         }
         
+        ImGui.SameLine();
         ImGui.Checkbox("Select Target", ref selectTarget);
         
         if (selectTarget)
@@ -180,7 +183,7 @@ public class CommonUi : IDisposable, IService
         return
             $"{prefix}[{obj.ObjectKind}][{modelType}] - " +
             $"{(string.IsNullOrWhiteSpace(name) ? "Unnamed" : name)} - " +
-            $"{clientState.GetDistanceToLocalPlayer(obj).Length():0.00}y##{obj.GameObjectId}";
+            $"{clientState.GetDistanceToLocalPlayer(obj).Length():0}y##{obj.GameObjectId}";
     }
 
     public void Dispose()
