@@ -47,7 +47,7 @@ public unsafe class LiveCharacterTab : ITab
     {
         AddedWindowFlags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoDocking
     };
-    
+
     private readonly ILogger<LiveCharacterTab> log;
     private readonly SqPack pack;
     private readonly ParseService parseService;
@@ -64,7 +64,7 @@ public unsafe class LiveCharacterTab : ITab
     private ProgressWrapper? progress;
     private bool requestedPopup;
     private Action? drawExportSettingsCallback;
-    
+
     public LiveCharacterTab(
         ILogger<LiveCharacterTab> log,
         ITextureProvider textureProvider,
@@ -94,11 +94,11 @@ public unsafe class LiveCharacterTab : ITab
         this.mdlMaterialWindowManager = mdlMaterialWindowManager;
         this.composerFactory = composerFactory;
     }
-    
+
     private bool IsDisposed { get; set; }
 
     public string Name => "Character";
-    public int Order => (int) WindowOrder.Character;
+    public int Order => (int)WindowOrder.Character;
 
     public void Draw()
     {
@@ -120,13 +120,13 @@ public unsafe class LiveCharacterTab : ITab
             ImGui.OpenPopup("ExportSettingsPopup");
             requestedPopup = false;
         }
-        
+
         if (drawExportSettingsCallback != null)
         {
             drawExportSettingsCallback();
         }
     }
-    
+
     public void Dispose()
     {
         if (!IsDisposed)
@@ -136,7 +136,7 @@ public unsafe class LiveCharacterTab : ITab
             IsDisposed = true;
         }
     }
-    
+
     private void DrawCharacter(CSCharacter* character, string name, int depth = 0)
     {
         if (depth > 3)
@@ -144,7 +144,7 @@ public unsafe class LiveCharacterTab : ITab
             ImGui.Text("Bad things happened, too deep");
             return;
         }
-        
+
         if (character == null)
         {
             ImGui.Text("Character is null");
@@ -163,7 +163,7 @@ public unsafe class LiveCharacterTab : ITab
             ImGui.Text("Draw object is not a character base");
             return;
         }
-        
+
         var cBase = (CSCharacterBase*)drawObject;
         var modelType = cBase->GetModelType();
         ResolverService.ParsedHumanInfo? humanData = null;
@@ -182,7 +182,7 @@ public unsafe class LiveCharacterTab : ITab
                 return info;
             }, character->NameString.GetCharacterName(config, character->ObjectKind));
         }
-        
+
         DrawDrawObject(drawObject, character->NameString.GetCharacterName(config, character->ObjectKind));
 
         try
@@ -197,7 +197,7 @@ public unsafe class LiveCharacterTab : ITab
                     DrawDrawObject(weaponData.DrawObject, $"{character->NameString.GetCharacterName(config, character->ObjectKind)}_Weapon");
                 }
             }
-            
+
             if (character->Mount.MountObject != null)
             {
                 ImGui.Separator();
@@ -234,7 +234,7 @@ public unsafe class LiveCharacterTab : ITab
             drawExportSettingsCallback = () => DrawExportSettings(parsedCharacterInfo, name, configClone);
         }
     }
-    
+
     private void ExportMenuItem(string text, Func<ParsedCharacterInfo> resolve, string name)
     {
         if (ImGui.MenuItem(text))
@@ -246,7 +246,7 @@ public unsafe class LiveCharacterTab : ITab
             drawExportSettingsCallback = () => DrawExportSettings(parsedCharacterInfo, name, configClone);
         }
     }
-    
+
     private void DrawExportSettings(ParsedCharacterInfo characterInfo, string name, Configuration.ExportConfiguration exportConfig)
     {
         if (!exportTask.IsCompleted)
@@ -254,7 +254,7 @@ public unsafe class LiveCharacterTab : ITab
             log.LogWarning("Export task already running");
             return;
         }
-        
+
         if (!ImGui.BeginPopup("ExportSettingsPopup", ImGuiWindowFlags.AlwaysAutoResize)) return;
         try
         {
@@ -264,13 +264,13 @@ public unsafe class LiveCharacterTab : ITab
             {
                 exportFlags |= UiUtil.ExportConfigDrawFlags.ShowUseDeformer;
             }
-            
+
             if (UiUtil.DrawExportConfig(exportConfig, exportFlags))
             {
                 config.ExportConfig.Apply(exportConfig);
                 config.Save();
             }
-            
+
             if (ImGui.Button("Export"))
             {
                 var defaultName = $"Character-{name}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
@@ -302,23 +302,20 @@ public unsafe class LiveCharacterTab : ITab
                 drawExportSettingsCallback = null;
                 ImGui.CloseCurrentPopup();
             }
-            
+
             ImGui.SameLine();
             if (ImGui.Button("Cancel"))
             {
                 drawExportSettingsCallback = null;
                 ImGui.CloseCurrentPopup();
             }
-        }
-        finally
+        } finally
         {
             ImGui.EndPopup();
         }
     }
 
-    private void DrawDrawObject(
-        DrawObject* drawObject,
-        string name)
+    private void DrawDrawObject(DrawObject* drawObject, string name)
     {
         if (drawObject == null)
         {
@@ -363,7 +360,7 @@ public unsafe class LiveCharacterTab : ITab
                 {
                     throw new Exception("Failed to get character info from draw object");
                 }
-                
+
                 // filter out only selected models
                 return info with
                 {
@@ -388,7 +385,7 @@ public unsafe class LiveCharacterTab : ITab
             DrawModel(cBase, modelPtr.Value);
         }
     }
-    
+
     private void DrawModel(Pointer<CharacterBase> cPtr, Pointer<CSModel> mPtr)
     {
         if (cPtr == null || cPtr.Value == null)
@@ -436,7 +433,7 @@ public unsafe class LiveCharacterTab : ITab
         if (ImGui.BeginPopupContextItem("ExportModelPopup"))
         {
             var defaultFileName = Path.GetFileName(fileName);
-            
+
             if (ImGui.MenuItem("Export as mdl"))
             {
                 fileDialog.SaveFileDialog("Save Model", "Model File{.mdl}", defaultFileName, ".mdl",
@@ -457,15 +454,15 @@ public unsafe class LiveCharacterTab : ITab
             }
 
             ExportMenuItem("Export as gLTF", () =>
-            {
-                var info = resolverService.ParseDrawObject((DrawObject*)cBase);
-                if (info == null)
-                {
-                    throw new Exception("Failed to get character info from draw object");
-                }
-                
-                return info with { Models = info.Models.Where(x => x.ModelAddress == (nint)model).ToArray(), Attaches = [] };
-            }, $"{defaultFileName}");
+                           {
+                               var info = resolverService.ParseDrawObject((DrawObject*)cBase);
+                               if (info == null)
+                               {
+                                   throw new Exception("Failed to get character info from draw object");
+                               }
+
+                               return info with {Models = info.Models.Where(x => x.ModelAddress == (nint)model).ToArray(), Attaches = []};
+                           }, $"{defaultFileName}");
 
             ImGui.EndPopup();
         }
@@ -497,7 +494,7 @@ public unsafe class LiveCharacterTab : ITab
                 ImGui.SameLine();
                 ImGui.ColorButton("##Stain0", StainHooks.GetStainColor(stain0.Value));
             }
-            
+
             if (stain1 != null)
             {
                 ImGui.Text($"Stain 1: {stain1.Value.Name.ExtractText()} ({stain1.Value.RowId})");
@@ -536,7 +533,8 @@ public unsafe class LiveCharacterTab : ITab
             {
                 var localMaterialIdx = materialIdx;
                 var materialPtr = model->MaterialsSpan[localMaterialIdx];
-                DrawMaterial( materialPtr.Value, materialIdx, slotIdx => GetColorTableTexture(cBase, slotIdx, localMaterialIdx), GetMaterialName(model, localMaterialIdx));
+                DrawMaterial(materialPtr.Value, materialIdx, slotIdx => GetColorTableTexture(cBase, slotIdx, localMaterialIdx),
+                             GetMaterialName(model, localMaterialIdx));
             }
         }
     }
@@ -593,7 +591,7 @@ public unsafe class LiveCharacterTab : ITab
         {
             return;
         }
-        
+
         var material = mtPtr.Value;
         var materialParams = material->MaterialParameterCBuffer->TryGetBuffer<float>();
         var shpkName = material->MaterialResourceHandle->ShpkName;
@@ -615,11 +613,11 @@ public unsafe class LiveCharacterTab : ITab
         var orderedMaterialParams = shpk.MaterialParams.Select((x, idx) => (x, idx))
                                         .OrderBy(x => x.idx).ToArray();
         var availWidth = ImGui.GetContentRegionAvail().X;
-        if (ImGui.BeginTable("MaterialParams", 6, 
+        if (ImGui.BeginTable("MaterialParams", 6,
                              ImGuiTableFlags.Borders |
-                                  ImGuiTableFlags.RowBg |
-                                  ImGuiTableFlags.Hideable |
-                                  ImGuiTableFlags.Resizable))
+                             ImGuiTableFlags.RowBg |
+                             ImGuiTableFlags.Hideable |
+                             ImGuiTableFlags.Resizable))
         {
             // Set up column headers
             ImGui.TableSetupColumn("ID", ImGuiTableColumnFlags.WidthFixed,
@@ -642,9 +640,9 @@ public unsafe class LiveCharacterTab : ITab
                 var shpkDefaults = shpk.MaterialParamDefaults
                                        .Skip(materialParam.ByteOffset / 4)
                                        .Take(materialParam.ByteSize / 4).ToArray();
-                
+
                 var constantBuffer = materialParams.Slice(materialParam.ByteOffset / 4,
-                    materialParam.ByteSize / 4);
+                                                          materialParam.ByteSize / 4);
 
                 var nameLookup = $"0x{materialParam.Id:X8}";
                 if (Enum.IsDefined((MaterialConstant)materialParam.Id))
@@ -672,30 +670,30 @@ public unsafe class LiveCharacterTab : ITab
             ImGui.EndTable();
         }
     }
-    
+
     private Pointer<Texture> GetColorTableTexture(Pointer<CSCharacterBase> cPtr, int slotIdx, int materialIdx)
     {
         if (cPtr == null || cPtr.Value == null)
         {
             return null;
         }
-        
+
         var colorTableTexturePtr = cPtr.Value->ColorTableTexturesSpan[(slotIdx * CSCharacterBase.MaterialsPerSlot) + materialIdx];
         return colorTableTexturePtr;
     }
-    
+
     private string? GetMaterialName(Pointer<CSModel> mPtr, int materialIdx)
     {
         if (mPtr == null || mPtr.Value == null || mPtr.Value->ModelResourceHandle == null)
         {
             return null;
         }
-        
+
         var model = mPtr.Value;
         var materialName = model->ModelResourceHandle->GetMaterialFileNameBySlot((uint)materialIdx).ToString();
         return materialName;
     }
-    
+
     private void DrawMaterial(Pointer<CSMaterial> mtPtr, int materialIdx, Func<int, Pointer<Texture>>? getColorTableTexture, string? materialName)
     {
         if (mtPtr == null || mtPtr.Value == null || mtPtr.Value->MaterialResourceHandle == null)
@@ -711,7 +709,7 @@ public unsafe class LiveCharacterTab : ITab
         using var materialId = ImRaii.PushId($"{(nint)material}");
         var materialFileName = material->MaterialResourceHandle->FileName.ParseString();
         materialName ??= materialFileName;
-        
+
         // in same row as model export button, draw button for export material
         ImGui.TableNextRow();
         ImGui.TableSetColumnIndex(0);
@@ -770,7 +768,7 @@ public unsafe class LiveCharacterTab : ITab
                                             {
                                                 if (!result) return;
                                                 Directory.CreateDirectory(path);
-                                                
+
                                                 foreach (var (name, tex) in textureBuffer)
                                                 {
                                                     var fileName = Path.GetFileNameWithoutExtension(name);
@@ -858,12 +856,12 @@ public unsafe class LiveCharacterTab : ITab
                 using var memoryStream = new MemoryStream();
                 textureData.Bitmap.Encode(memoryStream, SKEncodedImageFormat.Png, 100);
                 var textureBytes = memoryStream.ToArray();
-                
+
                 fileDialog.SaveFileDialog("Save Texture", "PNG Image{.png}", defaultFileName, ".png",
                                           (result, path) =>
                                           {
-                                                if (!result) return;
-                                                File.WriteAllBytes(path, textureBytes);
+                                              if (!result) return;
+                                              File.WriteAllBytes(path, textureBytes);
                                           }, config.ExportDirectory);
             }
 
@@ -895,7 +893,7 @@ public unsafe class LiveCharacterTab : ITab
         {
             UiUtil.Text($"Game File Name: {textureName}", textureName);
             UiUtil.Text($"File Name: {textureFileName}", textureFileName);
-            ImGui.Text($"Id: {textureEntry.Id}"); 
+            ImGui.Text($"Id: {textureEntry.Id}");
             ImGui.SameLine();
             ImGui.Text($"File Size: {textureEntry.Texture->FileSize}");
             ImGui.Text($"Size: {textureEntry.Texture->Texture->ActualWidth}x{textureEntry.Texture->Texture->ActualHeight}");
