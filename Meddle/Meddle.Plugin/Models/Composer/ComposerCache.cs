@@ -227,6 +227,11 @@ public class ComposerCache
         return pngCachePath;
     }
 
+    private static readonly IReadOnlyList<string> SkinSlotShaders =
+    [
+        "characterstockings.shpk"
+    ];
+    
     public MaterialBuilder ComposeMaterial(string mtrlPath, 
                                            ParsedMaterialInfo? materialInfo = null,
                                            IStainableInstance? stainInstance = null, 
@@ -296,6 +301,31 @@ public class ComposerCache
             }
         }
 
+        if (materialInfo?.SkinSlotMaterial != null && SkinSlotShaders.Contains(materialInfo.Shpk))
+        {
+            var skinMtrlFile = GetMtrlFile(materialInfo.SkinSlotMaterial.Path.FullPath, out var skinMtrlCachePath);
+            if (skinMtrlCachePath != null)
+            {
+                material.SetProperty("SkinMtrlCachePath", Path.GetRelativePath(cacheDir, skinMtrlCachePath));
+            }
+            var skinShaderPackage = GetShaderPackage(skinMtrlFile.GetShaderPackageName());
+            var skinMaterial = new MaterialComposer(skinMtrlFile, materialInfo.SkinSlotMaterial.Path.FullPath, skinShaderPackage);
+            foreach (var texture in skinMaterial.TextureUsageDict)
+            {
+                var fullPath = texture.Value.FullPath;
+                var match = materialInfo.Textures.FirstOrDefault(x => x.Path.GamePath == texture.Value.GamePath);
+                if (match != null)
+                {
+                    fullPath = match.Path.FullPath;
+                }
+
+                var cachePath = CacheTexture(fullPath);
+                var keyUsage = $"{texture.Key}".Replace("g_Sampler", "g_SamplerSkin");
+                material.SetProperty($"{keyUsage}", texture.Value.GamePath);
+                material.SetProperty($"{keyUsage}_PngCachePath", Path.GetRelativePath(cacheDir, cachePath));
+            }
+        }
+        
         string materialName;
         if (materialInfo != null)
         {
@@ -311,15 +341,12 @@ public class ComposerCache
         {
             // ensure texture gets saved to cache dir.
             var fullPath = texture.Value.FullPath;
-            if (materialInfo != null)
+            var match = materialInfo?.Textures.FirstOrDefault(x => x.Path.GamePath == texture.Value.GamePath);
+            if (match != null)
             {
-                var match = materialInfo.Textures.FirstOrDefault(x => x.Path.GamePath == texture.Value.GamePath);
-                if (match != null)
-                {
-                    fullPath = match.Path.FullPath;
-                }
+                fullPath = match.Path.FullPath;
             }
-            
+
             var cachePath = CacheTexture(fullPath);
             
             // remove full path prefix, get only dir below cache dir.

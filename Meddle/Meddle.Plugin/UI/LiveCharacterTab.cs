@@ -183,7 +183,7 @@ public unsafe class LiveCharacterTab : ITab
             }, character->NameString.GetCharacterName(config, character->ObjectKind));
         }
 
-        DrawDrawObject(drawObject, character->NameString.GetCharacterName(config, character->ObjectKind));
+        DrawDrawObject(drawObject, character->NameString.GetCharacterName(config, character->ObjectKind), humanData);
 
         try
         {
@@ -194,7 +194,7 @@ public unsafe class LiveCharacterTab : ITab
                 {
                     ImGui.Separator();
                     ImGui.Text($"Weapon {weaponIdx}");
-                    DrawDrawObject(weaponData.DrawObject, $"{character->NameString.GetCharacterName(config, character->ObjectKind)}_Weapon");
+                    DrawDrawObject(weaponData.DrawObject, $"{character->NameString.GetCharacterName(config, character->ObjectKind)}_Weapon", null);
                 }
             }
 
@@ -315,7 +315,7 @@ public unsafe class LiveCharacterTab : ITab
         }
     }
 
-    private void DrawDrawObject(DrawObject* drawObject, string name)
+    private void DrawDrawObject(DrawObject* drawObject, string name, ResolverService.ParsedHumanInfo? humanData)
     {
         if (drawObject == null)
         {
@@ -382,11 +382,11 @@ public unsafe class LiveCharacterTab : ITab
                 continue;
             }
 
-            DrawModel(cBase, modelPtr.Value);
+            DrawModel(cBase, modelPtr.Value, humanData);
         }
     }
 
-    private void DrawModel(Pointer<CharacterBase> cPtr, Pointer<CSModel> mPtr)
+    private void DrawModel(Pointer<CharacterBase> cPtr, Pointer<CSModel> mPtr, ResolverService.ParsedHumanInfo? humanData)
     {
         if (cPtr == null || cPtr.Value == null)
         {
@@ -480,26 +480,35 @@ public unsafe class LiveCharacterTab : ITab
             UiUtil.Text($"Game File Name: {modelName}", modelName);
             UiUtil.Text($"File Name: {fileName}", fileName);
             ImGui.Text($"Slot Index: {model->SlotIndex}");
-            var equipmentModelId = ResolverService.GetEquipmentModelId(cBase, (HumanEquipmentSlotIndex)model->SlotIndex);
-            if (equipmentModelId != null)
+            if (modelType == CharacterBase.ModelType.Human)
             {
-                ImGui.Text($"Equipment Model Id: {equipmentModelId.Value.Id}");
-                ImGui.Text($"Equipment Model Variant: {equipmentModelId.Value.Variant}");
-            }
-            var stain0 = equipmentModelId != null ? stainHooks.GetStain(equipmentModelId.Value.Stain0) : null;
-            var stain1 = equipmentModelId != null ? stainHooks.GetStain(equipmentModelId.Value.Stain1) : null;
-            if (stain0 != null)
-            {
-                ImGui.Text($"Stain 0: {stain0.Value.Name.ExtractText()} ({stain0.Value.RowId})");
-                ImGui.SameLine();
-                ImGui.ColorButton("##Stain0", StainHooks.GetStainColor(stain0.Value));
-            }
+                var equipmentModelId = ResolverService.GetEquipmentModelId(cBase, (HumanEquipmentSlotIndex)model->SlotIndex);
+                if (equipmentModelId != null)
+                {
+                    ImGui.Text($"Equipment Model Id: {equipmentModelId.Value.Id}");
+                    ImGui.Text($"Equipment Model Variant: {equipmentModelId.Value.Variant}");
+                }
+                var stain0 = equipmentModelId != null ? stainHooks.GetStain(equipmentModelId.Value.Stain0) : null;
+                var stain1 = equipmentModelId != null ? stainHooks.GetStain(equipmentModelId.Value.Stain1) : null;
+                if (stain0 != null)
+                {
+                    ImGui.Text($"Stain 0: {stain0.Value.Name.ExtractText()} ({stain0.Value.RowId})");
+                    ImGui.SameLine();
+                    ImGui.ColorButton("##Stain0", StainHooks.GetStainColor(stain0.Value));
+                }
 
-            if (stain1 != null)
-            {
-                ImGui.Text($"Stain 1: {stain1.Value.Name.ExtractText()} ({stain1.Value.RowId})");
-                ImGui.SameLine();
-                ImGui.ColorButton("##Stain1", StainHooks.GetStainColor(stain1.Value));
+                if (stain1 != null)
+                {
+                    ImGui.Text($"Stain 1: {stain1.Value.Name.ExtractText()} ({stain1.Value.RowId})");
+                    ImGui.SameLine();
+                    ImGui.ColorButton("##Stain1", StainHooks.GetStainColor(stain1.Value));
+                }
+
+                var skinSlotMaterial = humanData?.SkinSlotMaterials.ElementAtOrDefault((int)model->SlotIndex);
+                if (skinSlotMaterial != null)
+                {
+                    ImGui.Text($"Skin Slot Material: {skinSlotMaterial.Path.GamePath}");
+                }
             }
 
             UiUtil.Text($"Skeleton Ptr: {(nint)model->Skeleton:X8}", $"{(nint)model->Skeleton:X8}");

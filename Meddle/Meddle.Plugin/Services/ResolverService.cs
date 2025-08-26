@@ -200,7 +200,7 @@ public class ResolverService : IService
                 textures.Add(texInfo);
             }
 
-            var materialInfo = new ParsedMaterialInfo(mtrlName, mtrlName, shaderName, colorTable, textures.ToArray(), null, null);
+            var materialInfo = new ParsedMaterialInfo(mtrlName, mtrlName, shaderName, colorTable, textures.ToArray());
             
             materials.Add(materialInfo);
         }
@@ -212,7 +212,8 @@ public class ResolverService : IService
     private unsafe ParsedMaterialInfo? ParseMaterial(Pointer<MaterialResourceHandle> materialPtr, Pointer<Model> modelPtr, int mtrlIdx,
                                                     Dictionary<int, IColorTableSet> colorTableSets,
                                                     Stain? stain0, Stain? stain1,
-                                                    int? textureCountFromMaterial)
+                                                    int? textureCountFromMaterial,
+                                                    ParsedMaterialInfo? skinSlotMaterial)
     {
         if (materialPtr == null || materialPtr.Value == null)
         {
@@ -269,7 +270,12 @@ public class ResolverService : IService
             }
         }
 
-        var materialInfo = new ParsedMaterialInfo(materialPath, materialPathFromModel, shaderName, colorTable, textures.ToArray(), stain0, stain1);
+        var materialInfo = new ParsedMaterialInfo(materialPath, materialPathFromModel, shaderName, colorTable, textures.ToArray())
+        {
+            Stain0 = stain0,
+            Stain1 = stain1,
+            SkinSlotMaterial = skinSlotMaterial
+        };
         return materialInfo;
     }
     
@@ -287,9 +293,18 @@ public class ResolverService : IService
 
         // var stain0 = stainHooks.GetStainFromCache((nint)characterBasePtr.Value, model->SlotIndex, 0);
         // var stain1 = stainHooks.GetStainFromCache((nint)characterBasePtr.Value, model->SlotIndex, 1);
-        var equipId = GetEquipmentModelId(characterBasePtr.Value, (HumanEquipmentSlotIndex)model->SlotIndex);
-        var stain0 = equipId != null ? stainHooks.GetStain(equipId.Value.Stain0) : null;
-        var stain1 = equipId != null ? stainHooks.GetStain(equipId.Value.Stain1) : null;
+        var modelType = characterBase->GetModelType();
+        Stain? stain0 = null;
+        Stain? stain1 = null;
+        ParsedMaterialInfo? skinSlotMaterial = null;
+        if (modelType == CharacterBase.ModelType.Human)
+        {
+            var equipId = GetEquipmentModelId(characterBasePtr.Value, (HumanEquipmentSlotIndex)model->SlotIndex);
+            stain0 = equipId != null ? stainHooks.GetStain(equipId.Value.Stain0) : null;
+            stain1 = equipId != null ? stainHooks.GetStain(equipId.Value.Stain1) : null;
+            var human = (Human*)characterBasePtr.Value;
+            skinSlotMaterial = GetSkinSlotMaterial(human, (int)model->SlotIndex);
+        }
         
         var materials = new List<ParsedMaterialInfo?>();
         for (var mtrlIdx = 0; mtrlIdx < model->MaterialsSpan.Length; mtrlIdx++)
@@ -300,7 +315,10 @@ public class ResolverService : IService
                 materials.Add(null);
                 continue;
             }
-            var materialInfo = ParseMaterial(mtrlPtr.Value->MaterialResourceHandle, modelPtr, mtrlIdx, colorTableSets, stain0, stain1, mtrlPtr.Value->TextureCount);
+            var materialInfo = ParseMaterial(mtrlPtr.Value->MaterialResourceHandle, modelPtr, mtrlIdx, colorTableSets, 
+                                             stain0, stain1, 
+                                             mtrlPtr.Value->TextureCount,
+                                             skinSlotMaterial);
             materials.Add(materialInfo);
         }
 
@@ -375,6 +393,8 @@ public class ResolverService : IService
         var characterBase = (CharacterBase*)drawObject;
         var colorTableTextures = parseService.ParseColorTableTextures(characterBase);
         var models = new List<ParsedModelInfo>();
+        var modelType = characterBase->GetModelType();
+        
         foreach (var modelPtr in characterBase->ModelsSpan)
         {
             var modelInfo = ParseModel(characterBase, modelPtr, colorTableTextures);
@@ -415,6 +435,41 @@ public class ResolverService : IService
         var human = (Human*)characterBase;
         var equipId = (&human->Head)[(int)slotIdx];
         return equipId;
+    }
+
+    private unsafe ParsedMaterialInfo? GetSkinSlotMaterial(Human* human, int slotIdx)
+    {
+        if (human == null)
+        {
+            return null;
+        }
+        
+        if (slotIdx < 0 || slotIdx >= human->SlotSkinMaterials.Length)
+        {
+            return null;
+        }
+        
+        var material = human->SlotSkinMaterials[slotIdx];
+        if (material == null || material.Value == null)
+        {
+            return null;
+        }
+        
+        var materialInfo = ParseMaterial(material, null, slotIdx, new Dictionary<int, IColorTableSet>(), 
+                                         null, null, null, null);
+        return materialInfo;
+    }
+    
+    private unsafe IReadOnlyList<ParsedMaterialInfo?> GetSkinSlotMaterials(Human* human)
+    {
+        var skinSlotMaterials = new List<ParsedMaterialInfo?>();
+        for (var mtrlIdx = 0; mtrlIdx < human->SlotSkinMaterials.Length; mtrlIdx++)
+        {
+            var materialInfo = GetSkinSlotMaterial(human, mtrlIdx);
+            skinSlotMaterials.Add(materialInfo);
+        }
+        
+        return skinSlotMaterials;
     }
     
     public unsafe ParsedHumanInfo ParseHuman(CharacterBase* characterBase)
@@ -460,18 +515,7 @@ public class ResolverService : IService
             FacePaintReversed = human->Customize.FacePaintReversed,
         };
         var genderRace = (GenderRace)human->RaceSexId;
-        var skinSlotMaterials = new List<ParsedMaterialInfo?>();
-        for (var mtrlIdx = 0; mtrlIdx < human->SlotSkinMaterials.Length; mtrlIdx++)
-        {
-            var material = human->SlotSkinMaterials[mtrlIdx];
-            if (material == null || material.Value == null)
-            {
-                skinSlotMaterials.Add(null);
-                continue;
-            }
-            var materialInfo = ParseMaterial(material, null, mtrlIdx, new Dictionary<int, IColorTableSet>(), null, null, null);
-            skinSlotMaterials.Add(materialInfo);
-        }
+        var skinSlotMaterials = GetSkinSlotMaterials(human);
         var equipData = new List<EquipmentModelId>();
         for (var slotIdx = 0; slotIdx <= (int)HumanEquipmentSlotIndex.Extra; slotIdx++)
         {

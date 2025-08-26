@@ -445,12 +445,13 @@ public class ParsedTextureInfo(string path, string pathFromMaterial, TextureReso
     public TextureResource Resource { get; } = resource;
 }
 
-public class ParsedMaterialInfo(string path, string pathFromModel, string shpk, IColorTableSet? colorTable, ParsedTextureInfo[] textures, Stain? stain0, Stain? stain1)
+public class ParsedMaterialInfo(string path, string pathFromModel, string shpk, IColorTableSet? colorTable, ParsedTextureInfo[] textures)
 {
     public HandleString Path { get; } = new() { FullPath = path, GamePath = pathFromModel };
-    public ParsedStain? Stain0 { get; } = stain0;
-    public ParsedStain? Stain1 { get; } = stain1;
     public string Shpk { get; } = shpk;
+    public ParsedStain? Stain0 { get; init; }
+    public ParsedStain? Stain1 { get; init; }
+    public ParsedMaterialInfo? SkinSlotMaterial { get; init; }
     
     [JsonIgnore]
     public IColorTableSet? ColorTable { get; } = colorTable;
