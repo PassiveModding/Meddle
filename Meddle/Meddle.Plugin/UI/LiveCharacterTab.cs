@@ -264,7 +264,7 @@ public unsafe class LiveCharacterTab : ITab
         {
             var exportFlags = UiUtil.ExportConfigDrawFlags.ShowExportPose |
                               UiUtil.ExportConfigDrawFlags.ShowSubmeshOptions;
-            if (characterInfo.Models.Length == 1)
+            if (characterInfo.Models.Count == 1)
             {
                 exportFlags |= UiUtil.ExportConfigDrawFlags.ShowUseDeformer;
             }
@@ -294,7 +294,7 @@ public unsafe class LiveCharacterTab : ITab
                                                     scene.AddNode(characterRoot);
                                                     progress = new ProgressWrapper
                                                     {
-                                                        Progress = new ExportProgress(characterInfo.Models.Length, "Character")
+                                                        Progress = new ExportProgress(characterInfo.Models.Count, "Character")
                                                     };
                                                     composer.Compose(characterInfo, scene, characterRoot, progress.Progress);
                                                     var modelRoot = scene.ToGltf2();

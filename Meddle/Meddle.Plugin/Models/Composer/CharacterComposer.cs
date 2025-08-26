@@ -271,7 +271,7 @@ public class CharacterComposer
         {
             Plugin.Logger.LogWarning("Root attach found");
             // handle root first, then attach this to the root
-            var rootAttachProgress = new ExportProgress(rootAttach.Models.Length, "Root attach");
+            var rootAttachProgress = new ExportProgress(rootAttach.Models.Count, "Root attach");
             rootProgress.Children.Add(rootAttachProgress);
             try
             {
@@ -440,7 +440,7 @@ public class CharacterComposer
             try
             {
                 if (t.Attach.ExecuteType == 0) continue;
-                attachProgress = new ExportProgress(t.Models.Length, "Attach Meshes");
+                attachProgress = new ExportProgress(t.Models.Count, "Attach Meshes");
                 rootProgress.Children.Add(attachProgress);
                 ComposeCharacterInfo(t, (characterInfo, bones, t.Attach), scene, root, attachProgress);
             }

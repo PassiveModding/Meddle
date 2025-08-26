@@ -510,14 +510,14 @@ public struct HandleString
 
 public record ParsedCharacterInfo
 {
-    public List<ParsedMaterialInfo?>? SkinSlotMaterials;
-    public ParsedModelInfo[] Models;
+    public IReadOnlyList<ParsedMaterialInfo?>? SkinSlotMaterials;
+    public IReadOnlyList<ParsedModelInfo> Models;
     public readonly ParsedSkeleton Skeleton;
     public CustomizeData CustomizeData;
     public CustomizeParameter CustomizeParameter;
     public readonly GenderRace GenderRace;
     public readonly ParsedAttach Attach;
-    public ParsedCharacterInfo[] Attaches = [];
+    public IReadOnlyList<ParsedCharacterInfo> Attaches = [];
 
     public ParsedCharacterInfo(
         ParsedModelInfo[] models,
