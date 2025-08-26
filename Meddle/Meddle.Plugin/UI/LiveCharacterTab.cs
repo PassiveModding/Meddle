@@ -10,6 +10,7 @@ using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Common.Math;
 using FFXIVClientStructs.Interop;
 using Dalamud.Bindings.ImGui;
+using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Layout;
@@ -62,9 +63,7 @@ public unsafe class LiveCharacterTab : ITab
     private readonly ITextureProvider textureProvider;
     private Task exportTask = Task.CompletedTask;
     private CancellationTokenSource cancelToken = new();
-    private bool cacheHumanCustomizeData;
 
-    private readonly Dictionary<Pointer<CSHuman>, (CustomizeData, CustomizeParameter)> humanCustomizeData = new();
     private ICharacter? selectedCharacter;
     private ProgressWrapper? progress;
     private bool requestedPopup;
@@ -109,8 +108,16 @@ public unsafe class LiveCharacterTab : ITab
     {
         UiUtil.DrawProgress(exportTask, progress, cancelToken);
         commonUi.DrawCharacterSelect(ref selectedCharacter, ObjectUtil.ValidationFlags.IsVisible);
-        
-        DrawSelectedCharacter();
+        if (selectedCharacter != null)
+        {
+            var charPtr = (CSCharacter*)selectedCharacter.Address;
+            DrawCharacter(charPtr, "Character");
+        }
+        else
+        {
+            ImGui.Text("No character selected");
+        }
+
         fileDialog.Draw();
         if (requestedPopup)
         {
@@ -130,21 +137,8 @@ public unsafe class LiveCharacterTab : ITab
         {
             log.LogDebug("Disposing CharacterTabAlt");
             selectedModels.Clear();
-            humanCustomizeData.Clear();
             IsDisposed = true;
         }
-    }
-    
-    private void DrawSelectedCharacter()
-    {
-        if (selectedCharacter == null)
-        {
-            ImGui.Text("No character selected");
-            return;
-        }
-
-        var charPtr = (CSCharacter*)selectedCharacter.Address;
-        DrawCharacter(charPtr, "Character");
     }
     
     private void DrawCharacter(CSCharacter* character, string name, int depth = 0)
@@ -173,14 +167,14 @@ public unsafe class LiveCharacterTab : ITab
             ImGui.Text("Draw object is not a character base");
             return;
         }
+        
         var cBase = (CSCharacterBase*)drawObject;
         var modelType = cBase->GetModelType();
-        CustomizeData? customizeData;
-        CustomizeParameter? customizeParams;
-        GenderRace genderRace;
+        ResolverService.ParsedHumanInfo? humanData = null;
         if (modelType == CSCharacterBase.ModelType.Human)
         {
-            DrawHumanCharacter((CSHuman*)cBase, out customizeData, out customizeParams, out genderRace);
+            humanData = resolverService.ParseHuman(cBase);
+            DrawHumanCharacter(humanData.Value);
             ExportButton("Export All Models With Attaches", () =>
             {
                 var info = resolverService.ParseCharacter(character);
@@ -189,48 +183,14 @@ public unsafe class LiveCharacterTab : ITab
                     throw new Exception("Failed to get character info from draw object");
                 }
 
-                if (customizeParams != null)
-                {
-                    info.CustomizeParameter = customizeParams;
-                }
-
-                if (customizeData != null)
-                {
-                    info.CustomizeData = customizeData;
-                }
-
                 return info;
             }, character->NameString.GetCharacterName(config, character->ObjectKind));
         }
-        else
-        {
-            customizeData = null;
-            customizeParams = null;
-            genderRace = GenderRace.Unknown;
-        }
         
-        DrawDrawObject(drawObject, character->NameString.GetCharacterName(config, character->ObjectKind), customizeData, customizeParams, genderRace);
+        DrawDrawObject(drawObject, character->NameString.GetCharacterName(config, character->ObjectKind));
 
         try
         {
-            if (character->Mount.MountObject != null)
-            {
-                ImGui.Separator();
-                DrawCharacter(character->Mount.MountObject, "Mount", depth + 1);
-            }
-
-            if (character->CompanionData.CompanionObject != null)
-            {
-                ImGui.Separator();
-                DrawCharacter(&character->CompanionData.CompanionObject->Character, "Companion", depth + 1);
-            }
-
-            if (character->OrnamentData.OrnamentObject != null)
-            {
-                ImGui.Separator();
-                DrawCharacter(&character->OrnamentData.OrnamentObject->Character, "Ornament", depth + 1);
-            }
-
             for (var weaponIdx = 0; weaponIdx < character->DrawData.WeaponData.Length; weaponIdx++)
             {
                 var weaponData = character->DrawData.WeaponData[weaponIdx];
@@ -238,8 +198,26 @@ public unsafe class LiveCharacterTab : ITab
                 {
                     ImGui.Separator();
                     ImGui.Text($"Weapon {weaponIdx}");
-                    DrawDrawObject(weaponData.DrawObject, $"{character->NameString.GetCharacterName(config, character->ObjectKind)}_Weapon", null, null, GenderRace.Unknown);
+                    DrawDrawObject(weaponData.DrawObject, $"{character->NameString.GetCharacterName(config, character->ObjectKind)}_Weapon");
                 }
+            }
+            
+            if (character->Mount.MountObject != null)
+            {
+                ImGui.Separator();
+                DrawCharacter(character->Mount.MountObject, "Mount", depth + 1);
+            }
+
+            // if (character->CompanionData.CompanionObject != null)
+            // {
+            //     ImGui.Separator();
+            //     DrawCharacter(&character->CompanionData.CompanionObject->Character, "Companion", depth + 1);
+            // }
+
+            if (character->OrnamentData.OrnamentObject != null)
+            {
+                ImGui.Separator();
+                DrawCharacter(&character->OrnamentData.OrnamentObject->Character, "Ornament", depth + 1);
             }
         }
         catch (Exception ex)
@@ -342,7 +320,9 @@ public unsafe class LiveCharacterTab : ITab
         }
     }
 
-    private void DrawDrawObject(DrawObject* drawObject, string name, CustomizeData? customizeData, CustomizeParameter? customizeParams, GenderRace genderRace)
+    private void DrawDrawObject(
+        DrawObject* drawObject,
+        string name)
     {
         if (drawObject == null)
         {
@@ -368,16 +348,6 @@ public unsafe class LiveCharacterTab : ITab
                 throw new Exception("Failed to get character info from draw object");
             }
 
-            if (customizeParams != null)
-            {
-                info.CustomizeParameter = customizeParams;
-            }
-
-            if (customizeData != null)
-            {
-                info.CustomizeData = customizeData;
-            }
-
             return info;
         }, name);
 
@@ -392,22 +362,18 @@ public unsafe class LiveCharacterTab : ITab
             var label = $"Export Selected Models ({currentSelectedModels.Length})";
             ExportButton(label, () =>
             {
-                var colorTableTextures = parseService.ParseColorTableTextures(cBase);
-                var models = new List<ParsedModelInfo>();
-                customizeData ??= new CustomizeData();
-                customizeParams ??= new CustomizeParameter();
-                var skeleton = StructExtensions.GetParsedSkeleton(cBase);
-                foreach (var currentSelectedModel in currentSelectedModels)
+                var info = resolverService.ParseDrawObject((DrawObject*)cBase);
+                if (info == null)
                 {
-                    var modelInfo = resolverService.ParseModel(cBase, currentSelectedModel.Value, colorTableTextures);
-                    if (modelInfo != null)
-                    {
-                        models.Add(modelInfo);
-                    }
+                    throw new Exception("Failed to get character info from draw object");
                 }
-
-                var info = new ParsedCharacterInfo(models.ToArray(), skeleton, new ParsedAttach(), customizeData, customizeParams, genderRace);
-                return info;
+                
+                // filter out only selected models
+                return info with
+                {
+                    Models = info.Models.Where(x => currentSelectedModels.Any(m => (nint)m.Value == x.ModelAddress)).ToArray(),
+                    Attaches = []
+                };
             }, name);
         }
 
@@ -423,12 +389,11 @@ public unsafe class LiveCharacterTab : ITab
                 continue;
             }
 
-            DrawModel(cBase, modelPtr.Value, customizeParams, customizeData);
+            DrawModel(cBase, modelPtr.Value);
         }
     }
     
-    private void DrawModel(Pointer<CharacterBase> cPtr, Pointer<CSModel> mPtr, CustomizeParameter? customizeParams,
-                           CustomizeData? customizeData)
+    private void DrawModel(Pointer<CharacterBase> cPtr, Pointer<CSModel> mPtr)
     {
         if (cPtr == null || cPtr.Value == null)
         {
@@ -502,24 +467,7 @@ public unsafe class LiveCharacterTab : ITab
                     throw new Exception("Failed to get character info from draw object");
                 }
                 
-                var colorTableTextures = parseService.ParseColorTableTextures(cBase);
-                if (customizeParams != null)
-                {
-                    info.CustomizeParameter = customizeParams;
-                }
-                
-                if (customizeData != null)
-                {
-                    info.CustomizeData = customizeData;
-                }
-                
-                var modelData = resolverService.ParseModel(cBase, model, colorTableTextures);
-                if (modelData == null)
-                {
-                    throw new Exception($"Failed to get model data for {fileName}");
-                }
-                
-                return new ParsedCharacterInfo([modelData], info.Skeleton, new ParsedAttach(), info.CustomizeData, info.CustomizeParameter, info.GenderRace);
+                return info with { Models = info.Models.Where(x => x.ModelAddress == (nint)model).ToArray(), Attaches = [] };
             }, $"{defaultFileName}");
 
             ImGui.EndPopup();
@@ -577,8 +525,9 @@ public unsafe class LiveCharacterTab : ITab
 
             for (var materialIdx = 0; materialIdx < model->MaterialsSpan.Length; materialIdx++)
             {
-                var materialPtr = model->MaterialsSpan[materialIdx];
-                DrawMaterial(cBase, model, materialPtr.Value, materialIdx);
+                var localMaterialIdx = materialIdx;
+                var materialPtr = model->MaterialsSpan[localMaterialIdx];
+                DrawMaterial( materialPtr.Value, materialIdx, slotIdx => GetColorTableTexture(cBase, slotIdx, localMaterialIdx), GetMaterialName(model, localMaterialIdx));
             }
         }
     }
@@ -715,20 +664,31 @@ public unsafe class LiveCharacterTab : ITab
         }
     }
     
-    private void DrawMaterial(
-        Pointer<CSCharacterBase> cPtr, Pointer<CSModel> mPtr, Pointer<CSMaterial> mtPtr, int materialIdx)
+    private Pointer<Texture> GetColorTableTexture(Pointer<CSCharacterBase> cPtr, int slotIdx, int materialIdx)
     {
         if (cPtr == null || cPtr.Value == null)
         {
-            return;
+            return null;
         }
-
-
+        
+        var colorTableTexturePtr = cPtr.Value->ColorTableTexturesSpan[(slotIdx * CSCharacterBase.MaterialsPerSlot) + materialIdx];
+        return colorTableTexturePtr;
+    }
+    
+    private string? GetMaterialName(Pointer<CSModel> mPtr, int materialIdx)
+    {
         if (mPtr == null || mPtr.Value == null || mPtr.Value->ModelResourceHandle == null)
         {
-            return;
+            return null;
         }
-
+        
+        var model = mPtr.Value;
+        var materialName = model->ModelResourceHandle->GetMaterialFileNameBySlot((uint)materialIdx).ToString();
+        return materialName;
+    }
+    
+    private void DrawMaterial(Pointer<CSMaterial> mtPtr, int materialIdx, Func<int, Pointer<Texture>>? getColorTableTexture, string? materialName)
+    {
         if (mtPtr == null || mtPtr.Value == null || mtPtr.Value->MaterialResourceHandle == null)
         {
             ImGui.TableNextRow();
@@ -737,15 +697,12 @@ public unsafe class LiveCharacterTab : ITab
             return;
         }
 
-
-        var cBase = cPtr.Value;
-        var model = mPtr.Value;
         var material = mtPtr.Value;
 
         using var materialId = ImRaii.PushId($"{(nint)material}");
         var materialFileName = material->MaterialResourceHandle->FileName.ParseString();
-        var materialName = model->ModelResourceHandle->GetMaterialFileNameBySlot((uint)materialIdx).ToString();
-
+        materialName ??= materialFileName;
+        
         // in same row as model export button, draw button for export material
         ImGui.TableNextRow();
         ImGui.TableSetColumnIndex(0);
@@ -835,8 +792,8 @@ public unsafe class LiveCharacterTab : ITab
             UiUtil.Text($"Shader Package: {shpkName}", shpkName);
             ImGui.Text($"Shader Flags: 0x{material->ShaderFlags:X8}");
 
-            var colorTableTexturePtr =
-                cBase->ColorTableTexturesSpan[((int)model->SlotIndex * CSCharacterBase.MaterialsPerSlot) + materialIdx];
+
+            var colorTableTexturePtr = getColorTableTexture?.Invoke(materialIdx);
             if (colorTableTexturePtr != null && colorTableTexturePtr.Value != null &&
                 ImGui.CollapsingHeader("Color Table"))
             {
@@ -850,98 +807,10 @@ public unsafe class LiveCharacterTab : ITab
                 DrawConstantsTable(mtPtr);
             }
 
-            // if (ImGui.CollapsingHeader("Keys"))
-            // {
-            //     DrawKeys(mtPtr);
-            // }
-
             for (var texIdx = 0; texIdx < material->TextureCount; texIdx++)
             {
                 var textureEntry = material->TexturesSpan[texIdx];
                 DrawTexture(material, textureEntry, texIdx);
-            }
-        }
-    }
-
-    [Obsolete("Should not be used until shader package in-memory is updated", true)]
-    private void DrawKeys(CSMaterial* material)
-    {
-        var constants = Names.GetConstants();
-        var shaderPackage = material->MaterialResourceHandle->ShaderPackageResourceHandle->ShaderPackage;
-        var shaderPackageKeys = ShaderPackageKeys.FromShaderPackage(shaderPackage);
-        DrawKeyPairs(shaderPackageKeys->MaterialKeysSpan, shaderPackageKeys->MaterialValuesSpan, "Material (Shpk)");
-        DrawKeyPairs(shaderPackageKeys->MaterialKeysSpan, material->ShaderKeyValuesSpan, "Material (Mtrl)");
-        
-        // DrawKeyPairs(shaderPackageKeys->SceneKeysSpan, shaderPackageKeys->SceneValuesSpan, "Scene");
-        // var unknowns2Span = new Span<ShaderPackage.ConstantSamplerUnknown>(shaderPackage->Unknowns2, shaderPackage->Unk2Count);
-        // DrawConstantSamplerUnknownSpan(shaderPackage->SamplersSpan, "Sampler");
-        // DrawConstantSamplerUnknownSpan(shaderPackage->ConstantsSpan, "Constant");
-        // DrawConstantSamplerUnknownSpan(shaderPackage->UnknownsSpan, "Unknown");
-        // DrawConstantSamplerUnknownSpan(unknowns2Span, "Unknown2");
-        
-        return;
-
-        // void DrawConstantSamplerUnknownSpan(Span<ShaderPackage.ConstantSamplerUnknown> samplers, string type)
-        // {
-        //     using var id = ImRaii.PushId(type);
-        //     ImGui.Text($"{type} Keys");
-        //     using var table = ImRaii.Table($"{type}Keys", 3, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable);
-        //     ImGui.TableSetupColumn("Index", ImGuiTableColumnFlags.WidthFixed, 80);
-        //     ImGui.TableSetupColumn("Key", ImGuiTableColumnFlags.WidthFixed, 200);
-        //     ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
-        //     ImGui.TableHeadersRow();
-        //     
-        //     for (var i = 0; i < samplers.Length; i++)
-        //     {
-        //         var sampler = samplers[i];
-        //         var keyString = $"0x{sampler.Id:X8}";
-        //         var valueString = $"0x{sampler.CRC:X8}";
-        //         
-        //         ImGui.TableNextRow();
-        //         ImGui.TableSetColumnIndex(0);
-        //         ImGui.Text(i.ToString());
-        //         ImGui.TableSetColumnIndex(1);
-        //         ImGui.Text(keyString);
-        //         ImGui.TableSetColumnIndex(2);
-        //         ImGui.Text(valueString);
-        //     }
-        // }
-        
-        
-        void DrawKeyPairs(Span<uint> keys, Span<uint> values, string type)
-        {
-            if (keys.Length != values.Length)
-            {
-                ImGui.Text("Key and value count mismatch");
-                return;
-            }
-            
-            using var id = ImRaii.PushId(type);
-            
-            ImGui.Text($"{type} Keys");
-            
-            using var table = ImRaii.Table($"{type}Keys", 3, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable);
-            ImGui.TableSetupColumn("Index", ImGuiTableColumnFlags.WidthFixed, 80);
-            ImGui.TableSetupColumn("Key", ImGuiTableColumnFlags.WidthFixed, 200);
-            ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
-            
-            ImGui.TableHeadersRow();
-            
-            for (int i = 0; i < keys.Length; i++)
-            {
-                var key = keys[i];
-                var value = values[i];
-                var match = constants.GetValueOrDefault(key);
-                var valueMatch = constants.GetValueOrDefault(value);
-                var keyString = match != null ? $"{match.Value} (0x{key:X8})" : $"0x{key:X8}";
-                var valueString = valueMatch != null ? $"{valueMatch.Value} (0x{value:X8})" : $"0x{value:X8}";
-                ImGui.TableNextRow();
-                ImGui.TableSetColumnIndex(0);
-                ImGui.Text(i.ToString());
-                ImGui.TableSetColumnIndex(1);
-                ImGui.Text(keyString);
-                ImGui.TableSetColumnIndex(2);
-                ImGui.Text(valueString);
             }
         }
     }
@@ -1052,34 +921,11 @@ public unsafe class LiveCharacterTab : ITab
         }
     }
 
-    private void DrawHumanCharacter(
-        CSHuman* cBase, out CustomizeData customizeData, out CustomizeParameter customizeParams,
-        out GenderRace genderRace)
+    private void DrawHumanCharacter(ResolverService.ParsedHumanInfo humanData)
     {
-        if (cacheHumanCustomizeData && humanCustomizeData.TryGetValue(cBase, out var data))
-        {
-            customizeData = data.Item1;
-            customizeParams = data.Item2;
-            genderRace = (GenderRace)cBase->RaceSexId;
-        }
-        else
-        {
-            var humanData = resolverService.ParseHuman((CSCharacterBase*)cBase);
-            customizeData = humanData.customizeData;
-            customizeParams = humanData.customizeParameter;
-            genderRace = humanData.genderRace;
-            humanCustomizeData[cBase] = (humanData.customizeData, humanData.customizeParameter);
-        }
-
         if (ImGui.CollapsingHeader("Customize Options"))
         {
-            if (ImGui.Checkbox("Cache Human Customize Data", ref cacheHumanCustomizeData))
-            {
-                humanCustomizeData.Clear();
-            }
-
             var width = ImGui.GetContentRegionAvail().X;
-            using var disable = ImRaii.Disabled(!cacheHumanCustomizeData);
             using var table = ImRaii.Table("##CustomizeTable", 2, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable);
             ImGui.TableSetupColumn("Params", ImGuiTableColumnFlags.WidthFixed, width * 0.75f);
             ImGui.TableSetupColumn("Data");
@@ -1087,10 +933,10 @@ public unsafe class LiveCharacterTab : ITab
 
             ImGui.TableNextRow();
             ImGui.TableSetColumnIndex(0);
-            UiUtil.DrawCustomizeParams(ref customizeParams);
+            UiUtil.DrawCustomizeParams(humanData.CustomizeParameter);
             ImGui.TableSetColumnIndex(1);
-            UiUtil.DrawCustomizeData(customizeData);
-            ImGui.Text(genderRace.ToString());
+            UiUtil.DrawCustomizeData(humanData.CustomizeData);
+            ImGui.Text(humanData.GenderRace.ToString());
         }
     }
 }

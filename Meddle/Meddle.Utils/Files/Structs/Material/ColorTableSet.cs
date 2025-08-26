@@ -1,8 +1,4 @@
-﻿using System.Numerics;
-using System.Runtime.CompilerServices;
-using SkiaSharp;
-
-namespace Meddle.Utils.Files.Structs.Material;
+﻿namespace Meddle.Utils.Files.Structs.Material;
 
 public interface IColorTableSet;
 

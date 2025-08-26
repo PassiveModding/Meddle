@@ -491,6 +491,7 @@ public class ParsedModelInfo(string path, string pathFromCharacter, DeformerCach
     public DeformerCachedStruct? Deformer { get; } = deformer;
     public Model.ShapeAttributeGroup? ShapeAttributeGroup { get; } = shapeAttributeGroup;
     public ParsedMaterialInfo?[] Materials { get; } = materials;
+    public nint ModelAddress { get; set; }
 }
 
 public interface ICharacterInstance
@@ -507,9 +508,10 @@ public struct HandleString
     public static implicit operator HandleString(string path) => new() { FullPath = path, GamePath = path };
 }
 
-public class ParsedCharacterInfo
+public record ParsedCharacterInfo
 {
-    public readonly ParsedModelInfo[] Models;
+    public List<ParsedMaterialInfo?>? SkinSlotMaterials;
+    public ParsedModelInfo[] Models;
     public readonly ParsedSkeleton Skeleton;
     public CustomizeData CustomizeData;
     public CustomizeParameter CustomizeParameter;
@@ -517,8 +519,16 @@ public class ParsedCharacterInfo
     public readonly ParsedAttach Attach;
     public ParsedCharacterInfo[] Attaches = [];
 
-    public ParsedCharacterInfo(ParsedModelInfo[] models, ParsedSkeleton skeleton, ParsedAttach attach, CustomizeData customizeData, CustomizeParameter customizeParameter, GenderRace genderRace)
+    public ParsedCharacterInfo(
+        ParsedModelInfo[] models,
+        ParsedSkeleton skeleton,
+        ParsedAttach attach,
+        CustomizeData customizeData,
+        CustomizeParameter customizeParameter,
+        GenderRace genderRace,
+        List<ParsedMaterialInfo?>? skinSlotMaterials)
     {
+        SkinSlotMaterials = skinSlotMaterials;
         Models = models;
         Skeleton = skeleton;
         CustomizeData = customizeData;

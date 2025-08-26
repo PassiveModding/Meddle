@@ -6,6 +6,7 @@ using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using FFXIVClientStructs.Interop;
+using Lumina.Excel.Sheets;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Models.Structs;
@@ -207,6 +208,71 @@ public class ResolverService : IService
         var modelInfo = new ParsedModelInfo(path, path, null, null, materials.ToArray(), null, null);
         return modelInfo;
     }
+
+    private unsafe ParsedMaterialInfo? ParseMaterial(Pointer<MaterialResourceHandle> materialPtr, Pointer<Model> modelPtr, int mtrlIdx,
+                                                    Dictionary<int, IColorTableSet> colorTableSets,
+                                                    (Stain Stain, Vector4 Color)? stain0,
+                                                    (Stain Stain, Vector4 Color)? stain1,
+                                                    int? textureCountFromMaterial)
+    {
+        if (materialPtr == null || materialPtr.Value == null)
+        {
+            return null;
+        }
+            
+        var material = materialPtr.Value;
+        var materialPath = material->FileName.ParseString();
+        
+        var model = modelPtr.Value;
+        string? materialPathFromModel;
+        if (model != null)
+        {
+            materialPathFromModel = modelPtr.Value->ModelResourceHandle->GetMaterialFileNameBySlot((uint)mtrlIdx);
+        }
+        else
+        {
+            materialPathFromModel = materialPath;
+        }
+        
+        var shaderName = material->ShpkName;
+
+        IColorTableSet? colorTable = null;
+        if (model != null && colorTableSets.TryGetValue((int)(modelPtr.Value->SlotIndex * CharacterBase.MaterialsPerSlot) + mtrlIdx, out var gpuColorTable))
+        {
+            colorTable = gpuColorTable;
+        }
+        else if (material->ColorTableSpan.Length == 32)
+        {
+            var colorTableRows = material->ColorTableSpan;
+            var colorTableBytes = MemoryMarshal.AsBytes(colorTableRows);
+            var colorTableBuf = new byte[colorTableBytes.Length];
+            colorTableBytes.CopyTo(colorTableBuf);
+            var reader = new SpanBinaryReader(colorTableBuf);
+            colorTable = new ColorTableSet
+            {
+                ColorTable = new ColorTable(ref reader)
+            };
+        }
+
+        var textures = new List<ParsedTextureInfo>();
+        for (var texIdx = 0; texIdx < material->TexturesSpan.Length; texIdx++)
+        {
+            var texturePtr = material->TexturesSpan[texIdx];
+            if (texturePtr.TextureResourceHandle == null) continue;
+
+            var texturePath = texturePtr.TextureResourceHandle->FileName.ParseString();
+            if (texIdx < textureCountFromMaterial || textureCountFromMaterial == null)
+            {
+                var texturePathFromMaterial = material->TexturePath(texIdx);
+                var (resource, _) = DxHelper.ExportTextureResource(texturePtr.TextureResourceHandle->Texture);
+                var textureInfo = new ParsedTextureInfo(texturePath, texturePathFromMaterial, resource);
+                textures.Add(textureInfo);
+            }
+        }
+
+        var materialInfo = new ParsedMaterialInfo(materialPath, materialPathFromModel, shaderName, colorTable, textures.ToArray(), stain0?.Stain, stain1?.Stain);
+        return materialInfo;
+    }
     
     public unsafe ParsedModelInfo? ParseModel(Pointer<CharacterBase> characterBasePtr, Pointer<Model> modelPtr, 
                                               Dictionary<int, IColorTableSet> colorTableSets)
@@ -227,66 +293,23 @@ public class ResolverService : IService
         var materials = new List<ParsedMaterialInfo?>();
         for (var mtrlIdx = 0; mtrlIdx < model->MaterialsSpan.Length; mtrlIdx++)
         {
-            var materialPtr = model->MaterialsSpan[mtrlIdx];
-            if (materialPtr == null || materialPtr.Value == null)
+            var mtrlPtr = model->MaterialsSpan[mtrlIdx];
+            if (mtrlPtr == null || mtrlPtr.Value == null)
             {
                 materials.Add(null);
                 continue;
             }
-            
-            var material = materialPtr.Value;
-            var materialPath = material->MaterialResourceHandle->FileName.ParseString();
-            var materialPathFromModel =
-                model->ModelResourceHandle->GetMaterialFileNameBySlot((uint)mtrlIdx);
-            var shaderName = material->MaterialResourceHandle->ShpkName;
-            IColorTableSet? colorTable = null;
-            if (colorTableSets.TryGetValue((int)(model->SlotIndex * CharacterBase.MaterialsPerSlot) + mtrlIdx,
-                                               out var gpuColorTable))
-            {
-                colorTable = gpuColorTable;
-            }
-            else if (material->MaterialResourceHandle->ColorTableSpan.Length == 32)
-            {
-                var colorTableRows = material->MaterialResourceHandle->ColorTableSpan;
-                var colorTableBytes = MemoryMarshal.AsBytes(colorTableRows);
-                var colorTableBuf = new byte[colorTableBytes.Length];
-                colorTableBytes.CopyTo(colorTableBuf);
-                var reader = new SpanBinaryReader(colorTableBuf);
-                colorTable = new ColorTableSet
-                {
-                    ColorTable = new ColorTable(ref reader)
-                };
-            }
-
-            var textures = new List<ParsedTextureInfo>();
-            for (var texIdx = 0; texIdx < material->MaterialResourceHandle->TexturesSpan.Length; texIdx++)
-            {
-                var texturePtr = material->MaterialResourceHandle->TexturesSpan[texIdx];
-                if (texturePtr.TextureResourceHandle == null) continue;
-
-                var texturePath = texturePtr.TextureResourceHandle->FileName.ParseString();
-                if (texIdx < material->TextureCount)
-                {
-                    var texturePathFromMaterial = material->MaterialResourceHandle->TexturePath(texIdx);
-                    var (resource, _) =
-                        DxHelper.ExportTextureResource(texturePtr.TextureResourceHandle->Texture);
-                    var textureInfo = new ParsedTextureInfo(texturePath, texturePathFromMaterial, resource);
-                    textures.Add(textureInfo);
-                }
-            }
-
-            var materialInfo =
-                new ParsedMaterialInfo(materialPath, materialPathFromModel, shaderName, colorTable, textures.ToArray(),
-                                       stain0?.Stain, stain1?.Stain);
+            var materialInfo = ParseMaterial(mtrlPtr.Value->MaterialResourceHandle, modelPtr, mtrlIdx, colorTableSets, stain0, stain1, mtrlPtr.Value->TextureCount);
             materials.Add(materialInfo);
         }
 
         var deform = pbdHooks.TryGetDeformer((nint)characterBasePtr.Value, model->SlotIndex);
-        var modelInfo =
-            new ParsedModelInfo(modelPath, modelPathFromCharacter, deform, shapeAttributeGroup, materials.ToArray(),
-                                stain0?.Stain, stain1?.Stain);
+        var modelInfo = new ParsedModelInfo(modelPath, modelPathFromCharacter, deform, shapeAttributeGroup, materials.ToArray(), stain0?.Stain, stain1?.Stain)
+        {
+            ModelAddress = (nint)modelPtr.Value
+        };
         
-            return modelInfo;
+        return modelInfo;
     }
     
     public unsafe ParsedCharacterInfo? ParseCharacter(Character* character)
@@ -417,17 +440,32 @@ public class ResolverService : IService
         }
 
         var skeleton = StructExtensions.GetParsedSkeleton(characterBase);
-        var (customizeParams, customizeData, genderRace) = ParseHuman(characterBase);
+        var parsedHumanInfo = ParseHuman(characterBase);
 
-        return new ParsedCharacterInfo(models.ToArray(), skeleton, StructExtensions.GetParsedAttach(characterBase), customizeData, customizeParams, genderRace);
+        return new ParsedCharacterInfo(models.ToArray(), skeleton, StructExtensions.GetParsedAttach(characterBase), 
+                                       parsedHumanInfo.CustomizeData, parsedHumanInfo.CustomizeParameter, parsedHumanInfo.GenderRace, parsedHumanInfo.SkinSlotMaterials);
     }
 
-    public unsafe (Meddle.Utils.Export.CustomizeParameter customizeParameter, CustomizeData customizeData, GenderRace genderRace) ParseHuman(CharacterBase* characterBase)
+    public struct ParsedHumanInfo
+    {
+        public Meddle.Utils.Export.CustomizeParameter CustomizeParameter;
+        public CustomizeData CustomizeData;
+        public GenderRace GenderRace;
+        public List<ParsedMaterialInfo?> SkinSlotMaterials;
+    }
+    
+    public unsafe ParsedHumanInfo ParseHuman(CharacterBase* characterBase)
     {
         var modelType = characterBase->GetModelType();
         if (modelType != CharacterBase.ModelType.Human)
         {
-            return (new Meddle.Utils.Export.CustomizeParameter(), new CustomizeData(), GenderRace.Unknown);
+            return new ParsedHumanInfo
+            {
+                CustomizeParameter = new Meddle.Utils.Export.CustomizeParameter(),
+                CustomizeData = new CustomizeData(),
+                GenderRace = GenderRace.Unknown,
+                SkinSlotMaterials = []
+            };
         }
         
         var human = (Human*)characterBase;
@@ -458,8 +496,26 @@ public class ResolverService : IService
             FacePaintReversed = human->Customize.FacePaintReversed,
         };
         var genderRace = (GenderRace)human->RaceSexId;
+        var skinSlotMaterials = new List<ParsedMaterialInfo?>();
+        for (var mtrlIdx = 0; mtrlIdx < human->SlotSkinMaterials.Length; mtrlIdx++)
+        {
+            var material = human->SlotSkinMaterials[mtrlIdx];
+            if (material == null || material.Value == null)
+            {
+                skinSlotMaterials.Add(null);
+                continue;
+            }
+            var materialInfo = ParseMaterial(material, null, mtrlIdx, new Dictionary<int, IColorTableSet>(), null, null, null);
+            skinSlotMaterials.Add(materialInfo);
+        }
         
-        return (customizeParams, customizeData, genderRace);
+        return new ParsedHumanInfo
+        {
+            CustomizeParameter = customizeParams,
+            CustomizeData = customizeData,
+            GenderRace = genderRace,
+            SkinSlotMaterials = skinSlotMaterials
+        };
     }
 
     private unsafe string? GetTexturePath(Pointer<TextureResourceHandle> ptr)
