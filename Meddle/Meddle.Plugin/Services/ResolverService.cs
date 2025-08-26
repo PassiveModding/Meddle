@@ -402,7 +402,7 @@ public class ResolverService : IService
         {
             return null;
         }
-        if (slotIdx < 0 || slotIdx >= 12)
+        if (slotIdx is < 0 or >= 12)
         {
             return null;
         }
