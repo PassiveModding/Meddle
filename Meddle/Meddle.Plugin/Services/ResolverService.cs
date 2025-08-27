@@ -241,17 +241,25 @@ public class ResolverService : IService
         {
             colorTable = gpuColorTable;
         }
-        else if (material->ColorTableSpan.Length == 32)
+        else if (material->HasColorTable)
         {
-            var colorTableRows = material->ColorTableSpan;
-            var colorTableBytes = MemoryMarshal.AsBytes(colorTableRows);
-            var colorTableBuf = new byte[colorTableBytes.Length];
-            colorTableBytes.CopyTo(colorTableBuf);
-            var reader = new SpanBinaryReader(colorTableBuf);
-            colorTable = new ColorTableSet
+            var colorTableSpan = material->ColorTableSpan;
+            if (colorTableSpan.Length == ColorTable.Size)
             {
-                ColorTable = new ColorTable(ref reader)
-            };
+                var reader = new SpanBinaryReader(MemoryMarshal.AsBytes(colorTableSpan));
+                colorTable = new ColorTableSet
+                {
+                    ColorTable = new ColorTable(ref reader)
+                };
+            }
+            else if (colorTableSpan.Length == LegacyColorTable.Size)
+            {
+                var reader = new SpanBinaryReader(MemoryMarshal.AsBytes(colorTableSpan));
+                colorTable = new LegacyColorTableSet
+                {
+                    ColorTable = new LegacyColorTable(ref reader)
+                };
+            }
         }
 
         var textures = new List<ParsedTextureInfo>();
