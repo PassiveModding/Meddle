@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Dalamud.Bindings.ImGui;
+using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
 using Lumina.Excel.Sheets;
@@ -15,6 +16,7 @@ using Meddle.Utils.Constants;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.Structs.Material;
+using CustomizeData = Meddle.Utils.Export.CustomizeData;
 using CustomizeParameter = Meddle.Utils.Export.CustomizeParameter;
 
 namespace Meddle.Plugin.Models.Layout;
@@ -443,12 +445,13 @@ public class ParsedTextureInfo(string path, string pathFromMaterial, TextureReso
     public TextureResource Resource { get; } = resource;
 }
 
-public class ParsedMaterialInfo(string path, string pathFromModel, string shpk, IColorTableSet? colorTable, ParsedTextureInfo[] textures, Stain? stain0, Stain? stain1)
+public class ParsedMaterialInfo(string path, string pathFromModel, string shpk, IColorTableSet? colorTable, ParsedTextureInfo[] textures)
 {
     public HandleString Path { get; } = new() { FullPath = path, GamePath = pathFromModel };
-    public ParsedStain? Stain0 { get; } = stain0;
-    public ParsedStain? Stain1 { get; } = stain1;
     public string Shpk { get; } = shpk;
+    public ParsedStain? Stain0 { get; init; }
+    public ParsedStain? Stain1 { get; init; }
+    public ParsedMaterialInfo? SkinSlotMaterial { get; init; }
     
     [JsonIgnore]
     public IColorTableSet? ColorTable { get; } = colorTable;
@@ -491,6 +494,7 @@ public class ParsedModelInfo(string path, string pathFromCharacter, DeformerCach
     public DeformerCachedStruct? Deformer { get; } = deformer;
     public Model.ShapeAttributeGroup? ShapeAttributeGroup { get; } = shapeAttributeGroup;
     public ParsedMaterialInfo?[] Materials { get; } = materials;
+    public nint ModelAddress { get; set; }
 }
 
 public interface ICharacterInstance
@@ -507,24 +511,29 @@ public struct HandleString
     public static implicit operator HandleString(string path) => new() { FullPath = path, GamePath = path };
 }
 
-public class ParsedCharacterInfo
+public record ParsedCharacterInfo
 {
-    public readonly ParsedModelInfo[] Models;
+    public IReadOnlyList<ParsedModelInfo> Models;
     public readonly ParsedSkeleton Skeleton;
-    public CustomizeData CustomizeData;
-    public CustomizeParameter CustomizeParameter;
-    public readonly GenderRace GenderRace;
     public readonly ParsedAttach Attach;
-    public ParsedCharacterInfo[] Attaches = [];
+    private readonly ResolverService.ParsedHumanInfo humanInfo;
+    public IReadOnlyList<ParsedCharacterInfo> Attaches = [];
+    public CustomizeData CustomizeData => humanInfo.CustomizeData;
+    public CustomizeParameter CustomizeParameter => humanInfo.CustomizeParameter;   
+    public IReadOnlyList<ParsedMaterialInfo?> SkinSlotMaterials => humanInfo.SkinSlotMaterials;
+    public IReadOnlyList<EquipmentModelId> EquipmentModelIds => humanInfo.EquipmentModelIds;
+    public GenderRace GenderRace => humanInfo.GenderRace;
 
-    public ParsedCharacterInfo(ParsedModelInfo[] models, ParsedSkeleton skeleton, ParsedAttach attach, CustomizeData customizeData, CustomizeParameter customizeParameter, GenderRace genderRace)
+    public ParsedCharacterInfo(
+        ParsedModelInfo[] models,
+        ParsedSkeleton skeleton,
+        ParsedAttach attach,
+        ResolverService.ParsedHumanInfo humanInfo)
     {
         Models = models;
         Skeleton = skeleton;
-        CustomizeData = customizeData;
-        CustomizeParameter = customizeParameter;
-        GenderRace = genderRace;
         Attach = attach;
+        this.humanInfo = humanInfo;
     }
 }
 

@@ -39,3 +39,47 @@ public enum CacheFileType
     [Description(".pbd")]
     Pbd = 16
 }
+
+public enum HumanModelSlotIndex
+{
+    Head = 0,
+    Top = 1,
+    Arms = 2,
+    Legs = 3,
+    Feet = 4,
+    Ear = 5,
+    Neck = 6,
+    Wrist = 7,
+    RFinger = 8,
+    LFinger = 9,
+    Hair = 10,
+    Face = 11,
+    TailEars = 12,
+    Glasses = 16,
+    Extra = 17,
+}
+
+public enum HumanEquipmentSlotIndex
+{
+    Head = 0,
+    Body = 1,
+    Hands = 2,
+    Legs = 3,
+    Feet = 4,
+    Ears = 5,
+    Neck = 6,
+    Wrists = 7,
+    RFinger = 8,
+    LFinger = 9,
+    Glasses = 10,
+    Extra = 11,
+}
+
+public enum HumanSkinSlotIndex
+{
+    Head = 0,
+    Body = 1,
+    Hands = 2,
+    Legs = 3,
+    Feet = 4,
+}

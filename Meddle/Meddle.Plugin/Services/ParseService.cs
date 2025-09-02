@@ -29,22 +29,12 @@ public class ParseService : IDisposable, IService
     public ParseService(ILogger<ParseService> logger)
     {
         this.logger = new EventLogger<ParseService>(logger);
-        this.logger.OnLogEvent += OnLog;
     }
 
     public void Dispose()
     {
         logger.LogDebug("Disposing ParseUtil");
-        logger.OnLogEvent -= OnLog;
     }
-
-    public event Action<LogLevel, string>? OnLogEvent;
-
-    private void OnLog(LogLevel logLevel, string message)
-    {
-        OnLogEvent?.Invoke(logLevel, message);
-    }
-    
     public unsafe Dictionary<int, IColorTableSet> ParseColorTableTextures(CharacterBase* characterBase)
     {
         var colorTableTextures = new Dictionary<int, IColorTableSet>();

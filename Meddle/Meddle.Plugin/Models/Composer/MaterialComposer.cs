@@ -18,7 +18,7 @@ public class MaterialComposer
 {
     private readonly MtrlFile mtrlFile;
     private readonly Dictionary<uint, float[]> mtrlConstants = new();
-    private readonly Dictionary<ShaderCategory, uint> shaderKeyDict = new();
+    public readonly IReadOnlyDictionary<ShaderCategory, uint> ShaderKeyDict;
     private readonly Dictionary<string, object> additionalProperties = new();
     public JsonNode ExtrasNode => JsonNode.Parse(JsonSerializer.Serialize(additionalProperties, JsonOptions))!;
     public readonly Dictionary<string, HandleString> TextureUsageDict = new();
@@ -77,6 +77,8 @@ public class MaterialComposer
     public MaterialComposer(MtrlFile mtrlFile, string mtrlPath, ShaderPackage shaderPackage)
     {
         this.mtrlFile = mtrlFile;
+        var shaderKeys = new Dictionary<ShaderCategory, uint>();
+        this.ShaderKeyDict = shaderKeys;
         SetShaderKeys();
         SetConstants();
         SetSamplers();
@@ -87,7 +89,7 @@ public class MaterialComposer
         SetProperty("IsTransparent", IsTransparent);
         
         var constants = Names.GetConstants();
-        foreach (var key in shaderKeyDict)
+        foreach (var key in shaderKeys)
         {
             var category = (uint)key.Key;
             var value = key.Value;
@@ -123,12 +125,12 @@ public class MaterialComposer
         {
             foreach (var (key, value) in shaderPackage.DefaultKeyValues)
             {
-                shaderKeyDict[(ShaderCategory)key] = value;
+                shaderKeys[(ShaderCategory)key] = value;
             }
 
             foreach (var key in mtrlFile.ShaderKeys)
             {
-                shaderKeyDict[(ShaderCategory)key.Category] = key.Value;
+                shaderKeys[(ShaderCategory)key.Category] = key.Value;
             }
         }
         

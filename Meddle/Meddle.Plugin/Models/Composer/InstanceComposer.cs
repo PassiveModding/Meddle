@@ -308,7 +308,7 @@ public class InstanceComposer
         var characterComposer = new CharacterComposer(composerCache, exportConfig, cancellationToken);
         var root = new NodeBuilder($"{instance.Type}_{instance.Name}_{instance.Id}");
         
-        var characterProgress = new ExportProgress(instance.CharacterInfo.Models.Length, "Character Meshes");
+        var characterProgress = new ExportProgress(instance.CharacterInfo.Models.Count, "Character Meshes");
         rootProgress.Children.Add(characterProgress);
         
         try

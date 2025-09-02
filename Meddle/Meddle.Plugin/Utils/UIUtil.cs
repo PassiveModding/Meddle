@@ -236,43 +236,28 @@ public static class UiUtil
         }
     }
 
-    public static void DrawCustomizeParams(ref CustomizeParameter customize)
+    public static void DrawCustomizeParams(CustomizeParameter customize)
     {
-        ImGui.ColorEdit3("Skin Color", ref customize.SkinColor);
-        ImGui.ColorEdit4("Lip Color", ref customize.LipColor);
-        ImGui.ColorEdit3("Main Color", ref customize.MainColor);
-        ImGui.ColorEdit3("Mesh Color", ref customize.MeshColor);
-        ImGui.ColorEdit4("Left Color", ref customize.LeftColor);
-        ImGui.ColorEdit4("Right Color", ref customize.RightColor);
-        // ImGui.SameLine();
-        // using (ImRaii.PushFont(UiBuilder.IconFont))
-        // {
-        //     ImGui.Text(FontAwesomeIcon.QuestionCircle.ToIconString());
-        // }
-        // if (ImGui.IsItemHovered())
-        // {
-        //     ImGui.BeginTooltip();
-        //     ImGui.Text("Right Eye Color will not apply to baked textures as it is " +
-        //                "selected using the vertex shaders");
-        //     ImGui.EndTooltip();
-        // }
-        //ImGui.ColorEdit3("Hair Fresnel Value", ref customize.HairFresnelValue0);
-        //ImGui.DragFloat("Muscle Tone", ref customize.MuscleTone, 0.01f, 0f, 1f);
-        //ImGui.ColorEdit4("Skin Fresnel Value", ref customize.SkinFresnelValue0);
-        
-        ImGui.ColorEdit3("Option Color", ref customize.OptionColor);
-        ImGui.ColorEdit4("DecalColor", ref customize.DecalColor);
-        ImGui.DragFloat("Face Paint UV Offset", ref customize.FacePaintUvOffset, 0.01f, -100f, 100f);
-        ImGui.DragFloat("Face Paint UV Multiplier", ref customize.FacePaintUvMultiplier, 0.01f, -100f, 100f);
+        ImGui.ColorEdit3("Skin Color", ref customize.SkinColor, ImGuiColorEditFlags.NoInputs);
+        ImGui.ColorEdit4("Lip Color", ref customize.LipColor, ImGuiColorEditFlags.NoInputs);
+        ImGui.ColorEdit3("Main Color", ref customize.MainColor, ImGuiColorEditFlags.NoInputs);
+        ImGui.ColorEdit3("Mesh Color", ref customize.MeshColor, ImGuiColorEditFlags.NoInputs);
+        ImGui.ColorEdit4("Left Color", ref customize.LeftColor, ImGuiColorEditFlags.NoInputs);
+        ImGui.ColorEdit4("Right Color", ref customize.RightColor, ImGuiColorEditFlags.NoInputs);
+        ImGui.ColorEdit3("Option Color", ref customize.OptionColor, ImGuiColorEditFlags.NoInputs);
+        ImGui.ColorEdit4("DecalColor", ref customize.DecalColor, ImGuiColorEditFlags.NoInputs);
+        using var width = ImRaii.ItemWidth(100);
+        ImGui.InputFloat("Face Paint UV Offset", ref customize.FacePaintUvOffset, flags: ImGuiInputTextFlags.ReadOnly);
+        ImGui.InputFloat("Face Paint UV Multiplier", ref customize.FacePaintUvMultiplier, flags: ImGuiInputTextFlags.ReadOnly);
     }
-
+    
     public static void DrawCustomizeData(CustomizeData customize)
     {
-        ImGui.Checkbox("Lipstick", ref customize.LipStick);
-        ImGui.Checkbox("Highlights", ref customize.Highlights);
+        ImGui.Text($"Lipstick: {customize.LipStick}");
+        ImGui.Text($"Highlights: {customize.Highlights}");
+        ImGui.Text($"FacePaintReversed: {customize.FacePaintReversed}");
         UiUtil.Text($"Decal Path: {customize.DecalPath ?? "None"}", customize.DecalPath);
         UiUtil.Text($"Legacy Body Decal Path: {customize.LegacyBodyDecalPath ?? "None"}", customize.LegacyBodyDecalPath);
-        ImGui.Text($"FacePaintReversed: {customize.FacePaintReversed}");
     }
 
     public static void DrawColorTable(IColorTableSet table)

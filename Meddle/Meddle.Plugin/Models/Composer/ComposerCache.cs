@@ -2,6 +2,7 @@
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
+using Meddle.Utils.Constants;
 using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
@@ -227,6 +228,11 @@ public class ComposerCache
         return pngCachePath;
     }
 
+    private static readonly IReadOnlyList<string> SkinSlotShaders =
+    [
+        "characterstockings.shpk"
+    ];
+    
     public MaterialBuilder ComposeMaterial(string mtrlPath, 
                                            ParsedMaterialInfo? materialInfo = null,
                                            IStainableInstance? stainInstance = null, 
@@ -252,6 +258,40 @@ public class ComposerCache
 
         if (materialInfo != null)
         {
+            // kinda janky, but we set skin data first so that the keys are still available to be overridden by the main material info.
+            if (materialInfo.SkinSlotMaterial != null && SkinSlotShaders.Contains(materialInfo.Shpk))
+            {
+                var skinMtrlFile = GetMtrlFile(materialInfo.SkinSlotMaterial.Path.FullPath, out var skinMtrlCachePath);
+                if (skinMtrlCachePath != null)
+                {
+                    material.SetProperty("SkinMtrlCachePath", Path.GetRelativePath(cacheDir, skinMtrlCachePath));
+                }
+                var skinShaderPackage = GetShaderPackage(skinMtrlFile.GetShaderPackageName());
+                var skinMaterial = new MaterialComposer(skinMtrlFile, materialInfo.SkinSlotMaterial.Path.FullPath, skinShaderPackage);
+                var constants = Names.GetConstants();
+                foreach (var (key, value) in skinMaterial.ShaderKeyDict)
+                {
+                    var category = (uint)key;
+                    var keyMatch = constants.GetValueOrDefault(category);
+                    var valMatch = constants.GetValueOrDefault(value);
+                    material.SetProperty(keyMatch != null ? keyMatch.Value : $"0x{category:X8}", valMatch != null ? valMatch.Value : $"0x{value:X8}");
+                }
+                foreach (var texture in skinMaterial.TextureUsageDict)
+                {
+                    var fullPath = texture.Value.FullPath;
+                    var match = materialInfo.Textures.FirstOrDefault(x => x.Path.GamePath == texture.Value.GamePath);
+                    if (match != null)
+                    {
+                        fullPath = match.Path.FullPath;
+                    }
+
+                    var cachePath = CacheTexture(fullPath);
+                    var keyUsage = $"{texture.Key}".Replace("g_Sampler", "g_SamplerSkin");
+                    material.SetProperty($"{keyUsage}", texture.Value.GamePath);
+                    material.SetProperty($"{keyUsage}_PngCachePath", Path.GetRelativePath(cacheDir, cachePath));
+                }
+            }
+            
             material.SetPropertiesFromMaterialInfo(materialInfo);
             if (materialInfo.ColorTable != null)
             {
@@ -295,7 +335,7 @@ public class ComposerCache
                 return colorTablePath;
             }
         }
-
+        
         string materialName;
         if (materialInfo != null)
         {
@@ -311,15 +351,12 @@ public class ComposerCache
         {
             // ensure texture gets saved to cache dir.
             var fullPath = texture.Value.FullPath;
-            if (materialInfo != null)
+            var match = materialInfo?.Textures.FirstOrDefault(x => x.Path.GamePath == texture.Value.GamePath);
+            if (match != null)
             {
-                var match = materialInfo.Textures.FirstOrDefault(x => x.Path.GamePath == texture.Value.GamePath);
-                if (match != null)
-                {
-                    fullPath = match.Path.FullPath;
-                }
+                fullPath = match.Path.FullPath;
             }
-            
+
             var cachePath = CacheTexture(fullPath);
             
             // remove full path prefix, get only dir below cache dir.
