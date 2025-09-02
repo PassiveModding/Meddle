@@ -274,11 +274,11 @@ public static class ImageUtils
     {
         var meta = new TexMeta
         {
-            Height = resource.Height,
-            Width = resource.Width,
+            Height = (int)resource.Height,
+            Width = (int)resource.Width,
             Depth = 1, // 3D textures would have other values, but we're only handling kernelTexture->D3D11Texture2D
-            MipLevels = resource.MipLevels,
-            ArraySize = resource.ArraySize,
+            MipLevels = (int)resource.MipLevels,
+            ArraySize = (int)resource.ArraySize,
             Format = resource.Format,
             Dimension = resource.Dimension,
             MiscFlags = resource.MiscFlags.HasFlag(D3DResourceMiscFlags.TextureCube) ? D3DResourceMiscFlags.TextureCube : 0,
