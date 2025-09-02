@@ -62,10 +62,6 @@ public class AnimationTab : ITab
     
     public void Draw()
     {
-        // Warning text:
-        ImGui.TextWrapped(
-            "NOTE: Animation exports are experimental, held weapons, mounts and other attached objects may not work as expected.");
-
         commonUi.DrawMultiCharacterSelect(ref selectedCharacters);
         
         if (ImGui.InputInt("Interval (ms)", ref intervalMs, 10, 100))
