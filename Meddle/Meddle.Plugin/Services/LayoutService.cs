@@ -454,7 +454,9 @@ public class LayoutService : IService, IDisposable
         var gameObjectManager = sigUtil.GetGameObjectManager();
 
         var objects = new Dictionary<nint, ParsedInstance>();
+        var children = new Dictionary<nint, ParsedInstance>();
         var mounts = new Dictionary<nint, ParsedCharacterInstance>();
+        var ornaments = new Dictionary<nint, ParsedCharacterInstance>();
         for (var idx = 0; idx < gameObjectManager->Objects.GameObjectIdSorted.Length; idx++)
         {
             var objectPtr = gameObjectManager->Objects.GameObjectIdSorted[idx];
@@ -475,11 +477,19 @@ public class LayoutService : IService, IDisposable
 
             var anyVisible = drawObject->IsVisible;
 
-            void AddObject(ParsedCharacterInstance instance)
+            void AddObject(ParsedCharacterInstance instance, bool isChild = false)
             {
-                if (instance.Kind == ObjectKind.Mount)
+                if (isChild)
+                {
+                    children.TryAdd(instance.Id, instance);
+                }
+                else if (instance.Kind == ObjectKind.Mount)
                 {
                     mounts.TryAdd(instance.Id, instance);
+                }
+                else if (instance.Kind == ObjectKind.Ornament)
+                {
+                    ornaments.TryAdd(instance.Id, instance);
                 }
                 else
                 {
@@ -512,7 +522,7 @@ public class LayoutService : IService, IDisposable
                             {
                                 Parent = instance
                             };
-                            AddObject(cInstance);
+                            AddObject(cInstance, true);
                             return; // skip parsing if visible as item should be covered under attaches to parent
                         }
                     }
@@ -532,7 +542,7 @@ public class LayoutService : IService, IDisposable
         }
 
         // Setup mount parenting
-        var characterAttachedMounts = new Dictionary<nint, ParsedCharacterInstance>();
+        var parentedInstances = new Dictionary<nint, ParsedCharacterInstance>();
         foreach (var characterInstance in objects.Values.OfType<ParsedCharacterInstance>().Where(x => x.IdType == ParsedCharacterInstance.ParsedCharacterInstanceIdType.GameObject))
         {
             var gameObjectPtr = (GameObject*)characterInstance.Id;
@@ -543,20 +553,34 @@ public class LayoutService : IService, IDisposable
                 var characterPtr = (Character*)gameObjectPtr;
                 if (characterPtr->Mount.MountObject != null)
                 {
-                    characterAttachedMounts[(nint)characterPtr->Mount.MountObject] = characterInstance;
-                    characterAttachedMounts[(nint)characterPtr->Mount.MountObject->DrawObject] = characterInstance;
+                    parentedInstances[(nint)characterPtr->Mount.MountObject] = characterInstance;
+                    parentedInstances[(nint)characterPtr->Mount.MountObject->DrawObject] = characterInstance;
+                }
+                if (characterPtr->OrnamentData.OrnamentObject != null)
+                {
+                    parentedInstances[(nint)characterPtr->OrnamentData.OrnamentObject] = characterInstance;
+                    parentedInstances[(nint)characterPtr->OrnamentData.OrnamentObject->DrawObject] = characterInstance;
                 }
             }
         }
             
         foreach (var mount in mounts)
         {
-            if (characterAttachedMounts.TryGetValue(mount.Key, out var characterInstance))
+            if (parentedInstances.TryGetValue(mount.Key, out var characterInstance))
             {
                 mount.Value.Parent = characterInstance;
             }
             
             objects.TryAdd(mount.Key, mount.Value);
+        }
+        
+        foreach (var ornament in ornaments)
+        {
+            if (parentedInstances.TryGetValue(ornament.Key, out var characterInstance))
+            {
+                ornament.Value.Parent = characterInstance;
+            }
+            objects.TryAdd(ornament.Key, ornament.Value);
         }
 
         return objects.Values.ToArray();
