@@ -497,88 +497,90 @@ public class InstanceComposer
 
         var sceneCache = sceneMeshCache.GetValueOrDefault(scene, []);
         sceneMeshCache[scene] = sceneCache;
-        if (bgPartsInstance.ModelPtr != null)
+        IMeshBuilder<MaterialBuilder>[]? meshes = null;
+        if (bgPartsInstance.ModelPtr != null && meshBuilderCache.TryGetValue(bgPartsInstance.ModelPtr.Value, out meshes))
         {
-            if (meshBuilderCache.TryGetValue(bgPartsInstance.ModelPtr.Value, out var cachedBuilder))
+            Plugin.Logger.LogDebug("Using cached meshes for BgParts instance {InstanceId}", bgPartsInstance.Id);
+        }
+
+        if (meshes == null)
+        {
+            var mdlData = pack.GetFileOrReadFromDisk(bgPartsInstance.Path.FullPath);
+            if (mdlData == null)
             {
-                var cachedRoot = new NodeBuilder($"{bgPartsInstance.Type}_{bgPartsInstance.Path.GamePath}");
-                foreach (var mesh in cachedBuilder)
+                Plugin.Logger.LogWarning("Failed to load model file: {Path}", bgPartsInstance.Path.FullPath);
+                return null;
+            }
+
+            var mdlFile = new MdlFile(mdlData);
+            var bgChangeMaterial = bgPartsInstance.BgChangeMaterial;
+            var fileMaterials = mdlFile.GetMaterialNames().Select(x => x.Value).ToArray();
+
+            var materialBuilders = new List<MaterialBuilder>();
+            for (var i = 0; i < fileMaterials.Length; i++)
+            {
+                string mtrlPath = fileMaterials[i];
+                if (bgChangeMaterial != null && bgChangeMaterial.Value.BGChangeMaterialIndex == i)
                 {
-                    scene.AddRigidMesh(mesh, cachedRoot);
+                    mtrlPath = bgChangeMaterial.Value.MaterialPath;
                 }
-                cachedRoot.SetLocalTransform(bgPartsInstance.Transform.AffineTransform, true);
-                cachedRoot.Extras = JsonNode.Parse(JsonSerializer.Serialize(new
+
+                if (!bgPartMaterialCache.TryGetValue(mtrlPath, out var bgPartMtrlCache))
                 {
-                    ModelPath = bgPartsInstance.Path.GamePath,
-                    ModelName = Path.GetFileNameWithoutExtension(bgPartsInstance.Path.FullPath),
-                    ModelType = bgPartsInstance.Type,
-                    IsVisible = bgPartsInstance.IsVisible,
-                }, MaterialComposer.JsonOptions));
-                sceneCache.UnionWith(cachedBuilder);
-                return cachedRoot;
-            }
-        }
-        
-        var mdlData = pack.GetFileOrReadFromDisk(bgPartsInstance.Path.FullPath);
-        if (mdlData == null)
-        {
-            Plugin.Logger.LogWarning("Failed to load model file: {Path}", bgPartsInstance.Path.FullPath);
-            return null;
-        }
+                    bgPartMtrlCache = new Dictionary<int, MaterialBuilder>();
+                    bgPartMaterialCache[mtrlPath] = bgPartMtrlCache;
+                }
 
-        var mdlFile = new MdlFile(mdlData);
-        var bgChangeMaterial = bgPartsInstance.BgChangeMaterial;
-        var fileMaterials = mdlFile.GetMaterialNames().Select(x => x.Value).ToArray();
-
-        var materialBuilders = new List<MaterialBuilder>();
-        for (var i = 0; i < fileMaterials.Length; i++)
-        {
-            string mtrlPath = fileMaterials[i];
-            if (bgChangeMaterial != null && bgChangeMaterial.Value.BGChangeMaterialIndex == i)
-            {
-                mtrlPath = bgChangeMaterial.Value.MaterialPath;
+                if (bgPartMtrlCache.TryGetValue((int?)bgPartsInstance.Stain?.RowId ?? -1, out var cachedBuilder))
+                {
+                    materialBuilders.Add(cachedBuilder);
+                }
+                else
+                {
+                    var output = composerCache.ComposeMaterial(mtrlPath, stainInstance: bgPartsInstance);
+                    materialBuilders.Add(output);
+                }
             }
 
-            if (!bgPartMaterialCache.TryGetValue(mtrlPath, out var bgPartMtrlCache))
-            {
-                bgPartMtrlCache = new Dictionary<int, MaterialBuilder>();
-                bgPartMaterialCache[mtrlPath] = bgPartMtrlCache;
-            }
-            
-            if (bgPartMtrlCache.TryGetValue((int?)bgPartsInstance.Stain?.RowId ?? -1, out var cachedBuilder))
-            {
-                materialBuilders.Add(cachedBuilder);
-            }
-            else
-            {
-                var output = composerCache.ComposeMaterial(mtrlPath, stainInstance: bgPartsInstance);
-                materialBuilders.Add(output);
-            }
+            var model = new Model(bgPartsInstance.Path.GamePath, mdlFile, null);
+            var meshExports = ModelBuilder.BuildMeshes(model, materialBuilders, [], null);
+            meshes = meshExports.Select(x => x.Mesh).ToArray();
         }
+        
+        var root = new NodeBuilder($"{bgPartsInstance.Type}_{bgPartsInstance.Path.GamePath}")
+        {
+            Extras = JsonNode.Parse(JsonSerializer.Serialize(new
+            {
+                ModelPath = bgPartsInstance.Path.GamePath,
+                ModelName = Path.GetFileNameWithoutExtension(bgPartsInstance.Path.FullPath),
+                ModelType = bgPartsInstance.Type,
+                IsVisible = bgPartsInstance.IsVisible,
+            }, MaterialComposer.JsonOptions))
+        };
+        if (meshes.Length == 1)
+        {
+            var mesh = meshes[0];
+            scene.AddRigidMesh(mesh, root);
+            sceneCache.Add(mesh);
+        }
+        else
+        {
+            foreach (var mesh in meshes)
+            {
+                var meshNode = new NodeBuilder(mesh.Name);
+                scene.AddRigidMesh(mesh, meshNode);
+                root.AddNode(meshNode);
+                sceneCache.Add(mesh);
+            }
 
-        var model = new Model(bgPartsInstance.Path.GamePath, mdlFile, null);
-        var meshes = ModelBuilder.BuildMeshes(model, materialBuilders, [], null);
-        
-        var root = new NodeBuilder($"{bgPartsInstance.Type}_{bgPartsInstance.Path.GamePath}");
-        foreach (var mesh in meshes)
-        {
-            scene.AddRigidMesh(mesh.Mesh, root);
-            sceneCache.Add(mesh.Mesh);
+            scene.AddNode(root);
         }
         
-        root.Extras = JsonNode.Parse(JsonSerializer.Serialize(new
-        {
-            ModelPath = bgPartsInstance.Path.GamePath,
-            ModelName = Path.GetFileNameWithoutExtension(bgPartsInstance.Path.FullPath),
-            ModelType = bgPartsInstance.Type,
-            IsVisible = bgPartsInstance.IsVisible,
-        }, MaterialComposer.JsonOptions));
-        
-        root.SetLocalTransform(bgPartsInstance.Transform.AffineTransform, true);
         if (bgPartsInstance.ModelPtr != null)
         {
-            meshBuilderCache[bgPartsInstance.ModelPtr.Value] = meshes.Select(x => x.Mesh).ToArray();
+            meshBuilderCache[bgPartsInstance.ModelPtr.Value] = meshes;
         }
+        root.SetLocalTransform(bgPartsInstance.Transform.AffineTransform, false);
         return root;
     }
     
