@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging;
 using SharpGLTF.Geometry;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
+using SharpGLTF.Schema2;
 
 namespace Meddle.Plugin.Models.Composer;
 
@@ -190,21 +191,33 @@ public class InstanceComposer
                         TryLogInstanceComposeError(namedGroup[j], ex);
                     }
                 }
-                
-                if (stats.Instances > 100 || scene.Instances.Count > 100)
-                {
-                    Plugin.Logger.LogDebug("Saving scene {key} {startIdx:D4}-{endIdx:D4} Instances: {instances} Nodes: {nodes}", 
-                                           group.Key, lastSceneIdx, i, stats.Instances, scene.Instances.Count);
-                    SaveScene(scene, $"{group.Key}_{lastSceneIdx:D4}-{i:D4}");
-                    scenes[scene].Saved = true;
-                    lastSceneIdx = i;
 
-                    scene = new SceneBuilder();
-                    scenes.Add(scene, new SceneStats());
+                if (sceneMeshCache.TryGetValue(scene, out var sceneMeshes))
+                {
+                    if (sceneMeshes.Count > 300)
+                    {
+                        SaveSceneGroup(i, ref scene, ref lastSceneIdx, stats, scenes);
+                    }
+                }
+                else if (scene.Instances.Count > 100)
+                {
+                    SaveSceneGroup(i, ref scene, ref lastSceneIdx, stats, scenes);
                 }
             }
             
             SaveRemainingScenes(group.Key, lastSceneIdx, namedInstanceGroupings.Count, scenes);
+        }
+
+        void SaveSceneGroup(int i, ref SceneBuilder scene, ref int lastSceneIdx, SceneStats stats, Dictionary<SceneBuilder, SceneStats> scenes)
+        {
+            Plugin.Logger.LogDebug("Saving scene {key} {startIdx:D4}-{endIdx:D4} Instances: {instances} Nodes: {nodes}", 
+                                   group.Key, lastSceneIdx, i, stats.Instances, scene.Instances.Count);
+            SaveScene(scene, $"{group.Key}_{lastSceneIdx:D4}-{i:D4}");
+            scenes[scene].Saved = true;
+            lastSceneIdx = i;
+
+            scene = new SceneBuilder();
+            scenes.Add(scene, new SceneStats());
         }
     }
     
@@ -251,14 +264,29 @@ public class InstanceComposer
             .ThenBy(x => x.Key)
             .ToArray();
         
-        // foreach (var group in instanceGroups)
-        // {
-        //     ComposeInstanceGroup(group, progress);
-        // }
         wrapper.Progress = new ExportProgress(instances.Length, "Composing Instances");
-        Parallel.ForEach(instanceGroups, group =>
+        // Parallel.ForEach(instanceGroups, group =>
+        // {
+        //     if (cancellationToken.IsCancellationRequested) return;
+        //     Plugin.Logger.LogInformation("Composing instances of type {InstanceType} ({InstanceCount})", group.Key, group.Count());
+        //     var groupProgress = new ExportProgress(group.Count(), $"Composing {group.Key}")
+        //     {
+        //         Parent = wrapper.Progress
+        //     };
+        //     wrapper.Progress.Children.Add(groupProgress);
+        //     try
+        //     {
+        //         ComposeInstanceGroup(group, groupProgress);
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         Plugin.Logger.LogError(ex, "Failed to compose instance group {InstanceType}\n{Message}", group.Key, ex.Message);
+        //     }
+        //     groupProgress.IsComplete = true;
+        // });
+        foreach (var group in instanceGroups)
         {
-            if (cancellationToken.IsCancellationRequested) return;
+            if (cancellationToken.IsCancellationRequested) break;
             Plugin.Logger.LogInformation("Composing instances of type {InstanceType} ({InstanceCount})", group.Key, group.Count());
             var groupProgress = new ExportProgress(group.Count(), $"Composing {group.Key}")
             {
@@ -274,11 +302,12 @@ public class InstanceComposer
                 Plugin.Logger.LogError(ex, "Failed to compose instance group {InstanceType}\n{Message}", group.Key, ex.Message);
             }
             groupProgress.IsComplete = true;
-        });
+        }
         
         Plugin.Logger.LogInformation("Finished composing instances");
     }
 
+    private readonly Dictionary<SceneBuilder, HashSet<IMeshBuilder<MaterialBuilder>>> sceneMeshCache = new();
     public NodeBuilder? ComposeInstance(ParsedInstance parsedInstance, SceneBuilder scene, ExportProgress rootProgress)
     {
         if (cancellationToken.IsCancellationRequested) return null;
@@ -466,6 +495,8 @@ public class InstanceComposer
             return null;
         }
 
+        var sceneCache = sceneMeshCache.GetValueOrDefault(scene, []);
+        sceneMeshCache[scene] = sceneCache;
         if (bgPartsInstance.ModelPtr != null)
         {
             if (meshBuilderCache.TryGetValue(bgPartsInstance.ModelPtr.Value, out var cachedBuilder))
@@ -483,6 +514,7 @@ public class InstanceComposer
                     ModelType = bgPartsInstance.Type,
                     IsVisible = bgPartsInstance.IsVisible,
                 }, MaterialComposer.JsonOptions));
+                sceneCache.UnionWith(cachedBuilder);
                 return cachedRoot;
             }
         }
@@ -531,6 +563,7 @@ public class InstanceComposer
         foreach (var mesh in meshes)
         {
             scene.AddRigidMesh(mesh.Mesh, root);
+            sceneCache.Add(mesh.Mesh);
         }
         
         root.Extras = JsonNode.Parse(JsonSerializer.Serialize(new
