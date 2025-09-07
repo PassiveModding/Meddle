@@ -352,25 +352,41 @@ public class LayoutService : IService, IDisposable
         var plotMatch = context.Housing.Plots.FirstOrDefault(plot => plot.LayoutInstance == sharedGroupPtr);
         if (plotMatch is not null)
         {
-            foreach (var child in children)
+            var childrenArray = children.ToArray();
+            for (var i = 0; i < childrenArray.Length; i++)
             {
+                var child = childrenArray[i];
                 var fixtureMatch = plotMatch.Fixtures.FirstOrDefault(f => f.LayoutInstance == (SharedGroupLayoutInstance*)child.Id);
-                if (fixtureMatch is not null && fixtureMatch.StainId != 0 && child is ParsedSharedInstance sgbInstance)
+                if (fixtureMatch is null || child is not ParsedSharedInstance sgbInstance) continue;
+                // replace with housing furniture instance
+                var housing = new ParsedHousingInstance(sgbInstance.Id, sgbInstance.Transform, sgbInstance.Path.GamePath,
+                                                        fixtureMatch.FixtureName ?? sgbInstance.Path.GamePath,
+                                                        ObjectKind.HousingEventObject, // faking this
+                                                        fixtureMatch.Stain,
+                                                        fixtureMatch.DefaultStain,
+                                                        sgbInstance.Children.ToArray());
+                foreach (var grandChild in housing.Flatten())
                 {
-                    var stain = stainHooks.GetStain(fixtureMatch.StainId);
-                    var flattened = sgbInstance.Flatten();
-                    foreach (var fChild in flattened)
+                    if (grandChild is ParsedBgPartsInstance parsedBgPartsInstance)
                     {
-                        if (fChild is ParsedBgPartsInstance bgPartsInstance)
+                        if (fixtureMatch.Stain == null || fixtureMatch.Stain.Value.RowId == 0)
                         {
-                            if (stain != null)
+                            if (fixtureMatch.DefaultStain.RowId != 0)
                             {
-                                bgPartsInstance.Stain = stain.Value;
+                                parsedBgPartsInstance.Stain = fixtureMatch.DefaultStain;
                             }
+                        }
+                        else
+                        {
+                            parsedBgPartsInstance.Stain = fixtureMatch.Stain;
                         }
                     }
                 }
+                    
+                childrenArray[i] = housing;
             }
+            
+            children = childrenArray.ToList();
         }
 
         var primaryPath = sharedGroup->GetPrimaryPath();
@@ -636,6 +652,15 @@ public class LayoutService : IService, IDisposable
             _ => null
         };
 
+        bool IsSgbHandleValid(SharedGroupResourceHandle* handle)
+        {
+            if (handle == null || handle->ResourceHandle == null)
+                return false;
+            if (handle->ResourceHandle->LoadState < 7 || handle->SceneChunk == null || handle->SceneChunk->SgbData == null)
+                return false;
+            return true;
+        }
+        
         var plots = new List<Plot>();
         if (type == HousingTerritoryType.Outdoor && activeLayout != null && activeLayout->OutdoorAreaData != null)
         {
@@ -648,15 +673,47 @@ public class LayoutService : IService, IDisposable
                 foreach (var fixtureData in plot.Fixture)
                 {
                     OutdoorPlotFixtureData meddleFixture = *(OutdoorPlotFixtureData*)&fixtureData;
-                    if (meddleFixture.UnkGroup == null)
+                    if (meddleFixture.UnkGroup == null || meddleFixture.UnkGroup->FixtureLayoutInstance == null)
                         continue;
+                    
+                    
+                    var layoutInstance = meddleFixture.UnkGroup->FixtureLayoutInstance;
+                    var instanceHandle = (SharedGroupResourceHandle*)layoutInstance->ResourceHandle;
+                    if (!IsSgbHandleValid(instanceHandle))
+                        continue;
+                    
+
+                    Pointer<HousingSettings> housingSettings = instanceHandle->SceneChunk->GetHousingSettings();
+                    if (housingSettings == null)
+                    {
+                        logger.LogWarning("HousingSettings is null");
+                        continue;
+                    }
+                    
+                    var defaultStain = stainHooks.GetStain(housingSettings.Value->DefaultColorId);
+                    if (defaultStain == null)
+                    {
+                        logger.LogWarning("Default stain is null for fixture {FixtureId}", meddleFixture.FixtureId);
+                        continue;
+                    }
+
+                    string? fixtureName = null;
+                    if (meddleFixture.FixtureId != 0 && stainHooks.HousingDict.TryGetValue(meddleFixture.FixtureId, out var itemId) && stainHooks.ItemDict.TryGetValue(itemId, out var item))
+                    {
+                        fixtureName = item.Name.ToString();
+                    }
+                    
                     fixtures.Add(new Fixture
                     {
+                        FixtureName = fixtureName,
                         FixtureId = meddleFixture.FixtureId,
-                        StainId = meddleFixture.StainId,
+                        Stain =  stainHooks.GetStain(meddleFixture.StainId),
+                        DefaultStain = defaultStain.Value,
                         LayoutInstance = meddleFixture.UnkGroup->FixtureLayoutInstance
                     });
                 }
+
+                
                 plots.Add(new Plot
                 {
                     LayoutInstance = meddlePlot.PlotLayoutInstance,
@@ -695,15 +752,9 @@ public class LayoutService : IService, IDisposable
             var housingObjectPtr = (HousingObject*)objectPtr.Value;
             var layoutInstance = housingObjectPtr->SharedGroupLayoutInstance;
             var instanceHandle = (SharedGroupResourceHandle*)layoutInstance->ResourceHandle;
-            if (instanceHandle == null || instanceHandle->ResourceHandle == null)
+            if (!IsSgbHandleValid(instanceHandle))
             {
-                logger.LogWarning("InstanceHandle is null");
                 continue;
-            }
-
-            if (instanceHandle->ResourceHandle->LoadState < 7 || instanceHandle->SceneChunk == null || instanceHandle->SceneChunk->SgbData == null)
-            {
-                continue; // not loaded
             }
 
             Pointer<HousingSettings> housingSettings = instanceHandle->SceneChunk->GetHousingSettings();
@@ -757,12 +808,15 @@ public class LayoutService : IService, IDisposable
         public SharedGroupLayoutInstance* LayoutInstance;
         public int PlotId;
         public Fixture[] Fixtures = [];
+        public Stain DefaultStain;
     }
 
     public unsafe class Fixture
     {
         public ulong FixtureId;
-        public byte StainId;
+        public string? FixtureName;
+        public Stain? Stain;
+        public Stain DefaultStain;
         public SharedGroupLayoutInstance* LayoutInstance;
     }
 
