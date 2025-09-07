@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Numerics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -498,7 +499,7 @@ public class InstanceComposer
         var sceneCache = sceneMeshCache.GetValueOrDefault(scene, []);
         sceneMeshCache[scene] = sceneCache;
         IMeshBuilder<MaterialBuilder>[]? meshes = null;
-        if (bgPartsInstance.ModelPtr != null && meshBuilderCache.TryGetValue(bgPartsInstance.ModelPtr.Value, out meshes))
+        if (bgPartsInstance is {ModelPtr: not null, Stain: null, BgChangeMaterial: null} && meshBuilderCache.TryGetValue(bgPartsInstance.ModelPtr.Value, out meshes))
         {
             Plugin.Logger.LogDebug("Using cached meshes for BgParts instance {InstanceId}", bgPartsInstance.Id);
         }
@@ -576,7 +577,7 @@ public class InstanceComposer
             scene.AddNode(root);
         }
         
-        if (bgPartsInstance.ModelPtr != null)
+        if (bgPartsInstance is {ModelPtr: not null, Stain: null, BgChangeMaterial: null})
         {
             meshBuilderCache[bgPartsInstance.ModelPtr.Value] = meshes;
         }
