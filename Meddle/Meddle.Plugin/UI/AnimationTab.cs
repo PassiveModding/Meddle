@@ -184,6 +184,10 @@ public class AnimationTab : ITab
 
         var characters = commonUi.GetCharacters()
                                  .Where(x => selectedCharacters.Any(s => s.Address == x.Address)).ToArray();
+        if (characters.Length == 0)
+        {
+            return;
+        }
         var attachCollection = new List<AttachSet>();
         foreach (var character in characters)
         {
