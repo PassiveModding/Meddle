@@ -409,8 +409,12 @@ public class LayoutService : IService, IDisposable
         {
             bgChangeMaterial = (bgChangeHandle.Value.MaterialIndex, bgChangeHandle.Value.ResourceHandle.Value->FileName.ParseString());
         }
-        
-        return new ParsedBgPartsInstance((nint)bgPartPtr.Value, bgPart->GraphicsObject->IsVisible, new Transform(*bgPart->GetTransformImpl()), path, bgChangeMaterial);
+
+        var modelPtr = (nint)graphics->ModelResourceHandle;
+        return new ParsedBgPartsInstance((nint)bgPartPtr.Value, bgPart->GraphicsObject->IsVisible, new Transform(*bgPart->GetTransformImpl()), path, bgChangeMaterial)
+        {
+            ModelPtr = modelPtr
+        };
     }
 
     private unsafe bool IsObjectPlaceHolder(DrawObject* obj)

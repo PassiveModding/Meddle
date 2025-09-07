@@ -280,6 +280,7 @@ public class ParsedBgPartsInstance : ParsedInstance, IPathInstance, IStainableIn
     }
 
     public ParsedStain? Stain { get; set; }
+    public nint? ModelPtr { get; set; }
 
     public bool Search(string query)
     {
