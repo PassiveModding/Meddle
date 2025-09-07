@@ -20,6 +20,8 @@ using BgObject = Meddle.Plugin.Models.Structs.BgObject;
 using Camera = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Camera;
 using HousingFurniture = FFXIVClientStructs.FFXIV.Client.Game.HousingFurniture;
 using Object = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Object;
+using OutdoorPlotFixtureData = Meddle.Plugin.Models.Structs.Outdoor.OutdoorPlotFixtureData;
+using OutdoorPlotLayoutData = Meddle.Plugin.Models.Structs.Outdoor.OutdoorPlotLayoutData;
 using SharedGroupResourceHandle = Meddle.Plugin.Models.Structs.SharedGroupResourceHandle;
 using Terrain = Meddle.Plugin.Models.Structs.Terrain;
 using Transform = Meddle.Plugin.Models.Transform;
@@ -81,14 +83,12 @@ public class LayoutService : IService, IDisposable
         instances.AddRange(objects);
         instances.AddRange(cameras);
         
-        var housingItems = ParseTerritoryFurniture();
-        var parseCtx = new ParseContext(housingItems);
         
         var loadedLayouts = layoutWorld->LoadedLayouts.ToArray();
         var loadedLayers = loadedLayouts
-                           .Select(layout => ParseLayout(layout.Value, parseCtx))
+                           .Select(layout => ParseLayout(layout.Value))
                            .SelectMany(x => x).ToArray();
-        var globalLayers = ParseLayout(layoutWorld->GlobalLayout, parseCtx);
+        var globalLayers = ParseLayout(layoutWorld->GlobalLayout);
 
         instances.AddRange(loadedLayers.SelectMany(x => x.Instances));
         instances.AddRange(globalLayers.SelectMany(x => x.Instances));
@@ -128,10 +128,14 @@ public class LayoutService : IService, IDisposable
         return housingManager->CurrentTerritory;
     }
 
-    private unsafe ParsedInstanceSet[] ParseLayout(LayoutManager* activeLayout, ParseContext context)
+    private unsafe ParsedInstanceSet[] ParseLayout(LayoutManager* activeLayout)
     {
         if (activeLayout == null) return [];
         var layers = new List<ParsedInstanceSet>();
+        
+        var housingItems = ParseTerritoryFurniture(activeLayout);
+        var context = new ParseContext(housingItems);
+        
         foreach (var (_, layerPtr) in activeLayout->Layers)
         {
             var layer = ParseLayer(layerPtr, context);
@@ -344,12 +348,35 @@ public class LayoutService : IService, IDisposable
 
         if (children.Count == 0)
             return null;
-
+        
+        var plotMatch = context.Housing.Plots.FirstOrDefault(plot => plot.LayoutInstance == sharedGroupPtr);
+        if (plotMatch is not null)
+        {
+            foreach (var child in children)
+            {
+                var fixtureMatch = plotMatch.Fixtures.FirstOrDefault(f => f.LayoutInstance == (SharedGroupLayoutInstance*)child.Id);
+                if (fixtureMatch is not null && fixtureMatch.StainId != 0 && child is ParsedSharedInstance sgbInstance)
+                {
+                    var stain = stainHooks.GetStain(fixtureMatch.StainId);
+                    var flattened = sgbInstance.Flatten();
+                    foreach (var fChild in flattened)
+                    {
+                        if (fChild is ParsedBgPartsInstance bgPartsInstance)
+                        {
+                            if (stain != null)
+                            {
+                                bgPartsInstance.Stain = stain.Value;
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         var primaryPath = sharedGroup->GetPrimaryPath();
         string path = primaryPath.HasValue ? primaryPath : throw new Exception("SharedGroup has no primary path");
 
-        var furnitureMatch = context.HousingItems.FirstOrDefault(item => item.LayoutInstance == sharedGroupPtr);
+        var furnitureMatch = context.Housing.Furniture.FirstOrDefault(item => item.LayoutInstance == sharedGroupPtr);
         if (furnitureMatch is not null)
         {
             var housing = new ParsedHousingInstance((nint)sharedGroup, new Transform(*sharedGroup->GetTransformImpl()), path,
@@ -378,7 +405,7 @@ public class LayoutService : IService, IDisposable
             
             return housing;
         }
-
+        
         return new ParsedSharedInstance((nint)sharedGroup, new Transform(*sharedGroup->GetTransformImpl()), path, children);
     }
 
@@ -589,12 +616,12 @@ public class LayoutService : IService, IDisposable
 
         return objects.Values.ToArray();
     }
-
-    private unsafe Furniture[] ParseTerritoryFurniture()
+    
+    private unsafe HousingTerritoryData ParseTerritoryFurniture(LayoutManager* activeLayout)
     {
         var territory = GetCurrentTerritory();
         if (territory == null || territory->IsLoaded() == false)
-            return [];
+            return HousingTerritoryData.Empty;
         var type = territory->GetTerritoryType();
         var furniture = type switch
         {
@@ -609,9 +636,45 @@ public class LayoutService : IService, IDisposable
             _ => null
         };
 
+        var plots = new List<Plot>();
+        if (type == HousingTerritoryType.Outdoor && activeLayout != null && activeLayout->OutdoorAreaData != null)
+        {
+            var outdoorData = activeLayout->OutdoorAreaData;
+            for (var i = 0; i < outdoorData->Plots.Length; i++) // outdoor
+            {
+                var plot = outdoorData->Plots[i];
+                OutdoorPlotLayoutData meddlePlot = *(OutdoorPlotLayoutData*)&plot; 
+                var fixtures = new List<Fixture>();
+                foreach (var fixtureData in plot.Fixture)
+                {
+                    OutdoorPlotFixtureData meddleFixture = *(OutdoorPlotFixtureData*)&fixtureData;
+                    if (meddleFixture.UnkGroup == null)
+                        continue;
+                    fixtures.Add(new Fixture
+                    {
+                        FixtureId = meddleFixture.FixtureId,
+                        StainId = meddleFixture.StainId,
+                        LayoutInstance = meddleFixture.UnkGroup->FixtureLayoutInstance
+                    });
+                }
+                plots.Add(new Plot
+                {
+                    LayoutInstance = meddlePlot.PlotLayoutInstance,
+                    PlotId = i,
+                    Fixtures = fixtures.ToArray()
+                });
+            }
+        }
+        
         if (furniture.Length == 0 || objectManager == null)
-            return [];
-
+        {
+            return new HousingTerritoryData
+            {
+                Furniture = [],
+                Plots = plots.ToArray()
+            };
+        }
+        
         var items = new List<Furniture>();
         foreach (var item in furniture)
         {
@@ -660,17 +723,47 @@ public class LayoutService : IService, IDisposable
             });
         }
 
-        return items.ToArray();
+        return new HousingTerritoryData
+        {
+            Furniture = items.ToArray(),
+            Plots = plots.ToArray()
+        };
     }
 
     public class ParseContext
     {
-        public readonly Furniture[] HousingItems;
+        public readonly HousingTerritoryData Housing;
 
-        public ParseContext(Furniture[] housingItems)
+        public ParseContext(HousingTerritoryData housing)
         {
-            HousingItems = housingItems;
+            Housing = housing;
         }
+    }
+    
+    public record HousingTerritoryData
+    {
+        public Furniture[] Furniture = [];
+        public Plot[] Plots = [];
+        
+        public static HousingTerritoryData Empty => new HousingTerritoryData
+        {
+            Furniture = [],
+            Plots = []
+        };
+    }
+    
+    public unsafe class Plot
+    {
+        public SharedGroupLayoutInstance* LayoutInstance;
+        public int PlotId;
+        public Fixture[] Fixtures = [];
+    }
+
+    public unsafe class Fixture
+    {
+        public ulong FixtureId;
+        public byte StainId;
+        public SharedGroupLayoutInstance* LayoutInstance;
     }
 
     public unsafe class Furniture
