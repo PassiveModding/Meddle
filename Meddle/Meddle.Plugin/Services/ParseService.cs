@@ -67,7 +67,7 @@ public class ParseService : IDisposable, IService
         if (colorTableTexture->ActualWidth == 4 && colorTableTexture->ActualHeight == 16)
         {
             // legacy table
-            var stridedData = ImageUtils.AdjustStride(stride, (int)colorTableTexture->ActualWidth * 8,
+            var stridedData = ImageUtils.AdjustStride((int)stride, (int)colorTableTexture->ActualWidth * 8,
                                                       (int)colorTableTexture->ActualHeight, colorTableRes.Data);
             var reader = new SpanBinaryReader(stridedData);
             return new LegacyColorTableSet
@@ -79,7 +79,7 @@ public class ParseService : IDisposable, IService
         if (colorTableTexture->ActualWidth == 8 && colorTableTexture->ActualHeight == 32)
         {
             // new table
-            var stridedData = ImageUtils.AdjustStride(stride, (int)colorTableTexture->ActualWidth * 8,
+            var stridedData = ImageUtils.AdjustStride((int)stride, (int)colorTableTexture->ActualWidth * 8,
                                                       (int)colorTableTexture->ActualHeight, colorTableRes.Data);
             var reader = new SpanBinaryReader(stridedData);
             return new ColorTableSet

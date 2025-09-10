@@ -1,15 +1,22 @@
 name: Test Release
 
-# Add a concurrency group incase a tag is created, deleted, and then recreated while a release is in progress.
+# Add a concurrency group incase a release is triggered multiple times
 concurrency:
     group: ${{ github.workflow }}-${{ github.ref }}
     cancel-in-progress: true
 
-# Only run this workflow when a tag is pushed when the tag starts with "v".
+# Manual trigger with inputs for version and optional dalamud branch
 on:
-    push:
-        tags:
-            - "testing_v*"
+    workflow_dispatch:
+        inputs:
+            version:
+                description: 'Version to release (e.g., 1.0.0)'
+                required: true
+                type: string
+            dalamud_branch:
+                description: 'Dalamud branch/path (optional, leave empty for latest)'
+                required: false
+                type: string
         
 # So we can use the GitHub API to create releases with the run token.
 permissions:
@@ -17,7 +24,6 @@ permissions:
 
 jobs:
     TestRelease:
-        if: github.event.pull_request.draft == false # Ignore draft PRs
         runs-on: ubuntu-latest
         defaults:
             run:
@@ -26,6 +32,8 @@ jobs:
         env:
             DALAMUD_HOME: /tmp/dalamud
             IsCI: true
+            VERSION: ${{ github.event.inputs.version }}
+            DOWNLOAD_PATH: ${{ github.event.inputs.dalamud_branch }}
         steps:
             - name: Checkout Repository
               uses: actions/checkout@v4
@@ -37,27 +45,11 @@ jobs:
               with:
                   dotnet-version: 9.0.x
 
-            - name: Extract version and custom path
+            - name: Display build information
               run: |
-                  tag=${{ github.ref_name }}
-                  
-                  # Check if tag matches the custom branch pattern (testing_v{version}_{custom_path})
-                  if [[ $tag =~ ^testing_v(.+)_(.+)$ ]]; then
-                      version="${BASH_REMATCH[1]}"
-                      download_path="${BASH_REMATCH[2]}"
-                  # Check if tag matches the default pattern (testing_v{version})
-                  elif [[ $tag =~ ^testing_v(.+)$ ]]; then
-                      version="${BASH_REMATCH[1]}"
-                      download_path=""
-                  else
-                      echo "Tag format not recognized"
-                      exit 1
-                  fi
-                  
-                  echo "VERSION=$version" >> $GITHUB_ENV
-                  echo "DOWNLOAD_PATH=$download_path" >> $GITHUB_ENV
-                  echo "Download Path: $download_path"
-                  echo "Version: $version"
+                  echo "Building version: ${{ env.VERSION }}"
+                  echo "Dalamud branch/path: ${{ env.DOWNLOAD_PATH }}"
+                  echo "Building on branch: ${{ github.ref_name }}"
 
             - name: Download Dalamud Library
               run: |
@@ -89,6 +81,8 @@ jobs:
             - name: Create GitHub Release
               uses: softprops/action-gh-release@v1
               with:
+                  tag_name: testing_v${{ env.VERSION }}${{ env.DOWNLOAD_PATH && format('_{0}', env.DOWNLOAD_PATH) || '' }}
+                  name: Test Release v${{ env.VERSION }}${{ env.DOWNLOAD_PATH && format(' ({0})', env.DOWNLOAD_PATH) || '' }}
                   files: |
                       Meddle/Meddle.Plugin/bin/Release/Meddle.Plugin/latest.zip
                       Meddle/Meddle.Plugin/bin/Release/Meddle.Plugin/checksums.sha512
@@ -106,16 +100,29 @@ jobs:
                       Meddle/Meddle.Plugin/bin/Release/Meddle.Plugin/latest.zip
                       Meddle/Meddle.Plugin/bin/Release/Meddle.Plugin/checksums.sha512
 
-            - name: Update repo.json
+            - name: Checkout main branch to update repo.json
+              uses: actions/checkout@v4
+              with:
+                  ref: main
+                  path: main-branch
+                  token: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Update repo.json on main branch
               run: |
-                  cd ../../
+                  cd ../../main-branch
                   
                   repo_url="$(echo "${{ github.server_url }}/${{ github.repository }}" | sed 's/#/\\#/g')"
                   echo "Repo URL: $repo_url"
                   
+                  # Create tag name with optional dalamud branch suffix
+                  tag_name="testing_v${{ env.VERSION }}"
+                  if [ ! -z "${{ env.DOWNLOAD_PATH }}" ]; then
+                      tag_name="${tag_name}_${{ env.DOWNLOAD_PATH }}"
+                  fi
+                  
                   # Update the JSON file using jq
                   jq --arg version "${{ env.VERSION }}" \
-                  --arg repo_url "$repo_url/releases/download/${{ github.ref_name }}/latest.zip" \
+                  --arg repo_url "$repo_url/releases/download/$tag_name/latest.zip" \
                   '.[0].TestingAssemblyVersion = $version |
                   .[0].DownloadLinkTesting = $repo_url' \
                   repo.json > tmp.json && mv tmp.json repo.json
@@ -125,6 +132,12 @@ jobs:
                   git add repo.json                                  
                   git config --local user.name "github-actions [bot]"
                   git config --local user.email "github-actions@users.noreply.github.com"
-                  git commit -m "Update repo.json for ${{ github.ref_name }}"
                   
-                  git push origin HEAD:main
+                  # Create commit message with optional dalamud branch info
+                  commit_msg="Update repo.json for testing release v${{ env.VERSION }}"
+                  if [ ! -z "${{ env.DOWNLOAD_PATH }}" ]; then
+                      commit_msg="${commit_msg} (${{ env.DOWNLOAD_PATH }})"
+                  fi
+                  
+                  git commit -m "$commit_msg"
+                  git push origin main

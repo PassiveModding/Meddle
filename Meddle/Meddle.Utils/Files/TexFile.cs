@@ -252,12 +252,12 @@ public class TexFile
         
         public const int OffsetToSurfaceLength = 13;
 
-        public int CalculatedArraySize => CalculateArraySize();
-        public int CalculatedMips => CountMips();
+        public ushort CalculatedArraySize => CalculateArraySize();
+        public ushort CalculatedMips => CountMips();
 
-        private int CalculateArraySize()
+        private ushort CalculateArraySize()
         {
-            int arrSize;
+            ushort arrSize;
             if (Type.HasFlag(Attribute.TextureTypeCube)) arrSize = 6;
             else if (ArraySize == 0) arrSize = 1;
             else arrSize = ArraySize;
@@ -265,9 +265,9 @@ public class TexFile
             return arrSize;
         }
 
-        private int CountMips()
+        private ushort CountMips()
         {
-            var actualMips = 0;
+            ushort actualMips = 0;
             for (var i = 0; i < MipLevels && i < OffsetToSurfaceLength; i++)
             {
                 if (OffsetToSurface[i] > 0)

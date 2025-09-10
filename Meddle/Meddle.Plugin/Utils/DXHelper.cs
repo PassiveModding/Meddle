@@ -14,7 +14,7 @@ public static unsafe class DxHelper
     public static readonly Result WasStillDrawing = new(0x887A000A);
 
 
-    public static (TextureResource Resource, int RowPitch) ExportTextureResource(Texture* kernelTexture)
+    public static (TextureResource Resource, uint RowPitch) ExportTextureResource(Texture* kernelTexture)
     {
         if (kernelTexture->D3D11Texture2D == null)
             throw new ArgumentException("Texture's DX data is null");
@@ -59,7 +59,7 @@ public static unsafe class DxHelper
         return r.Device.CreateBuffer(desc);
     }*/
 
-    private static (TextureResource Resource, int RowPitch) GetData(ID3D11Texture2D1 r, MappedSubresource map)
+    private static (TextureResource Resource, uint RowPitch) GetData(ID3D11Texture2D1 r, MappedSubresource map)
     {
         var desc = r.Description1;
         if (desc.Format is Format.BC1_UNorm or Format.BC2_UNorm or Format.BC3_UNorm or Format.BC4_UNorm
