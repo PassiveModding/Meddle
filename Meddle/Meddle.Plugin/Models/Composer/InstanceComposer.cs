@@ -1,5 +1,4 @@
 ﻿using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Numerics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -16,7 +15,6 @@ using Microsoft.Extensions.Logging;
 using SharpGLTF.Geometry;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
-using SharpGLTF.Schema2;
 
 namespace Meddle.Plugin.Models.Composer;
 
@@ -28,11 +26,11 @@ public class ExportProgress
         Name = name;
     }
 
-    private int _progress;
-    public int Progress { get { return _progress; } }
+    private int progress;
+    public int Progress { get { return progress; } }
     public void IncrementProgress(int amount = 1)
     {
-        Interlocked.Add(ref _progress, amount);
+        Interlocked.Add(ref progress, amount);
         Parent?.IncrementProgress(amount);
     }
     public int Total;
@@ -354,7 +352,7 @@ public class InstanceComposer
         
         return null;
     }
-    private NodeBuilder? ComposeDecalInstance(ParsedWorldDecalInstance parsedWorldDecalInstance, SceneBuilder scene)
+    private NodeBuilder ComposeDecalInstance(ParsedWorldDecalInstance parsedWorldDecalInstance, SceneBuilder scene)
     {
         var root = new NodeBuilder($"{parsedWorldDecalInstance.Type}_{parsedWorldDecalInstance.Id}");
         var cachedDiffuse = Path.GetRelativePath(cacheDir, composerCache.CacheTexture(parsedWorldDecalInstance.Diffuse.FullPath));
@@ -674,7 +672,7 @@ public class InstanceComposer
         return root;
     }
 
-    public NodeBuilder? ComposeEnvLight(ParsedEnvLightInstance instance, SceneBuilder sceneBuilder)
+    public NodeBuilder ComposeEnvLight(ParsedEnvLightInstance instance, SceneBuilder sceneBuilder)
     {
         var root = new NodeBuilder($"{instance.Type}_{instance.Id}");
         var lt = instance.Lighting;

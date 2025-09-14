@@ -1,7 +1,6 @@
 ﻿using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.ImGuiNotification;
-using Dalamud.Plugin.Services;
 using Meddle.Plugin.Models;
 using SharpGLTF.Schema2;
 using SharpGLTF.Validation;
@@ -44,7 +43,7 @@ public static class ExportUtil
         
         var activeNotification = Plugin.NotificationManager.AddNotification(notification);
 
-        activeNotification.DrawActions += args => DrawOpenFolderButton();
+        activeNotification.DrawActions += _ => DrawOpenFolderButton();
         
         if (config.OpenFolderOnExport)
         {

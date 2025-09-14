@@ -236,8 +236,13 @@ public static class UiUtil
         }
     }
 
-    public static void DrawCustomizeParams(CustomizeParameter customize)
+    public static void DrawCustomizeParams(CustomizeParameter? customize)
     {
+        if (customize == null)
+        {
+            ImGui.Text("No CustomizeParameter");
+            return;
+        }
         ImGui.ColorEdit3("Skin Color", ref customize.SkinColor, ImGuiColorEditFlags.NoInputs);
         ImGui.ColorEdit4("Lip Color", ref customize.LipColor, ImGuiColorEditFlags.NoInputs);
         ImGui.ColorEdit3("Main Color", ref customize.MainColor, ImGuiColorEditFlags.NoInputs);
@@ -251,8 +256,13 @@ public static class UiUtil
         ImGui.InputFloat("Face Paint UV Multiplier", ref customize.FacePaintUvMultiplier, flags: ImGuiInputTextFlags.ReadOnly);
     }
     
-    public static void DrawCustomizeData(CustomizeData customize)
+    public static void DrawCustomizeData(CustomizeData? customize)
     {
+        if (customize == null)
+        {
+            ImGui.Text("No CustomizeData");
+            return;
+        }
         ImGui.Text($"Lipstick: {customize.LipStick}");
         ImGui.Text($"Highlights: {customize.Highlights}");
         ImGui.Text($"FacePaintReversed: {customize.FacePaintReversed}");

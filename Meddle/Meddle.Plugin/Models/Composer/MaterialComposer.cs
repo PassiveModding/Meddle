@@ -29,26 +29,32 @@ public class MaterialComposer
     {
         var customizeData = characterInfo.CustomizeData;
         var customizeParameter = characterInfo.CustomizeParameter;
-        
-        SetProperty("Highlights", customizeData.Highlights);
-        SetProperty("LipStick", customizeData.LipStick);
-        SetProperty("FacePaintReversed", customizeData.FacePaintReversed);
-        SetProperty("LegacyBodyDecalPath", customizeData.LegacyBodyDecalPath ?? "");
-        SetProperty("DecalPath", customizeData.DecalPath ?? "");
-        SetProperty("CustomizeData", JsonNode.Parse(JsonSerializer.Serialize(customizeData, JsonOptions))!);
-        
-        SetProperty("LeftIrisColor", customizeParameter.LeftColor.AsFloatArray());
-        SetProperty("RightIrisColor", customizeParameter.RightColor.AsFloatArray());
-        SetProperty("MainColor", customizeParameter.MainColor.AsFloatArray());
-        SetProperty("SkinColor", customizeParameter.SkinColor.AsFloatArray());
-        SetProperty("MeshColor", customizeParameter.MeshColor.AsFloatArray());
-        SetProperty("LipColor", customizeParameter.LipColor.AsFloatArray());
-        SetProperty("FacePaintUVOffset", customizeParameter.FacePaintUvOffset);
-        SetProperty("FacePaintUVMultiplier", customizeParameter.FacePaintUvMultiplier);
-        SetProperty("MuscleTone", customizeParameter.MuscleTone);
-        SetProperty("OptionColor", customizeParameter.OptionColor.AsFloatArray());
-        SetProperty("DecalColor", customizeParameter.DecalColor.AsFloatArray());
-        SetProperty("CustomizeParameters", JsonNode.Parse(JsonSerializer.Serialize(customizeParameter, JsonOptions))!);
+
+        if (customizeData != null)
+        {
+            SetProperty("Highlights", customizeData.Highlights);
+            SetProperty("LipStick", customizeData.LipStick);
+            SetProperty("FacePaintReversed", customizeData.FacePaintReversed);
+            SetProperty("LegacyBodyDecalPath", customizeData.LegacyBodyDecalPath ?? "");
+            SetProperty("DecalPath", customizeData.DecalPath ?? "");
+            SetProperty("CustomizeData", JsonNode.Parse(JsonSerializer.Serialize(customizeData, JsonOptions))!);
+        }
+
+        if (customizeParameter != null)
+        {
+            SetProperty("LeftIrisColor", customizeParameter.LeftColor.AsFloatArray());
+            SetProperty("RightIrisColor", customizeParameter.RightColor.AsFloatArray());
+            SetProperty("MainColor", customizeParameter.MainColor.AsFloatArray());
+            SetProperty("SkinColor", customizeParameter.SkinColor.AsFloatArray());
+            SetProperty("MeshColor", customizeParameter.MeshColor.AsFloatArray());
+            SetProperty("LipColor", customizeParameter.LipColor.AsFloatArray());
+            SetProperty("FacePaintUVOffset", customizeParameter.FacePaintUvOffset);
+            SetProperty("FacePaintUVMultiplier", customizeParameter.FacePaintUvMultiplier);
+            SetProperty("MuscleTone", customizeParameter.MuscleTone);
+            SetProperty("OptionColor", customizeParameter.OptionColor.AsFloatArray());
+            SetProperty("DecalColor", customizeParameter.DecalColor.AsFloatArray());
+            SetProperty("CustomizeParameters", JsonNode.Parse(JsonSerializer.Serialize(customizeParameter, JsonOptions))!);
+        }
     }
 
     public void SetPropertiesFromInstance(IStainableInstance instance)

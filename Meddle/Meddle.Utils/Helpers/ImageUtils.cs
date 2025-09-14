@@ -1,5 +1,4 @@
-﻿using System.Numerics;
-using Meddle.Utils.Export;
+﻿using Meddle.Utils.Export;
 using Meddle.Utils.Files;
 using Microsoft.Extensions.Logging;
 using OtterTex;

@@ -519,8 +519,8 @@ public record ParsedCharacterInfo
     public readonly ParsedAttach Attach;
     private readonly ResolverService.ParsedHumanInfo humanInfo;
     public IReadOnlyList<ParsedCharacterInfo> Attaches = [];
-    public CustomizeData CustomizeData => humanInfo.CustomizeData;
-    public CustomizeParameter CustomizeParameter => humanInfo.CustomizeParameter;   
+    public CustomizeData? CustomizeData => humanInfo.CustomizeData;
+    public CustomizeParameter? CustomizeParameter => humanInfo.CustomizeParameter;   
     public IReadOnlyList<ParsedMaterialInfo?> SkinSlotMaterials => humanInfo.SkinSlotMaterials;
     public IReadOnlyList<EquipmentModelId> EquipmentModelIds => humanInfo.EquipmentModelIds;
     public GenderRace GenderRace => humanInfo.GenderRace;

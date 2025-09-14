@@ -512,7 +512,7 @@ public unsafe class LiveCharacterTab : ITab
             }
 
             UiUtil.Text($"Skeleton Ptr: {(nint)model->Skeleton:X8}", $"{(nint)model->Skeleton:X8}");
-            var deformerInfo = pbd.TryGetDeformer((nint)cBase, model->SlotIndex);
+            var deformerInfo = modelType == CharacterBase.ModelType.Human ? pbd.TryGetDeformer((nint)cBase, model->SlotIndex) : null;
             if (deformerInfo != null)
             {
                 ImGui.Text(

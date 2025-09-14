@@ -1,6 +1,5 @@
 ﻿using System.Numerics;
 using Dalamud.Interface.Utility.Raii;
-using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
 using Dalamud.Bindings.ImGui;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Models.Structs;
