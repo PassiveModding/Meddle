@@ -365,13 +365,13 @@ public class ComposerCache
         
         if (characterInfo != null)
         {
-            if (characterInfo.CustomizeData.DecalPath != null)
+            if (characterInfo.CustomizeData?.DecalPath != null)
             {
                 var decalCachePath = CacheTexture(characterInfo.CustomizeData.DecalPath);
                 material.SetProperty("Decal_PngCachePath", Path.GetRelativePath(cacheDir, decalCachePath));
             }
             
-            if (characterInfo.CustomizeData.LegacyBodyDecalPath != null)
+            if (characterInfo.CustomizeData?.LegacyBodyDecalPath != null)
             {
                 var legacyDecalCachePath = CacheTexture(characterInfo.CustomizeData.LegacyBodyDecalPath);
                 material.SetProperty("LegacyBodyDecal_PngCachePath", Path.GetRelativePath(cacheDir, legacyDecalCachePath));

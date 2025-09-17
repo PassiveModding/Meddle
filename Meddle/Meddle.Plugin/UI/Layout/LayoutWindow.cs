@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using System.Numerics;
+﻿using System.Numerics;
 using Dalamud.Interface;
 using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.Utility.Raii;
@@ -394,9 +393,10 @@ public partial class LayoutWindow : ITab
                 var filteredInstances = new List<ParsedInstance>();
                 foreach (var instance in instances)
                 {
-                    if (instance is ParsedCharacterInstance {Parent: not null} characterInstance)
+                    // if instance has a parent, and the parent is also in the list, skip this instance since it will be exported as an attachment of the parent
+                    if (instance is ParsedCharacterInstance {Parent: not null} childInstance)
                     {
-                        var parentMatch = instances.FirstOrDefault(c => c.Id == characterInstance.Parent.Id);
+                        var parentMatch = instances.FirstOrDefault(c => c.Id == childInstance.Parent.Id);
                         if (parentMatch != null)
                         {
                             string parentName;
@@ -408,8 +408,8 @@ public partial class LayoutWindow : ITab
                             {
                                 parentName = parentMatch.Type.ToString();
                             }
-                            
-                            log.LogWarning("Parented instance {id} is already in the list as a child of {parentName}, skipping", characterInstance.Id, parentName);
+
+                            log.LogDebug("Parented instance {type} {name} is already in the list as a child of {parentName}, skipping", childInstance.Kind, childInstance.Name, parentName);
                             continue;
                         }
                     }

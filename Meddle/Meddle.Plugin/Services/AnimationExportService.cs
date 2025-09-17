@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using System.Numerics;
+﻿using System.Numerics;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.UI;
 using Meddle.Plugin.Utils;

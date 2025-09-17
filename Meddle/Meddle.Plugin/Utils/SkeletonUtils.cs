@@ -3,7 +3,6 @@ using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Skeletons;
 using Meddle.Plugin.UI;
 using Meddle.Utils;
-using Microsoft.Extensions.Logging;
 using SharpGLTF.Scenes;
 using SharpGLTF.Transforms;
 

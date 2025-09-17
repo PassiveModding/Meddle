@@ -9,7 +9,6 @@ using FFXIVClientStructs.Interop;
 using Lumina.Excel.Sheets;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Layout;
-using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Utils;
 using Meddle.Utils;
 using Meddle.Utils.Constants;
@@ -330,7 +329,7 @@ public class ResolverService : IService
             materials.Add(materialInfo);
         }
 
-        var deform = pbdHooks.TryGetDeformer((nint)characterBasePtr.Value, model->SlotIndex);
+        var deform = modelType == CharacterBase.ModelType.Human ? pbdHooks.TryGetDeformer((nint)characterBasePtr.Value, model->SlotIndex) : null;
         var modelInfo = new ParsedModelInfo(modelPath, modelPathFromCharacter, deform, shapeAttributeGroup, materials.ToArray(), stain0, stain1)
         {
             ModelAddress = (nint)modelPtr.Value
@@ -417,8 +416,8 @@ public class ResolverService : IService
 
     public record struct ParsedHumanInfo
     {
-        public Meddle.Utils.Export.CustomizeParameter CustomizeParameter;
-        public CustomizeData CustomizeData;
+        public Meddle.Utils.Export.CustomizeParameter? CustomizeParameter;
+        public CustomizeData? CustomizeData;
         public GenderRace GenderRace;
         public IReadOnlyList<ParsedMaterialInfo?> SkinSlotMaterials;
         public IReadOnlyList<EquipmentModelId> EquipmentModelIds;
@@ -487,8 +486,8 @@ public class ResolverService : IService
         {
             return new ParsedHumanInfo
             {
-                CustomizeParameter = new Meddle.Utils.Export.CustomizeParameter(),
-                CustomizeData = new CustomizeData(),
+                CustomizeParameter = null,
+                CustomizeData = null,
                 GenderRace = GenderRace.Unknown,
                 SkinSlotMaterials = [],
                 EquipmentModelIds = []

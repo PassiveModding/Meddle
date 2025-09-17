@@ -12,6 +12,7 @@ using Meddle.Utils.Files;
 using Meddle.Utils.Files.SqPack;
 using Meddle.Utils.Helpers;
 using Microsoft.Extensions.Logging;
+using SharpGLTF.Geometry;
 using SharpGLTF.Materials;
 using SharpGLTF.Scenes;
 
@@ -25,11 +26,11 @@ public class ExportProgress
         Name = name;
     }
 
-    private int _progress;
-    public int Progress { get { return _progress; } }
+    private int progress;
+    public int Progress { get { return progress; } }
     public void IncrementProgress(int amount = 1)
     {
-        Interlocked.Add(ref _progress, amount);
+        Interlocked.Add(ref progress, amount);
         Parent?.IncrementProgress(amount);
     }
     public int Total;
@@ -100,66 +101,144 @@ public class InstanceComposer
     
     private void ComposeInstanceGroup(IGrouping<ParsedInstanceType, ParsedInstance> group, ExportProgress progress)
     {
-        var scenes = new Dictionary<SceneBuilder, SceneStats>();
-        var scene = new SceneBuilder();
-        scenes.Add(scene, new SceneStats());
+        ParsedInstanceType[] pagedGroups =
+        [
+            ParsedInstanceType.Character
+        ];
 
-        var orderedInstances = group.OrderBy(x => x.Transform.Translation.LengthSquared()).ToArray();
-        var lastSceneIdx = 0;
-
-        // var orderedInstanceChunks = orderedInstances
-        //     .Select((x, i) => new { Index = i, Value = x })
-        //     .GroupBy(x => x.Index / 100)
-        //     .Select(g => g.Select(x => x.Value).ToArray())
-        //     .ToArray();
-
-        for (var i = 0; i < orderedInstances.Length; i++)
+        if (pagedGroups.Contains(group.Key))
         {
-            if (cancellationToken.IsCancellationRequested) break;
-            progress.IncrementProgress();
-            try
+            var scenes = new Dictionary<SceneBuilder, SceneStats>();
+            var scene = new SceneBuilder();
+            scenes.Add(scene, new SceneStats());
+            var lastSceneIdx = 0;
+            var orderedInstances = group.OrderBy(x => x.Transform.Translation.LengthSquared()).ToArray();
+            for (int i = 0; i < orderedInstances.Length; i++)
             {
-                if (ComposeInstance(orderedInstances[i], scene, progress) != null)
-                {
-                    var stats = scenes[scene];
-                    stats.Instances++;
-                    if (stats.Instances > 100 || scene.Instances.Count > 100)
-                    {
-                        Plugin.Logger.LogDebug("Saving scene {key} {startIdx:D4}-{endIdx:D4} Instances: {instances} Nodes: {nodes}", 
-                                                group.Key, lastSceneIdx, i, stats.Instances, scene.Instances.Count);
-                        SaveScene(scene, $"{group.Key}_{lastSceneIdx:D4}-{i:D4}");
-                        scenes[scene].Saved = true;
-                        lastSceneIdx = i;
-        
-                        scene = new SceneBuilder();
-                        scenes.Add(scene, new SceneStats());
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
+                if (cancellationToken.IsCancellationRequested) break;
+                progress.IncrementProgress();
                 try
                 {
-                    var blob = JsonSerializer.Serialize(orderedInstances[i], MaterialComposer.JsonOptions);
-                    Plugin.Logger.LogError(ex, 
-                                            "Failed to compose instance {instance} {instanceType}\n{Message}\b{Blob}", 
-                                            orderedInstances[i].Id, 
-                                            orderedInstances[i].Type, 
-                                            ex.Message, blob);
+                    if (ComposeInstance(orderedInstances[i], scene, progress) != null)
+                    {
+                        var stats = scenes[scene];
+                        stats.Instances++;
+                        if (stats.Instances > 100 || scene.Instances.Count > 100)
+                        {
+                            Plugin.Logger.LogDebug("Saving scene {key} {startIdx:D4}-{endIdx:D4} Instances: {instances} Nodes: {nodes}", 
+                                                   group.Key, lastSceneIdx, i, stats.Instances, scene.Instances.Count);
+                            SaveScene(scene, $"{group.Key}_{lastSceneIdx:D4}-{i:D4}");
+                            scenes[scene].Saved = true;
+                            lastSceneIdx = i;
+        
+                            scene = new SceneBuilder();
+                            scenes.Add(scene, new SceneStats());
+                        }
+                    }
                 }
-                catch (Exception ex2)
-                {
-                    Plugin.Logger.LogError(new AggregateException(ex, ex2), 
-                                            "Failed to compose instance {instance} {instanceType}\n{Message}", 
-                                            orderedInstances[i].Id, 
-                                            orderedInstances[i].Type,
-                        ex.Message);
+                catch (Exception ex)
+                { 
+                    TryLogInstanceComposeError(orderedInstances[i], ex);
                 }
             }
+            
+            SaveRemainingScenes(group.Key, lastSceneIdx, orderedInstances.Length, scenes);
         }
-        
-          
-        SaveRemainingScenes(group.Key, lastSceneIdx, orderedInstances.Length, scenes);
+        else
+        {
+            var namedInstanceGroupings = group.GroupBy(x =>
+            {
+                if (x is ParsedBgPartsInstance bg)
+                {
+                    return bg.Path.GamePath;
+                }
+                if (x is ParsedSharedInstance sh)
+                {
+                    return sh.Path.GamePath;
+                }
+                if (x is ParsedTerrainInstance tr)
+                {
+                    return tr.Path.GamePath;
+                }
+
+                return string.Empty;
+            }).ToList();
+            
+            var scenes = new Dictionary<SceneBuilder, SceneStats>();
+            var scene = new SceneBuilder();
+            scenes.Add(scene, new SceneStats());
+            var lastSceneIdx = 0;
+            for (var i = 0; i < namedInstanceGroupings.Count; i++)
+            {
+                if (cancellationToken.IsCancellationRequested) break;
+                // compile all to scene, paging only at end of processing named groups
+                var namedGroup = namedInstanceGroupings[i].ToArray();
+                var stats = scenes[scene];
+                for (var j = 0; j < namedGroup.Length; j++)
+                {
+                    if (cancellationToken.IsCancellationRequested) break;
+                    progress.IncrementProgress();
+                    try
+                    {
+                        if (ComposeInstance(namedGroup[j], scene, progress) != null)
+                        {
+                            stats.Instances++;
+                        }
+                    }
+                    catch (Exception ex)
+                    { 
+                        TryLogInstanceComposeError(namedGroup[j], ex);
+                    }
+                }
+
+                if (sceneMeshCache.TryGetValue(scene, out var sceneMeshes))
+                {
+                    if (sceneMeshes.Count > 300)
+                    {
+                        SaveSceneGroup(i, ref scene, ref lastSceneIdx, stats, scenes);
+                    }
+                }
+                else if (scene.Instances.Count > 100)
+                {
+                    SaveSceneGroup(i, ref scene, ref lastSceneIdx, stats, scenes);
+                }
+            }
+            
+            SaveRemainingScenes(group.Key, lastSceneIdx, namedInstanceGroupings.Count, scenes);
+        }
+
+        void SaveSceneGroup(int i, ref SceneBuilder scene, ref int lastSceneIdx, SceneStats stats, Dictionary<SceneBuilder, SceneStats> scenes)
+        {
+            Plugin.Logger.LogDebug("Saving scene {key} {startIdx:D4}-{endIdx:D4} Instances: {instances} Nodes: {nodes}", 
+                                   group.Key, lastSceneIdx, i, stats.Instances, scene.Instances.Count);
+            SaveScene(scene, $"{group.Key}_{lastSceneIdx:D4}-{i:D4}");
+            scenes[scene].Saved = true;
+            lastSceneIdx = i;
+
+            scene = new SceneBuilder();
+            scenes.Add(scene, new SceneStats());
+        }
+    }
+    
+    private void TryLogInstanceComposeError(ParsedInstance instance, Exception ex)
+    {
+        try
+        {
+            var blob = JsonSerializer.Serialize(instance, MaterialComposer.JsonOptions);
+            Plugin.Logger.LogError(ex, 
+                                   "Failed to compose instance {instance} {instanceType}\n{Message}\b{Blob}", 
+                                   instance.Id, 
+                                   instance.Type, 
+                                   ex.Message, blob);
+        }
+        catch (Exception ex2)
+        {
+            Plugin.Logger.LogError(new AggregateException(ex, ex2), 
+                                   "Failed to compose instance {instance} {instanceType}\n{Message}", 
+                                   instance.Id, 
+                                   instance.Type,
+                                   ex.Message);
+        }
     }
     
     public void Compose(ParsedInstance[] instances, ProgressWrapper wrapper)
@@ -184,14 +263,29 @@ public class InstanceComposer
             .ThenBy(x => x.Key)
             .ToArray();
         
-        // foreach (var group in instanceGroups)
-        // {
-        //     ComposeInstanceGroup(group, progress);
-        // }
         wrapper.Progress = new ExportProgress(instances.Length, "Composing Instances");
-        Parallel.ForEach(instanceGroups, group =>
+        // Parallel.ForEach(instanceGroups, group =>
+        // {
+        //     if (cancellationToken.IsCancellationRequested) return;
+        //     Plugin.Logger.LogInformation("Composing instances of type {InstanceType} ({InstanceCount})", group.Key, group.Count());
+        //     var groupProgress = new ExportProgress(group.Count(), $"Composing {group.Key}")
+        //     {
+        //         Parent = wrapper.Progress
+        //     };
+        //     wrapper.Progress.Children.Add(groupProgress);
+        //     try
+        //     {
+        //         ComposeInstanceGroup(group, groupProgress);
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         Plugin.Logger.LogError(ex, "Failed to compose instance group {InstanceType}\n{Message}", group.Key, ex.Message);
+        //     }
+        //     groupProgress.IsComplete = true;
+        // });
+        foreach (var group in instanceGroups)
         {
-            if (cancellationToken.IsCancellationRequested) return;
+            if (cancellationToken.IsCancellationRequested) break;
             Plugin.Logger.LogInformation("Composing instances of type {InstanceType} ({InstanceCount})", group.Key, group.Count());
             var groupProgress = new ExportProgress(group.Count(), $"Composing {group.Key}")
             {
@@ -207,11 +301,12 @@ public class InstanceComposer
                 Plugin.Logger.LogError(ex, "Failed to compose instance group {InstanceType}\n{Message}", group.Key, ex.Message);
             }
             groupProgress.IsComplete = true;
-        });
+        }
         
         Plugin.Logger.LogInformation("Finished composing instances");
     }
 
+    private readonly Dictionary<SceneBuilder, HashSet<IMeshBuilder<MaterialBuilder>>> sceneMeshCache = new();
     public NodeBuilder? ComposeInstance(ParsedInstance parsedInstance, SceneBuilder scene, ExportProgress rootProgress)
     {
         if (cancellationToken.IsCancellationRequested) return null;
@@ -257,7 +352,7 @@ public class InstanceComposer
         
         return null;
     }
-    private NodeBuilder? ComposeDecalInstance(ParsedWorldDecalInstance parsedWorldDecalInstance, SceneBuilder scene)
+    private NodeBuilder ComposeDecalInstance(ParsedWorldDecalInstance parsedWorldDecalInstance, SceneBuilder scene)
     {
         var root = new NodeBuilder($"{parsedWorldDecalInstance.Type}_{parsedWorldDecalInstance.Id}");
         var cachedDiffuse = Path.GetRelativePath(cacheDir, composerCache.CacheTexture(parsedWorldDecalInstance.Diffuse.FullPath));
@@ -389,6 +484,7 @@ public class InstanceComposer
     }
     
     private readonly Dictionary<string, Dictionary<int, MaterialBuilder>> bgPartMaterialCache = new();
+    private readonly Dictionary<nint, IMeshBuilder<MaterialBuilder>[]> meshBuilderCache = new();
     
     public NodeBuilder? ComposeBgPartsInstance(ParsedBgPartsInstance bgPartsInstance, SceneBuilder scene)
     {
@@ -397,62 +493,93 @@ public class InstanceComposer
             Plugin.Logger.LogDebug("BgParts instance {InstanceId} is not visible and export config is set to skip hidden", bgPartsInstance.Id);
             return null;
         }
-        
-        var mdlData = pack.GetFileOrReadFromDisk(bgPartsInstance.Path.FullPath);
-        if (mdlData == null)
+
+        var sceneCache = sceneMeshCache.GetValueOrDefault(scene, []);
+        sceneMeshCache[scene] = sceneCache;
+        IMeshBuilder<MaterialBuilder>[]? meshes = null;
+        if (bgPartsInstance is {ModelPtr: not null, Stain: null, BgChangeMaterial: null} && meshBuilderCache.TryGetValue(bgPartsInstance.ModelPtr.Value, out meshes))
         {
-            Plugin.Logger.LogWarning("Failed to load model file: {Path}", bgPartsInstance.Path.FullPath);
-            return null;
+            Plugin.Logger.LogDebug("Using cached meshes for BgParts instance {InstanceId}", bgPartsInstance.Id);
         }
 
-        var mdlFile = new MdlFile(mdlData);
-        var bgChangeMaterial = bgPartsInstance.BgChangeMaterial;
-        var fileMaterials = mdlFile.GetMaterialNames().Select(x => x.Value).ToArray();
-
-        var materialBuilders = new List<MaterialBuilder>();
-        for (var i = 0; i < fileMaterials.Length; i++)
+        if (meshes == null)
         {
-            string mtrlPath = fileMaterials[i];
-            if (bgChangeMaterial != null && bgChangeMaterial.Value.BGChangeMaterialIndex == i)
+            var mdlData = pack.GetFileOrReadFromDisk(bgPartsInstance.Path.FullPath);
+            if (mdlData == null)
             {
-                mtrlPath = bgChangeMaterial.Value.MaterialPath;
+                Plugin.Logger.LogWarning("Failed to load model file: {Path}", bgPartsInstance.Path.FullPath);
+                return null;
             }
 
-            if (!bgPartMaterialCache.TryGetValue(mtrlPath, out var bgPartMtrlCache))
+            var mdlFile = new MdlFile(mdlData);
+            var bgChangeMaterial = bgPartsInstance.BgChangeMaterial;
+            var fileMaterials = mdlFile.GetMaterialNames().Select(x => x.Value).ToArray();
+
+            var materialBuilders = new List<MaterialBuilder>();
+            for (var i = 0; i < fileMaterials.Length; i++)
             {
-                bgPartMtrlCache = new Dictionary<int, MaterialBuilder>();
-                bgPartMaterialCache[mtrlPath] = bgPartMtrlCache;
+                string mtrlPath = fileMaterials[i];
+                if (bgChangeMaterial != null && bgChangeMaterial.Value.BGChangeMaterialIndex == i)
+                {
+                    mtrlPath = bgChangeMaterial.Value.MaterialPath;
+                }
+
+                if (!bgPartMaterialCache.TryGetValue(mtrlPath, out var bgPartMtrlCache))
+                {
+                    bgPartMtrlCache = new Dictionary<int, MaterialBuilder>();
+                    bgPartMaterialCache[mtrlPath] = bgPartMtrlCache;
+                }
+
+                if (bgPartMtrlCache.TryGetValue((int?)bgPartsInstance.Stain?.RowId ?? -1, out var cachedBuilder))
+                {
+                    materialBuilders.Add(cachedBuilder);
+                }
+                else
+                {
+                    var output = composerCache.ComposeMaterial(mtrlPath, stainInstance: bgPartsInstance);
+                    materialBuilders.Add(output);
+                }
             }
-            
-            if (bgPartMtrlCache.TryGetValue((int?)bgPartsInstance.Stain?.RowId ?? -1, out var cachedBuilder))
-            {
-                materialBuilders.Add(cachedBuilder);
-            }
-            else
-            {
-                var output = composerCache.ComposeMaterial(mtrlPath, stainInstance: bgPartsInstance);
-                materialBuilders.Add(output);
-            }
+
+            var model = new Model(bgPartsInstance.Path.GamePath, mdlFile, null);
+            var meshExports = ModelBuilder.BuildMeshes(model, materialBuilders, [], null);
+            meshes = meshExports.Select(x => x.Mesh).ToArray();
         }
-
-        var model = new Model(bgPartsInstance.Path.GamePath, mdlFile, null);
-        var meshes = ModelBuilder.BuildMeshes(model, materialBuilders, [], null);
         
-        var root = new NodeBuilder($"{bgPartsInstance.Type}_{bgPartsInstance.Path.GamePath}");
-        foreach (var mesh in meshes)
+        var root = new NodeBuilder($"{bgPartsInstance.Type}_{bgPartsInstance.Path.GamePath}")
         {
-            scene.AddRigidMesh(mesh.Mesh, root);
+            Extras = JsonNode.Parse(JsonSerializer.Serialize(new
+            {
+                ModelPath = bgPartsInstance.Path.GamePath,
+                ModelName = Path.GetFileNameWithoutExtension(bgPartsInstance.Path.FullPath),
+                ModelType = bgPartsInstance.Type,
+                IsVisible = bgPartsInstance.IsVisible,
+            }, MaterialComposer.JsonOptions))
+        };
+        if (meshes.Length == 1)
+        {
+            var mesh = meshes[0];
+            scene.AddRigidMesh(mesh, root);
+            sceneCache.Add(mesh);
+        }
+        else
+        {
+            foreach (var mesh in meshes)
+            {
+                var meshNode = new NodeBuilder(mesh.Name);
+                scene.AddRigidMesh(mesh, meshNode);
+                root.AddNode(meshNode);
+                sceneCache.Add(mesh);
+            }
+
+            scene.AddNode(root);
         }
         
-        root.Extras = JsonNode.Parse(JsonSerializer.Serialize(new
+        if (bgPartsInstance is {ModelPtr: not null, Stain: null, BgChangeMaterial: null})
         {
-            ModelPath = bgPartsInstance.Path.GamePath,
-            ModelName = Path.GetFileNameWithoutExtension(bgPartsInstance.Path.FullPath),
-            ModelType = bgPartsInstance.Type,
-            IsVisible = bgPartsInstance.IsVisible,
-        }, MaterialComposer.JsonOptions));
-        
-        root.SetLocalTransform(bgPartsInstance.Transform.AffineTransform, true);
+            meshBuilderCache[bgPartsInstance.ModelPtr.Value] = meshes;
+        }
+        root.SetLocalTransform(bgPartsInstance.Transform.AffineTransform, false);
         return root;
     }
     
@@ -545,7 +672,7 @@ public class InstanceComposer
         return root;
     }
 
-    public NodeBuilder? ComposeEnvLight(ParsedEnvLightInstance instance, SceneBuilder sceneBuilder)
+    public NodeBuilder ComposeEnvLight(ParsedEnvLightInstance instance, SceneBuilder sceneBuilder)
     {
         var root = new NodeBuilder($"{instance.Type}_{instance.Id}");
         var lt = instance.Lighting;

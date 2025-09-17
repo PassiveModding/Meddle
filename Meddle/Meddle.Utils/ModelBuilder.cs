@@ -26,6 +26,16 @@ public static class ModelBuilder
         var meshes = new List<MeshExport>();
 
         var modelPathName = Path.GetFileNameWithoutExtension(model.HandlePath.TrimHandlePath());
+        const int maxNodeNameLength = 63 - 16; // to account for suffixes
+        if (modelPathName.Length > maxNodeNameLength)
+        {
+            var segments = modelPathName.Split('/');
+            if (segments.Length > 0)
+            {
+                var fileSegment = segments.Last();
+                modelPathName = fileSegment;
+            }
+        }
         foreach (var mesh in model.Meshes)
         {
             MeshBuilder meshBuilder;
@@ -74,7 +84,7 @@ public static class ModelBuilder
             if (mesh.SubMeshes.Count == 0)
             {
                 var mb = meshBuilder.BuildMesh();
-                mb.Name = material.Name;
+                mb.Name = modelPathName;
                 meshes.Add(new MeshExport(mb, null, null));
                 continue;
             }
@@ -83,12 +93,7 @@ public static class ModelBuilder
             {
                 var modelSubMesh = mesh.SubMeshes[i];
                 var subMesh = meshBuilder.BuildSubMesh(modelSubMesh);
-                subMesh.Name = $"{material.Name}.{i}";
-                if (modelSubMesh.Attributes.Count > 0)
-                {
-                    subMesh.Name += $";{string.Join(";", modelSubMesh.Attributes)}";
-                }
-
+                subMesh.Name = $"{modelPathName}_{i}";
                 var subMeshStart = (int)modelSubMesh.IndexOffset;
                 var subMeshEnd = subMeshStart + (int)modelSubMesh.IndexCount;
 

@@ -8,7 +8,6 @@ using Dalamud.Bindings.ImGui;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Utils;
 using Meddle.Utils.Constants;
-using Meddle.Utils.Files;
 
 namespace Meddle.Plugin.UI.Windows;
 

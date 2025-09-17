@@ -512,7 +512,7 @@ public unsafe class LiveCharacterTab : ITab
             }
 
             UiUtil.Text($"Skeleton Ptr: {(nint)model->Skeleton:X8}", $"{(nint)model->Skeleton:X8}");
-            var deformerInfo = pbd.TryGetDeformer((nint)cBase, model->SlotIndex);
+            var deformerInfo = modelType == CharacterBase.ModelType.Human ? pbd.TryGetDeformer((nint)cBase, model->SlotIndex) : null;
             if (deformerInfo != null)
             {
                 ImGui.Text(
@@ -928,7 +928,7 @@ public unsafe class LiveCharacterTab : ITab
                 var gpuTex = DxHelper.ExportTextureResource(textureEntry.Texture->Texture);
                 var textureData = gpuTex.Resource.ToBitmap().GetPixelSpan();
                 var wrap = textureProvider.CreateFromRaw(
-                    RawImageSpecification.Rgba32(gpuTex.Resource.Width, gpuTex.Resource.Height), textureData,
+                    RawImageSpecification.Rgba32((int)gpuTex.Resource.Width, (int)gpuTex.Resource.Height), textureData,
                     $"Meddle_{(nint)textureEntry.Texture->Texture}_{textureFileName}");
                 return wrap;
             });

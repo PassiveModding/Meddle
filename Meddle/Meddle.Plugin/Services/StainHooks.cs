@@ -23,7 +23,13 @@ public unsafe class StainHooks : IDisposable, IService
     // private delegate uint WeaponGetDyeForSlotDelegate(Weapon* a1, uint a2, uint a3);
     // private readonly Dictionary<(nint, uint, uint), uint> dyeCache = new();
     private readonly Dictionary<uint, Stain> stainDict;
+    private readonly Dictionary<uint, uint> housingDict;
+    private readonly Dictionary<uint, Item> itemDict;
+    private readonly Dictionary<uint, HousingExterior> housingExterior;
     public IReadOnlyDictionary<uint, Stain> StainDict => stainDict;
+    public IReadOnlyDictionary<uint, uint> HousingDict => housingDict;
+    public IReadOnlyDictionary<uint, Item> ItemDict => itemDict;
+    public IReadOnlyDictionary<uint, HousingExterior> HousingExterior => housingExterior;
 
     // public uint? GetDyeFromCache(nint obj, uint slotIdx, uint dyeChannel)
     // {
@@ -56,6 +62,23 @@ public unsafe class StainHooks : IDisposable, IService
     {
         this.logger = logger;
         stainDict = dataManager.GetExcelSheet<Stain>().ToDictionary(row => row.RowId, row => row);
+        var housingData = dataManager.GetExcelSheet<HousingUnitedExterior>();
+        housingExterior = dataManager.GetExcelSheet<HousingExterior>().ToDictionary(row => row.RowId, row => row);
+        housingDict = new Dictionary<uint, uint>();
+        foreach (var housingItem in housingData)
+        {
+            housingDict[housingItem.Roof.RowId] = housingItem.RowId;
+            housingDict[housingItem.Walls.RowId] = housingItem.RowId;
+            housingDict[housingItem.Windows.RowId] = housingItem.RowId;
+            housingDict[housingItem.Door.RowId] = housingItem.RowId;
+            housingDict[housingItem.Fence.RowId] = housingItem.RowId;
+            housingDict[housingItem.OptionalRoof.RowId] = housingItem.RowId;
+            housingDict[housingItem.OptionalWall.RowId] = housingItem.RowId;
+            housingDict[housingItem.OptionalSignboard.RowId] = housingItem.RowId;
+        }
+        itemDict = dataManager.GetExcelSheet<Item>()
+                              .Where(item => item.AdditionalData.RowId != 0 && item.ItemSearchCategory.RowId is 65 or 66)
+                              .ToDictionary(row => row.AdditionalData.RowId, row => row);
 
         // humanGetDyeForSlotHook = hookManager.CreateHook<HumanGetDyeForSlotDelegate>(HumanGetDyeForSlotSignature, Human_GetDyeForSlotDetour);
         // humanGetDyeForSlotHook?.Enable();

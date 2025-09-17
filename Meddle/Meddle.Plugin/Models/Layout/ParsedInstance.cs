@@ -280,6 +280,7 @@ public class ParsedBgPartsInstance : ParsedInstance, IPathInstance, IStainableIn
     }
 
     public ParsedStain? Stain { get; set; }
+    public nint? ModelPtr { get; set; }
 
     public bool Search(string query)
     {
@@ -518,8 +519,8 @@ public record ParsedCharacterInfo
     public readonly ParsedAttach Attach;
     private readonly ResolverService.ParsedHumanInfo humanInfo;
     public IReadOnlyList<ParsedCharacterInfo> Attaches = [];
-    public CustomizeData CustomizeData => humanInfo.CustomizeData;
-    public CustomizeParameter CustomizeParameter => humanInfo.CustomizeParameter;   
+    public CustomizeData? CustomizeData => humanInfo.CustomizeData;
+    public CustomizeParameter? CustomizeParameter => humanInfo.CustomizeParameter;   
     public IReadOnlyList<ParsedMaterialInfo?> SkinSlotMaterials => humanInfo.SkinSlotMaterials;
     public IReadOnlyList<EquipmentModelId> EquipmentModelIds => humanInfo.EquipmentModelIds;
     public GenderRace GenderRace => humanInfo.GenderRace;
