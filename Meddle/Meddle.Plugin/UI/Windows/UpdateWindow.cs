@@ -71,6 +71,19 @@ public class UpdateWindow : Window
                 new TextUpdateLine(" + Clean up info in character selector to avoid clutter. (This can be re-enabled in options with the Debug Info option.)"),
                 new TextUpdateLine(" + Added option for relative position export in the animation tab"),
             ]
+        },
+        new()
+        {
+            Tag = "Demihuman Fixes and Housing Improvements",
+            Date = "2025-09-17",
+            Changes =
+            [
+                new TextUpdateLine(" + Fix attached ornaments being exported as duplicates from the layout view."),
+                new TextUpdateLine(" + Added support for dyed housing exteriors."),
+                new TextUpdateLine(" + Added fixes for demihuman exports including invalid values for customizations."),
+                new TextUpdateLine(" + Added proper instancing for bg meshes."),
+                new TextUpdateLine(" + Fix deformations being applied to demihumans."),
+            ]
         }
     ];
     
