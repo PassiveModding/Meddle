@@ -142,6 +142,13 @@ public class MaterialComposer
         
         void SetConstants()
         {
+            foreach (var shpkConstant in shaderPackage.MaterialConstants)
+            {
+                var id = shpkConstant.Key;
+                var value = shpkConstant.Value;
+                mtrlConstants[(uint)id] = value.ToArray();
+            }
+            
             foreach (var constant in mtrlFile.Constants)
             {
                 var id = constant.ConstantId;
