@@ -208,6 +208,10 @@ public class DebugTab : ITab
                     {
                         ImGui.Text(name.Value);
                     }
+                    else if (value is Names.SuffixedName compositeName)
+                    {
+                        ImGui.Text(compositeName.Value);
+                    }
                 }
             }
 
