@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Runtime.InteropServices;
+using System.Text;
 using Meddle.Utils.Files;
 using Meddle.Utils.Files.Structs.Material;
 
@@ -92,5 +93,31 @@ public static class MaterialUtils
                 ColorDyeTable = file.HasDyeTable ? new LegacyColorDyeTable(ref dataSetReader) : null
             }
         };
+    }
+    
+    public static Dictionary<uint, float[]> GetConstants(this MtrlFile file)
+    {
+        var constants = new Dictionary<uint, float[]>();
+        foreach (var constant in file.Constants)
+        {
+            var id = constant.ConstantId;
+            var index = constant.ValueOffset / 4;
+            var count = constant.ValueSize / 4;
+            var buf = new List<uint>(128);
+            for (var j = 0; j < count; j++)
+            {
+                if (file.ShaderValues.Length <= index + j)
+                {
+                    throw new Exception($"Constant 0x{id:X8} value out of bounds, offset {index + j}, size {file.ShaderValues.Length}");
+                }
+
+                var value = file.ShaderValues[index + j];
+                buf.Add(value);
+            }
+
+            // even if duplicate, last probably takes precedence
+            constants[id] = MemoryMarshal.Cast<uint, float>(buf.ToArray()).ToArray();
+        }
+        return constants;
     }
 }
