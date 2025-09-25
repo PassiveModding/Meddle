@@ -4,6 +4,10 @@ using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
 using Dalamud.Bindings.ImGui;
+using FFXIVClientStructs.FFXIV.Client.Graphics.Render;
+using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Layer;
+using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
+using FFXIVClientStructs.Interop;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Layout;
@@ -314,6 +318,24 @@ public partial class LayoutWindow : ITab
     private void DrawLayoutButtons(Stack<ParsedInstance> stack, ParsedInstance instance)
     {
         DrawExportSingle(instance);
+        
+        if (config.DisplayDebugInfo && instance is ParsedBgPartsInstance bg)
+        {
+            // open mdl/material window
+            ImGui.SameLine();
+            using (ImRaii.PushFont(UiBuilder.IconFont))
+            {
+                if (ImGui.Button(FontAwesomeIcon.PaintBrush.ToIconString()))
+                {
+                    unsafe
+                    {
+                        var pointer = (ModelResourceHandle*)bg.ModelPtr;
+                        mdlMaterialWindowManager.AddMaterialWindow(pointer);
+                    }
+                }
+            }
+        }
+        
         if (stack.Count > 1)
         {
             return;
