@@ -472,6 +472,16 @@ public unsafe class LiveCharacterTab : ITab
 
                                return info with {Models = info.Models.Where(x => x.ModelAddress == (nint)model).ToArray(), Attaches = []};
                            }, $"{defaultFileName}");
+            
+            
+            if (config.DisplayDebugInfo)
+            {
+                // Note; since character materials are stored in model->Materials instead of model->ModelResourceHandle->Materials, 
+                if (ImGui.MenuItem("Open Material Window"))
+                {
+                    mdlMaterialWindowManager.AddMaterialWindow(model);
+                }
+            }
 
             ImGui.EndPopup();
         }
@@ -536,16 +546,6 @@ public unsafe class LiveCharacterTab : ITab
             else
             {
                 ImGui.Text("No deformer info found");
-            }
-
-            if (config.DisplayDebugInfo)
-            {
-                using var disableMatParam = ImRaii.Disabled(mdlMaterialWindowManager.HasWindow(mPtr.Value->ModelResourceHandle));
-                // Note; since character materials are stored in model->Materials instead of model->ModelResourceHandle->Materials, 
-                if (ImGui.Button("Open Material Window"))
-                {
-                    mdlMaterialWindowManager.AddMaterialWindow(model);
-                }
             }
 
             var modelShapeAttributes = StructExtensions.ParseModelShapeAttributes(model);

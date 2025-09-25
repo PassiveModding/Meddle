@@ -38,19 +38,11 @@ public class MdlMaterialWindowManager
         this.windowSystem = windowSystem;
         this.pack = pack;
     }
-    
-    public unsafe bool HasWindow(Pointer<ModelResourceHandle> model)
-    {
-        var id = $"{(nint)model.Value:X8}";
-        return materialWindows.ContainsKey(id);
-    }
         
-    public unsafe void AddMaterialWindow(Pointer<ModelResourceHandle> model)
+    public void AddMaterialWindow(Pointer<ModelResourceHandle> model)
     {
-        var id = $"{(nint)model.Value:X8}";
-        if (materialWindows.ContainsKey(id)) return;
         var window = new MdlMaterialWindow(this, model);
-        materialWindows.Add(id, window);
+        if (!materialWindows.TryAdd(window.Id, window)) return;
         windowSystem.AddWindow(window);
         window.IsOpen = true;
     }
@@ -60,12 +52,11 @@ public class MdlMaterialWindowManager
         materialWindows.Remove(window.Id);
         windowSystem.RemoveWindow(window);
     }
-    public unsafe void AddMaterialWindow(Pointer<Model> model)
+    
+    public void AddMaterialWindow(Pointer<Model> model)
     {
-        var id = $"{(nint)model.Value:X8}";
-        if (materialWindows.ContainsKey(id)) return;
         var window = new MdlMaterialWindow(this, model);
-        materialWindows.Add(id, window);
+        if (!materialWindows.TryAdd(window.Id, window)) return;
         windowSystem.AddWindow(window);
         window.IsOpen = true;
     }

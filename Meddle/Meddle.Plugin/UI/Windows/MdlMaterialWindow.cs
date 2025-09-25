@@ -37,7 +37,7 @@ public class MdlMaterialWindow : Window
     {
         this.windowManager = windowManager;
         this.model1 = model;
-        Id = $"{(nint)this.model.Value:X8}";
+        Id = $"{(nint)model1.Value:X8}";
         WindowName = $"Material Editor {model.Value->ModelResourceHandle->FileName.ParseString()}###{Id}";
         SizeConstraints = new WindowSizeConstraints
         {
