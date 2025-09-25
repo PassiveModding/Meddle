@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Diagnostics;
+using System.Text.Json;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface;
 using Dalamud.Interface.ImGuiFileDialog;
@@ -139,6 +140,7 @@ public unsafe class LiveCharacterTab : ITab
 
     private void DrawCharacter(CSCharacter* character, string name, int depth = 0)
     {
+        var sw = Stopwatch.StartNew();
         if (depth > 3)
         {
             ImGui.Text("Bad things happened, too deep");
@@ -166,11 +168,12 @@ public unsafe class LiveCharacterTab : ITab
 
         var cBase = (CSCharacterBase*)drawObject;
         var modelType = cBase->GetModelType();
-        ResolverService.ParsedHumanInfo? humanData = null;
+        Lazy<ResolverService.ParsedHumanInfo>? humanData = null;
         if (modelType == CSCharacterBase.ModelType.Human)
         {
-            humanData = resolverService.ParseHuman(cBase);
-            DrawHumanCharacter(humanData.Value);
+            //humanData = resolverService.ParseHuman(cBase);
+            humanData = new Lazy<ResolverService.ParsedHumanInfo>(() => resolverService.ParseHuman(cBase));
+            DrawHumanCharacter(humanData);
             ExportButton("Export All Models With Attaches", () =>
             {
                 var info = resolverService.ParseCharacter(character);
@@ -219,6 +222,12 @@ public unsafe class LiveCharacterTab : ITab
         catch (Exception ex)
         {
             ImGui.Text($"Error: {ex.Message}");
+        }
+        
+        sw.Stop();
+        if (config.DisplayDebugInfo)
+        {
+            ImGui.Text($"Character draw time: {sw.ElapsedMilliseconds} ms");
         }
     }
 
@@ -315,7 +324,7 @@ public unsafe class LiveCharacterTab : ITab
         }
     }
 
-    private void DrawDrawObject(DrawObject* drawObject, string name, ResolverService.ParsedHumanInfo? humanData)
+    private void DrawDrawObject(DrawObject* drawObject, string name, Lazy<ResolverService.ParsedHumanInfo>? humanData)
     {
         if (drawObject == null)
         {
@@ -386,7 +395,7 @@ public unsafe class LiveCharacterTab : ITab
         }
     }
 
-    private void DrawModel(Pointer<CharacterBase> cPtr, Pointer<CSModel> mPtr, ResolverService.ParsedHumanInfo? humanData)
+    private void DrawModel(Pointer<CharacterBase> cPtr, Pointer<CSModel> mPtr, Lazy<ResolverService.ParsedHumanInfo>? lazyHuman)
     {
         if (cPtr == null || cPtr.Value == null)
         {
@@ -504,10 +513,14 @@ public unsafe class LiveCharacterTab : ITab
                     ImGui.ColorButton("##Stain1", StainHooks.GetStainColor(stain1.Value));
                 }
 
-                var skinSlotMaterial = humanData?.SkinSlotMaterials.ElementAtOrDefault((int)model->SlotIndex);
-                if (skinSlotMaterial != null)
+                if (config.DisplayDebugInfo)
                 {
-                    ImGui.Text($"Skin Slot Material: {skinSlotMaterial.Path.GamePath}");
+                    var humanData = lazyHuman?.Value;
+                    var skinSlotMaterial = humanData?.SkinSlotMaterials.ElementAtOrDefault((int)model->SlotIndex);
+                    if (skinSlotMaterial != null)
+                    {
+                        ImGui.Text($"Skin Slot Material: {skinSlotMaterial.Path.GamePath}");
+                    }
                 }
             }
 
@@ -937,10 +950,11 @@ public unsafe class LiveCharacterTab : ITab
         }
     }
 
-    private void DrawHumanCharacter(ResolverService.ParsedHumanInfo humanData)
+    private void DrawHumanCharacter(Lazy<ResolverService.ParsedHumanInfo> lazyHuman)
     {
         if (ImGui.CollapsingHeader("Customize Options"))
         {
+            var humanData = lazyHuman.Value;
             var width = ImGui.GetContentRegionAvail().X;
             using var table = ImRaii.Table("##CustomizeTable", 2, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable);
             ImGui.TableSetupColumn("Params", ImGuiTableColumnFlags.WidthFixed, width * 0.75f);
