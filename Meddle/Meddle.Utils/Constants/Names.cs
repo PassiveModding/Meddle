@@ -450,20 +450,21 @@ public static class Names
         "Vertex",                                      // 0x5F9FDDA0
         "VertexWave",                                  // 0x9E45B87D
 
-        // From testing knownsuffixes with known constants
-        "GetFadeAlphaDistance",
-        "GetMaterialValueBodyJJM",
-        "GetMaterialValueFaceEmissive",
-        "GetSubColorFace",
-        "GetSubColorHair",
-        "g_LayerSoftEdge",         // d04cb491
-        "GetCrystalTypeSphereMap", // e3531f26 - plausible but unsure. Does seem to be used by crystal and bg shaders.
-        "g_DetailColorMipBias",    // b10af2da
-        "g_DetailNormalMipBias",   // 756dfe22
-        
         // More cracked
-        "GetTripleWhitecap",
-        "GetSingleWhitecap",
+        "GetFadeAlphaDistance",         // 0x549290EA
+        "GetMaterialValueBodyJJM",      // 0x57ff3b64
+        "GetMaterialValueFace",         // 0xf5673524
+        "GetMaterialValueFaceEmissive", // 0x0x72E697CD
+        "GetSubColorFace",              // 0x6e5b8f10
+        "GetSubColorHair",              // 0xf7b8956e
+        "g_LayerSoftEdge",              // 0xd04cb491
+        "GetCrystalTypeSphereMap",      // 0xe3531f26 - plausible but unsure. Does seem to be used by crystal and bg shaders.
+        "g_DetailColorMipBias",         // 0xb10af2da
+        "g_DetailNormalMipBias",        // 0x756dfe22
+        "GetValuesSimple",              // 0x22a4aabf
+        "ApplyVertexColorOff",          // 0x7c6fa05b
+        "GetTripleWhitecap",            // 0x6e8ce685
+        "GetSingleWhitecap",            // 0xabda6dfb
     ];
 
     private static readonly IReadOnlyList<string> KnownSuffixes =
