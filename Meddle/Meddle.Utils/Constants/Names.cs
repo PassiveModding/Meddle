@@ -451,21 +451,36 @@ public static class Names
         "VertexWave",                                  // 0x9E45B87D
 
         // More cracked
-        "GetFadeAlphaDistance",         // 0x549290EA
-        "GetMaterialValueBodyJJM",      // 0x57ff3b64
-        "GetMaterialValueFace",         // 0xf5673524
-        "GetMaterialValueFaceEmissive", // 0x0x72E697CD
-        "GetSubColorFace",              // 0x6e5b8f10
-        "GetSubColorHair",              // 0xf7b8956e
-        "g_LayerSoftEdge",              // 0xd04cb491
-        "GetCrystalTypeSphereMap",      // 0xe3531f26 - plausible but unsure. Does seem to be used by crystal and bg shaders.
-        "g_DetailColorMipBias",         // 0xb10af2da
-        "g_DetailNormalMipBias",        // 0x756dfe22
-        "GetValuesSimple",              // 0x22a4aabf
-        "ApplyVertexColorOff",          // 0x7c6fa05b
-        "GetTripleWhitecap",            // 0x6e8ce685
-        "GetSingleWhitecap",            // 0xabda6dfb
-        "DrawDepthMode_Dither",         // 0x7b804d6e
+        "GetFadeAlphaDistance",               // 0x549290EA
+        "GetMaterialValueBodyJJM",            // 0x57ff3b64
+        "GetMaterialValueFace",               // 0xf5673524
+        "GetMaterialValueFaceEmissive",       // 0x0x72E697CD
+        "GetSubColorFace",                    // 0x6e5b8f10
+        "GetSubColorHair",                    // 0xf7b8956e
+        "g_LayerSoftEdge",                    // 0xd04cb491
+        "GetCrystalTypeSphereMap",            // 0xe3531f26 - plausible but unsure. Does seem to be used by crystal shaders.
+        "g_DetailColorMipBias",               // 0xb10af2da
+        "g_DetailNormalMipBias",              // 0x756dfe22
+        "GetValuesSimple",                    // 0x22a4aabf
+        "ApplyVertexColorOff",                // 0x7c6fa05b
+        "GetTripleWhitecap",                  // 0x6e8ce685
+        "GetSingleWhitecap",                  // 0xabda6dfb
+        "DrawDepthMode_Dither",               // 0x7b804d6e
+        "GetAlphaMultiValues",                // 0x941820be
+        "GetAlphaMultiValues2",               // 0xe49ad72b - BGUVScroll only
+        "GetAlphaMultiValues3",               // 0x939DE7BD - BGUVScroll only
+        "g_WaveletSinParam",                  // 0x2f41d796
+        "g_SingleWaveScale",                  // 0x5b22e864
+        "g_TileMipBiasOffset",                // 0x6421dd30
+        "g_IrisUvRadius",                     // 0x37dea328
+        "g_IrisRingOddRate",                  // 0x285f72d2
+        "g_IrisRingUvRadius",                 // 0xe18398ae
+        "ApplyAlphaTest",                     // 0xa9a3ee25
+        "ApplyAlphaTestOn",                   // 0x72aaa9ae
+        "g_WaterDeepColor",                   // 0xd315e728
+        "g_IrisOptionColorEmissiveIntensity", // 0x7918d232
+        "g_IrisOptionColorEmissiveRate",      // 0x8ea14846
+        "g_ColorCrystalFrustum",              // 0xb29e6018
     ];
 
     private static readonly IReadOnlyList<string> KnownSuffixes =
