@@ -456,9 +456,11 @@ public static class Names
         "GetMaterialValueFaceEmissive",
         "GetSubColorFace",
         "GetSubColorHair",
-        "g_LayerSoftEdge",  // d04cb491
+        "g_LayerSoftEdge",         // d04cb491
         "GetCrystalTypeSphereMap", // e3531f26 - plausible but unsure. Does seem to be used by crystal and bg shaders.
-
+        "g_DetailColorMipBias",    // b10af2da
+        "g_DetailNormalMipBias",   // 756dfe22
+        
         // More cracked
         "GetTripleWhitecap",
         "GetSingleWhitecap",
