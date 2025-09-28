@@ -465,6 +465,7 @@ public static class Names
         "ApplyVertexColorOff",          // 0x7c6fa05b
         "GetTripleWhitecap",            // 0x6e8ce685
         "GetSingleWhitecap",            // 0xabda6dfb
+        "DrawDepthMode_Dither",         // 0x7b804d6e
     ];
 
     private static readonly IReadOnlyList<string> KnownSuffixes =
