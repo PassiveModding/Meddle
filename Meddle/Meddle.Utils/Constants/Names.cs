@@ -138,355 +138,445 @@ public static class Names
 
     private static readonly IReadOnlyList<NameItem> NamedItems =
     [
-        // new("0x052ED035",                         0x052ED035, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=0.07
-        // new("0x064CBF83",                         0x064CBF83, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=0.5
-        // new("0x093084AD",                         0x093084AD, NameItemCategory.MaterialParam),  // Unknown [crystal.shpk,bgcrestchange.shpk,bgcolorchange.shpk,bgprop.shpk,bguvscroll.shpk,bg.shpk]=1
-        // new("0x0B46E7BE",                         0x0B46E7BE, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=1
-        // new("0x0BA59580",                         0x0BA59580, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=10
-        // new("0x12F6AB51",                         0x12F6AB51, NameItemCategory.MaterialParam),  // Unknown [bgprop.shpk,bgcrestchange.shpk,bgcolorchange.shpk,crystal.shpk,bguvscroll.shpk,bg.shpk]=3
-        // new("0x15B70E35",                         0x15B70E35, NameItemCategory.MaterialParam),  // Unknown [characterlegacy.shpk,character.shpk,characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk]=0
-        // new("0x16AF3E5F",                         0x16AF3E5F, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=1
-        // new("0x1A60F60E",                         0x1A60F60E, NameItemCategory.MaterialParam),  // Unknown [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=0,0
-        // new("0x2334AA21",                         0x2334AA21, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=0,900,10,100
-        // new("0x2377A510",                         0x2377A510, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=1
-        // new("0x2B5EB116",                         0x2B5EB116, NameItemCategory.MaterialParam),  // Unknown [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=-45
-        // new("0x32A89D80",                         0x32A89D80, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=0.15
-        // new("0x37C05873",                         0x37C05873, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=0
-        // new("0x3FD623A8",                         0x3FD623A8, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=4
-        // new("0x4172EDCC",                         0x4172EDCC, NameItemCategory.MaterialParam),  // Unknown [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=1
-        // new("0x43345395",                         0x43345395, NameItemCategory.MaterialParam),  // Unknown [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=1
-        // new("0x44EF5418",                         0x44EF5418, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=1,0
-        // new("0x45364F70",                         0x45364F70, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=0.15
-        // new("0x498092FD",                         0x498092FD, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=40
-        // new("0x4EC3879E",                         0x4EC3879E, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=1
-        // new("0x5164FA14",                         0x5164FA14, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=5
-        // new("0x5C598180",                         0x5C598180, NameItemCategory.MaterialParam),  // Unknown [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=45
-        // new("0x63747CC4",                         0x63747CC4, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=1
-        // new("0x6514A4DB",                         0x6514A4DB, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=300,300
-        // new("0x6A197C9E",                         0x6A197C9E, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=1,0
-        // new("0x6C159E95",                         0x6C159E95, NameItemCategory.MaterialParam),  // Unknown [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=0.85
-        // new("0x6E0A1C94",                         0x6E0A1C94, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=0.5
-        // new("0x71CC9A45",                         0x71CC9A45, NameItemCategory.MaterialParam),  // Unknown [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=0
-        // new("0x720916BD",                         0x720916BD, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=0.9
-        // new("0x72291E75",                         0x72291E75, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=0,500,10,50
-        // new("0x72B002C5",                         0x72B002C5, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=0.2
-        // new("0x738A241C",                         0x738A241C, NameItemCategory.MaterialParam),  // Unknown [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=0
-        // new("0x7A08F978",                         0x7A08F978, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=45
-        // new("0x7B086C53",                         0x7B086C53, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=60,195,190
-        // new("0x7B5813E0",                         0x7B5813E0, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=30,1000,50,100
-        // new("0x7D6268DD",                         0x7D6268DD, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=1,0
-        // new("0x7DB2732C",                         0x7DB2732C, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=0
-        // new("0x8500AEA4",                         0x8500AEA4, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=1
-        // new("0x852A9263",                         0x852A9263, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=70
-        // new("0x8F4D585E",                         0x8F4D585E, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=1
-        // new("0x9E8B9C5A",                         0x9E8B9C5A, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=0.05
-        // new("0xA2A01C0A",                         0xA2A01C0A, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=0.5
-        // new("0xA90DD1EF",                         0xA90DD1EF, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=0.1
-        // new("0xAD94E254",                         0xAD94E254, NameItemCategory.MaterialParam),  // Unknown [character.shpk,characterlegacy.shpk,characterglass.shpk,charactertransparency.shpk,characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk]=0
-        // new("0xAE4F649C",                         0xAE4F649C, NameItemCategory.MaterialParam),  // Unknown [characterglass.shpk,characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=0
-        // new("0xB1542ADD",                         0xB1542ADD, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=15
-        // new("0xB3A7C1B5",                         0xB3A7C1B5, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=0,500,10,50
-        // new("0xB61D7498",                         0xB61D7498, NameItemCategory.MaterialParam),  // Unknown [character.shpk,charactertransparency.shpk,characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,characterlegacy.shpk]=0
-        // new("0xB6EEA089",                         0xB6EEA089, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=0
-        // new("0xB8827D5E",                         0xB8827D5E, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=500,500
-        // new("0xB88B859A",                         0xB88B859A, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=1
-        // new("0xB8ACCE58",                         0xB8ACCE58, NameItemCategory.MaterialParam),  // Unknown [bg.shpk,bgcrestchange.shpk,bgcolorchange.shpk,crystal.shpk,bgprop.shpk,bguvscroll.shpk]=50,100,50,100
-        // new("0xB9766DBB",                         0xB9766DBB, NameItemCategory.MaterialParam),  // Unknown [river.shpk,water.shpk]=50
-        // new("0xBAD6CC20",                         0xBAD6CC20, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=0,1000,50,100
-        // new("0xBFB7646B",                         0xBFB7646B, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=0.5
-        // new("0xBFE9D12D",                         0xBFE9D12D, NameItemCategory.MaterialParam),  // Unknown [bg.shpk,bgprop.shpk,crystal.shpk,bguvscroll.shpk,bgcolorchange.shpk,bgcrestchange.shpk]=1
-        // new("0xC582F820",                         0xC582F820, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=1,0
-        // new("0xC598FE75",                         0xC598FE75, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=10
-        // new("0xC70F951E",                         0xC70F951E, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=25
-        // new("0xCBF2CD55",                         0xCBF2CD55, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=0.8
-        // new("0xCEC9B6FF",                         0xCEC9B6FF, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=20
-        // new("0xD2F9EC63",                         0xD2F9EC63, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=1,0
-        // new("0xD67F62C8",                         0xD67F62C8, NameItemCategory.MaterialParam),  // Unknown [bgprop.shpk,bgcrestchange.shpk,bgcolorchange.shpk,crystal.shpk,bguvscroll.shpk,bg.shpk]=1
-        // new("0xD721E19F",                         0xD721E19F, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=1
-        // new("0xD87BBC76",                         0xD87BBC76, NameItemCategory.MaterialParam),  // Unknown [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=1
-        // new("0xD8A98BE7",                         0xD8A98BE7, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=0.1
-        // new("0xDA3D022F",                         0xDA3D022F, NameItemCategory.MaterialParam),  // Unknown [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=1
-        // new("0xDA8FA72C",                         0xDA8FA72C, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=1
-        // new("0xDE93031F",                         0xDE93031F, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=0.25
-        // new("0xE2BA75E1",                         0xE2BA75E1, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=0,700,10,100
-        // new("0xE8C5CBFF",                         0xE8C5CBFF, NameItemCategory.MaterialParam),  // Unknown [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=0
-        // new("0xE9154EAA",                         0xE9154EAA, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=0.3
-        // new("0xEA8375A6",                         0xEA8375A6, NameItemCategory.MaterialParam),  // Unknown [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=0
-        // new("0xF769298E",                         0xF769298E, NameItemCategory.MaterialParam),  // Unknown [bg.shpk,crystal.shpk,bguvscroll.shpk,bgcolorchange.shpk,bgcrestchange.shpk,bgprop.shpk]=0.3,0.3,0.3,0.3
-        // new("0xFA124634",                         0xFA124634, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=0.5
-        // new("0xFC9C8BD6",                         0xFC9C8BD6, NameItemCategory.MaterialParam),  // Unknown [water.shpk]=-20
-        new("g_AlphaAperture",                    0xD62BF368, NameItemCategory.MaterialParam),  // [character.shpk,charactertransparency.shpk,characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,characterlegacy.shpk]=2
-        new("g_AlphaMultiParam",                  0x07EDA444, NameItemCategory.MaterialParam),  // [bg.shpk,bgcrestchange.shpk,bgcolorchange.shpk,crystal.shpk,bgprop.shpk,bguvscroll.shpk]=0,0,0,0
-        new("g_AlphaOffset",                      0xD07A6A65, NameItemCategory.MaterialParam),  // [character.shpk,charactertransparency.shpk,characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,characterlegacy.shpk]=0
-        new("g_AlphaThreshold",                   0x29AC0223, NameItemCategory.MaterialParam),  // [characterlegacy.shpk,bgprop.shpk,bg.shpk,bguvscroll.shpk,character.shpk,bgcrestchange.shpk,characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,bgcolorchange.shpk,verticalfog.shpk,crystal.shpk,river.shpk,water.shpk,lightshaft.shpk]=0
-        new("g_AmbientOcclusionMask",             0x575ABFB2, NameItemCategory.MaterialParam),  // [character.shpk]=
-        new("g_AngleClip",                        0x71DBDA81, NameItemCategory.MaterialParam),  // [lightshaft.shpk]=0
-        new("g_CausticsPower",                    0x7071F15D, NameItemCategory.MaterialParam),  // [river.shpk]=0.75;[water.shpk]=0.5
-        new("g_CausticsReflectionPowerBright",    0x0CC09E67, NameItemCategory.MaterialParam),  // [river.shpk,water.shpk]=0.5
-        new("g_CausticsReflectionPowerDark",      0xC295EA6C, NameItemCategory.MaterialParam),  // [river.shpk,water.shpk]=0.5
-        new("g_Color",                            0xD27C58B9, NameItemCategory.MaterialParam),  // [lightshaft.shpk]=1,1,1;[verticalfog.shpk]=0.8,0.8,0.8,1
-        new("g_ColorUVScale",                     0xA5D02C52, NameItemCategory.MaterialParam),  // [bg.shpk,bgprop.shpk,crystal.shpk,bguvscroll.shpk,bgcrestchange.shpk,bgcolorchange.shpk]=1,1,1,1
-        new("g_DetailColor",                      0xDD93D839, NameItemCategory.MaterialParam),  // [bg.shpk,crystal.shpk,bguvscroll.shpk,bgcolorchange.shpk,bgcrestchange.shpk,bgprop.shpk]=0.5,0.5,0.5
-        new("g_DetailColorFadeDistance",          0xF3F28C58, NameItemCategory.MaterialParam),  // [bgcrestchange.shpk,bgcolorchange.shpk,crystal.shpk,bgprop.shpk,bguvscroll.shpk,bg.shpk]=0,0
-        new("g_DetailColorMipBias",               0xB10AF2DA, NameItemCategory.MaterialParam),  // [bgcrestchange.shpk,bgcolorchange.shpk,crystal.shpk,bgprop.shpk,bguvscroll.shpk,bg.shpk]=0,0
-        new("g_DetailColorUvScale",               0xC63D9716, NameItemCategory.MaterialParam),  // [bg.shpk,crystal.shpk,bguvscroll.shpk,bgcolorchange.shpk,bgcrestchange.shpk,bgprop.shpk]=4,4,4,4
-        new("g_DetailID",                         0x8981D4D9, NameItemCategory.MaterialParam),  // [bg.shpk,crystal.shpk,bguvscroll.shpk,bgcolorchange.shpk,bgcrestchange.shpk,bgprop.shpk]=0
-        new("g_DetailNormalFadeDistance",         0x236EE793, NameItemCategory.MaterialParam),  // [bgcrestchange.shpk,bgcolorchange.shpk,crystal.shpk,bgprop.shpk,bguvscroll.shpk,bg.shpk]=0,0
-        new("g_DetailNormalMipBias",              0x756DFE22, NameItemCategory.MaterialParam),  // [bgcrestchange.shpk,bgcolorchange.shpk,crystal.shpk,bgprop.shpk,bguvscroll.shpk,bg.shpk]=0,0
-        new("g_DetailNormalScale",                0x9F42EDA2, NameItemCategory.MaterialParam),  // [bg.shpk,crystal.shpk,bguvscroll.shpk,bgcolorchange.shpk,bgcrestchange.shpk,bgprop.shpk]=1
-        new("g_DetailNormalUvScale",              0x025A9BEE, NameItemCategory.MaterialParam),  // [bg.shpk,crystal.shpk,bguvscroll.shpk,bgcolorchange.shpk,bgcrestchange.shpk,bgprop.shpk]=4,4,4,4
-        new("g_DiffuseColor",                     0x2C2A34DD, NameItemCategory.MaterialParam),  // [bg.shpk,bgprop.shpk,crystal.shpk,bguvscroll.shpk,bgcolorchange.shpk,bgcrestchange.shpk,characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=1,1,1
-        new("g_EmissiveColor",                    0x38A64362, NameItemCategory.MaterialParam),  // [bg.shpk,bgprop.shpk,crystal.shpk,bguvscroll.shpk,bgcolorchange.shpk,bgcrestchange.shpk,characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=0,0,0
-        new("g_EnableLightShadow",                0x5095E770, NameItemCategory.MaterialParam),  // [bg.shpk,crystal.shpk,bguvscroll.shpk,bgprop.shpk,bgcolorchange.shpk,bgcrestchange.shpk]=0
-        new("g_EnableShadow",                     0xBCEA8C11, NameItemCategory.MaterialParam),  // [bg.shpk,crystal.shpk,bguvscroll.shpk,bgprop.shpk,bgcolorchange.shpk,bgcrestchange.shpk]=0
-        new("g_EnvMapPower",                      0xEEF5665F, NameItemCategory.MaterialParam),  // [crystal.shpk,bgcrestchange.shpk,bgcolorchange.shpk,bgprop.shpk,bguvscroll.shpk,bg.shpk]=0.85
-        new("g_FadeDistance",                     0xC7D0DB1A, NameItemCategory.MaterialParam),  // [verticalfog.shpk]=1000,1500
-        new("g_Fresnel",                          0xE3AA427A, NameItemCategory.MaterialParam),  // [river.shpk,water.shpk]=
-        new("g_GlassIOR",                         0x7801E004, NameItemCategory.MaterialParam),  // [characterglass.shpk,characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=1
-        new("g_GlassThicknessMax",                0xC4647F37, NameItemCategory.MaterialParam),  // [characterglass.shpk,characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=0.01
-        new("g_Gradation",                        0x94B40EEE, NameItemCategory.MaterialParam),  // [verticalfog.shpk]=0.5
-        new("g_HeightMapScale",                   0xA320B199, NameItemCategory.MaterialParam),  // [river.shpk,water.shpk]=0.5
-        new("g_HeightMapUVScale",                 0x5B99505D, NameItemCategory.MaterialParam),  // [water.shpk]=0.25
-        new("g_HeightScale",                      0x8F8B0070, NameItemCategory.MaterialParam),  // [bg.shpk,bgprop.shpk,crystal.shpk,bguvscroll.shpk,bgcolorchange.shpk,bgcrestchange.shpk]=0.015
-        new("g_InclusionAperture",                0xBCA22FD4, NameItemCategory.MaterialParam),  // [crystal.shpk,bgcrestchange.shpk,bgcolorchange.shpk,bgprop.shpk,bguvscroll.shpk,bg.shpk]=1
-        new("g_Intensity",                        0xBCBA70E1, NameItemCategory.MaterialParam),  // [verticalfog.shpk]=0.01
-        new("g_IrisOptionColorEmissiveIntensity", 0x7918D232, NameItemCategory.MaterialParam),  // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=1
-        new("g_IrisOptionColorEmissiveRate",      0x8EA14846, NameItemCategory.MaterialParam),  // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=0
-        new("g_IrisOptionColorRate",              0x29253809, NameItemCategory.MaterialParam),  // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=0
-        new("g_IrisRingColor",                    0x50E36D56, NameItemCategory.MaterialParam),  // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=1,1,1
-        new("g_IrisRingEmissiveIntensity",        0x7DABA471, NameItemCategory.MaterialParam),  // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=0.25
-        new("g_IrisRingForceColor",               0x58DE06E2, NameItemCategory.MaterialParam),  // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=0,0,0
-        new("g_IrisRingOddRate",                  0x285F72D2, NameItemCategory.MaterialParam),  // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=1E-45
-        new("g_IrisRingUvFadeWidth",              0x5B608CFE, NameItemCategory.MaterialParam),  // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=0.04,0.02
-        new("g_IrisRingUvRadius",                 0xE18398AE, NameItemCategory.MaterialParam),  // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=0.158,0.174
-        new("g_IrisThickness",                    0x66C93D3E, NameItemCategory.MaterialParam),  // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=0.5
-        new("g_IrisUvRadius",                     0x37DEA328, NameItemCategory.MaterialParam),  // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=0.2
-        new("g_LayerColor",                       0x35DC0B6F, NameItemCategory.MaterialParam),  // [verticalfog.shpk]=1,1,1
-        new("g_LayerDepth",                       0xA9295FEF, NameItemCategory.MaterialParam),  // [verticalfog.shpk]=10
-        new("g_LayerIrregularity",                0x0A00B0A1, NameItemCategory.MaterialParam),  // [verticalfog.shpk]=0.5
-        new("g_LayerScale",                       0xBFCC6602, NameItemCategory.MaterialParam),  // [verticalfog.shpk]=0.01
-        new("g_LayerSoftEdge",                    0xD04CB491, NameItemCategory.MaterialParam),  // [verticalfog.shpk]=0.05
-        new("g_LayerVelocity",                    0x72181E22, NameItemCategory.MaterialParam),  // [verticalfog.shpk]=10,0
-        new("g_LipRoughnessScale",                0x3632401A, NameItemCategory.MaterialParam),  // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=0.7
-        new("g_MultiDetailColor",                 0x11FD4221, NameItemCategory.MaterialParam),  // [bg.shpk,bguvscroll.shpk,bgcrestchange.shpk,bgcolorchange.shpk,crystal.shpk,bgprop.shpk]=0.5,0.5,0.5
-        new("g_MultiDetailID",                    0xAC156136, NameItemCategory.MaterialParam),  // [bg.shpk,bguvscroll.shpk,bgcrestchange.shpk,bgcolorchange.shpk,crystal.shpk,bgprop.shpk]=0
-        new("g_MultiDetailNormalScale",           0xA83DBDF1, NameItemCategory.MaterialParam),  // [bg.shpk,bguvscroll.shpk,bgcrestchange.shpk,bgcolorchange.shpk,crystal.shpk,bgprop.shpk]=1
-        new("g_MultiDiffuseColor",                0x3F8AC211, NameItemCategory.MaterialParam),  // [crystal.shpk,bg.shpk,bguvscroll.shpk,bgcrestchange.shpk,bgcolorchange.shpk,bgprop.shpk]=1,1,1
-        new("g_MultiEmissiveColor",               0xAA676D0F, NameItemCategory.MaterialParam),  // [crystal.shpk,bg.shpk,bguvscroll.shpk,bgcrestchange.shpk,bgcolorchange.shpk,bgprop.shpk]=0,0,0
-        new("g_MultiHeightScale",                 0x43E59A68, NameItemCategory.MaterialParam),  // [bg.shpk,bguvscroll.shpk,bgcrestchange.shpk,bgcolorchange.shpk,crystal.shpk,bgprop.shpk]=0.015
-        new("g_MultiNormalScale",                 0x793AC5A3, NameItemCategory.MaterialParam),  // [bg.shpk,bguvscroll.shpk,bgcrestchange.shpk,bgcolorchange.shpk,crystal.shpk,bgprop.shpk]=1
-        new("g_MultiSpecularColor",               0x86D60CB8, NameItemCategory.MaterialParam),  // [crystal.shpk,bg.shpk,bguvscroll.shpk,bgcrestchange.shpk,bgcolorchange.shpk,bgprop.shpk]=1,1,1
-        new("g_MultiSSAOMask",                    0x926E860D, NameItemCategory.MaterialParam),  // [bg.shpk,bguvscroll.shpk,bgcrestchange.shpk,bgcolorchange.shpk,crystal.shpk,bgprop.shpk]=1
-        new("g_MultiWaveScale",                   0x37363FDD, NameItemCategory.MaterialParam),  // [river.shpk]=1,1,2,2
-        new("g_MultiWhitecapScale",               0x312B69C1, NameItemCategory.MaterialParam),  // [river.shpk]=4,4
-        new("g_NearClip",                         0x17A52926, NameItemCategory.MaterialParam),  // [lightshaft.shpk]=0.25
-        new("g_NormalScale",                      0xB5545FBB, NameItemCategory.MaterialParam),  // [characterlegacy.shpk,bg.shpk,bgprop.shpk,crystal.shpk,river.shpk,bguvscroll.shpk,character.shpk,bgcolorchange.shpk,water.shpk,characterglass.shpk,charactertransparency.shpk,bgcrestchange.shpk,characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk]=1
-        new("g_NormalScale1",                     0x0DD83E61, NameItemCategory.MaterialParam),  // [water.shpk]=1
-        new("g_NormalUVScale",                    0xBB99CF76, NameItemCategory.MaterialParam),  // [bg.shpk,bgprop.shpk,crystal.shpk,bguvscroll.shpk,bgcrestchange.shpk,bgcolorchange.shpk]=1,1,1,1
-        new("g_OutlineColor",                     0x623CC4FE, NameItemCategory.MaterialParam),  // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=0,0,0
-        new("g_OutlineWidth",                     0x8870C938, NameItemCategory.MaterialParam),  // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=0
-        new("g_PrefersFailure",                   0x5394405B, NameItemCategory.MaterialParam),  // [water.shpk]=1,0
-        new("g_Ray",                              0x827BDD09, NameItemCategory.MaterialParam),  // [lightshaft.shpk]=0,0,1
-        new("g_ReflectionPower",                  0x223A3329, NameItemCategory.MaterialParam),  // [river.shpk,water.shpk]=0.25
-        new("g_RefractionColor",                  0xBA163700, NameItemCategory.MaterialParam),  // [river.shpk,water.shpk]=0.4117,0.4313,0.4509
-        new("g_RLRReflectionPower",               0xF2360709, NameItemCategory.MaterialParam),  // [river.shpk,water.shpk]=0.1
-        new("g_SeaWaveScale",                     0xA5FF109A, NameItemCategory.MaterialParam),  // [water.shpk]=50
-        new("g_ShaderID",                         0x59BDA0B1, NameItemCategory.MaterialParam),  // [bg.shpk,bgprop.shpk,crystal.shpk,bguvscroll.shpk,bgcolorchange.shpk,bgcrestchange.shpk,characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=0
-        new("g_ShadowAlphaThreshold",             0xD925FF32, NameItemCategory.MaterialParam),  // [character.shpk,charactertransparency.shpk,bgcrestchange.shpk,characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,characterlegacy.shpk,bgcolorchange.shpk,verticalfog.shpk,crystal.shpk,river.shpk,water.shpk,lightshaft.shpk,bgprop.shpk,bguvscroll.shpk,bg.shpk]=0.5
-        new("g_ShadowPosOffset",                  0x5351646E, NameItemCategory.MaterialParam),  // [character.shpk,characterlegacy.shpk,characterglass.shpk,charactertransparency.shpk,characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk]=0
-        new("g_SheenAperture",                    0xF490F76E, NameItemCategory.MaterialParam),  // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=1
-        new("g_SheenRate",                        0x800EE35F, NameItemCategory.MaterialParam),  // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=0
-        new("g_SheenTintRate",                    0x1F264897, NameItemCategory.MaterialParam),  // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=0
-        new("g_SingleWaveScale",                  0x5B22E864, NameItemCategory.MaterialParam),  // [river.shpk]=1,1,2,2
-        new("g_SingleWhitecapScale",              0xB33DB142, NameItemCategory.MaterialParam),  // [river.shpk]=4,4
-        new("g_SoftEadgDistance",                 0x2A57C3CC, NameItemCategory.MaterialParam),  // [river.shpk,water.shpk]=0.3
-        new("g_SpecularColor",                    0x141722D5, NameItemCategory.MaterialParam),  // [bg.shpk,bgprop.shpk,crystal.shpk,bguvscroll.shpk,bgcolorchange.shpk,bgcrestchange.shpk]=1,1,1
-        new("g_SpecularColorMask",                0xCB0338DC, NameItemCategory.MaterialParam),  // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=1,1,1
-        new("g_SpecularPower",                    0xD9CB6B9C, NameItemCategory.MaterialParam),  // [river.shpk,water.shpk]=
-        new("g_SpecularUVScale",                  0x8D03A782, NameItemCategory.MaterialParam),  // [bg.shpk,bgprop.shpk,crystal.shpk,bguvscroll.shpk,bgcrestchange.shpk,bgcolorchange.shpk]=1,1,1,1
-        new("g_SphereMapID",                      0x5106E045, NameItemCategory.MaterialParam),  // [crystal.shpk,bgcrestchange.shpk,bgcolorchange.shpk,bgprop.shpk,bguvscroll.shpk,bg.shpk]=0
-        new("g_SphereMapIndex",                   0x074953E9, NameItemCategory.MaterialParam),  // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=0
-        new("g_SSAOMask",                         0xB7FA33E2, NameItemCategory.MaterialParam),  // [characterlegacy.shpk,bg.shpk,bgprop.shpk,crystal.shpk,bguvscroll.shpk,character.shpk,bgcolorchange.shpk,bgcrestchange.shpk,characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk]=1
-        new("g_TexAnim",                          0x14D8E13D, NameItemCategory.MaterialParam),  // [lightshaft.shpk]=0,250
-        new("g_TextureMipBias",                   0x39551220, NameItemCategory.MaterialParam),  // [characterlegacy.shpk,character.shpk,characterglass.shpk,charactertransparency.shpk,characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk]=0
-        new("g_TexU",                             0x5926A043, NameItemCategory.MaterialParam),  // [lightshaft.shpk]=0,0,-1
-        new("g_TexV",                             0xC02FF1F9, NameItemCategory.MaterialParam),  // [lightshaft.shpk]=0,-1,0
-        new("g_TileAlpha",                        0x12C6AC9F, NameItemCategory.MaterialParam),  // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=1
-        new("g_TileIndex",                        0x4255F2F4, NameItemCategory.MaterialParam),  // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=0
-        new("g_TileMipBiasOffset",                0x6421DD30, NameItemCategory.MaterialParam),  // [character.shpk,characterlegacy.shpk,characterglass.shpk,charactertransparency.shpk,characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk]=0
-        new("g_TileScale",                        0x2E60B071, NameItemCategory.MaterialParam),  // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=16,16
-        new("g_ToonIndex",                        0xDF15112D, NameItemCategory.MaterialParam),  // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=0
-        new("g_ToonLightScale",                   0x3CCE9E4C, NameItemCategory.MaterialParam),  // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=2
-        new("g_ToonLightSpecAperture",            0x759036EE, NameItemCategory.MaterialParam),  // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=50
-        new("g_ToonReflectionScale",              0xD96FAF7A, NameItemCategory.MaterialParam),  // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=2.5
-        new("g_ToonSpecIndex",                    0x00A680BC, NameItemCategory.MaterialParam),  // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=4E-45
-        new("g_Transparency",                     0x53E8417B, NameItemCategory.MaterialParam),  // [river.shpk,water.shpk]=1
-        new("g_TransparencyDistance",             0x1624F841, NameItemCategory.MaterialParam),  // [river.shpk]=50;[water.shpk]=100
-        new("g_TripleWhitecapScale",              0x113BAFDF, NameItemCategory.MaterialParam),  // [river.shpk]=8,8
-        new("g_UVScrollTime",                     0x9A696A17, NameItemCategory.MaterialParam),  // [bguvscroll.shpk,bgcrestchange.shpk,bgcolorchange.shpk,crystal.shpk,bgprop.shpk,bg.shpk]=10,10,10,10
-        new("g_VertexMovementMaxLength",          0xD26FF0AE, NameItemCategory.MaterialParam),  // [characterlegacy.shpk,character.shpk,charactertransparency.shpk,characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk]=1
-        new("g_VertexMovementScale",              0x641E0F22, NameItemCategory.MaterialParam),  // [characterlegacy.shpk,character.shpk,charactertransparency.shpk,characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk]=1
-        new("g_WaterDeepColor",                   0xD315E728, NameItemCategory.MaterialParam),  // [river.shpk,water.shpk]=0.3529,0.372549,0.3921
-        new("g_WaveletDistortion",                0x3439B378, NameItemCategory.MaterialParam),  // [water.shpk]=
-        new("g_WaveletFadeDistance",              0x4AD899B7, NameItemCategory.MaterialParam),  // [water.shpk]=
-        new("g_WaveletNoiseParam",                0x1279815C, NameItemCategory.MaterialParam),  // [water.shpk]=
-        new("g_WaveletOffset",                    0x9BE8354A, NameItemCategory.MaterialParam),  // [water.shpk]=0
-        new("g_WaveletScale",                     0xD62C681E, NameItemCategory.MaterialParam),  // [water.shpk]=
-        new("g_WaveletSinParam",                  0x2F41D796, NameItemCategory.MaterialParam),  // [water.shpk]=
-        new("g_WaveParam_NormalScale",            0x592A312C, NameItemCategory.MaterialParam),  // [water.shpk]=2
-        new("g_WaveSpeed",                        0xE4C68FF3, NameItemCategory.MaterialParam),  // [river.shpk]=1,1,1,1
-        new("g_WaveTime",                         0x8EB9D2A6, NameItemCategory.MaterialParam),  // [river.shpk,water.shpk]=15
-        new("g_WaveTime1",                        0x6EE5BF35, NameItemCategory.MaterialParam),  // [water.shpk]=15
-        new("g_WhitecapColor",                    0x29FA2AC1, NameItemCategory.MaterialParam),  // [river.shpk]=0.4509,0.4705,0.4901;[water.shpk]=0.4509,0.4705,0.4901,0.3
-        new("g_WhitecapDistance",                 0x5D26B262, NameItemCategory.MaterialParam),  // [water.shpk]=0.5
-        new("g_WhitecapNoiseScale",               0x0FF95B0C, NameItemCategory.MaterialParam),  // [water.shpk]=0.1,0.1
-        new("g_WhitecapScale",                    0xA3EA47AC, NameItemCategory.MaterialParam),  // [water.shpk]=50
-        new("g_WhitecapSpeed",                    0x408A9CDE, NameItemCategory.MaterialParam),  // [river.shpk]=6,3,3;[water.shpk]=15
-        new("g_WhiteEyeColor",                    0x11C90091, NameItemCategory.MaterialParam),  // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=1,1,1
-        // new("0xF52CCF05",                         0xF52CCF05, NameItemCategory.MaterialKey),   // Unknown [characterlegacy.shpk,character.shpk,charactertransparency.shpk,characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk]=0xDFE74BAC
-        // new("0xA7D2FF60",                         0xA7D2FF60, NameItemCategory.MaterialValue),  // Unknown 
-        // new("0xDFE74BAC",                         0xDFE74BAC, NameItemCategory.MaterialValue),  // Unknown 
-        // new("0x36F72D5F",                         0x36F72D5F, NameItemCategory.MaterialKey),   // Unknown [bg.shpk]=0x88A3965A
-        // new("0x1E314009",                         0x1E314009, NameItemCategory.MaterialValue),  // Unknown 
-        // new("0x6936709F",                         0x6936709F, NameItemCategory.MaterialValue),  // Unknown 
-        // new("0x88A3965A",                         0x88A3965A, NameItemCategory.MaterialValue),  // Unknown 
-        // new("0x9807BAC4",                         0x9807BAC4, NameItemCategory.MaterialValue),  // Unknown 
-        // new("0xF886E10E",                         0xF886E10E, NameItemCategory.MaterialKey),   // Unknown [characterscroll.shpk]=0x69EB4AE0
-        // new("0x69EB4AE0",                         0x69EB4AE0, NameItemCategory.MaterialValue),  // Unknown 
-        new("ApplyAlphaTest",                     0xA9A3EE25, NameItemCategory.MaterialKey),   // [bgprop.shpk,bg.shpk,bguvscroll.shpk,bgcrestchange.shpk,bgcolorchange.shpk,crystal.shpk]=ApplyAlphaTestOff
-        new("ApplyAlphaTestOff",                  0x5D146A23, NameItemCategory.MaterialValue), 
-        new("ApplyAlphaTestOn",                   0x72AAA9AE, NameItemCategory.MaterialValue), 
-        new("ApplyDepthWhitecap",                 0x28981633, NameItemCategory.MaterialKey),   // [water.shpk]=ApplyDepthWhitecapOff
-        new("ApplyDepthWhitecapOff",              0x28D137F1, NameItemCategory.MaterialValue), 
-        new("ApplyDepthWhitecapOn",               0xDD54E76C, NameItemCategory.MaterialValue), 
-        new("ApplyVertexColor",                   0x4F4F0636, NameItemCategory.MaterialKey),   // [bg.shpk]=ApplyVertexColorOff
-        new("ApplyVertexColorOff",                0x7C6FA05B, NameItemCategory.MaterialValue), 
-        new("ApplyVertexColorOn",                 0xBD94649A, NameItemCategory.MaterialValue), 
-        new("ApplyWavelet",                       0xFB7AD5E4, NameItemCategory.MaterialKey),   // [water.shpk]=ApplyWaveletOff
-        new("ApplyWaveletOff",                    0x0EC4134E, NameItemCategory.MaterialValue), 
-        // new("CategoryFlowMapType",                0x40D1481E, NameItemCategory.MaterialKey),   // Stub [character.shpk,characterscroll.shpk]=Standard
-        // new("Standard",                           0x337C6BC4, NameItemCategory.MaterialValue),  // Stub 
-        // new("CategorySpecularType",               0xC8BD1DEF, NameItemCategory.MaterialKey),   // Stub [characterlegacy.shpk]=Default
-        // new("Default",                            0x198D11CD, NameItemCategory.MaterialValue),  // Stub 
-        // new("Mask",                               0xA02F4828, NameItemCategory.MaterialValue),  // Stub 
-        new("DrawDepthMode",                      0xE8DA5B62, NameItemCategory.MaterialKey),   // [characterglass.shpk,charactertransparency.shpk]=DrawDepthMode_Dither
-        new("DrawDepthMode_Dither",               0x7B804D6E, NameItemCategory.MaterialValue), 
-        new("EnableLighting",                     0x0033C8B5, NameItemCategory.MaterialKey),   // [charactertransparency.shpk]=EnableLightingOn
-        new("EnableLightingOn",                   0xD1E60FD9, NameItemCategory.MaterialValue), 
-        new("GetCrystalType",                     0x59C8D2C1, NameItemCategory.MaterialKey),   // [crystal.shpk]=GetCrystalTypeEnvMap
-        new("GetCrystalTypeEnvMap",               0x9A77AA04, NameItemCategory.MaterialValue), 
-        new("GetCrystalTypeSphereMap",            0xE3531F26, NameItemCategory.MaterialValue), 
-        new("GetCrystalTypeSphereMapCustum",      0xB29E6018, NameItemCategory.MaterialValue), 
-        new("GetDecalColor",                      0xD2777173, NameItemCategory.MaterialKey),   // [characterlegacy.shpk,character.shpk,characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk]=GetDecalColorOff
-        new("GetDecalColorOff",                   0x4242B842, NameItemCategory.MaterialValue), 
-        new("GetDecalColorRGBA",                  0xF35F5131, NameItemCategory.MaterialValue), 
-        new("GetDiffuseMap",                      0x1A43D949, NameItemCategory.MaterialKey),  
-        new("GetDiffuseMapOff",                   0x2CD41A98, NameItemCategory.MaterialValue), 
-        new("GetDiffuseTex",                      0x63030C80, NameItemCategory.MaterialKey),   // [iris.shpk]=GetDiffuseTexOff
-        new("GetDiffuseTexOff",                   0x3839C7E4, NameItemCategory.MaterialValue), 
-        new("GetFadeAlpha",                       0xDBD08C23, NameItemCategory.MaterialKey),   // [verticalfog.shpk]=GetFadeAlphaNone
-        new("GetFadeAlphaNone",                   0x34775C9A, NameItemCategory.MaterialValue), 
-        new("GetMaterialValue",                   0x380CAED0, NameItemCategory.MaterialKey),   // [skin.shpk]=GetMaterialValueFace
-        new("GetMaterialValueFace",               0xF5673524, NameItemCategory.MaterialValue), 
-        new("GetMultiWhitecap",                   0xEC806138, NameItemCategory.MaterialKey),   // [river.shpk]=GetMultiWhitecapOn
-        new("GetMultiWhitecapOn",                 0xF0C11E20, NameItemCategory.MaterialValue), 
-        new("GetNormalMap",                       0xCBDFD5EC, NameItemCategory.MaterialKey),  
-        new("GetNormalMapOff",                    0xA66B15A1, NameItemCategory.MaterialValue), 
-        new("GetReflectionPower",                 0xE041892A, NameItemCategory.MaterialKey),   // [river.shpk]=GetReflectionPowerOff
-        new("GetReflectionPowerOff",              0x32F05363, NameItemCategory.MaterialValue), 
-        new("GetRefractionMask",                  0x4A323184, NameItemCategory.MaterialKey),   // [water.shpk]=GetRefractionMaskDepth
-        new("GetRefractionMaskDepth",             0xDCC8DB97, NameItemCategory.MaterialValue), 
-        new("GetRefractionPower",                 0xB5B1C44A, NameItemCategory.MaterialKey),   // [water.shpk,river.shpk]=GetRefractionPowerOn
-        new("GetRefractionPowerOff",              0x824D5B42, NameItemCategory.MaterialValue), 
-        new("GetRefractionPowerOn",               0x4B740B02, NameItemCategory.MaterialValue), 
-        new("GetSingleWhitecap",                  0xABDA6DFB, NameItemCategory.MaterialKey),   // [river.shpk]=GetSingleWhitecapOn
-        new("GetSingleWhitecapOn",                0x19A091DC, NameItemCategory.MaterialValue), 
-        new("GetSpecular",                        0x0B59CEE7, NameItemCategory.MaterialKey),  
-        new("GetSpecularOff",                     0x07D3170F, NameItemCategory.MaterialValue), 
-        new("GetSpecularMap",                     0xBFC2E0F7, NameItemCategory.MaterialKey),  
-        new("GetSpecularMapOff",                  0x772FF72B, NameItemCategory.MaterialValue), 
-        new("GetSubColor",                        0x24826489, NameItemCategory.MaterialKey),   // [hair.shpk]=GetSubColorHair
-        new("GetSubColorHair",                    0xF7B8956E, NameItemCategory.MaterialValue), 
-        new("GetTripleWhitecap",                  0x6E8CE685, NameItemCategory.MaterialKey),   // [river.shpk]=GetTripleWhitecapOn
-        new("GetTripleWhitecapOn",                0xD2765A5A, NameItemCategory.MaterialValue), 
-        new("GetValues",                          0xB616DC5A, NameItemCategory.MaterialKey),   // [characterlegacy.shpk,character.shpk,charactertransparency.shpk,characterinc.shpk,characterscroll.shpk]=GetValuesMultiMaterial;[bg.shpk,bguvscroll.shpk]=GetSingleValues;[river.shpk]=GetMultiValues
-        new("GetAlphaMultiValues",                0x941820BE, NameItemCategory.MaterialValue), 
-        new("GetAlphaMultiValues2",               0xE49AD72B, NameItemCategory.MaterialValue), 
-        new("GetAlphaMultiValues3",               0x939DE7BD, NameItemCategory.MaterialValue), 
-        new("GetMultiValues",                     0x1DF2985C, NameItemCategory.MaterialValue), 
-        new("GetSingleValues",                    0x669A451B, NameItemCategory.MaterialValue), 
-        new("GetValuesCompatibility",             0x600EF9DF, NameItemCategory.MaterialValue), 
-        new("GetValuesMultiMaterial",             0x5CC605B5, NameItemCategory.MaterialValue), 
-        new("GetWaterColor",                      0xF8EF655E, NameItemCategory.MaterialKey),   // [river.shpk,water.shpk]=GetWaterColorDistance
-        new("GetWaterColorDepth",                 0x08404EC3, NameItemCategory.MaterialValue), 
-        new("GetWaterColorDistance",              0x86B217C3, NameItemCategory.MaterialValue), 
-        new("GetWaterColorWaterDepth",            0xE6A6AD27, NameItemCategory.MaterialValue), 
-        new("Lighting",                           0x575CA84C, NameItemCategory.MaterialKey),  
-        new("LightingLow",                        0x2807B89E, NameItemCategory.MaterialValue), 
-        new("Type",                               0x0DA8270B, NameItemCategory.MaterialKey),   // [lightshaft.shpk]=Type0
-        new("Type0",                              0xB1064103, NameItemCategory.MaterialValue), 
-        new("VertexWave",                         0x9E45B87D, NameItemCategory.MaterialKey),   // [water.shpk]=VertexWave_Off
-        new("VertexWave_Off",                     0xB77F0FAF, NameItemCategory.MaterialValue), 
-        // new("0xE62944E7",                         0xE62944E7, NameItemCategory.SceneKey),      // Unknown [bgcrestchange.shpk,characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk,bgcolorchange.shpk,crystal.shpk,bgprop.shpk,bguvscroll.shpk,bg.shpk]=0x96BA161F
-        // new("0x96BA161F",                         0x96BA161F, NameItemCategory.SceneValue),    // Unknown 
-        // new("0xBEA6525E",                         0xBEA6525E, NameItemCategory.SceneKey),      // Unknown [iris.shpk]=0x3DAAF8BE
-        // new("0x3DAAF8BE",                         0x3DAAF8BE, NameItemCategory.SceneValue),    // Unknown 
-        new("AddLayer",                           0xEA931ECA, NameItemCategory.SceneKey),      // [verticalfog.shpk]=AddLayer0
-        new("AddLayer0",                          0x5D82881C, NameItemCategory.SceneValue),   
-        new("ApplyAlphaClip",                     0xDCFC844E, NameItemCategory.SceneKey),      // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=ApplyAlphaClipOff
-        new("ApplyAlphaClipOff",                  0x7D5081DF, NameItemCategory.SceneValue),   
-        new("ApplyDetailMap",                     0x6313FD87, NameItemCategory.SceneKey),      // [bgcrestchange.shpk,bgcolorchange.shpk,crystal.shpk,bgprop.shpk,bguvscroll.shpk,bg.shpk]=ApplyDetailMap_Disable
-        new("ApplyDetailMap_Disable",             0x9615E0AB, NameItemCategory.SceneValue),   
-        new("ApplyDissolveColor",                 0xAD24ACAD, NameItemCategory.SceneKey),      // [bgcrestchange.shpk,characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk,bgcolorchange.shpk,crystal.shpk,bgprop.shpk,bguvscroll.shpk,bg.shpk]=ApplyDissolveColorOff
-        new("ApplyDissolveColorOff",              0x03A11B1B, NameItemCategory.SceneValue),   
-        new("ApplyDitherClip",                    0x8B036665, NameItemCategory.SceneKey),      // [bgcrestchange.shpk,characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk,bgcolorchange.shpk,crystal.shpk,river.shpk,water.shpk,bgprop.shpk,bguvscroll.shpk,bg.shpk]=ApplyDitherClipOff
-        new("ApplyDitherClipOff",                 0x0802566A, NameItemCategory.SceneValue),   
-        new("ApplyDynamicWave",                   0xE5D84BEF, NameItemCategory.SceneKey),      // [bgprop.shpk]=ApplyDynamicWaveOff
-        new("ApplyDynamicWaveOff",                0xD58B99E1, NameItemCategory.SceneValue),   
-        new("ApplyUnderWater",                    0x7725989B, NameItemCategory.SceneKey),      // [river.shpk,water.shpk]=ApplyUnderWaterOff
-        new("ApplyUnderWaterOff",                 0xEF6A4182, NameItemCategory.SceneValue),   
-        new("ApplyVertexMovement",                0x87D8F48A, NameItemCategory.SceneKey),      // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=ApplyVertexMovementOff
-        new("ApplyVertexMovementOff",             0xF8CA223F, NameItemCategory.SceneValue),   
-        new("ApplyWavingAnim",                    0x105C6A52, NameItemCategory.SceneKey),      // [bgprop.shpk,bg.shpk]=ApplyWavingAnimOff
-        new("ApplyWavingAnimOff",                 0x7E47A68D, NameItemCategory.SceneValue),   
-        new("CalculateInstancingPosition",        0x4518960B, NameItemCategory.SceneKey),      // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=CalculateInstancingPosition_Off
-        new("CalculateInstancingPosition_Off",    0xD5ECB340, NameItemCategory.SceneValue),   
-        new("DebugMode",                          0x611DA1BE, NameItemCategory.SceneKey),      // [water.shpk]=DebugMode_Off
-        new("DebugMode_Off",                      0x9F10EE69, NameItemCategory.SceneValue),   
-        new("DebugVertexWave",                    0x7D155D6D, NameItemCategory.SceneKey),      // [water.shpk]=DebugVertexWave_Off
-        new("DebugVertexWave_Off",                0xCBF7A4ED, NameItemCategory.SceneValue),   
-        new("DrawOffscreen",                      0xA1CDEFE9, NameItemCategory.SceneKey),      // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=DrawOffscreenOff
-        new("DrawOffscreenOff",                   0x76B07811, NameItemCategory.SceneValue),   
-        new("GetAmbientLight",                    0x8955127D, NameItemCategory.SceneKey),      // [bgcrestchange.shpk,bgcolorchange.shpk,crystal.shpk,bgprop.shpk,bguvscroll.shpk,bg.shpk]=GetAmbientLight_Color
-        new("GetAmbientLight_Color",              0x23C62FB0, NameItemCategory.SceneValue),   
-        new("GetHairFlow",                        0xCD1484E7, NameItemCategory.SceneKey),      // [hair.shpk,character.shpk]=GetHairFlowOff
-        new("GetHairFlowOff",                     0x05288D6B, NameItemCategory.SceneValue),   
-        new("GetInstanceData",                    0x086F8E39, NameItemCategory.SceneKey),      // [bgcrestchange.shpk,bgcolorchange.shpk,crystal.shpk,bgprop.shpk,bguvscroll.shpk,bg.shpk]=GeometryInstancingOn
-        new("GeometryInstancingOn",               0x815446B5, NameItemCategory.SceneValue),   
-        new("GetLocalPosition",                   0xBB30A69D, NameItemCategory.SceneKey),      // [bg.shpk]=GetLocalPositionNone
-        new("GetLocalPositionNone",               0xEFCC34B1, NameItemCategory.SceneValue),   
-        new("GetMaterialParameter",               0x6448E37B, NameItemCategory.SceneKey),      // [river.shpk]=0x812D4365;[water.shpk]=0xD6294FD5
-        // new("0x812D4365",                         0x812D4365, NameItemCategory.SceneValue),    // Unknown 
-        // new("0xD6294FD5",                         0xD6294FD5, NameItemCategory.SceneValue),    // Unknown 
-        new("GetNormalMap",                       0xCBDFD5EC, NameItemCategory.SceneKey),      // [bgprop.shpk,bg.shpk]=GetNormalMapOff
-        new("GetNormalMapOff",                    0xA66B15A1, NameItemCategory.SceneValue),   
-        new("GetRLR",                             0x11433F2D, NameItemCategory.SceneKey),      // [river.shpk,water.shpk]=GetRLROff
-        new("GetRLROff",                          0x6B2E2D05, NameItemCategory.SceneValue),   
-        new("GetVelocity",                        0x477E3A17, NameItemCategory.SceneKey),      // [bgcrestchange.shpk,bgcolorchange.shpk,crystal.shpk,bgprop.shpk,bguvscroll.shpk,bg.shpk]=GetVelocityStatic
-        new("GetVelocityStatic",                  0x3DD9525E, NameItemCategory.SceneValue),   
-        new("GlassBlendMode",                     0x9F2A6183, NameItemCategory.SceneKey),      // [characterglass.shpk,charactertransparency.shpk]=GlassBlendMode_Mul
-        new("GlassBlendMode_Mul",                 0x44425B98, NameItemCategory.SceneValue),   
-        new("ReflectionMapType",                  0x607399CA, NameItemCategory.SceneKey),      // [river.shpk,water.shpk]=ReflectionMapTypeSingle
-        new("ReflectionMapTypeSingle",            0x21F13F6D, NameItemCategory.SceneValue),   
-        new("TransformView",                      0xA5A1910D, NameItemCategory.SceneKey),      // [characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk]=TransformViewRigid
-        new("TransformViewRigid",                 0x4123B1A3, NameItemCategory.SceneValue),   
-        // new("0x00000002",                         0x00000002, NameItemCategory.SubViewKey),    // Unknown [bgcrestchange.shpk,characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,iris.shpk,hair.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk,bgcolorchange.shpk,crystal.shpk,bgprop.shpk,bguvscroll.shpk,bg.shpk]=SUB_VIEW_SHADOW_0;[charactertattoo.shpk,characterocclusion.shpk,river.shpk,water.shpk]=SUB_VIEW_MAIN;[verticalfog.shpk,lightshaft.shpk]=MAIN
-        new("MAIN",                               0xA8F9FFCC, NameItemCategory.SubViewValue), 
-        new("SUB_VIEW_MAIN",                      0xF43B2F35, NameItemCategory.SubViewValue), 
-        new("SUB_VIEW_SHADOW_0",                  0x99B22D1C, NameItemCategory.SubViewValue), 
-        // new("0x00000001",                         0x00000001, NameItemCategory.SubViewKey),    // Unknown [bgcrestchange.shpk,characterinc.shpk,characterstockings.shpk,characterscroll.shpk,characterreflection.shpk,charactertattoo.shpk,iris.shpk,hair.shpk,characterocclusion.shpk,skin.shpk,characterglass.shpk,charactertransparency.shpk,character.shpk,characterlegacy.shpk,bgcolorchange.shpk,crystal.shpk,river.shpk,water.shpk,lightshaft.shpk,bgprop.shpk,bguvscroll.shpk,bg.shpk]=Default;[verticalfog.shpk]=Color
-        new("Color",                              0x61B590F0, NameItemCategory.SubViewValue), 
-        new("Default",                            0xB18FE63D, NameItemCategory.SubViewValue), 
+        // MaterialParam Unknown: 0x052ED035 Shaders: water.shpk Defaults: 0.07
+        // MaterialParam Unknown: 0x064CBF83 Shaders: water.shpk Defaults: 0.5
+        // MaterialParam Unknown: 0x0678C56A Shaders: crystal.shpk Defaults: 
+        // MaterialParam Unknown: 0x093084AD Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 1
+        // MaterialParam Unknown: 0x0B46E7BE Shaders: water.shpk Defaults: 1
+        // MaterialParam Unknown: 0x0BA59580 Shaders: water.shpk Defaults: 10
+        // MaterialParam Unknown: 0x12F6AB51 Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 3
+        // MaterialParam Unknown: 0x15B70E35 Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0
+        // MaterialParam Unknown: 0x16AF3E5F Shaders: water.shpk Defaults: 1
+        // MaterialParam Unknown: 0x1A60F60E Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0,0
+        // MaterialParam Unknown: 0x2334AA21 Shaders: water.shpk Defaults: 0,900,10,100
+        // MaterialParam Unknown: 0x2377A510 Shaders: water.shpk Defaults: 1
+        // MaterialParam Unknown: 0x25C3F71B Shaders: character.shpk Defaults: 
+        // MaterialParam Unknown: 0x2B5EB116 Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: -45
+        // MaterialParam Unknown: 0x2F5837E2 Shaders: character.shpk Defaults: 
+        // MaterialParam Unknown: 0x30B91319 Shaders: bg.shpk Defaults: 
+        // MaterialParam Unknown: 0x32A89D80 Shaders: water.shpk Defaults: 0.15
+        // MaterialParam Unknown: 0x37C05873 Shaders: water.shpk Defaults: 0
+        // MaterialParam Unknown: 0x3A75FA33 Shaders: crystal.shpk Defaults: 
+        // MaterialParam Unknown: 0x3FD623A8 Shaders: water.shpk Defaults: 4
+        // MaterialParam Unknown: 0x4172EDCC Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 1
+        // MaterialParam Unknown: 0x43345395 Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 1
+        // MaterialParam Unknown: 0x44EF5418 Shaders: water.shpk Defaults: 1,0
+        // MaterialParam Unknown: 0x45364F70 Shaders: water.shpk Defaults: 0.15
+        // MaterialParam Unknown: 0x498092FD Shaders: water.shpk Defaults: 40
+        // MaterialParam Unknown: 0x4EC3879E Shaders: water.shpk Defaults: 1
+        // MaterialParam Unknown: 0x5164FA14 Shaders: water.shpk Defaults: 5
+        // MaterialParam Unknown: 0x5C598180 Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 45
+        // MaterialParam Unknown: 0x63747CC4 Shaders: water.shpk Defaults: 1
+        // MaterialParam Unknown: 0x6514A4DB Shaders: water.shpk Defaults: 300,300
+        // MaterialParam Unknown: 0x6A197C9E Shaders: water.shpk Defaults: 1,0
+        // MaterialParam Unknown: 0x6C159E95 Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0.85
+        // MaterialParam Unknown: 0x6E0A1C94 Shaders: water.shpk Defaults: 0.5
+        // MaterialParam Unknown: 0x71CC9A45 Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0
+        // MaterialParam Unknown: 0x720916BD Shaders: water.shpk Defaults: 0.9
+        // MaterialParam Unknown: 0x72291E75 Shaders: water.shpk Defaults: 0,500,10,50
+        // MaterialParam Unknown: 0x72B002C5 Shaders: water.shpk Defaults: 0.2
+        // MaterialParam Unknown: 0x738A241C Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0
+        // MaterialParam Unknown: 0x7A08F978 Shaders: water.shpk Defaults: 45
+        // MaterialParam Unknown: 0x7B086C53 Shaders: water.shpk Defaults: 60,195,190
+        // MaterialParam Unknown: 0x7B5813E0 Shaders: water.shpk Defaults: 30,1000,50,100
+        // MaterialParam Unknown: 0x7D6268DD Shaders: water.shpk Defaults: 1,0
+        // MaterialParam Unknown: 0x7DB2732C Shaders: water.shpk Defaults: 0
+        // MaterialParam Unknown: 0x8500AEA4 Shaders: water.shpk Defaults: 1
+        // MaterialParam Unknown: 0x852A9263 Shaders: water.shpk Defaults: 70
+        // MaterialParam Unknown: 0x8F4D585E Shaders: water.shpk Defaults: 1
+        // MaterialParam Unknown: 0x960450D0 Shaders: river.shpk Defaults: 
+        // MaterialParam Unknown: 0x97E83104 Shaders: river.shpk Defaults: 
+        // MaterialParam Unknown: 0x9E8B9C5A Shaders: water.shpk Defaults: 0.05
+        // MaterialParam Unknown: 0xA2A01C0A Shaders: water.shpk Defaults: 0.5
+        // MaterialParam Unknown: 0xA90DD1EF Shaders: water.shpk Defaults: 0.1
+        // MaterialParam Unknown: 0xAD94E254 Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0
+        // MaterialParam Unknown: 0xAE4F649C Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0
+        // MaterialParam Unknown: 0xB1542ADD Shaders: water.shpk Defaults: 15
+        // MaterialParam Unknown: 0xB3A7C1B5 Shaders: water.shpk Defaults: 0,500,10,50
+        // MaterialParam Unknown: 0xB61D7498 Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0
+        // MaterialParam Unknown: 0xB6EEA089 Shaders: water.shpk Defaults: 0
+        // MaterialParam Unknown: 0xB8827D5E Shaders: water.shpk Defaults: 500,500
+        // MaterialParam Unknown: 0xB88B859A Shaders: water.shpk Defaults: 1
+        // MaterialParam Unknown: 0xB8ACCE58 Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 50,100,50,100
+        // MaterialParam Unknown: 0xB9766DBB Shaders: river.shpk|water.shpk Defaults: 50
+        // MaterialParam Unknown: 0xBAD6CC20 Shaders: water.shpk Defaults: 0,1000,50,100
+        // MaterialParam Unknown: 0xBFB7646B Shaders: water.shpk Defaults: 0.5
+        // MaterialParam Unknown: 0xBFE9D12D Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 1
+        // MaterialParam Unknown: 0xC582F820 Shaders: water.shpk Defaults: 1,0
+        // MaterialParam Unknown: 0xC598FE75 Shaders: water.shpk Defaults: 10
+        // MaterialParam Unknown: 0xC70F951E Shaders: water.shpk Defaults: 25
+        // MaterialParam Unknown: 0xCBF2CD55 Shaders: water.shpk Defaults: 0.8
+        // MaterialParam Unknown: 0xCEC9B6FF Shaders: water.shpk Defaults: 20
+        // MaterialParam Unknown: 0xD2F9EC63 Shaders: water.shpk Defaults: 1,0
+        // MaterialParam Unknown: 0xD67F62C8 Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 1
+        // MaterialParam Unknown: 0xD721E19F Shaders: water.shpk Defaults: 1
+        // MaterialParam Unknown: 0xD87BBC76 Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 1
+        // MaterialParam Unknown: 0xD8A98BE7 Shaders: water.shpk Defaults: 0.1
+        // MaterialParam Unknown: 0xDA3D022F Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 1
+        // MaterialParam Unknown: 0xDA8FA72C Shaders: water.shpk Defaults: 1
+        // MaterialParam Unknown: 0xDE93031F Shaders: water.shpk Defaults: 0.25
+        // MaterialParam Unknown: 0xE2BA75E1 Shaders: water.shpk Defaults: 0,700,10,100
+        // MaterialParam Unknown: 0xE8C5CBFF Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0
+        // MaterialParam Unknown: 0xE9154EAA Shaders: water.shpk Defaults: 0.3
+        // MaterialParam Unknown: 0xEA8375A6 Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0
+        // MaterialParam Unknown: 0xF769298E Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 0.3,0.3,0.3,0.3
+        // MaterialParam Unknown: 0xFA124634 Shaders: water.shpk Defaults: 0.5
+        // MaterialParam Unknown: 0xFC9C8BD6 Shaders: water.shpk Defaults: -20
+        new("g_AlphaAperture", 0xD62BF368, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 2
+        new("g_AlphaMultiParam", 0x07EDA444, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 0,0,0,0
+        new("g_AlphaOffset", 0xD07A6A65, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0
+        new("g_AlphaThreshold", 0x29AC0223, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|crystal.shpk|hair.shpk|iris.shpk|lightshaft.shpk|river.shpk|skin.shpk|verticalfog.shpk|water.shpk Defaults: 0
+        new("g_AmbientOcclusionMask", 0x575ABFB2, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterlegacy.shpk|characterscroll.shpk|charactertransparency.shpk|hair.shpk|skin.shpk Defaults: 
+        new("g_AngleClip", 0x71DBDA81, NameItemCategory.MaterialParam), // Shaders: lightshaft.shpk Defaults: 0
+        new("g_CausticsPower", 0x7071F15D, NameItemCategory.MaterialParam), // Shaders: river.shpk|water.shpk Defaults: [0.75|0.5]
+        new("g_CausticsReflectionPowerBright", 0x0CC09E67, NameItemCategory.MaterialParam), // Shaders: river.shpk|water.shpk Defaults: 0.5
+        new("g_CausticsReflectionPowerDark", 0xC295EA6C, NameItemCategory.MaterialParam), // Shaders: river.shpk|water.shpk Defaults: 0.5
+        new("g_Color", 0xD27C58B9, NameItemCategory.MaterialParam), // Shaders: lightshaft.shpk|verticalfog.shpk Defaults: [1,1,1|0.8,0.8,0.8,1]
+        new("g_ColorUVScale", 0xA5D02C52, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 1,1,1,1
+        new("g_DetailColor", 0xDD93D839, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 0.5,0.5,0.5
+        new("g_DetailColorFadeDistance", 0xF3F28C58, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 0,0
+        new("g_DetailColorMipBias", 0xB10AF2DA, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 0,0
+        new("g_DetailColorUvScale", 0xC63D9716, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 4,4,4,4
+        new("g_DetailID", 0x8981D4D9, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 0
+        new("g_DetailNormalFadeDistance", 0x236EE793, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 0,0
+        new("g_DetailNormalMipBias", 0x756DFE22, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 0,0
+        new("g_DetailNormalScale", 0x9F42EDA2, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 1
+        new("g_DetailNormalUvScale", 0x025A9BEE, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 4,4,4,4
+        new("g_DiffuseColor", 0x2C2A34DD, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|crystal.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 1,1,1
+        new("g_EmissiveColor", 0x38A64362, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|crystal.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0,0,0
+        new("g_EnableLightShadow", 0x5095E770, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 0
+        new("g_EnableShadow", 0xBCEA8C11, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 0
+        new("g_EnvMapPower", 0xEEF5665F, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 0.85
+        new("g_FadeDistance", 0xC7D0DB1A, NameItemCategory.MaterialParam), // Shaders: verticalfog.shpk Defaults: 1000,1500
+        new("g_Fresnel", 0xE3AA427A, NameItemCategory.MaterialParam), // Shaders: river.shpk|water.shpk Defaults: 
+        new("g_GlassIOR", 0x7801E004, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 1
+        new("g_GlassThicknessMax", 0xC4647F37, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0.01
+        new("g_Gradation", 0x94B40EEE, NameItemCategory.MaterialParam), // Shaders: verticalfog.shpk Defaults: 0.5
+        new("g_HeightMapScale", 0xA320B199, NameItemCategory.MaterialParam), // Shaders: river.shpk|water.shpk Defaults: 0.5
+        new("g_HeightMapUVScale", 0x5B99505D, NameItemCategory.MaterialParam), // Shaders: water.shpk Defaults: 0.25
+        new("g_HeightScale", 0x8F8B0070, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 0.015
+        new("g_InclusionAperture", 0xBCA22FD4, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 1
+        new("g_Intensity", 0xBCBA70E1, NameItemCategory.MaterialParam), // Shaders: verticalfog.shpk Defaults: 0.01
+        new("g_IrisOptionColorEmissiveIntensity", 0x7918D232, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 1
+        new("g_IrisOptionColorEmissiveRate", 0x8EA14846, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0
+        new("g_IrisOptionColorRate", 0x29253809, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0
+        new("g_IrisRingColor", 0x50E36D56, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 1,1,1
+        new("g_IrisRingEmissiveIntensity", 0x7DABA471, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0.25
+        new("g_IrisRingForceColor", 0x58DE06E2, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0,0,0
+        new("g_IrisRingOddRate", 0x285F72D2, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 1E-45
+        new("g_IrisRingUvFadeWidth", 0x5B608CFE, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0.04,0.02
+        new("g_IrisRingUvRadius", 0xE18398AE, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0.158,0.174
+        new("g_IrisThickness", 0x66C93D3E, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0.5
+        new("g_IrisUvRadius", 0x37DEA328, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0.2
+        new("g_LayerColor", 0x35DC0B6F, NameItemCategory.MaterialParam), // Shaders: verticalfog.shpk Defaults: 1,1,1
+        new("g_LayerDepth", 0xA9295FEF, NameItemCategory.MaterialParam), // Shaders: verticalfog.shpk Defaults: 10
+        new("g_LayerIrregularity", 0x0A00B0A1, NameItemCategory.MaterialParam), // Shaders: verticalfog.shpk Defaults: 0.5
+        new("g_LayerScale", 0xBFCC6602, NameItemCategory.MaterialParam), // Shaders: verticalfog.shpk Defaults: 0.01
+        new("g_LayerSoftEdge", 0xD04CB491, NameItemCategory.MaterialParam), // Shaders: verticalfog.shpk Defaults: 0.05
+        new("g_LayerVelocity", 0x72181E22, NameItemCategory.MaterialParam), // Shaders: verticalfog.shpk Defaults: 10,0
+        new("g_LipRoughnessScale", 0x3632401A, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0.7
+        new("g_MultiDetailColor", 0x11FD4221, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 0.5,0.5,0.5
+        new("g_MultiDetailID", 0xAC156136, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 0
+        new("g_MultiDetailNormalScale", 0xA83DBDF1, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 1
+        new("g_MultiDiffuseColor", 0x3F8AC211, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 1,1,1
+        new("g_MultiEmissiveColor", 0xAA676D0F, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 0,0,0
+        new("g_MultiHeightScale", 0x43E59A68, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 0.015
+        new("g_MultiNormalScale", 0x793AC5A3, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 1
+        new("g_MultiSpecularColor", 0x86D60CB8, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 1,1,1
+        new("g_MultiSSAOMask", 0x926E860D, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 1
+        new("g_MultiWaveScale", 0x37363FDD, NameItemCategory.MaterialParam), // Shaders: river.shpk Defaults: 1,1,2,2
+        new("g_MultiWhitecapDistortion", 0x93504F3B, NameItemCategory.MaterialParam), // Shaders: river.shpk Defaults: 
+        new("g_MultiWhitecapScale", 0x312B69C1, NameItemCategory.MaterialParam), // Shaders: river.shpk Defaults: 4,4
+        new("g_NearClip", 0x17A52926, NameItemCategory.MaterialParam), // Shaders: lightshaft.shpk Defaults: 0.25
+        new("g_NormalScale", 0xB5545FBB, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|crystal.shpk|hair.shpk|iris.shpk|river.shpk|skin.shpk|water.shpk Defaults: 1
+        new("g_NormalScale1", 0x0DD83E61, NameItemCategory.MaterialParam), // Shaders: water.shpk Defaults: 1
+        new("g_NormalUVScale", 0xBB99CF76, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 1,1,1,1
+        new("g_OutlineColor", 0x623CC4FE, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0,0,0
+        new("g_OutlineWidth", 0x8870C938, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0
+        new("g_PrefersFailure", 0x5394405B, NameItemCategory.MaterialParam), // Shaders: water.shpk Defaults: 1,0
+        new("g_Ray", 0x827BDD09, NameItemCategory.MaterialParam), // Shaders: lightshaft.shpk Defaults: 0,0,1
+        new("g_ReflectionPower", 0x223A3329, NameItemCategory.MaterialParam), // Shaders: river.shpk|water.shpk Defaults: 0.25
+        new("g_RefractionColor", 0xBA163700, NameItemCategory.MaterialParam), // Shaders: river.shpk|water.shpk Defaults: 0.4117,0.4313,0.4509
+        new("g_RLRReflectionPower", 0xF2360709, NameItemCategory.MaterialParam), // Shaders: river.shpk|water.shpk Defaults: 0.1
+        new("g_ScatteringLevel", 0xB500BB24, NameItemCategory.MaterialParam), // Shaders: bg.shpk|character.shpk|characterlegacy.shpk|hair.shpk Defaults: 
+        new("g_SeaWaveScale", 0xA5FF109A, NameItemCategory.MaterialParam), // Shaders: water.shpk Defaults: 50
+        new("g_ShaderID", 0x59BDA0B1, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|crystal.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0
+        new("g_ShadowAlphaThreshold", 0xD925FF32, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|crystal.shpk|hair.shpk|iris.shpk|lightshaft.shpk|river.shpk|skin.shpk|verticalfog.shpk|water.shpk Defaults: 0.5
+        new("g_ShadowPosOffset", 0x5351646E, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0
+        new("g_SheenAperture", 0xF490F76E, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 1
+        new("g_SheenRate", 0x800EE35F, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0
+        new("g_SheenTintRate", 0x1F264897, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0
+        new("g_Shininess", 0x992869AB, NameItemCategory.MaterialParam), // Shaders: hair.shpk|river.shpk|water.shpk Defaults: 
+        new("g_SingleWaveScale", 0x5B22E864, NameItemCategory.MaterialParam), // Shaders: river.shpk Defaults: 1,1,2,2
+        new("g_SingleWhitecapScale", 0xB33DB142, NameItemCategory.MaterialParam), // Shaders: river.shpk Defaults: 4,4
+        new("g_SoftEadgDistance", 0x2A57C3CC, NameItemCategory.MaterialParam), // Shaders: river.shpk|water.shpk Defaults: 0.3
+        new("g_SpecularColor", 0x141722D5, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 1,1,1
+        new("g_SpecularColorMask", 0xCB0338DC, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 1,1,1
+        new("g_SpecularMask", 0x36080AD0, NameItemCategory.MaterialParam), // Shaders: hair.shpk Defaults: 
+        new("g_SpecularPower", 0xD9CB6B9C, NameItemCategory.MaterialParam), // Shaders: river.shpk|water.shpk Defaults: 
+        new("g_SpecularUVScale", 0x8D03A782, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 1,1,1,1
+        new("g_SphereMapID", 0x5106E045, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 0
+        new("g_SphereMapIndex", 0x074953E9, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0
+        new("g_SSAOMask", 0xB7FA33E2, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|crystal.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 1
+        new("g_TexAnim", 0x14D8E13D, NameItemCategory.MaterialParam), // Shaders: lightshaft.shpk Defaults: 0,250
+        new("g_TextureMipBias", 0x39551220, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0
+        new("g_TexU", 0x5926A043, NameItemCategory.MaterialParam), // Shaders: lightshaft.shpk Defaults: 0,0,-1
+        new("g_TexV", 0xC02FF1F9, NameItemCategory.MaterialParam), // Shaders: lightshaft.shpk Defaults: 0,-1,0
+        new("g_TileAlpha", 0x12C6AC9F, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 1
+        new("g_TileIndex", 0x4255F2F4, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0
+        new("g_TileMipBiasOffset", 0x6421DD30, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0
+        new("g_TileScale", 0x2E60B071, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 16,16
+        new("g_ToonIndex", 0xDF15112D, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0
+        new("g_ToonLightScale", 0x3CCE9E4C, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 2
+        new("g_ToonLightSpecAperture", 0x759036EE, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 50
+        new("g_ToonReflectionScale", 0xD96FAF7A, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 2.5
+        new("g_ToonSpecIndex", 0x00A680BC, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 4E-45
+        new("g_Transparency", 0x53E8417B, NameItemCategory.MaterialParam), // Shaders: river.shpk|water.shpk Defaults: 1
+        new("g_TransparencyDistance", 0x1624F841, NameItemCategory.MaterialParam), // Shaders: river.shpk|water.shpk Defaults: [50|100]
+        new("g_TripleWhitecapScale", 0x113BAFDF, NameItemCategory.MaterialParam), // Shaders: river.shpk Defaults: 8,8
+        new("g_UVScrollTime", 0x9A696A17, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 10,10,10,10
+        new("g_VertexMovementMaxLength", 0xD26FF0AE, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 1
+        new("g_VertexMovementScale", 0x641E0F22, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 1
+        new("g_WaterDeepColor", 0xD315E728, NameItemCategory.MaterialParam), // Shaders: river.shpk|water.shpk Defaults: 0.3529,0.372549,0.3921
+        new("g_WaveletDistortion", 0x3439B378, NameItemCategory.MaterialParam), // Shaders: water.shpk Defaults: 
+        new("g_WaveletFadeDistance", 0x4AD899B7, NameItemCategory.MaterialParam), // Shaders: water.shpk Defaults: 
+        new("g_WaveletNoiseParam", 0x1279815C, NameItemCategory.MaterialParam), // Shaders: water.shpk Defaults: 
+        new("g_WaveletOffset", 0x9BE8354A, NameItemCategory.MaterialParam), // Shaders: water.shpk Defaults: 0
+        new("g_WaveletScale", 0xD62C681E, NameItemCategory.MaterialParam), // Shaders: water.shpk Defaults: 
+        new("g_WaveletSinParam", 0x2F41D796, NameItemCategory.MaterialParam), // Shaders: water.shpk Defaults: 
+        new("g_WaveParam_NormalScale", 0x592A312C, NameItemCategory.MaterialParam), // Shaders: water.shpk Defaults: 2
+        new("g_WaveSpeed", 0xE4C68FF3, NameItemCategory.MaterialParam), // Shaders: river.shpk Defaults: 1,1,1,1
+        new("g_WaveTime", 0x8EB9D2A6, NameItemCategory.MaterialParam), // Shaders: river.shpk|water.shpk Defaults: 15
+        new("g_WaveTime1", 0x6EE5BF35, NameItemCategory.MaterialParam), // Shaders: water.shpk Defaults: 15
+        new("g_WhitecapColor", 0x29FA2AC1, NameItemCategory.MaterialParam), // Shaders: river.shpk|water.shpk Defaults: [0.4509,0.4705,0.4901|0.4509,0.4705,0.4901,0.3]
+        new("g_WhitecapDistance", 0x5D26B262, NameItemCategory.MaterialParam), // Shaders: water.shpk Defaults: 0.5
+        new("g_WhitecapDistortion", 0x61053025, NameItemCategory.MaterialParam), // Shaders: water.shpk Defaults: 
+        new("g_WhitecapNoiseScale", 0x0FF95B0C, NameItemCategory.MaterialParam), // Shaders: water.shpk Defaults: 0.1,0.1
+        new("g_WhitecapScale", 0xA3EA47AC, NameItemCategory.MaterialParam), // Shaders: water.shpk Defaults: 50
+        new("g_WhitecapSpeed", 0x408A9CDE, NameItemCategory.MaterialParam), // Shaders: river.shpk|water.shpk Defaults: [6,3,3|15]
+        new("g_WhiteEyeColor", 0x11C90091, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 1,1,1
+        // Category: 0xEA931ECA
+        new("AddLayer", 0xEA931ECA, NameItemCategory.SceneKey), // Shaders: verticalfog.shpk Defaults: AddLayer0
+        new("AddLayer0", 0x5D82881C, NameItemCategory.SceneValue), // Shaders: verticalfog.shpk
+        // Category: 0xDCFC844E
+        new("ApplyAlphaClip", 0xDCFC844E, NameItemCategory.SceneKey), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: ApplyAlphaClipOff
+        new("ApplyAlphaClipOff", 0x7D5081DF, NameItemCategory.SceneValue), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk
+        // Category: 0xA9A3EE25
+        new("ApplyAlphaTest", 0xA9A3EE25, NameItemCategory.MaterialKey), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: ApplyAlphaTestOff
+        new("ApplyAlphaTestOff", 0x5D146A23, NameItemCategory.MaterialValue), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk
+        new("ApplyAlphaTestOn", 0x72AAA9AE, NameItemCategory.MaterialValue), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk|lightshaft.shpk
+        // Category: 0x28981633
+        new("ApplyDepthWhitecap", 0x28981633, NameItemCategory.MaterialKey), // Shaders: water.shpk Defaults: ApplyDepthWhitecapOff
+        new("ApplyDepthWhitecapOff", 0x28D137F1, NameItemCategory.MaterialValue), // Shaders: water.shpk
+        new("ApplyDepthWhitecapOn", 0xDD54E76C, NameItemCategory.MaterialValue), // Shaders: bg.shpk|river.shpk|water.shpk
+        // Category: 0x6313FD87
+        new("ApplyDetailMap", 0x6313FD87, NameItemCategory.SceneKey), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: ApplyDetailMap_Disable
+        new("ApplyDetailMap_Disable", 0x9615E0AB, NameItemCategory.SceneValue), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk
+        // Category: 0xAD24ACAD
+        new("ApplyDissolveColor", 0xAD24ACAD, NameItemCategory.SceneKey), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|crystal.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: ApplyDissolveColorOff
+        new("ApplyDissolveColorOff", 0x03A11B1B, NameItemCategory.SceneValue), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|crystal.shpk|hair.shpk|iris.shpk|skin.shpk
+        // Category: 0x8B036665
+        new("ApplyDitherClip", 0x8B036665, NameItemCategory.SceneKey), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|crystal.shpk|hair.shpk|iris.shpk|river.shpk|skin.shpk|water.shpk Defaults: ApplyDitherClipOff
+        new("ApplyDitherClipOff", 0x0802566A, NameItemCategory.SceneValue), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|crystal.shpk|hair.shpk|iris.shpk|river.shpk|skin.shpk|water.shpk
+        // Category: 0xE5D84BEF
+        new("ApplyDynamicWave", 0xE5D84BEF, NameItemCategory.SceneKey), // Shaders: bgprop.shpk Defaults: ApplyDynamicWaveOff
+        new("ApplyDynamicWaveOff", 0xD58B99E1, NameItemCategory.SceneValue), // Shaders: bgprop.shpk
+        // Category: 0x7725989B
+        new("ApplyUnderWater", 0x7725989B, NameItemCategory.SceneKey), // Shaders: river.shpk|water.shpk Defaults: ApplyUnderWaterOff
+        new("ApplyUnderWaterOff", 0xEF6A4182, NameItemCategory.SceneValue), // Shaders: river.shpk|water.shpk
+        // Category: 0x4F4F0636
+        new("ApplyVertexColor", 0x4F4F0636, NameItemCategory.MaterialKey), // Shaders: bg.shpk Defaults: ApplyVertexColorOff
+        new("ApplyVertexColorOff", 0x7C6FA05B, NameItemCategory.MaterialValue), // Shaders: bg.shpk
+        new("ApplyVertexColorOn", 0xBD94649A, NameItemCategory.MaterialValue), // Shaders: bg.shpk|bgcolorchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk|lightshaft.shpk
+        // Category: 0x87D8F48A
+        new("ApplyVertexMovement", 0x87D8F48A, NameItemCategory.SceneKey), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: ApplyVertexMovementOff
+        new("ApplyVertexMovementOff", 0xF8CA223F, NameItemCategory.SceneValue), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk
+        // Category: 0xFB7AD5E4
+        new("ApplyWavelet", 0xFB7AD5E4, NameItemCategory.MaterialKey), // Shaders: water.shpk Defaults: ApplyWaveletOff
+        new("ApplyWaveletOff", 0x0EC4134E, NameItemCategory.MaterialValue), // Shaders: water.shpk
+        new("ApplyWaveletOn", 0x1140F45C, NameItemCategory.MaterialValue), // Shaders: water.shpk
+        // Category: 0x105C6A52
+        new("ApplyWavingAnim", 0x105C6A52, NameItemCategory.SceneKey), // Shaders: bg.shpk|bgprop.shpk Defaults: ApplyWavingAnimOff
+        new("ApplyWavingAnimOn", 0xF801B859, NameItemCategory.MaterialValue), // Shaders: bg.shpk
+        new("ApplyWavingAnimOff", 0x7E47A68D, NameItemCategory.SceneValue), // Shaders: bg.shpk|bgprop.shpk
+        // Category: 0x4518960B
+        new("CalculateInstancingPosition", 0x4518960B, NameItemCategory.SceneKey), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: CalculateInstancingPosition_Off
+        new("CalculateInstancingPosition_Off", 0xD5ECB340, NameItemCategory.SceneValue), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk
+        // Category: 0x40D1481E
+        // new("CategoryFlowMapType", 0x40D1481E, NameItemCategory.MaterialKey), // Shaders: character.shpk|characterscroll.shpk Defaults: Standard // Stub
+        // new("Standard", 0x337C6BC4, NameItemCategory.MaterialValue), // Shaders: character.shpk|characterinc.shpk|characterlegacy.shpk|characterscroll.shpk|charactertransparency.shpk // Stub
+        // new("Flow", 0x71ADA939, NameItemCategory.MaterialValue), // Shaders: character.shpk|characterscroll.shpk // Stub
+        // Category: 0xC8BD1DEF
+        // new("CategorySpecularType", 0xC8BD1DEF, NameItemCategory.MaterialKey), // Shaders: characterlegacy.shpk Defaults: Default // Stub
+        // new("Default", 0x198D11CD, NameItemCategory.MaterialValue), // Shaders: characterlegacy.shpk // Stub
+        // new("Mask", 0xA02F4828, NameItemCategory.MaterialValue), // Shaders: character.shpk|characterlegacy.shpk|characterstockings.shpk|hair.shpk // Stub
+        // Category: 0x611DA1BE
+        new("DebugMode", 0x611DA1BE, NameItemCategory.SceneKey), // Shaders: water.shpk Defaults: DebugMode_Off
+        new("DebugMode_Off", 0x9F10EE69, NameItemCategory.SceneValue), // Shaders: water.shpk
+        // Category: 0x7D155D6D
+        new("DebugVertexWave", 0x7D155D6D, NameItemCategory.SceneKey), // Shaders: water.shpk Defaults: DebugVertexWave_Off
+        new("DebugVertexWave_Off", 0xCBF7A4ED, NameItemCategory.SceneValue), // Shaders: water.shpk
+        // Category: 0xE8DA5B62
+        new("DrawDepthMode", 0xE8DA5B62, NameItemCategory.MaterialKey), // Shaders: characterglass.shpk|charactertransparency.shpk Defaults: DrawDepthMode_Dither
+        new("DrawDepthMode_Dither", 0x7B804D6E, NameItemCategory.MaterialValue), // Shaders: characterglass.shpk|charactertransparency.shpk
+        // Category: 0xA1CDEFE9
+        new("DrawOffscreen", 0xA1CDEFE9, NameItemCategory.SceneKey), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: DrawOffscreenOff
+        new("DrawOffscreenOff", 0x76B07811, NameItemCategory.SceneValue), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk
+        // Category: 0x0033C8B5
+        new("EnableLighting", 0x0033C8B5, NameItemCategory.MaterialKey), // Shaders: charactertransparency.shpk Defaults: EnableLightingOn
+        new("EnableLightingOff", 0x93D6C21A, NameItemCategory.MaterialValue), // Shaders: charactertransparency.shpk
+        new("EnableLightingOn", 0xD1E60FD9, NameItemCategory.MaterialValue), // Shaders: charactertransparency.shpk
+        // Category: 0x086F8E39
+        new("GetInstanceData", 0x086F8E39, NameItemCategory.SceneKey), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: GeometryInstancingOn
+        new("GeometryInstancingOn", 0x815446B5, NameItemCategory.SceneValue), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk
+        // Category: 0xB616DC5A
+        new("GetValues", 0xB616DC5A, NameItemCategory.MaterialKey), // Shaders: bg.shpk|bguvscroll.shpk Defaults: GetSingleValues
+        new("GetValues", 0xB616DC5A, NameItemCategory.MaterialKey), // Shaders: character.shpk|characterinc.shpk|characterlegacy.shpk|characterscroll.shpk|charactertransparency.shpk Defaults: GetValuesMultiMaterial
+        new("GetValues", 0xB616DC5A, NameItemCategory.MaterialKey), // Shaders: river.shpk Defaults: GetMultiValues
+        new("GetMultiValues", 0x1DF2985C, NameItemCategory.MaterialValue), // Shaders: bg.shpk|bgcrestchange.shpk|bgprop.shpk|crystal.shpk|river.shpk|water.shpk
+        new("GetValuesMultiMaterial", 0x5CC605B5, NameItemCategory.MaterialValue), // Shaders: character.shpk|characterinc.shpk|characterlegacy.shpk|characterscroll.shpk|charactertransparency.shpk
+        new("GetValuesCompatibility", 0x600EF9DF, NameItemCategory.MaterialValue), // Shaders: character.shpk|characterinc.shpk|characterlegacy.shpk|characterscroll.shpk|charactertransparency.shpk|hair.shpk|skin.shpk
+        new("GetSingleValues", 0x669A451B, NameItemCategory.MaterialValue), // Shaders: bg.shpk|bguvscroll.shpk
+        new("GetAlphaMultiValues3", 0x939DE7BD, NameItemCategory.MaterialValue), // Shaders: bguvscroll.shpk|lightshaft.shpk
+        new("GetAlphaMultiValues", 0x941820BE, NameItemCategory.MaterialValue), // Shaders: bg.shpk
+        new("GetAlphaMultiValues2", 0xE49AD72B, NameItemCategory.MaterialValue), // Shaders: bguvscroll.shpk|lightshaft.shpk
+        // Category: 0x8955127D
+        new("GetAmbientLight", 0x8955127D, NameItemCategory.SceneKey), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: GetAmbientLight_Color
+        new("GetAmbientLight_Color", 0x23C62FB0, NameItemCategory.SceneValue), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk
+        // Category: 0x59C8D2C1
+        new("GetCrystalType", 0x59C8D2C1, NameItemCategory.MaterialKey), // Shaders: crystal.shpk Defaults: GetCrystalTypeEnvMap
+        new("GetCrystalTypeEnvMap", 0x9A77AA04, NameItemCategory.MaterialValue), // Shaders: crystal.shpk
+        new("GetCrystalTypeSphereMapCustum", 0xB29E6018, NameItemCategory.MaterialValue), // Shaders: crystal.shpk
+        new("GetCrystalTypeSphereMap", 0xE3531F26, NameItemCategory.MaterialValue), // Shaders: bg.shpk|crystal.shpk
+        // Category: 0xD2777173
+        new("GetDecalColor", 0xD2777173, NameItemCategory.MaterialKey), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: GetDecalColorOff
+        new("GetDecalColorOff", 0x4242B842, NameItemCategory.MaterialValue), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk
+        new("GetDecalColorAlpha", 0x584265DD, NameItemCategory.MaterialValue), // Shaders: character.shpk|characterlegacy.shpk|charactertattoo.shpk|skin.shpk
+        new("GetDecalColorRGBA", 0xF35F5131, NameItemCategory.MaterialValue), // Shaders: character.shpk|characterglass.shpk|characterlegacy.shpk|characterocclusion.shpk|charactertattoo.shpk
+        // Category: 0x1A43D949
+        new("GetDiffuseMapOff", 0x2CD41A98, NameItemCategory.MaterialValue), // Shaders: bg.shpk|bguvscroll.shpk
+        // Category: 0x63030C80
+        new("GetDiffuseTex", 0x63030C80, NameItemCategory.MaterialKey), // Shaders: iris.shpk Defaults: GetDiffuseTexOff
+        new("GetDiffuseTexOff", 0x3839C7E4, NameItemCategory.MaterialValue), // Shaders: iris.shpk
+        new("GetDiffuseTexOn", 0xEFDEA8F6, NameItemCategory.MaterialValue), // Shaders: iris.shpk
+        // Category: 0xDBD08C23
+        new("GetFadeAlpha", 0xDBD08C23, NameItemCategory.MaterialKey), // Shaders: verticalfog.shpk Defaults: GetFadeAlphaNone
+        new("GetFadeAlphaNone", 0x34775C9A, NameItemCategory.MaterialValue), // Shaders: verticalfog.shpk
+        new("GetFadeAlphaDistance", 0x549290EA, NameItemCategory.MaterialValue), // Shaders: verticalfog.shpk
+        // Category: 0xCD1484E7
+        new("GetHairFlow", 0xCD1484E7, NameItemCategory.SceneKey), // Shaders: character.shpk|hair.shpk Defaults: GetHairFlowOff
+        new("GetHairFlowOff", 0x05288D6B, NameItemCategory.SceneValue), // Shaders: character.shpk|hair.shpk
+        // Category: 0xBB30A69D
+        new("GetLocalPosition", 0xBB30A69D, NameItemCategory.SceneKey), // Shaders: bg.shpk Defaults: GetLocalPositionNone
+        new("GetLocalPositionNone", 0xEFCC34B1, NameItemCategory.SceneValue), // Shaders: bg.shpk
+        // Category: 0x380CAED0
+        new("GetMaterialValue", 0x380CAED0, NameItemCategory.MaterialKey), // Shaders: skin.shpk Defaults: GetMaterialValueFace
+        new("GetMaterialValueBody", 0x2BDB45F1, NameItemCategory.MaterialValue), // Shaders: skin.shpk
+        new("GetMaterialValueBodyJJM", 0x57FF3B64, NameItemCategory.MaterialValue), // Shaders: skin.shpk
+        new("GetMaterialValueFaceEmissive", 0x72E697CD, NameItemCategory.MaterialValue), // Shaders: skin.shpk
+        new("GetMaterialValueFace", 0xF5673524, NameItemCategory.MaterialValue), // Shaders: skin.shpk
+        // Category: 0xEC806138
+        new("GetMultiWhitecap", 0xEC806138, NameItemCategory.MaterialKey), // Shaders: river.shpk Defaults: GetMultiWhitecapOn
+        new("GetMultiWhitecapOn", 0xF0C11E20, NameItemCategory.MaterialValue), // Shaders: river.shpk|water.shpk
+        // Category: 0xCBDFD5EC
+        new("GetNormalMap", 0xCBDFD5EC, NameItemCategory.SceneKey), // Shaders: bg.shpk|bgprop.shpk Defaults: GetNormalMapOff
+        new("GetNormalMapOff", 0xA66B15A1, NameItemCategory.MaterialValue), // Shaders: bg.shpk|bgprop.shpk|bguvscroll.shpk
+        // Category: 0xE041892A
+        new("GetReflectionPower", 0xE041892A, NameItemCategory.MaterialKey), // Shaders: river.shpk Defaults: GetReflectionPowerOff
+        new("GetReflectionPowerOn", 0x26E40878, NameItemCategory.MaterialValue), // Shaders: river.shpk|water.shpk
+        new("GetReflectionPowerOff", 0x32F05363, NameItemCategory.MaterialValue), // Shaders: river.shpk
+        // Category: 0x4A323184
+        new("GetRefractionMask", 0x4A323184, NameItemCategory.MaterialKey), // Shaders: water.shpk Defaults: GetRefractionMaskDepth
+        new("GetRefractionMaskDepth", 0xDCC8DB97, NameItemCategory.MaterialValue), // Shaders: water.shpk
+        new("GetRefractionMaskPlane", 0xE7D8EA7E, NameItemCategory.MaterialValue), // Shaders: river.shpk
+        // Category: 0xB5B1C44A
+        new("GetRefractionPower", 0xB5B1C44A, NameItemCategory.MaterialKey), // Shaders: river.shpk|water.shpk Defaults: GetRefractionPowerOn
+        new("GetRefractionPowerOn", 0x4B740B02, NameItemCategory.MaterialValue), // Shaders: river.shpk|water.shpk
+        new("GetRefractionPowerOff", 0x824D5B42, NameItemCategory.MaterialValue), // Shaders: bg.shpk|river.shpk|water.shpk
+        // Category: 0x11433F2D
+        new("GetRLR", 0x11433F2D, NameItemCategory.SceneKey), // Shaders: river.shpk|water.shpk Defaults: GetRLROff
+        new("GetRLROff", 0x6B2E2D05, NameItemCategory.SceneValue), // Shaders: river.shpk|water.shpk
+        // Category: 0xABDA6DFB
+        new("GetSingleWhitecap", 0xABDA6DFB, NameItemCategory.MaterialKey), // Shaders: river.shpk Defaults: GetSingleWhitecapOn
+        new("GetSingleWhitecapOn", 0x19A091DC, NameItemCategory.MaterialValue), // Shaders: river.shpk|water.shpk
+        // Category: 0x0B59CEE7
+        new("GetSpecularOff", 0x07D3170F, NameItemCategory.MaterialValue), // Shaders: bg.shpk|bguvscroll.shpk
+        // Category: 0xBFC2E0F7
+        new("GetSpecularMapOff", 0x772FF72B, NameItemCategory.MaterialValue), // Shaders: bg.shpk|bguvscroll.shpk
+        // Category: 0x24826489
+        new("GetSubColor", 0x24826489, NameItemCategory.MaterialKey), // Shaders: hair.shpk Defaults: GetSubColorHair
+        new("GetSubColorFace", 0x6E5B8F10, NameItemCategory.MaterialValue), // Shaders: characterocclusion.shpk|charactertattoo.shpk|hair.shpk
+        new("GetSubColorHair", 0xF7B8956E, NameItemCategory.MaterialValue), // Shaders: hair.shpk
+        // Category: 0x6E8CE685
+        new("GetTripleWhitecap", 0x6E8CE685, NameItemCategory.MaterialKey), // Shaders: river.shpk Defaults: GetTripleWhitecapOn
+        new("GetTripleWhitecapOn", 0xD2765A5A, NameItemCategory.MaterialValue), // Shaders: river.shpk|water.shpk
+        // Category: 0x477E3A17
+        new("GetVelocity", 0x477E3A17, NameItemCategory.SceneKey), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: GetVelocityStatic
+        new("GetVelocityStatic", 0x3DD9525E, NameItemCategory.SceneValue), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk
+        // Category: 0xF8EF655E
+        new("GetWaterColor", 0xF8EF655E, NameItemCategory.MaterialKey), // Shaders: river.shpk|water.shpk Defaults: GetWaterColorDistance
+        new("GetWaterColorDepth", 0x08404EC3, NameItemCategory.MaterialValue), // Shaders: river.shpk|water.shpk
+        new("GetWaterColorDistance", 0x86B217C3, NameItemCategory.MaterialValue), // Shaders: river.shpk|water.shpk
+        new("GetWaterColorWaterDepth", 0xE6A6AD27, NameItemCategory.MaterialValue), // Shaders: bg.shpk|river.shpk|water.shpk
+        // Category: 0x9F2A6183
+        new("GlassBlendMode", 0x9F2A6183, NameItemCategory.SceneKey), // Shaders: characterglass.shpk|charactertransparency.shpk Defaults: GlassBlendMode_Mul
+        new("GlassBlendMode_Mul", 0x44425B98, NameItemCategory.SceneValue), // Shaders: characterglass.shpk|charactertransparency.shpk
+        // Category: 0x575CA84C
+        new("LightingLow", 0x2807B89E, NameItemCategory.MaterialValue), // Shaders: bg.shpk|bgprop.shpk|bguvscroll.shpk|lightshaft.shpk
+        // Category: 0x607399CA
+        new("ReflectionMapType", 0x607399CA, NameItemCategory.SceneKey), // Shaders: river.shpk|water.shpk Defaults: ReflectionMapTypeSingle
+        new("ReflectionMapTypeSingle", 0x21F13F6D, NameItemCategory.SceneValue), // Shaders: river.shpk|water.shpk
+        // Category: 0xA5A1910D
+        new("TransformView", 0xA5A1910D, NameItemCategory.SceneKey), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: TransformViewRigid
+        new("TransformViewRigid", 0x4123B1A3, NameItemCategory.SceneValue), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk
+        // Category: 0x0DA8270B
+        new("Type", 0x0DA8270B, NameItemCategory.MaterialKey), // Shaders: lightshaft.shpk Defaults: Type0
+        new("Type0", 0xB1064103, NameItemCategory.MaterialValue), // Shaders: lightshaft.shpk
+        new("Type1", 0xC6017195, NameItemCategory.MaterialValue), // Shaders: lightshaft.shpk
+        // Category: 0x115CB66A
+        // MaterialValue Unknown: 0xF02D5351 Shaders: river.shpk|water.shpk
+        // Category: 0x36F72D5F
+        // MaterialKey Unknown: 0x36F72D5F Shaders: bg.shpk Defaults: 0x88A3965A
+        // MaterialValue Unknown: 0x1E314009 Shaders: bg.shpk
+        // MaterialValue Unknown: 0x6936709F Shaders: bg.shpk
+        // MaterialValue Unknown: 0x88A3965A Shaders: bg.shpk
+        // MaterialValue Unknown: 0x9807BAC4 Shaders: bg.shpk
+        // Category: 0x9E45B87D
+        new("VertexWave", 0x9E45B87D, NameItemCategory.MaterialKey), // Shaders: water.shpk Defaults: VertexWave_Off
+        // MaterialValue Unknown: 0x0DE05A8D Shaders: water.shpk
+        // MaterialValue Unknown: 0xB18254EB Shaders: water.shpk
+        new("VertexWave_Off", 0xB77F0FAF, NameItemCategory.MaterialValue), // Shaders: water.shpk
+        // Category: 0xF52CCF05
+        // MaterialKey Unknown: 0xF52CCF05 Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0xDFE74BAC
+        // MaterialValue Unknown: 0xA7D2FF60 Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterscroll.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|skin.shpk
+        // MaterialValue Unknown: 0xDFE74BAC Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk
+        // Category: 0xF886E10E
+        // MaterialKey Unknown: 0xF886E10E Shaders: characterscroll.shpk Defaults: 0x69EB4AE0
+        // MaterialValue Unknown: 0x69EB4AE0 Shaders: characterscroll.shpk
+        // MaterialValue Unknown: 0x9A8A46F5 Shaders: characterscroll.shpk
+        // Category: 0x6448E37B
+        new("GetMaterialParameter", 0x6448E37B, NameItemCategory.SceneKey), // Shaders: river.shpk Defaults: 0x812D4365
+        new("GetMaterialParameter", 0x6448E37B, NameItemCategory.SceneKey), // Shaders: water.shpk Defaults: 0xD6294FD5
+        // SceneValue Unknown: 0x812D4365 Shaders: river.shpk
+        // SceneValue Unknown: 0xD6294FD5 Shaders: water.shpk
+        // Category: 0xBEA6525E
+        // SceneKey Unknown: 0xBEA6525E Shaders: iris.shpk Defaults: 0x3DAAF8BE
+        // SceneValue Unknown: 0x3DAAF8BE Shaders: iris.shpk
+        // Category: 0xE62944E7
+        // SceneKey Unknown: 0xE62944E7 Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|crystal.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0x96BA161F
+        // SceneValue Unknown: 0x96BA161F Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|crystal.shpk|hair.shpk|iris.shpk|skin.shpk
+        // Category: 0x00000001
+        // SubViewKey Unknown: 0x00000001 Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|crystal.shpk|hair.shpk|iris.shpk|lightshaft.shpk|river.shpk|skin.shpk|water.shpk Defaults: Default
+        // SubViewKey Unknown: 0x00000001 Shaders: verticalfog.shpk Defaults: Color
+        new("Color", 0x61B590F0, NameItemCategory.SubViewValue), // Shaders: verticalfog.shpk
+        new("Default", 0xB18FE63D, NameItemCategory.SubViewValue), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|crystal.shpk|hair.shpk|iris.shpk|lightshaft.shpk|river.shpk|skin.shpk|water.shpk
+        // Category: 0x00000002
+        // SubViewKey Unknown: 0x00000002 Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertransparency.shpk|crystal.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: SUB_VIEW_SHADOW_0
+        // SubViewKey Unknown: 0x00000002 Shaders: characterocclusion.shpk|charactertattoo.shpk|river.shpk|water.shpk Defaults: SUB_VIEW_MAIN
+        // SubViewKey Unknown: 0x00000002 Shaders: lightshaft.shpk|verticalfog.shpk Defaults: MAIN
+        new("SUB_VIEW_SHADOW_0", 0x99B22D1C, NameItemCategory.SubViewValue), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertransparency.shpk|crystal.shpk|hair.shpk|iris.shpk|skin.shpk
+        new("MAIN", 0xA8F9FFCC, NameItemCategory.SubViewValue), // Shaders: lightshaft.shpk|verticalfog.shpk
+        new("SUB_VIEW_MAIN", 0xF43B2F35, NameItemCategory.SubViewValue), // Shaders: characterocclusion.shpk|charactertattoo.shpk|river.shpk|water.shpk
     ];
 
     private static readonly IReadOnlyList<string> FoundConstants =
