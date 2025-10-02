@@ -163,7 +163,6 @@ public static class Names
         // MaterialParam Unknown: 0x064CBF83 Shaders: water.shpk Defaults: 0.5
         // MaterialParam Unknown: 0x0678C56A Shaders: crystal.shpk Defaults: 
         // MaterialParam Unknown: 0x093084AD Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 1
-        // MaterialParam Unknown: 0x0B46E7BE Shaders: water.shpk Defaults: 1
         // MaterialParam Unknown: 0x0BA59580 Shaders: water.shpk Defaults: 10
         // MaterialParam Unknown: 0x12F6AB51 Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 3
         // MaterialParam Unknown: 0x15B70E35 Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0
@@ -174,7 +173,6 @@ public static class Names
         // MaterialParam Unknown: 0x25C3F71B Shaders: character.shpk Defaults: 
         // MaterialParam Unknown: 0x2B5EB116 Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: -45
         // MaterialParam Unknown: 0x2F5837E2 Shaders: character.shpk Defaults: 
-        // MaterialParam Unknown: 0x30B91319 Shaders: bg.shpk Defaults: 
         // MaterialParam Unknown: 0x32A89D80 Shaders: water.shpk Defaults: 0.15
         // MaterialParam Unknown: 0x37C05873 Shaders: water.shpk Defaults: 0
         // MaterialParam Unknown: 0x3A75FA33 Shaders: crystal.shpk Defaults: 
@@ -205,8 +203,6 @@ public static class Names
         // MaterialParam Unknown: 0x8500AEA4 Shaders: water.shpk Defaults: 1
         // MaterialParam Unknown: 0x852A9263 Shaders: water.shpk Defaults: 70
         // MaterialParam Unknown: 0x8F4D585E Shaders: water.shpk Defaults: 1
-        // MaterialParam Unknown: 0x960450D0 Shaders: river.shpk Defaults: 
-        // MaterialParam Unknown: 0x97E83104 Shaders: river.shpk Defaults: 
         // MaterialParam Unknown: 0x9E8B9C5A Shaders: water.shpk Defaults: 0.05
         // MaterialParam Unknown: 0xA2A01C0A Shaders: water.shpk Defaults: 0.5
         // MaterialParam Unknown: 0xA90DD1EF Shaders: water.shpk Defaults: 0.1
@@ -232,7 +228,6 @@ public static class Names
         // MaterialParam Unknown: 0xD67F62C8 Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 1
         // MaterialParam Unknown: 0xD721E19F Shaders: water.shpk Defaults: 1
         // MaterialParam Unknown: 0xD87BBC76 Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 1
-        // MaterialParam Unknown: 0xD8A98BE7 Shaders: water.shpk Defaults: 0.1
         // MaterialParam Unknown: 0xDA3D022F Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 1
         // MaterialParam Unknown: 0xDA8FA72C Shaders: water.shpk Defaults: 1
         // MaterialParam Unknown: 0xDE93031F Shaders: water.shpk Defaults: 0.25
@@ -245,6 +240,7 @@ public static class Names
         // MaterialParam Unknown: 0xFC9C8BD6 Shaders: water.shpk Defaults: -20
         new("g_AlphaAperture", 0xD62BF368, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 2
         new("g_AlphaMultiParam", 0x07EDA444, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 0,0,0,0
+        new("g_AlphaMultiWeight", 0x30B91319, NameItemCategory.MaterialParam), // Shaders: bg.shpk Defaults: 
         new("g_AlphaOffset", 0xD07A6A65, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0
         new("g_AlphaThreshold", 0x29AC0223, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|crystal.shpk|GameStrings|hair.shpk|iris.shpk|lightshaft.shpk|river.shpk|skin.shpk|verticalfog.shpk|water.shpk Defaults: 0
         new("g_AmbientOcclusionMask", 0x575ABFB2, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterlegacy.shpk|characterscroll.shpk|charactertransparency.shpk|hair.shpk|skin.shpk Defaults: 
@@ -329,6 +325,7 @@ public static class Names
         new("g_SheenTintRate", 0x1F264897, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0
         new("g_Shininess", 0x992869AB, NameItemCategory.MaterialParam), // Shaders: hair.shpk|river.shpk|water.shpk Defaults: 
         new("g_SingleWaveScale", 0x5B22E864, NameItemCategory.MaterialParam), // Shaders: river.shpk Defaults: 1,1,2,2
+        new("g_SingleWhitecapDistortion", 0x97E83104, NameItemCategory.MaterialParam), // Shaders: river.shpk Defaults: 
         new("g_SingleWhitecapScale", 0xB33DB142, NameItemCategory.MaterialParam), // Shaders: river.shpk Defaults: 4,4
         new("g_SoftEadgDistance", 0x2A57C3CC, NameItemCategory.MaterialParam), // Shaders: river.shpk|water.shpk Defaults: 0.3
         new("g_SpecularColor", 0x141722D5, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 1,1,1
@@ -354,6 +351,7 @@ public static class Names
         new("g_ToonSpecIndex", 0x00A680BC, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 4E-45
         new("g_Transparency", 0x53E8417B, NameItemCategory.MaterialParam), // Shaders: river.shpk|water.shpk Defaults: 1
         new("g_TransparencyDistance", 0x1624F841, NameItemCategory.MaterialParam), // Shaders: river.shpk|water.shpk Defaults: [50|100]
+        new("g_TripleWhitecapDistortion", 0x960450D0, NameItemCategory.MaterialParam), // Shaders: river.shpk Defaults: 
         new("g_TripleWhitecapScale", 0x113BAFDF, NameItemCategory.MaterialParam), // Shaders: river.shpk Defaults: 8,8
         new("g_UVScrollTime", 0x9A696A17, NameItemCategory.MaterialParam), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: 10,10,10,10
         new("g_VertexMovementMaxLength", 0xD26FF0AE, NameItemCategory.MaterialParam), // Shaders: character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 1
@@ -366,6 +364,8 @@ public static class Names
         new("g_WaveletScale", 0xD62C681E, NameItemCategory.MaterialParam), // Shaders: water.shpk Defaults: 
         new("g_WaveletSinParam", 0x2F41D796, NameItemCategory.MaterialParam), // Shaders: water.shpk Defaults: 
         new("g_WaveParam_NormalScale", 0x592A312C, NameItemCategory.MaterialParam), // Shaders: water.shpk Defaults: 2
+        new("g_WaveParam_ScatterAlpha", 0xD8A98BE7, NameItemCategory.MaterialParam), // Shaders: water.shpk Defaults: 0.1
+        new("g_WaveParam_WhitecapAlpha", 0x0B46E7BE, NameItemCategory.MaterialParam), // Shaders: water.shpk Defaults: 1
         new("g_WaveSpeed", 0xE4C68FF3, NameItemCategory.MaterialParam), // Shaders: GameStrings|river.shpk Defaults: 1,1,1,1
         new("g_WaveTime", 0x8EB9D2A6, NameItemCategory.MaterialParam), // Shaders: GameStrings|river.shpk|water.shpk Defaults: 15
         new("g_WaveTime1", 0x6EE5BF35, NameItemCategory.MaterialParam), // Shaders: water.shpk Defaults: 15
@@ -389,6 +389,10 @@ public static class Names
         new("ApplyAlphaTest", 0xA9A3EE25, NameItemCategory.MaterialKey), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk Defaults: ApplyAlphaTestOff
         new("ApplyAlphaTestOff", 0x5D146A23, NameItemCategory.MaterialValue), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk
         new("ApplyAlphaTestOn", 0x72AAA9AE, NameItemCategory.MaterialValue), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|crystal.shpk|lightshaft.shpk
+        // Category: 0xE62944E7
+        new("ApplyAuraColor", 0xE62944E7, NameItemCategory.SceneKey), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|crystal.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: ApplyAuraColorOff
+        new("ApplyAuraColorOff", 0x96BA161F, NameItemCategory.SceneValue), // Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|crystal.shpk|GameStrings|hair.shpk|iris.shpk|skin.shpk
+        new("ApplyAuraColorOn", 0xBD65191E, NameItemCategory.SceneValue), // Shaders: GameStrings
         // Category: 0x28981633
         new("ApplyDepthWhitecap", 0x28981633, NameItemCategory.MaterialKey), // Shaders: water.shpk Defaults: ApplyDepthWhitecapOff
         new("ApplyDepthWhitecapOff", 0x28D137F1, NameItemCategory.MaterialValue), // Shaders: water.shpk
@@ -564,6 +568,10 @@ public static class Names
         new("GlassBlendMode", 0x9F2A6183, NameItemCategory.SceneKey), // Shaders: characterglass.shpk|charactertransparency.shpk Defaults: GlassBlendMode_Mul
         new("GlassBlendMode_Mul", 0x44425B98, NameItemCategory.SceneValue), // Shaders: characterglass.shpk|charactertransparency.shpk|GameStrings
         new("GlassBlendMode_Add", 0x105A09DE, NameItemCategory.SceneValue), // Shaders: GameStrings
+        // Category: 0x575CA84C
+        new("LightingLow", 0x2807B89E, NameItemCategory.MaterialValue), // Shaders: bg.shpk|bgprop.shpk|bguvscroll.shpk|GameStrings|lightshaft.shpk
+        new("LightingNormal", 0x470E5A1E, NameItemCategory.MaterialValue), // Shaders: GameStrings
+        new("LightingType", 0xE8001A59, NameItemCategory.MaterialValue), // Shaders: GameStrings
         // Category: 0x607399CA
         new("ReflectionMapType", 0x607399CA, NameItemCategory.SceneKey), // Shaders: river.shpk|water.shpk Defaults: ReflectionMapTypeSingle
         new("ReflectionMapTypeSingle", 0x21F13F6D, NameItemCategory.SceneValue), // Shaders: GameStrings|river.shpk|water.shpk
@@ -589,8 +597,6 @@ public static class Names
         // MaterialValue Unknown: 0x6936709F Shaders: bg.shpk
         // MaterialValue Unknown: 0x88A3965A Shaders: bg.shpk
         // MaterialValue Unknown: 0x9807BAC4 Shaders: bg.shpk
-        // Category: 0x575CA84C
-        new("LightingLow", 0x2807B89E, NameItemCategory.MaterialValue), // Shaders: bg.shpk|bgprop.shpk|bguvscroll.shpk|GameStrings|lightshaft.shpk
         // Category: 0x9E45B87D
         new("VertexWave", 0x9E45B87D, NameItemCategory.MaterialKey), // Shaders: water.shpk Defaults: VertexWave_Off
         // MaterialValue Unknown: 0x0DE05A8D Shaders: water.shpk
@@ -614,9 +620,6 @@ public static class Names
         // Category: 0xBEA6525E
         // SceneKey Unknown: 0xBEA6525E Shaders: iris.shpk Defaults: 0x3DAAF8BE
         // SceneValue Unknown: 0x3DAAF8BE Shaders: iris.shpk
-        // Category: 0xE62944E7
-        // SceneKey Unknown: 0xE62944E7 Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|crystal.shpk|hair.shpk|iris.shpk|skin.shpk Defaults: 0x96BA161F
-        // SceneValue Unknown: 0x96BA161F Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|crystal.shpk|hair.shpk|iris.shpk|skin.shpk
         // Category: 0x00000001
         // SubViewKey Unknown: 0x00000001 Shaders: bg.shpk|bgcolorchange.shpk|bgcrestchange.shpk|bgprop.shpk|bguvscroll.shpk|character.shpk|characterglass.shpk|characterinc.shpk|characterlegacy.shpk|characterocclusion.shpk|characterreflection.shpk|characterscroll.shpk|characterstockings.shpk|charactertattoo.shpk|charactertransparency.shpk|crystal.shpk|hair.shpk|iris.shpk|lightshaft.shpk|river.shpk|skin.shpk|water.shpk Defaults: Default
         // SubViewKey Unknown: 0x00000001 Shaders: verticalfog.shpk Defaults: Color
