@@ -81,8 +81,7 @@ public static class Names
                 buffer[name.Crc] = name;
             }
 
-            string[] ps = [..PossibleStrings, ..PossibleStrings2];
-            foreach (var possibleString in ps)
+            foreach (var possibleString in PossibleStrings)
             {
                 var name = new Name(possibleString);
                 buffer.TryAdd(name.Crc, name);
@@ -97,7 +96,7 @@ public static class Names
                 }
             }
             
-            foreach (var possibleString in ps)
+            foreach (var possibleString in PossibleStrings)
             {
                 foreach (var suffix in KnownSuffixes)
                 {
@@ -639,16 +638,6 @@ public static class Names
         new("SUB_VIEW_MAIN_SELECT", 0x0C0120CA, NameItemCategory.SubViewValue), // Shaders: GameStrings
         new("SUB_VIEW_MAIN_TESS", 0x22F7274B, NameItemCategory.SubViewValue), // Shaders: GameStrings
     ];
-
-    private static readonly IReadOnlyList<string> PossibleStrings2 =
-    [
-        "g_WaveParam_ScatterAlpha",   // 0xd8a98be7
-        "g_WaveParam_WhitecapAlpha",  // 0xb46e7be
-        "g_TripleWhitecapDistortion", // 0x960450d0
-        "g_SingleWhitecapDistortion", // 0x97e83104
-        "g_AlphaMultiWeight",         // 0x30b91319
-    ];
-    
     
     // Manually curated from game strings
     private static readonly IReadOnlyList<string> PossibleStrings =
