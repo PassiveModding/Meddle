@@ -1,4 +1,5 @@
 ﻿using Meddle.Plugin.Models.Skeletons;
+using Meddle.Plugin.Utils;
 using SharpGLTF.Transforms;
 
 namespace Meddle.Plugin.Models;
@@ -9,7 +10,7 @@ public class AttachSet
         string id, string name, ParsedAttach attach, ParsedSkeleton skeleton, AffineTransform transform, string? ownerId)
     {
         Id = id;
-        Name = name;
+        Name = name.SanitizeFileName();
         Attach = attach;
         Skeleton = skeleton;
         Transform = transform;

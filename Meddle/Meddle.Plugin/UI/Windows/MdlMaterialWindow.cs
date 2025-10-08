@@ -168,19 +168,13 @@ public class MdlMaterialWindow : Window
                                                                 ImGuiTableFlags.RowBg |
                                                                 ImGuiTableFlags.Hideable |
                                                                 ImGuiTableFlags.Resizable);
-            ImGui.TableSetupColumn("ID", ImGuiTableColumnFlags.WidthFixed,
-                                   availWidth * 0.05f);
-            ImGui.TableSetupColumn("Offset", ImGuiTableColumnFlags.WidthFixed,
-                                   availWidth * 0.05f);
-            ImGui.TableSetupColumn("Size", ImGuiTableColumnFlags.WidthFixed,
-                                   availWidth * 0.05f);
-            ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthFixed,
-                                   availWidth * 0.2f);
-            ImGui.TableSetupColumn("Shader Defaults", ImGuiTableColumnFlags.WidthFixed,
-                                   availWidth * 0.12f);
-            ImGui.TableSetupColumn("Mtrl CBuf", ImGuiTableColumnFlags.WidthFixed,
-                                   availWidth * 0.1f);
-            ImGui.TableSetupColumn("Edit", ImGuiTableColumnFlags.WidthFixed);
+            ImGui.TableSetupColumn("ID");
+            ImGui.TableSetupColumn("Offset");
+            ImGui.TableSetupColumn("Size");
+            ImGui.TableSetupColumn("Name");
+            ImGui.TableSetupColumn("Shader Defaults");
+            ImGui.TableSetupColumn("Mtrl CBuf");
+            ImGui.TableSetupColumn("Edit");
 
             ImGui.TableHeadersRow();
 
@@ -340,13 +334,14 @@ public class MdlMaterialWindow : Window
             }
             
             var availWidth = ImGui.GetContentRegionAvail().X;
-            using var table = ImRaii.Table("MaterialKeys", 2, ImGuiTableFlags.Borders |
+            using var table = ImRaii.Table("MaterialKeys", 3, ImGuiTableFlags.Borders |
                                                                   ImGuiTableFlags.RowBg |
                                                                   ImGuiTableFlags.Hideable |
                                                                   ImGuiTableFlags.Resizable);
             
             ImGui.TableSetupColumn("Key", ImGuiTableColumnFlags.WidthFixed, availWidth * 0.05f);
             ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthFixed, availWidth * 0.2f);
+            ImGui.TableSetupColumn("KnownValues", ImGuiTableColumnFlags.WidthFixed, availWidth * 0.3f);
             ImGui.TableHeadersRow();
             
             // set cache if not already set
@@ -376,7 +371,6 @@ public class MdlMaterialWindow : Window
                 ImGui.Text(Names.TryResolveName(value));
                 
                 // option to set value
-                ImGui.SameLine();
                 if (!materialKeysEditors.TryGetValue((nint)mtrlPtr.Value, out var keyEditor))
                 {
                     keyEditor = new Dictionary<uint, string>();
@@ -390,11 +384,11 @@ public class MdlMaterialWindow : Window
                 }
                 
                 ImGui.SetNextItemWidth(availWidth * 0.1f);
+                ImGui.SameLine();
                 if (ImGui.InputText($"##{key.Id}", ref currentValue, 64))
                 {
                     keyEditor[key.Id] = currentValue;
                 }
-                ImGui.SameLine();
                 if (ImGui.Button($"Set##{key.Id}"))
                 {
                     if (uint.TryParse(currentValue, System.Globalization.NumberStyles.HexNumber,
@@ -408,7 +402,6 @@ public class MdlMaterialWindow : Window
                     }
                 }
                 
-                ImGui.SameLine();
                 if (ImGui.Button($"Restore##{key.Id}"))
                 {
                     var cacheValue = materialKeys.FirstOrDefault(x => x.Key == key.Id);
@@ -420,6 +413,23 @@ public class MdlMaterialWindow : Window
                     else
                     {
                         ImGui.TextColored(new Vector4(1, 0, 0, 1), "No cached value found.");
+                    }
+                }
+                
+                ImGui.TableNextColumn();
+                var constants = Names.GetConstants();
+                if (constants.TryGetValue(key.Id, out var keyCrc) && keyCrc is Names.NameItem keyItem)
+                {
+                    var knownValues = constants
+                        .Where(x => x.Value is Names.NameItem ni && ni.Key == keyItem.Crc);
+                    // draw button for each, clicking will set the value
+                    foreach (var knownValue in knownValues)
+                    {
+                        if (ImGui.Button($"{knownValue.Value.Value}##{knownValue.Key}"))
+                        {
+                            shaderValues[i] = knownValue.Key;
+                            keyEditor[key.Id] = $"{knownValue.Key:X8}";
+                        }
                     }
                 }
             }

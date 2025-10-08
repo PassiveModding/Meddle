@@ -282,6 +282,7 @@ public unsafe class LiveCharacterTab : ITab
 
             if (ImGui.Button("Export"))
             {
+                name = name.SanitizeFileName();
                 var defaultName = $"Character-{name}-{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
                 cancelToken = new CancellationTokenSource();
                 fileDialog.SaveFolderDialog("Save Instances", defaultName,
