@@ -84,7 +84,22 @@ public class UpdateWindow : Window
                 new TextUpdateLine(" + Added proper instancing for bg meshes."),
                 new TextUpdateLine(" + Fix deformations being applied to demihumans."),
             ]
-        }
+        },
+        new()
+        {
+            Tag = "CRC Cracking and Misc Improvements",
+            Date = "2025-10-18",
+            Changes =
+            [
+                new WarningUpdateLine(" ! WARNING: Please update MeddleTools Blender Addon to the latest version to ensure compatibility with these changes."),
+                new TextUpdateLine(" + Cracked over a dozen more CRCs (these translate material and shader key names for exports from their hashed values)."),
+                new TextUpdateLine(" + Fix material util not opening in come cases."),
+                new TextUpdateLine(" + Add buttons to swap known key values for material util."),
+                new TextUpdateLine(" + Fix exports failing when characters were named with invalid path characters."),
+                new TextUpdateLine(" + Fix fps drops when using character tab. (Caused by resolving skin shader slot values.)"),
+                new TextUpdateLine(" + Fix selecting moving characters from dropdowns not working sometimes."),
+            ]
+        },
     ];
     
     public class UpdateLog
@@ -104,6 +119,17 @@ public class UpdateWindow : Window
         public void Draw()
         {
             ImGui.Text(Text);
+        }
+    }
+    
+    public record WarningUpdateLine(string Text) : IUpdateLine
+    {
+        public void Draw()
+        {
+            using (ImRaii.PushColor(ImGuiCol.Text, new Vector4(1f, 0.5f, 0.5f, 1f)))
+            {
+                ImGui.Text(Text);
+            }
         }
     }
 
@@ -153,9 +179,9 @@ public class UpdateWindow : Window
         
         ImGui.SameLine();
         
-        using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.7f, 0, 0, 1)))
+        using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(1f, 0.2f, 0.19f, 1)))
         {
-            if (ImGui.Button("Ko-fi", mainButtonSize))
+            if (ImGui.Button("Donate", mainButtonSize))
             {
                 Process.Start(new ProcessStartInfo
                 {
@@ -181,7 +207,7 @@ public class UpdateWindow : Window
         
         ImGui.SameLine();
         
-        using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.95f, 0.54f, 0.15f, 1)))
+        using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.95f, 0.47f, 0.17f, 1)))
         {
             if (ImGui.Button("MeddleTools Blender Addon", new (200, 0)))
             {
