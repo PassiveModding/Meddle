@@ -51,12 +51,42 @@ public class CommonUi : IDisposable, IService
         ICharacter[] objects = GetCharacters(flags);
 
         ImGui.Text("Select Characters");
+        var selected = new List<ICharacter>();
+        var notSelected = new List<ICharacter>();
+        foreach (var character in objects)
+        {
+            if (selectedCharacters.Contains(character))
+            {
+                selected.Add(character);
+            }
+            else
+            {
+                notSelected.Add(character);
+            }
+        }
+
+        foreach (var character in selected.OrderBy(x => x.GameObjectId))
+        {
+            var displayText = GetCharacterDisplayText(character, true, false);
+            // remove button
+            using (var iconFont = ImRaii.PushFont(UiBuilder.IconFont))
+            {
+                if (ImGui.Button(FontAwesomeIcon.Times.ToIconString() + $"##RemoveChar{character.GameObjectId}"))
+                {
+                    selectedCharacters.Remove(character);
+                }
+            }
+            ImGui.SameLine();
+            using var col = ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudYellow);
+            ImGui.Text(displayText);
+        }
+
         using var combo = ImRaii.Combo("##MultiCharacter", $"{selectedCharacters.Count} Selected");
         if (combo)
         {
-            foreach (var character in objects)
+            foreach (var character in notSelected)
             {
-                var displayText = GetCharacterDisplayText(character);
+                var displayText = GetCharacterDisplayText(character, false, true);
                 var contains = selectedCharacters.Contains(character);
                 using var col = ImRaii.PushColor(ImGuiCol.Text, contains ? ImGuiColors.DalamudYellow : ImGuiColors.DalamudWhite);
                 if (ImGui.Selectable(displayText, contains, ImGuiSelectableFlags.DontClosePopups))
@@ -95,14 +125,14 @@ public class CommonUi : IDisposable, IService
             selectedCharacter = null;
         }
 
-        var preview = selectedCharacter != null ? GetCharacterDisplayText(selectedCharacter) : "None";
+        var preview = selectedCharacter != null ? GetCharacterDisplayText(selectedCharacter, true, true) : "None";
         using (var combo = ImRaii.Combo("##Character", preview))
         {
             if (combo)
             {
                 foreach (var character in objects)
                 {
-                    if (ImGui.Selectable(GetCharacterDisplayText(character)))
+                    if (ImGui.Selectable(GetCharacterDisplayText(character, false, true)))
                     {
                         selectedCharacter = character;
                     }
@@ -160,30 +190,38 @@ public class CommonUi : IDisposable, IService
         }
     }
     
-    public unsafe string GetCharacterDisplayText(IGameObject obj)
+    public unsafe string GetCharacterDisplayText(IGameObject obj, bool includeDistance, bool includeId)
     {
+        string suffix = includeId 
+            ? $"##{obj.GameObjectId}" 
+            : string.Empty;
+        
         var drawObject = ((GameObject*)obj.Address)->DrawObject;
         if (drawObject == null)
-            return "Invalid Character";
+            return $"Invalid Character{suffix}";
 
         if (drawObject->Object.GetObjectType() != ObjectType.CharacterBase)
-            return "Invalid Character";
+            return $"Invalid Character{suffix}";
 
         var modelType = ((CharacterBase*)drawObject)->GetModelType();
 
         var name = obj.Name.TextValue;
         if (obj.ObjectKind == ObjectKind.Player && !string.IsNullOrWhiteSpace(config.PlayerNameOverride))
-            name = config.PlayerNameOverride;
-        string prefix = string.Empty;
-        if (config.DisplayDebugInfo)
         {
-            prefix = $"[{obj.Address:X8}:{obj.GameObjectId:X}]";
+            name = config.PlayerNameOverride;
         }
+        
+        string prefix = config.DisplayDebugInfo 
+            ? $"[{obj.Address:X8}:{obj.GameObjectId:X}]" 
+            : string.Empty;
+        string distanceText = includeDistance
+            ? $" - {clientState.GetDistanceToLocalPlayer(obj).Length():0}y"
+            : string.Empty;
         
         return
             $"{prefix}[{obj.ObjectKind}][{modelType}] - " +
-            $"{(string.IsNullOrWhiteSpace(name) ? "Unnamed" : name)} - " +
-            $"{clientState.GetDistanceToLocalPlayer(obj).Length():0}y##{obj.GameObjectId}";
+            $"{(string.IsNullOrWhiteSpace(name) ? "Unnamed" : name)}" +
+            $"{distanceText}{suffix}";
     }
 
     public void Dispose()
