@@ -42,19 +42,23 @@ public class TerrainDebugTab : ITab
                 var terrainModels = terrainStruct->ModelResourceHandlesSpan;
                 for (var i = 0; i < terrainStruct->ModelResourceHandleCount; i++)
                 {
-                    using var modelTree = ImRaii.TreeNode($"Model Resource Handle {i}: {(nint)terrainModels[i].Value:X8}");
+                    var modelHandle = terrainModels[i].Value;
+                    if (modelHandle == null)
+                    {
+                        UiUtil.Text($"Model Resource Handle {i}: null", $"ModelResourceHandle_{i}_null");
+                        continue;
+                    }
+                    
+                    var fileName = modelHandle->FileName.ParseString();
+                    using var modelTree = ImRaii.TreeNode($"Model Resource Handle {i}: {(nint)terrainModels[i].Value:X8} - {fileName}");
                     if (modelTree)
                     {
-                        var modelHandle = terrainModels[i].Value;
-                        if (modelHandle == null) continue;
-
-                        var fileName = modelHandle->FileName.ParseString();
                         UiUtil.Text($"File Name: {fileName}", fileName);
                         if (ImGui.Button($"Preview material"))
                         {
                             mdlMaterialWindowManager.AddMaterialWindow(modelHandle);
                         }
-                        
+
                         var modelData = new ModelResourceHandleData(modelHandle->ModelData);
                         for (int j = 0; j < modelData.ModelHeader.MaterialCount; j++)
                         {
