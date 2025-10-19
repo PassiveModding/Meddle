@@ -7,7 +7,7 @@ namespace Meddle.Utils.Export;
 public class ShaderPackage
 {
     public string Name { get; }
-    public Dictionary<MaterialConstant, float[]> MaterialConstants { get; }
+    public Dictionary<uint, float[]> MaterialConstants { get; }
     public Dictionary<uint, string> ResourceKeys { get; }
     public Dictionary<uint, uint> DefaultKeyValues { get; }
 
@@ -52,7 +52,7 @@ public class ShaderPackage
             resourceKeys[uav.Id] = resName;
         }
         
-        var materialConstantDict = new Dictionary<MaterialConstant, float[]>();
+        var materialConstantDict = new Dictionary<uint, float[]>();
         var orderedMaterialParams = file.MaterialParams.Select((x, idx) => (x, idx)).OrderBy(x => x.x.ByteOffset).ToArray();
         foreach (var (materialParam, i) in orderedMaterialParams)
         {
@@ -62,7 +62,7 @@ public class ShaderPackage
                                .Take(materialParam.ByteSize / 4).ToArray();
             var defaultCopy = new float[defaults.Length];
             Array.Copy(defaults, defaultCopy, defaults.Length);
-            materialConstantDict[(MaterialConstant)materialParam.Id] = defaultCopy;
+            materialConstantDict[materialParam.Id] = defaultCopy;
         }
 
         foreach (var materialKey in file.MaterialKeys)

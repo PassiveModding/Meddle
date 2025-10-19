@@ -28,6 +28,7 @@ public class MaterialParameterTab : ITab
     private readonly SqPack pack;
 
     private readonly Dictionary<string, ShpkFile> shpkCache = new();
+
     //private Vector4[]? customizeParameters;
     private CustomizeParameter? customizeParameters;
     private Pointer<Human> lastHuman;
@@ -58,16 +59,16 @@ public class MaterialParameterTab : ITab
         ImGui.TextColored(new Vector4(1, 0, 0, 1),
                           "Warning: This tab is for advanced users only. Modifying material parameters may cause crashes or other issues.");
 
-       commonUi.DrawCharacterSelect(ref selectedCharacter);
+        commonUi.DrawCharacterSelect(ref selectedCharacter);
 
-       if (ImGui.Button("Clear Cache"))
-       {
-           shpkCache.Clear();
-           mtrlConstantCache.Clear();
-           materialCache.Clear();
-       }
+        if (ImGui.Button("Clear Cache"))
+        {
+            shpkCache.Clear();
+            mtrlConstantCache.Clear();
+            materialCache.Clear();
+        }
 
-       if (selectedCharacter != null)
+        if (selectedCharacter != null)
         {
             DrawCharacter(selectedCharacter);
         }
@@ -95,7 +96,7 @@ public class MaterialParameterTab : ITab
                 customizeParameters = null;
                 lastHuman = human;
             }
-            
+
             var parameters = human->CustomizeParameterCBuffer->TryGetBuffer<CustomizeParameter>();
             var parameter = parameters[0];
             if (customizeParameters == null)
@@ -119,14 +120,14 @@ public class MaterialParameterTab : ITab
             {
                 parameter.SkinColor = customizeParameters!.Value.SkinColor;
             }
-            
+
             ImGui.DragFloat("Muscle Tone", ref parameter.MuscleTone, 0.01f, 0.0f, 1.0f, "%.2f");
             ImGui.SameLine();
             if (ImGui.Button("Restore##SkinColor"))
             {
                 parameter.MuscleTone = customizeParameters!.Value.MuscleTone;
             }
-            
+
             ImGui.ColorEdit4("Skin Fresnel", ref parameter.SkinFresnelValue0);
             ImGui.SameLine();
             if (ImGui.Button("Restore##SkinFresnel"))
@@ -147,7 +148,7 @@ public class MaterialParameterTab : ITab
             {
                 parameter.MainColor = customizeParameters!.Value.MainColor;
             }
-            
+
             ImGui.DragFloat("Face Paint UV Multiplier", ref parameter.FacePaintUVMultiplier, 0.01f, -10.0f, 10.0f, "%.2f");
             ImGui.SameLine();
             if (ImGui.Button("Restore##FacePaintUVMultiplier"))
@@ -161,7 +162,7 @@ public class MaterialParameterTab : ITab
             {
                 parameter.HairFresnelValue0 = customizeParameters!.Value.HairFresnelValue0;
             }
-            
+
             ImGui.DragFloat("Unk0", ref parameter.Unk0, 0.01f, -10.0f, 10.0f, "%.2f");
             ImGui.SameLine();
             if (ImGui.Button("Restore##Unk0"))
@@ -175,7 +176,7 @@ public class MaterialParameterTab : ITab
             {
                 parameter.MeshColor = customizeParameters!.Value.MeshColor;
             }
-            
+
             ImGui.DragFloat("Face Paint UV Offset", ref parameter.FacePaintUVOffset, 0.01f, -10.0f, 10.0f, "%.2f");
             ImGui.SameLine();
             if (ImGui.Button("Restore##FacePaintUVOffset"))
@@ -203,18 +204,18 @@ public class MaterialParameterTab : ITab
             {
                 parameter.OptionColor = customizeParameters!.Value.OptionColor;
             }
-            
+
             ImGui.DragFloat("Unk1", ref parameter.Unk1, 0.01f, -10.0f, 10.0f, "%.2f");
             ImGui.SameLine();
             if (ImGui.Button("Restore##Unk1"))
             {
                 parameter.Unk1 = customizeParameters!.Value.Unk1;
             }
-            
+
             parameters[0] = parameter; // save back to buffer
         }
     }
-    
+
     // passing to method to copy the parameters
     private void SaveParameters(CustomizeParameter parameter)
     {
@@ -363,6 +364,7 @@ public class MaterialParameterTab : ITab
                             ImGui.TableSetupColumn("Edit", ImGuiTableColumnFlags.WidthFixed);
 
                             ImGui.TableHeadersRow();
+                            var names = Names.GetConstants();
 
                             foreach (var (materialParam, i) in orderedMaterialParams)
                             {
@@ -377,9 +379,9 @@ public class MaterialParameterTab : ITab
                                                              .ToArray();
 
                                 var nameLookup = $"0x{materialParam.Id:X8}";
-                                if (Enum.IsDefined((MaterialConstant)materialParam.Id))
+                                if (names.TryGetValue(materialParam.Id, out var constName))
                                 {
-                                    nameLookup += $" ({(MaterialConstant)materialParam.Id})";
+                                    nameLookup = $" ({constName.Value})";
                                 }
 
                                 var matchesDefault = shpkDefaults.SequenceEqual(cbufCache);
@@ -477,7 +479,6 @@ public class MaterialParameterTab : ITab
                                 }
                                 else
                                 {
-                                    var step = GetStepForConstantId((MaterialConstant)materialParam.Id);
                                     for (var j = 0; j < currentVal.Length; j++)
                                     {
                                         if (j > 0)
@@ -486,7 +487,7 @@ public class MaterialParameterTab : ITab
                                         }
 
                                         ImGui.InputFloat($"##{materialParam.GetHashCode()}_{j}",
-                                                         ref currentVal[j], step.Item1, step.Item2,
+                                                         ref currentVal[j], 0.01f, 0.1f,
                                                          "%.2f");
                                     }
                                 }
@@ -505,17 +506,4 @@ public class MaterialParameterTab : ITab
             }
         }
     }
-
-
-    private static (float, float) GetStepForConstantId(MaterialConstant constant)
-        {
-            return constant switch
-            {
-                MaterialConstant.g_ShaderID => (1.0f, 1.0f),
-                MaterialConstant.g_SphereMapIndex => (1.0f, 1.0f),
-                MaterialConstant.g_TileIndex => (1.0f, 1.0f),
-                MaterialConstant.g_TextureMipBias => (1.0f, 1.0f),
-                _ => (0.01f, 0.1f)
-            };
-        }
-    }
+}

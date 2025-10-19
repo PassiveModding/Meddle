@@ -18,7 +18,7 @@ public class MaterialComposer
 {
     private readonly MtrlFile mtrlFile;
     private readonly Dictionary<uint, float[]> mtrlConstants = new();
-    public readonly IReadOnlyDictionary<ShaderCategory, uint> ShaderKeyDict;
+    public readonly IReadOnlyDictionary<uint, uint> ShaderKeyDict;
     private readonly Dictionary<string, object> additionalProperties = new();
     public JsonNode ExtrasNode => JsonNode.Parse(JsonSerializer.Serialize(additionalProperties, JsonOptions))!;
     public readonly Dictionary<string, HandleString> TextureUsageDict = new();
@@ -83,7 +83,7 @@ public class MaterialComposer
     public MaterialComposer(MtrlFile mtrlFile, string mtrlPath, ShaderPackage shaderPackage)
     {
         this.mtrlFile = mtrlFile;
-        var shaderKeys = new Dictionary<ShaderCategory, uint>();
+        var shaderKeys = new Dictionary<uint, uint>();
         this.ShaderKeyDict = shaderKeys;
         SetShaderKeys();
         SetConstants();
@@ -103,6 +103,7 @@ public class MaterialComposer
             var valMatch = constants.GetValueOrDefault(value);
             SetProperty(keyMatch != null ? keyMatch.Value : $"0x{category:X8}", 
                         valMatch != null ? valMatch.Value : $"0x{value:X8}");
+            
             if (keyMatch is null or Names.StubName)
             {
                 FailedConstants.Add($"0x{category:X8}");
@@ -117,6 +118,13 @@ public class MaterialComposer
         {
             var keyMatch = constants.GetValueOrDefault(constant);
             SetProperty(keyMatch != null ? keyMatch.Value : $"0x{constant:X8}", value);
+            
+            // set compatibility names for older versions of MeddleTools that used different constant names
+            var alternateKeyNames = keyMatch?.CompatibilityNames ?? [];
+            foreach (var altKeyName in alternateKeyNames)
+            {                
+                SetProperty(altKeyName, value);
+            }
         }
         
         foreach (var (usage, path) in TextureUsageDict)
@@ -131,12 +139,12 @@ public class MaterialComposer
         {
             foreach (var (key, value) in shaderPackage.DefaultKeyValues)
             {
-                shaderKeys[(ShaderCategory)key] = value;
+                shaderKeys[key] = value;
             }
 
             foreach (var key in mtrlFile.ShaderKeys)
             {
-                shaderKeys[(ShaderCategory)key.Category] = key.Value;
+                shaderKeys[key.Category] = key.Value;
             }
         }
         

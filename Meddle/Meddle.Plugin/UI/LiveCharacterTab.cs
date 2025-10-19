@@ -657,6 +657,7 @@ public unsafe class LiveCharacterTab : ITab
                                    availWidth * 0.25f);
             ImGui.TableHeadersRow();
 
+            var constants = Names.GetConstants();
             foreach (var (materialParam, i) in orderedMaterialParams)
             {
                 // TODO: This should exist on the in-memory shpk, would be nicer to parse it from there instead of loading the files.
@@ -668,9 +669,9 @@ public unsafe class LiveCharacterTab : ITab
                                                           materialParam.ByteSize / 4);
 
                 var nameLookup = $"0x{materialParam.Id:X8}";
-                if (Enum.IsDefined((MaterialConstant)materialParam.Id))
+                if (constants.TryGetValue(materialParam.Id, out var constName))
                 {
-                    nameLookup += $" ({(MaterialConstant)materialParam.Id})";
+                    nameLookup += $" ({constName.Value})";
                 }
 
                 ImGui.TableNextRow();
