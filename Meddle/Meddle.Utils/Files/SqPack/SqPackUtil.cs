@@ -6,7 +6,7 @@ namespace Meddle.Utils.Files.SqPack;
 
 public static class SqPackUtil
 {
-    public static SqPackFile? ReadFile(long offset, string datFilePath, FileType type)
+    public static SqPackFile? ReadFile(long offset, string datFilePath, FileType? type = null)
     {
         using var fileStream = File.OpenRead(datFilePath);
         using var br = new BinaryReader(fileStream);
@@ -15,7 +15,7 @@ public static class SqPackUtil
             fileStream.Seek(offset, SeekOrigin.Begin);
 
             var header = br.Read<SqPackFileInfo>();
-            if (header.Type != type)
+            if (type != null && header.Type != type)
             {
                 return null;
             }
@@ -38,51 +38,8 @@ public static class SqPackUtil
             fileStream.Close();
         }
     }
-    
-    public static SqPackFile ReadFile(long offset, string datFilePath)
-    {
-        using var fileStream = File.OpenRead(datFilePath);
-        using var br = new BinaryReader(fileStream);
-        try
-        {
-            fileStream.Seek(offset, SeekOrigin.Begin);
 
-            var header = br.Read<SqPackFileInfo>();
-
-            switch (header.Type)
-            {
-                case FileType.Empty:
-                {
-                    var data = new byte[header.RawFileSize];
-                    return new SqPackFile(header, data);
-                }
-                case FileType.Texture:
-                {
-                    var data = ParseTexFile(offset, header, br);
-                    return new SqPackFile(header, data);
-                }
-                case FileType.Standard:
-                {
-                    var buffer = ParseStandardFile(offset, header, br);
-                    return new SqPackFile(header, buffer);
-                }
-                case FileType.Model:
-                {
-                    var data2 = ParseModelFile(offset, header, br);
-                    return new SqPackFile(header, data2);
-                }
-                default:
-                    throw new InvalidDataException($"Unknown file type {header.Type}");
-            }
-        }
-        finally
-        {
-            br.Close();
-            fileStream.Close();
-        }
-    }
-
-    private static ReadOnlySpan<byte> ParseStandardFile(long offset, SqPackFileInfo header, BinaryReader br)
+    public static ReadOnlySpan<byte> ParseStandardFile(long offset, SqPackFileInfo header, BinaryReader br)
     {
         var buffer = new byte[(int)header.RawFileSize];
         using var ms = new MemoryStream(buffer);
@@ -108,8 +65,8 @@ public static class SqPackUtil
         public ushort BlockStart;
         public ushort NumBlocks;
     }
-    
-    private static unsafe ReadOnlySpan<byte> ParseModelFile(long offset, SqPackFileInfo header, BinaryReader br)
+
+    public static unsafe ReadOnlySpan<byte> ParseModelFile(long offset, SqPackFileInfo header, BinaryReader br)
     {
         br.BaseStream.Position = offset;
         var modelBlock = br.Read<ModelBlock>();
@@ -303,7 +260,7 @@ public static class SqPackUtil
         }
     }
 
-    private static ReadOnlySpan<byte> ParseTexFile(long offset, SqPackFileInfo header, BinaryReader br)
+    public static ReadOnlySpan<byte> ParseTexFile(long offset, SqPackFileInfo header, BinaryReader br)
     {
         var buffer = new byte[(int)header.RawFileSize];
         using var ms = new MemoryStream(buffer);
