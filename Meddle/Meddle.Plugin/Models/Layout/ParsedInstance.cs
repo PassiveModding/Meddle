@@ -453,6 +453,8 @@ public class ParsedMaterialInfo(string path, string pathFromModel, string shpk, 
     public ParsedStain? Stain0 { get; init; }
     public ParsedStain? Stain1 { get; init; }
     public ParsedMaterialInfo? SkinSlotMaterial { get; init; }
+    public bool ApplyDecal { get; init; }
+    public bool ApplyLegacyDecal { get; init; }
     
     [JsonIgnore]
     public IColorTableSet? ColorTable { get; } = colorTable;

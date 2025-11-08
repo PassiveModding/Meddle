@@ -365,16 +365,18 @@ public class ComposerCache
         
         if (characterInfo != null)
         {
-            if (characterInfo.CustomizeData?.DecalPath != null)
+            if (characterInfo.CustomizeData?.DecalPath != null && materialInfo?.ApplyDecal == true)
             {
                 var decalCachePath = CacheTexture(characterInfo.CustomizeData.DecalPath);
                 material.SetProperty("Decal_PngCachePath", Path.GetRelativePath(cacheDir, decalCachePath));
+                material.SetProperty("DecalPath", characterInfo.CustomizeData.DecalPath ?? "");
             }
             
-            if (characterInfo.CustomizeData?.LegacyBodyDecalPath != null)
+            if (characterInfo.CustomizeData?.LegacyBodyDecalPath != null && materialInfo?.ApplyLegacyDecal == true)
             {
                 var legacyDecalCachePath = CacheTexture(characterInfo.CustomizeData.LegacyBodyDecalPath);
-                material.SetProperty("LegacyBodyDecal_PngCachePath", Path.GetRelativePath(cacheDir, legacyDecalCachePath));
+                material.SetProperty("LegacyBodyDecal_PngCachePath", Path.GetRelativePath(cacheDir, legacyDecalCachePath));;
+                material.SetProperty("LegacyBodyDecalPath", characterInfo.CustomizeData.LegacyBodyDecalPath ?? "");
             }
         }
 

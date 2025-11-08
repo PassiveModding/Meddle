@@ -208,11 +208,16 @@ public class ResolverService : IService
         return modelInfo;
     }
 
-    private unsafe ParsedMaterialInfo? ParseMaterial(Pointer<MaterialResourceHandle> materialPtr, Pointer<Model> modelPtr, int mtrlIdx,
-                                                    Dictionary<int, IColorTableSet> colorTableSets,
-                                                    Stain? stain0, Stain? stain1,
-                                                    int? textureCountFromMaterial,
-                                                    ParsedMaterialInfo? skinSlotMaterial)
+    private unsafe ParsedMaterialInfo? ParseMaterial(
+        Pointer<MaterialResourceHandle> materialPtr,
+        Pointer<Model> modelPtr,
+        int mtrlIdx,
+        Dictionary<int, IColorTableSet> colorTableSets,
+        Stain? stain0,
+        Stain? stain1,
+        int? textureCountFromMaterial,
+        ParsedMaterialInfo? skinSlotMaterial,
+        CharacterBase.ModelType modelType)
     {
         if (materialPtr == null || materialPtr.Value == null)
         {
@@ -277,11 +282,28 @@ public class ResolverService : IService
             }
         }
 
+        bool applyDecal = false;
+        bool applyLegacyDecal = false;
+        if (modelType == CharacterBase.ModelType.Human && modelPtr != null && shaderName == "skin.shpk") // only apply these decals to skin shader
+        {
+            var humanSlotIndex = (HumanModelSlotIndex)modelPtr.Value->SlotIndex;
+            if (humanSlotIndex == HumanModelSlotIndex.Face) // can have regular decal
+            {
+                applyDecal = true;
+            }
+            else if (humanSlotIndex < HumanModelSlotIndex.Hair) // can have legacy decal
+            {
+                applyLegacyDecal = true;
+            }
+        }
+
         var materialInfo = new ParsedMaterialInfo(materialPath, materialPathFromModel, shaderName, colorTable, textures.ToArray())
         {
             Stain0 = stain0,
             Stain1 = stain1,
-            SkinSlotMaterial = skinSlotMaterial
+            SkinSlotMaterial = skinSlotMaterial,
+            ApplyDecal = applyDecal,
+            ApplyLegacyDecal = applyLegacyDecal
         };
         return materialInfo;
     }
@@ -325,7 +347,8 @@ public class ResolverService : IService
             var materialInfo = ParseMaterial(mtrlPtr.Value->MaterialResourceHandle, modelPtr, mtrlIdx, colorTableSets, 
                                              stain0, stain1, 
                                              mtrlPtr.Value->TextureCount,
-                                             skinSlotMaterial);
+                                             skinSlotMaterial,
+                modelType);
             materials.Add(materialInfo);
         }
 
@@ -463,7 +486,7 @@ public class ResolverService : IService
         }
         
         var materialInfo = ParseMaterial(material, null, slotIdx, new Dictionary<int, IColorTableSet>(), 
-                                         null, null, null, null);
+                                         null, null, null, null, CharacterBase.ModelType.Human);
         return materialInfo;
     }
     
