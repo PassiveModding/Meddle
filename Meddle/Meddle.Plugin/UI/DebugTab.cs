@@ -1,10 +1,8 @@
-﻿using System.Diagnostics;
-using System.Numerics;
+﻿using System.Numerics;
 using System.Text.Json;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.ImGuiNotification;
-using Dalamud.Interface.Textures;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
@@ -42,7 +40,7 @@ public class DebugTab : ITab
     private readonly PbdHooks pbdHooks;
     private readonly INotificationManager notificationManager;
     private readonly SqPack sqPack;
-    private readonly StainHooks stainHooks;
+    private readonly StainProvider stainProvider;
     private readonly IDataManager dataManager;
     private readonly ComposerFactory composerFactory;
     private string boneSearch = "";
@@ -70,10 +68,9 @@ public class DebugTab : ITab
                     LayoutService layoutService,
                     ParseService parseService, PbdHooks pbdHooks,
                     INotificationManager notificationManager,
-                    TextureCache textureCache,
                     ITextureProvider textureProvider,
                     SqPack sqPack,
-                    StainHooks stainHooks,
+                    StainProvider stainProvider,
                     IDataManager dataManager,
                     ComposerFactory composerFactory)
     {
@@ -86,10 +83,9 @@ public class DebugTab : ITab
         this.parseService = parseService;
         this.pbdHooks = pbdHooks;
         this.notificationManager = notificationManager;
-        this.textureCache = textureCache;
         this.textureProvider = textureProvider;
         this.sqPack = sqPack;
-        this.stainHooks = stainHooks;
+        this.stainProvider = stainProvider;
         this.dataManager = dataManager;
         this.composerFactory = composerFactory;
     }
@@ -430,16 +426,15 @@ public class DebugTab : ITab
             ImGui.Image(wrap.Handle, new Vector2(availableWidth, availableWidth * wrap.Height / wrap.Width));
         }
     }
-    private readonly TextureCache textureCache;
     private readonly ITextureProvider textureProvider;
     
     private void DrawStainInfo()
     {
-        foreach (var (key, stain) in stainHooks.StainDict)
+        foreach (var (key, stain) in StainProvider.StainDict)
         {
             using var id = ImRaii.PushId(key.ToString());
             ImGui.Text($"Stain: {key}, {stain.Name}");
-            var color = StainHooks.GetStainColor(stain);
+            var color = StainProvider.GetStainColor(stain);
             ImGui.SameLine();
             ImGui.ColorButton("Color", color);
         }

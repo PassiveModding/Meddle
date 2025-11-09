@@ -46,13 +46,13 @@ public enum HumanModelSlotIndex
     Top = 1,        // 0x1
     Arms = 2,       // 0x2
     Legs = 3,       // 0x3
-    Feet = 4,       // 0x4
+    Feet = 4,       // 0x4 all slots <= 0x4 *can* have skin material assigned if shpk = skin.shpk
     Ear = 5,        // 0x5
     Neck = 6,       // 0x6
     Wrist = 7,      // 0x7
     RFinger = 8,    // 0x8
-    LFinger = 9,    // 0x9
-    Hair = 10,      // 0xA all slots < 0xA (not including) *can* have Human->LegacyBodyDecal if shpk = skin.shpk
+    LFinger = 9,    // 0x9 all slots <= 0x9 *can* have Human->LegacyBodyDecal if shpk = skin.shpk
+    Hair = 10,      // 0xA
     Face = 11,      // 0xB enables Human->Decal
     TailEars = 12,  // 0xC
     Glasses = 16,   // 0x10

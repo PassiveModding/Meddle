@@ -266,8 +266,6 @@ public static class UiUtil
         ImGui.Text($"Lipstick: {customize.LipStick}");
         ImGui.Text($"Highlights: {customize.Highlights}");
         ImGui.Text($"FacePaintReversed: {customize.FacePaintReversed}");
-        UiUtil.Text($"Decal Path: {customize.DecalPath ?? "None"}", customize.DecalPath);
-        UiUtil.Text($"Legacy Body Decal Path: {customize.LegacyBodyDecalPath ?? "None"}", customize.LegacyBodyDecalPath);
     }
 
     public static void DrawColorTable(IColorTableSet table)

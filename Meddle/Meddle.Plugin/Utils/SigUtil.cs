@@ -7,12 +7,13 @@ using FFXIVClientStructs.FFXIV.Client.Game.Control;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
 using FFXIVClientStructs.FFXIV.Client.LayoutEngine;
+using Meddle.Plugin.Services;
 using Microsoft.Extensions.Logging;
 using Camera = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Camera;
 using CameraManager = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.CameraManager;
 using World = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.World;
 
-namespace Meddle.Plugin.Services;
+namespace Meddle.Plugin.Utils;
 
 public unsafe class SigUtil : IService, IDisposable
 {
