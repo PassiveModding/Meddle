@@ -87,7 +87,16 @@ public class MeshBuilder
             var triA = Vertices[indA];
             var triB = Vertices[indB];
             var triC = Vertices[indC];
-            primitive.AddTriangle(triA, triB, triC);
+            
+            // Check if winding order matches vertex normals, flip if needed
+            if (ShouldFlipWinding(Mesh.Vertices[indA], Mesh.Vertices[indB], Mesh.Vertices[indC]))
+            {
+                primitive.AddTriangle(triA, triC, triB);
+            }
+            else
+            {
+                primitive.AddTriangle(triA, triB, triC);
+            }
         }
 
         return ret;
@@ -101,13 +110,52 @@ public class MeshBuilder
 
         for (var triIdx = 0; triIdx < Mesh.Indices.Count; triIdx += 3)
         {
-            var triA = Vertices[Mesh.Indices[triIdx + 0]];
-            var triB = Vertices[Mesh.Indices[triIdx + 1]];
-            var triC = Vertices[Mesh.Indices[triIdx + 2]];
-            primitive.AddTriangle(triA, triB, triC);
+            var indA = Mesh.Indices[triIdx + 0];
+            var indB = Mesh.Indices[triIdx + 1];
+            var indC = Mesh.Indices[triIdx + 2];
+            var triA = Vertices[indA];
+            var triB = Vertices[indB];
+            var triC = Vertices[indC];
+            
+            // Check if winding order matches vertex normals, flip if needed
+            if (ShouldFlipWinding(Mesh.Vertices[indA], Mesh.Vertices[indB], Mesh.Vertices[indC]))
+            {
+                primitive.AddTriangle(triA, triC, triB);
+            }
+            else
+            {
+                primitive.AddTriangle(triA, triB, triC);
+            }
         }
 
         return ret;
+    }
+    
+    /// <summary>
+    /// Determines if triangle winding should be flipped based on vertex normals.
+    /// Returns true if the calculated face normal points opposite to the vertex normals.
+    /// </summary>
+    private static bool ShouldFlipWinding(Vertex vA, Vertex vB, Vertex vC)
+    {
+        // Skip check if we don't have normals or positions
+        if (vA.Normals == null || vA.Position == null || vB.Position == null || vC.Position == null)
+            return false;
+        
+        var posA = vA.Position.Value;
+        var posB = vB.Position.Value;
+        var posC = vC.Position.Value;
+        
+        // Calculate face normal from triangle geometry
+        var edge1 = posB - posA;
+        var edge2 = posC - posA;
+        var faceNormal = Vector3.Normalize(Vector3.Cross(edge1, edge2));
+        
+        // Compare with vertex normal
+        var vertexNormal = Vector3.Normalize(new Vector3(vA.Normals[0].X, vA.Normals[0].Y, vA.Normals[0].Z));
+        
+        // If dot product is negative, normals point in opposite directions
+        var dot = Vector3.Dot(faceNormal, vertexNormal);
+        return dot < -0.01f;
     }
 
     /// <summary>Builds shape keys (known as morph targets in glTF).</summary>
