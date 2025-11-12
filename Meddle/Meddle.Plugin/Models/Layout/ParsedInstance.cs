@@ -517,12 +517,13 @@ public record ParsedCharacterInfo
     public IReadOnlyList<ParsedModelInfo> Models;
     public readonly ParsedSkeleton Skeleton;
     public readonly ParsedAttach Attach;
-    private readonly ParsedHumanInfo humanInfo;
+    public readonly ParsedHumanInfo HumanInfo;
     public IReadOnlyList<ParsedCharacterInfo> Attaches = [];
-    public CustomizeData? CustomizeData => humanInfo.CustomizeData;
-    public CustomizeParameter? CustomizeParameter => humanInfo.CustomizeParameter;   
-    public IReadOnlyList<EquipmentModelId> EquipmentModelIds => humanInfo.EquipmentModelIds;
-    public GenderRace GenderRace => humanInfo.GenderRace;
+    public readonly DateTime ParsedAt = DateTime.UtcNow;
+    public CustomizeData? CustomizeData => HumanInfo.CustomizeData;
+    public CustomizeParameter? CustomizeParameter => HumanInfo.CustomizeParameter;   
+    public IReadOnlyList<EquipmentModelId> EquipmentModelIds => HumanInfo.EquipmentModelIds;
+    public GenderRace GenderRace => HumanInfo.GenderRace;
 
     public ParsedCharacterInfo(
         ParsedModelInfo[] models,
@@ -533,7 +534,7 @@ public record ParsedCharacterInfo
         Models = models;
         Skeleton = skeleton;
         Attach = attach;
-        this.humanInfo = humanInfo;
+        this.HumanInfo = humanInfo;
     }
 }
 
