@@ -735,7 +735,7 @@ public class LayoutService : IService, IDisposable
         {
             var index = item.Index;
             if (item.Index == -1) continue;
-            var objectPtr = objectManager->Objects[index];
+            var objectPtr = objectManager->ObjectArray.Objects[index];
             if (objectPtr == null || objectPtr.Value == null || objectPtr.Value->SharedGroupLayoutInstance == null)
             {
                 continue;
