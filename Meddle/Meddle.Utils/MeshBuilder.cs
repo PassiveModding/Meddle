@@ -13,6 +13,11 @@ using Mesh = Meddle.Utils.Export.Mesh;
 
 namespace Meddle.Utils;
 
+public record MeshBuilderOptions
+{
+    public bool EnableWindingFlip { get; init; }
+}
+
 public class MeshBuilder
 {
     private Mesh Mesh { get; }
@@ -24,6 +29,7 @@ public class MeshBuilder
     public Type SkinningT { get; }
     public Type VertexBuilderT { get; }
     public Type MeshBuilderT { get; }
+    private MeshBuilderOptions Options { get; }
 
     private IReadOnlyList<PbdFile.Deformer> Deformers { get; }
 
@@ -33,12 +39,14 @@ public class MeshBuilder
         Mesh mesh,
         IReadOnlyList<BoneNodeBuilder>? boneMap,
         MaterialBuilder materialBuilder,
-        (GenderRace fromDeform, GenderRace toDeform, RaceDeformer deformer)? raceDeformer
+        (GenderRace fromDeform, GenderRace toDeform, RaceDeformer deformer)? raceDeformer,
+        MeshBuilderOptions? options = null
     )
     {
         BoneMap = boneMap;
         Mesh = mesh;
         MaterialBuilder = materialBuilder;
+        Options = options ?? new MeshBuilderOptions();
         
         GeometryT = GetVertexGeometryType(Mesh.Vertices);
         MaterialT = GetVertexMaterialType(Mesh);
@@ -55,7 +63,7 @@ public class MeshBuilder
         }
         else
         {
-            Deformers = Array.Empty<PbdFile.Deformer>();
+            Deformers = [];
         }
 
         Vertices = BuildVertices();
@@ -135,10 +143,14 @@ public class MeshBuilder
     /// Determines if triangle winding should be flipped based on vertex normals.
     /// Returns true if the calculated face normal points opposite to the vertex normals.
     /// </summary>
-    private static bool ShouldFlipWinding(Vertex vA, Vertex vB, Vertex vC)
+    private bool ShouldFlipWinding(Vertex vA, Vertex vB, Vertex vC)
     {
+        if (!Options.EnableWindingFlip)
+            return false;
         // Skip check if we don't have normals or positions
-        if (vA.Normals == null || vA.Position == null || vB.Position == null || vC.Position == null)
+        if (vA.Normals == null || vA.Position == null || 
+            vB.Normals == null || vB.Position == null || 
+            vC.Normals == null || vC.Position == null)
             return false;
         
         var posA = vA.Position.Value;
@@ -151,11 +163,16 @@ public class MeshBuilder
         var faceNormal = Vector3.Normalize(Vector3.Cross(edge1, edge2));
         
         // Compare with vertex normal
-        var vertexNormal = Vector3.Normalize(new Vector3(vA.Normals[0].X, vA.Normals[0].Y, vA.Normals[0].Z));
+        var vnA = Vector3.Normalize(new Vector3(vA.Normals[0].X, vA.Normals[0].Y, vA.Normals[0].Z));
+        var vnB = Vector3.Normalize(new Vector3(vB.Normals[0].X, vB.Normals[0].Y, vB.Normals[0].Z));
+        var vnC = Vector3.Normalize(new Vector3(vC.Normals[0].X, vC.Normals[0].Y, vC.Normals[0].Z));
         
-        // If dot product is negative, normals point in opposite directions
-        var dot = Vector3.Dot(faceNormal, vertexNormal);
-        return dot < -0.01f;
+        var dotA = Vector3.Dot(faceNormal, vnA);
+        var dotB = Vector3.Dot(faceNormal, vnB);
+        var dotC = Vector3.Dot(faceNormal, vnC);
+
+        // If the dot product is negative, the normals point in opposite directions
+        return dotA < 0 && dotB < 0 && dotC < 0;
     }
 
     /// <summary>Builds shape keys (known as morph targets in glTF).</summary>
