@@ -174,6 +174,30 @@ public class OptionsTab : ITab
             config.OpenFolderOnExport = openFolderOnExport;
             config.Save();
         }
+        
+        ImGui.Separator();
+        ImGui.Text("Export Settings");
+        
+        var enableWindingFlip = config.ExportConfig.EnableWindingFlip;
+        if (ImGui.Checkbox("Enable Winding Order Flip", ref enableWindingFlip))
+        {
+            config.ExportConfig.EnableWindingFlip = enableWindingFlip;
+            config.Save();
+        }
+        
+        ImGui.SameLine();
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+        {
+            ImGui.Text(FontAwesomeIcon.QuestionCircle.ToIconString());
+        }
+        
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.BeginTooltip();
+            ImGui.Text("Automatically flips triangle winding order when face normals don't match vertex normals.");
+            ImGui.Text("Enable this if exported models have inverted or incorrect face normals.");
+            ImGui.EndTooltip();
+        }
     }
     
     // private void DrawCharacterTextureMode()

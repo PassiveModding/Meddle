@@ -6,6 +6,7 @@ using Meddle.Plugin.Models;
 using Meddle.Plugin.UI.Layout;
 using Meddle.Plugin.UI.Windows;
 using Meddle.Plugin.Utils;
+using Meddle.Utils;
 using Microsoft.Extensions.Logging;
 
 namespace Meddle.Plugin;
@@ -58,6 +59,7 @@ public partial class Configuration : IPluginConfiguration
         
         public bool LimitTerrainExportRange { get; set; }
         public float TerrainExportDistance { get; set; } = 500f;
+        public bool EnableWindingFlip { get; set; }
 
         // public enum ExportRootAttachHandling
         // {
@@ -81,7 +83,8 @@ public partial class Configuration : IPluginConfiguration
                 // RootAttachHandling = RootAttachHandling
                 UseDeformer = UseDeformer,
                 LimitTerrainExportRange = LimitTerrainExportRange,
-                TerrainExportDistance = TerrainExportDistance
+                TerrainExportDistance = TerrainExportDistance,
+                EnableWindingFlip = EnableWindingFlip
             };
         }
 
@@ -105,6 +108,15 @@ public partial class Configuration : IPluginConfiguration
             UseDeformer = other.UseDeformer;
             LimitTerrainExportRange = other.LimitTerrainExportRange;
             TerrainExportDistance = other.TerrainExportDistance;
+            EnableWindingFlip = other.EnableWindingFlip;
+        }
+        
+        public MeshBuilderOptions CreateMeshBuilderOptions()
+        {
+            return new MeshBuilderOptions
+            {
+                EnableWindingFlip = EnableWindingFlip
+            };
         }
     }
 

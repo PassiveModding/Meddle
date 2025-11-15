@@ -542,7 +542,7 @@ public class InstanceComposer
             }
 
             var model = new Model(bgPartsInstance.Path.GamePath, mdlFile, null);
-            var meshExports = ModelBuilder.BuildMeshes(model, materialBuilders, [], null);
+            var meshExports = ModelBuilder.BuildMeshes(model, materialBuilders, [], null, exportConfig.CreateMeshBuilderOptions());
             meshes = meshExports.Select(x => x.Mesh).ToArray();
         }
         
@@ -652,7 +652,7 @@ public class InstanceComposer
             }
 
             var model = new Model(mdlPath, mdlFile, null);
-            var meshes = ModelBuilder.BuildMeshes(model, materialBuilders, [], null);
+            var meshes = ModelBuilder.BuildMeshes(model, materialBuilders, [], null, exportConfig.CreateMeshBuilderOptions());
 
             var plateRoot = new NodeBuilder(mdlPath);
             for (var meshIdx = 0; meshIdx < meshes.Count; meshIdx++)
