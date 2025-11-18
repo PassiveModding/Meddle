@@ -30,6 +30,8 @@ public class MtrlFile
         this.data = data.ToArray();
         var reader = new SpanBinaryReader(data);
         FileHeader = reader.Read<MaterialFileHeader>();
+        if (FileHeader.Version != MtrlMagic)
+            throw new InvalidDataException($"Invalid MTRL magic: {FileHeader.Version:X}");
         TextureOffsets = new TextureOffset[FileHeader.TextureCount];
 
         var offsets = reader.Read<uint>(FileHeader.TextureCount);

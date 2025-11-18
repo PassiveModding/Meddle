@@ -121,7 +121,7 @@ public class CharacterComposer
         }
 
         var enabledAttributes = Model.GetEnabledValues(model.EnabledAttributeMask, model.AttributeMasks).ToArray();
-        var meshes = ModelBuilder.BuildMeshes(model, materialBuilders, skinningContext.Bones, deform);
+        var meshes = ModelBuilder.BuildMeshes(model, materialBuilders, skinningContext.Bones, deform, exportConfig.CreateMeshBuilderOptions());
         foreach (var mesh in meshes)
         {
             var extrasDict = new Dictionary<string, string>

@@ -51,6 +51,34 @@ public static class ModelUtils
         return names;
     }
     
+    public static Dictionary<int, string> GetAttributeNames(this MdlFile file)
+    {
+        var strings = file.GetStrings();
+        var names = new Dictionary<int, string>();
+        for (var i = 0; i < file.AttributeNameOffsets.Length; i++)
+        {
+            var offset = (int)file.AttributeNameOffsets[i];
+            var name = strings[offset];
+            names[offset] = name;
+        }
+
+        return names;
+    }
+    
+    public static Dictionary<int, string> GetShapeNames(this MdlFile file)
+    {
+        var strings = file.GetStrings();
+        var names = new Dictionary<int, string>();
+        for (var i = 0; i < file.Shapes.Length; i++)
+        {
+            var shape = file.Shapes[i];
+            var name = strings[(int)shape.StringOffset];
+            names[(int)shape.StringOffset] = name;
+        }
+
+        return names;
+    }
+    
     public static Dictionary<int, string> GetStrings(this MdlFile file)
     {
         var strings = new Dictionary<int, string>();

@@ -43,58 +43,14 @@ public sealed class SkTexture
                 using (var canvas = new SKCanvas(newBitmap))
                     canvas.DrawBitmap(bitmap, 0, 0);
 
-                if (newBitmap.ByteCount != Data.Length)
-                    throw new ArgumentException("Invalid byte count");
-                newBitmap.Bytes.CopyTo(Data, 0);
-
-                if (!newBitmap.Bytes.SequenceEqual(Data))
-                    throw new InvalidOperationException("Invalid cloned data");
+                newBitmap.GetPixelSpan().CopyTo(Data);
             }
             else
             {
-                if (bitmap.ByteCount != Data.Length)
-                    throw new ArgumentException("Invalid byte count");
-                bitmap.Bytes.CopyTo(Data, 0);
+                bitmap.GetPixelSpan().CopyTo(Data);
             }
         }
 
-        public SkTexture Copy()
-        {
-            var ret = new SkTexture(Width, Height);
-            Data.CopyTo(ret.Data, 0);
-            return ret;
-        }
-        
-        public SkTexture Resize(int width, int height)
-        {
-            var info = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-            var bitmapCopy = Bitmap.Copy();
-            var resize = bitmapCopy.Resize(info, new SKSamplingOptions(SKCubicResampler.Mitchell));
-            
-            return new SkTexture(resize);
-        }
-
-        
-        public SKColor SampleWrap(Vector2 uv) => SampleWrap(uv.X, uv.Y);
-        public SKColor SampleWrap(float u, float v)
-        {
-            u %= 1;
-            v %= 1;
-            if (u < 0)
-                u += 1;
-            if (v < 0)
-                v += 1;
-            return Sample(u, v);
-        }
-        
-        public SKColor Sample(Vector2 uv) => Sample(uv.X, uv.Y);
-        public SKColor Sample(float u, float v)
-        {
-            var x = (int)(u * Width);
-            var y = (int)(v * Height);
-            return this[x, y];
-        }
-        
         private Span<byte> GetPixelData(int x, int y) =>
             Data.AsSpan().Slice((Width * y + x) * 4, 4);
 

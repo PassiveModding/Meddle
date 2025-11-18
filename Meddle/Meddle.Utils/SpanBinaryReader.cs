@@ -126,6 +126,14 @@ public unsafe ref struct SpanBinaryReader
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     public nint ReadIntPtr()
         => Read<nint>();
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    public Single ReadSingle()
+        => Read<Single>();
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    public Half ReadHalf()
+        => Read<Half>();
 
     /// <summary>
     /// Create a slice of the reader from <paramref name="position"/> to

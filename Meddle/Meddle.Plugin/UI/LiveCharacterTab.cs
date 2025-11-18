@@ -56,7 +56,7 @@ public unsafe class LiveCharacterTab : ITab
     private readonly Dictionary<nint, bool> selectedModels = new();
     private readonly TextureCache textureCache;
     private readonly ResolverService resolverService;
-    private readonly StainHooks stainHooks;
+    private readonly StainProvider stainProvider;
     private readonly ITextureProvider textureProvider;
     private Task exportTask = Task.CompletedTask;
     private CancellationTokenSource cancelToken = new();
@@ -72,7 +72,7 @@ public unsafe class LiveCharacterTab : ITab
         ParseService parseService,
         TextureCache textureCache,
         ResolverService resolverService,
-        StainHooks stainHooks,
+        StainProvider stainProvider,
         SqPack pack,
         PbdHooks pbd,
         CommonUi commonUi,
@@ -86,7 +86,7 @@ public unsafe class LiveCharacterTab : ITab
         this.parseService = parseService;
         this.textureCache = textureCache;
         this.resolverService = resolverService;
-        this.stainHooks = stainHooks;
+        this.stainProvider = stainProvider;
         this.pack = pack;
         this.pbd = pbd;
         this.commonUi = commonUi;
@@ -168,11 +168,10 @@ public unsafe class LiveCharacterTab : ITab
 
         var cBase = (CSCharacterBase*)drawObject;
         var modelType = cBase->GetModelType();
-        Lazy<ResolverService.ParsedHumanInfo>? humanData = null;
         if (modelType == CSCharacterBase.ModelType.Human)
         {
             //humanData = resolverService.ParseHuman(cBase);
-            humanData = new Lazy<ResolverService.ParsedHumanInfo>(() => resolverService.ParseHuman(cBase));
+            var humanData = ParseMaterialUtil.ParseHuman(cBase);
             DrawHumanCharacter(humanData);
             ExportButton("Export All Models With Attaches", () =>
             {
@@ -186,7 +185,7 @@ public unsafe class LiveCharacterTab : ITab
             }, character->NameString.GetCharacterName(config, character->ObjectKind));
         }
 
-        DrawDrawObject(drawObject, character->NameString.GetCharacterName(config, character->ObjectKind), humanData);
+        DrawDrawObject(drawObject, character->NameString.GetCharacterName(config, character->ObjectKind));
 
         try
         {
@@ -197,7 +196,7 @@ public unsafe class LiveCharacterTab : ITab
                 {
                     ImGui.Separator();
                     ImGui.Text($"Weapon {weaponIdx}");
-                    DrawDrawObject(weaponData.DrawObject, $"{character->NameString.GetCharacterName(config, character->ObjectKind)}_Weapon", null);
+                    DrawDrawObject(weaponData.DrawObject, $"{character->NameString.GetCharacterName(config, character->ObjectKind)}_Weapon");
                 }
             }
 
@@ -325,7 +324,7 @@ public unsafe class LiveCharacterTab : ITab
         }
     }
 
-    private void DrawDrawObject(DrawObject* drawObject, string name, Lazy<ResolverService.ParsedHumanInfo>? humanData)
+    private void DrawDrawObject(DrawObject* drawObject, string name)
     {
         if (drawObject == null)
         {
@@ -392,11 +391,11 @@ public unsafe class LiveCharacterTab : ITab
                 continue;
             }
 
-            DrawModel(cBase, modelPtr.Value, humanData);
+            DrawModel(cBase, modelPtr.Value);
         }
     }
 
-    private void DrawModel(Pointer<CharacterBase> cPtr, Pointer<CSModel> mPtr, Lazy<ResolverService.ParsedHumanInfo>? lazyHuman)
+    private void DrawModel(Pointer<CharacterBase> cPtr, Pointer<CSModel> mPtr)
     {
         if (cPtr == null || cPtr.Value == null)
         {
@@ -502,36 +501,26 @@ public unsafe class LiveCharacterTab : ITab
             ImGui.Text($"Slot Index: {model->SlotIndex}");
             if (modelType == CharacterBase.ModelType.Human)
             {
-                var equipmentModelId = ResolverService.GetEquipmentModelId(cBase, (HumanEquipmentSlotIndex)model->SlotIndex);
+                var equipmentModelId = ParseMaterialUtil.GetEquipmentModelId(cBase, (HumanEquipmentSlotIndex)model->SlotIndex);
                 if (equipmentModelId != null)
                 {
                     ImGui.Text($"Equipment Model Id: {equipmentModelId.Value.Id}");
                     ImGui.Text($"Equipment Model Variant: {equipmentModelId.Value.Variant}");
                 }
-                var stain0 = equipmentModelId != null ? stainHooks.GetStain(equipmentModelId.Value.Stain0) : null;
-                var stain1 = equipmentModelId != null ? stainHooks.GetStain(equipmentModelId.Value.Stain1) : null;
+                var stain0 = equipmentModelId != null ? StainProvider.GetStain(equipmentModelId.Value.Stain0) : null;
+                var stain1 = equipmentModelId != null ? StainProvider.GetStain(equipmentModelId.Value.Stain1) : null;
                 if (stain0 != null)
                 {
                     ImGui.Text($"Stain 0: {stain0.Value.Name.ExtractText()} ({stain0.Value.RowId})");
                     ImGui.SameLine();
-                    ImGui.ColorButton("##Stain0", StainHooks.GetStainColor(stain0.Value));
+                    ImGui.ColorButton("##Stain0", StainProvider.GetStainColor(stain0.Value));
                 }
 
                 if (stain1 != null)
                 {
                     ImGui.Text($"Stain 1: {stain1.Value.Name.ExtractText()} ({stain1.Value.RowId})");
                     ImGui.SameLine();
-                    ImGui.ColorButton("##Stain1", StainHooks.GetStainColor(stain1.Value));
-                }
-
-                if (config.DisplayDebugInfo)
-                {
-                    var humanData = lazyHuman?.Value;
-                    var skinSlotMaterial = humanData?.SkinSlotMaterials.ElementAtOrDefault((int)model->SlotIndex);
-                    if (skinSlotMaterial != null)
-                    {
-                        ImGui.Text($"Skin Slot Material: {skinSlotMaterial.Path.GamePath}");
-                    }
+                    ImGui.ColorButton("##Stain1", StainProvider.GetStainColor(stain1.Value));
                 }
             }
 
@@ -829,7 +818,7 @@ public unsafe class LiveCharacterTab : ITab
                 ImGui.CollapsingHeader("Color Table"))
             {
                 var colorTableTexture = colorTableTexturePtr.Value;
-                var colorTable = parseService.ParseColorTableTexture(colorTableTexture);
+                var colorTable = ParseMaterialUtil.ParseColorTableTexture(colorTableTexture);
                 UiUtil.DrawColorTable(colorTable);
             }
 
@@ -952,11 +941,10 @@ public unsafe class LiveCharacterTab : ITab
         }
     }
 
-    private void DrawHumanCharacter(Lazy<ResolverService.ParsedHumanInfo> lazyHuman)
+    private void DrawHumanCharacter(ParsedHumanInfo humanData)
     {
         if (ImGui.CollapsingHeader("Customize Options"))
         {
-            var humanData = lazyHuman.Value;
             var width = ImGui.GetContentRegionAvail().X;
             using var table = ImRaii.Table("##CustomizeTable", 2, ImGuiTableFlags.Borders | ImGuiTableFlags.Resizable);
             ImGui.TableSetupColumn("Params", ImGuiTableColumnFlags.WidthFixed, width * 0.75f);

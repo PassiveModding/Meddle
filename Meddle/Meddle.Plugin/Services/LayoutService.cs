@@ -29,7 +29,7 @@ public class LayoutService : IService, IDisposable
 {
     private readonly ILogger<LayoutService> logger;
     private readonly IFramework framework;
-    private readonly StainHooks stainHooks;
+    private readonly StainProvider stainProvider;
     private readonly Configuration config;
     private readonly SigUtil sigUtil;
 
@@ -37,13 +37,13 @@ public class LayoutService : IService, IDisposable
         SigUtil sigUtil, 
         ILogger<LayoutService> logger,
         IFramework framework,
-        StainHooks stainHooks,
+        StainProvider stainProvider,
         Configuration config)
     {
         this.sigUtil = sigUtil;
         this.logger = logger;
         this.framework = framework;
-        this.stainHooks = stainHooks;
+        this.stainProvider = stainProvider;
         this.config = config;
         this.framework.Update += Update;
     }
@@ -636,16 +636,17 @@ public class LayoutService : IService, IDisposable
         if (territory == null || territory->IsLoaded() == false)
             return HousingTerritoryData.Empty;
         var type = territory->GetTerritoryType();
+        
         var furniture = type switch
         {
-            HousingTerritoryType.Indoor => ((IndoorTerritory*)territory)->Furniture,
-            HousingTerritoryType.Outdoor => ((OutdoorTerritory*)territory)->Furniture,
+            HousingTerritoryType.Indoor => ((IndoorTerritory*)territory)->FurnitureManager.FurnitureMemory,
+            HousingTerritoryType.Outdoor => ((OutdoorTerritory*)territory)->FurnitureStruct.FurnitureMemory,
             _ => []
         };
         var objectManager = type switch
         {
-            HousingTerritoryType.Indoor => &((IndoorTerritory*)territory)->HousingObjectManager,
-            HousingTerritoryType.Outdoor => &((OutdoorTerritory*)territory)->HousingObjectManager,
+            HousingTerritoryType.Indoor => &((IndoorTerritory*)territory)->FurnitureManager.ObjectManager,
+            HousingTerritoryType.Outdoor => &((OutdoorTerritory*)territory)->FurnitureStruct.ObjectManager,
             _ => null
         };
 
@@ -687,7 +688,7 @@ public class LayoutService : IService, IDisposable
                         continue;
                     }
                     
-                    var defaultStain = stainHooks.GetStain(housingSettings.Value->DefaultColorId);
+                    var defaultStain = StainProvider.GetStain(housingSettings.Value->DefaultColorId);
                     if (defaultStain == null)
                     {
                         logger.LogWarning("Default stain is null for fixture {FixtureId}", meddleFixture.FixtureId);
@@ -695,7 +696,7 @@ public class LayoutService : IService, IDisposable
                     }
 
                     string? fixtureName = null;
-                    if (meddleFixture.FixtureId != 0 && stainHooks.HousingDict.TryGetValue(meddleFixture.FixtureId, out var itemId) && stainHooks.ItemDict.TryGetValue(itemId, out var item))
+                    if (meddleFixture.FixtureId != 0 && StainProvider.HousingDict.TryGetValue(meddleFixture.FixtureId, out var itemId) && StainProvider.ItemDict.TryGetValue(itemId, out var item))
                     {
                         fixtureName = item.Name.ToString();
                     }
@@ -704,7 +705,7 @@ public class LayoutService : IService, IDisposable
                     {
                         FixtureName = fixtureName,
                         FixtureId = meddleFixture.FixtureId,
-                        Stain =  stainHooks.GetStain(meddleFixture.StainId),
+                        Stain =  StainProvider.GetStain(meddleFixture.StainId),
                         DefaultStain = defaultStain.Value,
                         LayoutInstance = meddleFixture.UnkGroup->FixtureLayoutInstance
                     });
@@ -734,7 +735,7 @@ public class LayoutService : IService, IDisposable
         {
             var index = item.Index;
             if (item.Index == -1) continue;
-            var objectPtr = objectManager->Objects[index];
+            var objectPtr = objectManager->ObjectArray.Objects[index];
             if (objectPtr == null || objectPtr.Value == null || objectPtr.Value->SharedGroupLayoutInstance == null)
             {
                 continue;
@@ -766,8 +767,8 @@ public class LayoutService : IService, IDisposable
                 GameObject = housingObjectPtr,
                 LayoutInstance = layoutInstance,
                 HousingFurniture = item,
-                Stain = stainHooks.GetStain(item.Stain),
-                DefaultStain = stainHooks.GetStain(housingSettings.Value->DefaultColorId)!.Value,
+                Stain = StainProvider.GetStain(item.Stain),
+                DefaultStain = StainProvider.GetStain(housingSettings.Value->DefaultColorId)!.Value,
             });
         }
 

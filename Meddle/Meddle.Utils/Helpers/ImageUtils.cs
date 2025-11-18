@@ -20,7 +20,7 @@ public static class ImageUtils
     //         _ => width * 4,
     //     };
     // }
-    
+
     public static TextureResource ToResource(this TexFile file)
     {
         var h = file.Header;
@@ -28,16 +28,16 @@ public static class ImageUtils
         if (h.Type.HasFlag(TexFile.Attribute.TextureTypeCube))
             flags |= D3DResourceMiscFlags.TextureCube;
         return new TextureResource(
-            TexFile.GetDxgiFormatFromTextureFormat(h.Format), 
-            h.Width, 
-            h.Height, 
-            h.CalculatedMips, 
-            h.CalculatedArraySize, 
-            TexFile.GetTexDimensionFromAttribute(h.Type), 
-            flags, 
+            TexFile.GetDxgiFormatFromTextureFormat(h.Format),
+            h.Width,
+            h.Height,
+            h.CalculatedMips,
+            h.CalculatedArraySize,
+            TexFile.GetTexDimensionFromAttribute(h.Type),
+            flags,
             file.TextureBuffer);
     }
-    
+
     public static ReadOnlySpan<byte> ImageAsPng(this Image image)
     {
         unsafe
@@ -57,7 +57,7 @@ public static class ImageUtils
             }
         }
     }
-    
+
     // public static TexMeta GetTexMeta(TextureResource resource)
     // {
     //     var meta = new TexMeta
@@ -164,17 +164,17 @@ public static class ImageUtils
 
         return img;
     }
-    
+
     public static byte[] GetRawRgbaData(TexFile tex, int arrayLevel, int mipLevel, int slice)
     {
         var img = GetTexData(tex, arrayLevel, mipLevel, slice);
         if (img.Format != DXGIFormat.R8G8B8A8UNorm)
             throw new ArgumentException("Image must be in RGBA format.", nameof(tex));
-        
+
         // assume RGBA
         return img.Span.ToArray();
     }
-    
+
     // public static unsafe SkTexture ToTexture(this Image img, Vector2? resize = null)
     // {
     //     if (img.Format != DXGIFormat.R8G8B8A8UNorm)
@@ -208,25 +208,24 @@ public static class ImageUtils
     //                            new SKSamplingOptions(SKCubicResampler.Mitchell));
     //     return new SkTexture(bitmap);
     // }
-    
+
     public static SkTexture ToTexture(this TextureResource resource, (int width, int height)? resize = null)
     {
         var bitmap = resource.ToBitmap();
-        
+
         if (resize != null)
         {
-            bitmap = bitmap.Resize(new SKImageInfo(resize.Value.width, resize.Value.height, SKColorType.Rgba8888, SKAlphaType.Unpremul), 
+            bitmap = bitmap.Resize(new SKImageInfo(resize.Value.width, resize.Value.height, SKColorType.Rgba8888, SKAlphaType.Unpremul),
                                    new SKSamplingOptions(SKCubicResampler.Mitchell));
         }
-        
+
         return new SkTexture(bitmap);
     }
-    
+
     public static unsafe SKBitmap ToBitmap(this TextureResource resource)
     {
         var meta = FromResource(resource);
         var image = ScratchImage.Initialize(meta);
-
         // copy data - ensure destination not too short
         fixed (byte* data = image.Pixels)
         {
@@ -238,7 +237,7 @@ public static class ImageUtils
                                        "{Length} > {Length2} " +
                                        "{Width}x{Height} {Format}\n" +
                                        "Trimmed to fit.",
-                                       resource.Data.Length, span.Length, resource.Width, 
+                                       resource.Data.Length, span.Length, resource.Width,
                                        resource.Height, resource.Format);
             }
             else
@@ -246,27 +245,18 @@ public static class ImageUtils
                 resource.Data.CopyTo(span);
             }
         }
-        
-        image.GetRGBA(out var rgba);
 
-        var bitmap = new SKBitmap(rgba.Meta.Width, rgba.Meta.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-        bitmap.Erase(new SKColor(0));
-        fixed (byte* data = rgba.Pixels)
-        {
-            bitmap.InstallPixels(bitmap.Info, (nint)data, rgba.Meta.Width * 4);
-        }
-        // bitmap.SetImmutable();
-        //
-        // return bitmap.Copy() ?? throw new InvalidOperationException("Failed to copy bitmap.");
-        var copy = new SKBitmap(rgba.Meta.Width, rgba.Meta.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-        var pixelBuf = copy.GetPixelSpan().ToArray();
-        bitmap.GetPixelSpan().CopyTo(pixelBuf);
-        fixed (byte* data = pixelBuf)
-        {
-            copy.InstallPixels(copy.Info, (nint)data, copy.Info.RowBytes);
-        }
-            
-        return copy;
+        image.GetRGBA(out var rgba);
+        var img = rgba.GetImage(0, 0, 0);
+        if (img.Format != DXGIFormat.R8G8B8A8UNorm)
+            throw new ArgumentException("Image must be in RGBA format.", nameof(resource));
+        
+        var bitmap = new SKBitmap(img.Width, img.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
+        var pixels = bitmap.GetPixels();
+        var destinationSpan = new Span<byte>((void*)pixels, img.Width * img.Height * 4);
+        img.Span.CopyTo(destinationSpan);
+        
+        return bitmap;
     }
 
     public static TexMeta FromResource(TextureResource resource)

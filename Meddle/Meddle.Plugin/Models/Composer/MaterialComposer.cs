@@ -35,8 +35,6 @@ public class MaterialComposer
             SetProperty("Highlights", customizeData.Highlights);
             SetProperty("LipStick", customizeData.LipStick);
             SetProperty("FacePaintReversed", customizeData.FacePaintReversed);
-            SetProperty("LegacyBodyDecalPath", customizeData.LegacyBodyDecalPath ?? "");
-            SetProperty("DecalPath", customizeData.DecalPath ?? "");
             SetProperty("CustomizeData", JsonNode.Parse(JsonSerializer.Serialize(customizeData, JsonOptions))!);
         }
 

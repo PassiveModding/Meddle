@@ -192,8 +192,13 @@ public class CommonUi : IDisposable, IService
     
     public unsafe string GetCharacterDisplayText(IGameObject obj, bool includeDistance, bool includeId)
     {
+        if (!obj.IsValid())
+        {
+            return $"Invalid Object";
+        }
+        
         string suffix = includeId 
-            ? $"##{obj.GameObjectId}" 
+            ? $"##{obj.Address}" 
             : string.Empty;
         
         var drawObject = ((GameObject*)obj.Address)->DrawObject;

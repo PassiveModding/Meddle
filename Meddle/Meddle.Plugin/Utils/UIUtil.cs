@@ -219,6 +219,17 @@ public static class UiUtil
         // HintCircle("PlayerAsAttachChild: If a 'Character' has a root attach (typically a mount), export the player as a child of the root attach\n" +
         //             "Exclude: Export the root attach separately from the player");
 
+        var enableWindingFlip = exportConfiguration.EnableWindingFlip;
+        if (ImGui.Checkbox("Enable Winding Order Flip", ref enableWindingFlip))
+        {
+            exportConfiguration.EnableWindingFlip = enableWindingFlip;
+            changed = true;
+        }
+
+        ImGui.SameLine();
+        HintCircle("Automatically flips triangle winding order when face normals don't match vertex normals.\n" +
+                   "Enable this if exported models have inverted or incorrect face normals.");
+
         return changed;
     }
 
@@ -266,8 +277,6 @@ public static class UiUtil
         ImGui.Text($"Lipstick: {customize.LipStick}");
         ImGui.Text($"Highlights: {customize.Highlights}");
         ImGui.Text($"FacePaintReversed: {customize.FacePaintReversed}");
-        UiUtil.Text($"Decal Path: {customize.DecalPath ?? "None"}", customize.DecalPath);
-        UiUtil.Text($"Legacy Body Decal Path: {customize.LegacyBodyDecalPath ?? "None"}", customize.LegacyBodyDecalPath);
     }
 
     public static void DrawColorTable(IColorTableSet table)

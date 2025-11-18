@@ -20,8 +20,9 @@ public static class ModelBuilder
     public static IReadOnlyList<MeshExport> BuildMeshes(
         Model model,
         IReadOnlyList<MaterialBuilder> materials,
-        IReadOnlyList<BoneNodeBuilder> boneMap,
-        (GenderRace fromDeform, GenderRace toDeform, RaceDeformer deformer)? raceDeformer)
+        IReadOnlyList<BoneNodeBuilder>? boneMap,
+        (GenderRace fromDeform, GenderRace toDeform, RaceDeformer deformer)? raceDeformer,
+        MeshBuilderOptions? options = null)
     {
         var meshes = new List<MeshExport>();
 
@@ -60,13 +61,20 @@ public static class ModelBuilder
                 material = materials[mesh.MaterialIdx];
             }
             
-            if (mesh.BoneTable != null)
+            if (mesh.BoneTable != null && boneMap != null)
             {
-                meshBuilder = new MeshBuilder(mesh, boneMap, material, raceDeformer);
+                meshBuilder = new MeshBuilder(mesh, boneMap, material, raceDeformer, options);
+            }
+            else if (mesh.BoneTable != null && boneMap == null)
+            {
+                // Global.Logger.LogWarning("[{Path}] Mesh {MeshIdx} has bone table but no bone map was provided",
+                //                          model.HandlePath,
+                //                          mesh.MeshIdx);
+                meshBuilder = new MeshBuilder(mesh, null, material, raceDeformer, options);
             }
             else
             {
-                meshBuilder = new MeshBuilder(mesh, null, material, raceDeformer);
+                meshBuilder = new MeshBuilder(mesh, null, material, raceDeformer, options);
             }
 
             Global.Logger.LogDebug("[{Path}] Building mesh {MeshIdx}\n{Mesh}",

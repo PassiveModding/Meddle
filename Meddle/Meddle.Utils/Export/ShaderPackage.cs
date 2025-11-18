@@ -1,5 +1,4 @@
 ﻿using System.Text;
-using Meddle.Utils.Constants;
 using Meddle.Utils.Files;
 
 namespace Meddle.Utils.Export;
@@ -9,6 +8,7 @@ public class ShaderPackage
     public string Name { get; }
     public Dictionary<uint, float[]> MaterialConstants { get; }
     public Dictionary<uint, string> ResourceKeys { get; }
+    public Dictionary<uint, string> Textures { get;  }
     public Dictionary<uint, uint> DefaultKeyValues { get; }
 
     public ShaderPackage(ShpkFile file, string name)
@@ -17,6 +17,7 @@ public class ShaderPackage
         
         var resourceKeys = new Dictionary<uint, string>();
         var defaultKeyValues = new Dictionary<uint, uint>();
+        var textures = new Dictionary<uint, string>();
         var stringReader = new SpanBinaryReader(file.RawData[(int)file.FileHeader.StringsOffset..]);
         foreach (var sampler in file.Samplers)
         {
@@ -38,9 +39,10 @@ public class ShaderPackage
         
         foreach (var texture in file.Textures)
         {
+            var resName = stringReader.ReadString((int)texture.StringOffset);
+            textures[texture.Id] = resName;
             if (texture.Slot != 2)
                 continue;
-            var resName = stringReader.ReadString((int)texture.StringOffset);
             resourceKeys[texture.Id] = resName;
         }
         
@@ -88,6 +90,7 @@ public class ShaderPackage
         DefaultKeyValues = defaultKeyValues;
         MaterialConstants = materialConstantDict;
         ResourceKeys = resourceKeys;
+        Textures = textures;
     }
 }
 

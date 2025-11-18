@@ -8,16 +8,31 @@ public unsafe struct Vertex
 {
     public enum VertexType : byte
     {
-        Single1 = 0,
-        Single2 = 1,
-        Single3 = 2,
-        Single4 = 3,
-        UInt = 5,
-        ByteFloat4 = 8,
-        Half2 = 13,
-        Half4 = 14,
-        UByte8 = 17
+        Single1    = 0, // 0x00
+        Single2    = 1, // 0x01
+        Single3    = 2, // 0x02
+        Single4    = 3, // 0x03
+        UInt       = 5, // 0x05
+        ByteFloat4 = 8, // 0x08
+        Half2      = 13, // 0x0D
+        Half4      = 14, // 0x0E
+        UByte8     = 17 // 0x11
     }
+    
+    public static int GetVertexTypeSize(VertexType type) =>
+        type switch
+        {
+            VertexType.Single1 => 4,
+            VertexType.Single2 => 8,
+            VertexType.Single3 => 12,
+            VertexType.Single4 => 16,
+            VertexType.UInt => 4,       // ubyte4
+            VertexType.ByteFloat4 => 4, // ubyte4n
+            VertexType.Half2 => 4,
+            VertexType.Half4 => 8,
+            VertexType.UByte8 => 8,
+            _ => throw new ArgumentException($"Unsupported vertex type {type}")
+        };
 
     public enum VertexUsage : byte
     {
@@ -52,19 +67,38 @@ public unsafe struct Vertex
 
     public static Vector3 ReadVector3(ReadOnlySpan<byte> buffer, VertexType type)
     {
-        fixed (byte* b = buffer)
+        // fixed (byte* b = buffer)
+        // {
+        //     var h = (Half*)b;
+        //     var f = (float*)b;
+        //
+        //     return type switch
+        //     {
+        //         VertexType.Single3 => new Vector3(f[0], f[1], f[2]),
+        //         VertexType.Single4 => new Vector3(f[0], f[1], f[2]), // skip W
+        //         VertexType.Half4 => new Vector3((float)h[0], (float)h[1], (float)h[2]), // skip W
+        //         VertexType.Single1 => new Vector3(f[0], f[0], f[0]),
+        //         _ => throw new ArgumentException($"Unsupported vector3 type {type}")
+        //     };
+        // }
+        
+        var size = GetVertexTypeSize(type);
+        Span<byte> temp = stackalloc byte[size];
+        buffer[..size].CopyTo(temp);
+        var reader = new SpanBinaryReader(temp);
+        return type switch
         {
-            var h = (Half*)b;
-            var f = (float*)b;
-
-            return type switch
-            {
-                VertexType.Single3 => new Vector3(f[0], f[1], f[2]),
-                VertexType.Single4 => new Vector3(f[0], f[1], f[2]), // skip W
-                VertexType.Half4 => new Vector3((float)h[0], (float)h[1], (float)h[2]), // skip W
-                VertexType.Single1 => new Vector3(f[0], f[0], f[0]),
-                _ => throw new ArgumentException($"Unsupported vector3 type {type}")
-            };
+            VertexType.Single3 => new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle()),
+            VertexType.Single4 => new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle()), // skip W
+            VertexType.Half4 => new Vector3((float)reader.ReadHalf(), (float)reader.ReadHalf(), (float)reader.ReadHalf()), // skip W
+            VertexType.Single1 => ReadSingle1(reader),
+            _ => throw new ArgumentException($"Unsupported vector3 type {type}")
+        };
+        
+        Vector3 ReadSingle1(SpanBinaryReader reader)
+        {
+            var v = reader.ReadSingle();
+            return new Vector3(v, v, v);
         }
     }
     

@@ -227,11 +227,6 @@ public class ComposerCache
         File.WriteAllBytes(pngCachePath, textureBytes);
         return pngCachePath;
     }
-
-    private static readonly IReadOnlyList<string> SkinSlotShaders =
-    [
-        "characterstockings.shpk"
-    ];
     
     public MaterialBuilder ComposeMaterial(string mtrlPath, 
                                            ParsedMaterialInfo? materialInfo = null,
@@ -259,36 +254,42 @@ public class ComposerCache
         if (materialInfo != null)
         {
             // kinda janky, but we set skin data first so that the keys are still available to be overridden by the main material info.
-            if (materialInfo.SkinSlotMaterial != null && SkinSlotShaders.Contains(materialInfo.Shpk))
+            if (materialInfo.RenderMaterialOutput != null)
             {
-                var skinMtrlFile = GetMtrlFile(materialInfo.SkinSlotMaterial.Path.FullPath, out var skinMtrlCachePath);
-                if (skinMtrlCachePath != null)
+                var render = materialInfo.RenderMaterialOutput;
+                if (render.DecalTexturePath != null)
                 {
-                    material.SetProperty("SkinMtrlCachePath", Path.GetRelativePath(cacheDir, skinMtrlCachePath));
+                    var decalCachePath = CacheTexture(render.DecalTexturePath);
+                    material.SetProperty("Decal_PngCachePath", Path.GetRelativePath(cacheDir, decalCachePath));
+                    material.SetProperty("DecalPath", render.DecalTexturePath);
                 }
-                var skinShaderPackage = GetShaderPackage(skinMtrlFile.GetShaderPackageName());
-                var skinMaterial = new MaterialComposer(skinMtrlFile, materialInfo.SkinSlotMaterial.Path.FullPath, skinShaderPackage);
-                var constants = Names.GetConstants();
-                foreach (var (key, value) in skinMaterial.ShaderKeyDict)
+                else if (render.DecalTexture != null)
                 {
-                    var category = (uint)key;
-                    var keyMatch = constants.GetValueOrDefault(category);
-                    var valMatch = constants.GetValueOrDefault(value);
-                    material.SetProperty(keyMatch != null ? keyMatch.Value : $"0x{category:X8}", valMatch != null ? valMatch.Value : $"0x{value:X8}");
+                    var tex = render.DecalTexture;
+                    var decalCachePath = SaveInMemoryTex(tex, "decals");
+                    material.SetProperty("Decal_PngCachePath", Path.GetRelativePath(cacheDir, decalCachePath));
+                    material.SetProperty("DecalPath", $"InMemoryTexture_{tex.GetHashCode()}");
                 }
-                foreach (var texture in skinMaterial.TextureUsageDict)
-                {
-                    var fullPath = texture.Value.FullPath;
-                    var match = materialInfo.Textures.FirstOrDefault(x => x.Path.GamePath == texture.Value.GamePath);
-                    if (match != null)
-                    {
-                        fullPath = match.Path.FullPath;
-                    }
 
-                    var cachePath = CacheTexture(fullPath);
-                    var keyUsage = $"{texture.Key}".Replace("g_Sampler", "g_SamplerSkin");
-                    material.SetProperty($"{keyUsage}", texture.Value.GamePath);
-                    material.SetProperty($"{keyUsage}_PngCachePath", Path.GetRelativePath(cacheDir, cachePath));
+                if (render.SkinMaterialTextures.Count > 0)
+                {
+                    foreach (var  texture in render.SkinMaterialTextures)
+                    {
+                        var fullPath = texture.TexturePath;
+                        var match = materialInfo.Textures.FirstOrDefault(x => x.Path.GamePath == texture.TexturePathFromMaterial);
+                        if (match != null)
+                        {
+                            fullPath = match.Path.FullPath;
+                        }
+
+                        var cachePath = CacheTexture(fullPath);
+                        // var keyUsage = $"{key}".Replace("g_Sampler", "g_SamplerSkin");
+                        if (shaderPackage.Textures.TryGetValue(texture.TargetSamplerCrc, out var samplerName))
+                        {
+                            material.SetProperty($"{samplerName}", texture.TexturePath);
+                            material.SetProperty($"{samplerName}_PngCachePath", Path.GetRelativePath(cacheDir, cachePath));
+                        }
+                    }
                 }
             }
             
@@ -296,26 +297,24 @@ public class ComposerCache
             if (materialInfo.ColorTable != null)
             {
                 material.SetPropertiesFromColorTable(materialInfo.ColorTable);
-                // since colortables are purely in-memory, they dont have a path.
-                // going to store them in the 'ColorTables' directory in the cache with a unique name based on the hash.
                 if (materialInfo.ColorTable is ColorTableSet colorTableSet)
                 {
                     var tex = colorTableSet.ColorTable.ToTexture();
-                    var colorTablePath = SaveColorTableTex(tex);
+                    var colorTablePath = SaveInMemoryTex(tex, "color_tables");
                     material.SetProperty("ColorTable_PngCachePath", Path.GetRelativePath(cacheDir, colorTablePath));
                 }
                 else if (materialInfo.ColorTable is LegacyColorTableSet legacyColorTableSet)
                 {
                     var tex = legacyColorTableSet.ColorTable.ToTexture();
-                    var colorTablePath = SaveColorTableTex(tex);
+                    var colorTablePath = SaveInMemoryTex(tex, "color_tables");
                     material.SetProperty("LegacyColorTable_PngCachePath", Path.GetRelativePath(cacheDir, colorTablePath));
                 }
             }
             
-            string SaveColorTableTex(SkTexture tex)
+            string SaveInMemoryTex(SkTexture tex, string type)
             {
-                var colorTableCacheDir = Path.Combine(cacheDir, "color_tables");
-                Directory.CreateDirectory(colorTableCacheDir);
+                var texCacheDir = Path.Combine(cacheDir, type);
+                Directory.CreateDirectory(texCacheDir);
                 var buf = tex.Bitmap.Bytes;
                 var hash = System.Security.Cryptography.SHA256.HashData(buf);
                 var hashStr = Convert.ToHexStringLower(hash);
@@ -325,7 +324,7 @@ public class ComposerCache
                     hashStr = hashStr[..8];
                 }
                 var mtrlPathWithoutExtension = Path.GetFileNameWithoutExtension(mtrlPath);
-                var colorTablePath = Path.Combine(colorTableCacheDir, $"{mtrlPathWithoutExtension}_{materialInfo.Shpk}_{hashStr}.png");
+                var colorTablePath = Path.Combine(texCacheDir, $"{mtrlPathWithoutExtension}_{materialInfo.Shpk}_{hashStr}.png");
                 if (!File.Exists(colorTablePath))
                 {
                     using var fileStream = new FileStream(colorTablePath, FileMode.Create, FileAccess.Write);
@@ -362,21 +361,23 @@ public class ComposerCache
             // remove full path prefix, get only dir below cache dir.
             material.SetProperty($"{texture.Key}_PngCachePath", Path.GetRelativePath(cacheDir, cachePath));
         }
-        
-        if (characterInfo != null)
-        {
-            if (characterInfo.CustomizeData?.DecalPath != null)
-            {
-                var decalCachePath = CacheTexture(characterInfo.CustomizeData.DecalPath);
-                material.SetProperty("Decal_PngCachePath", Path.GetRelativePath(cacheDir, decalCachePath));
-            }
-            
-            if (characterInfo.CustomizeData?.LegacyBodyDecalPath != null)
-            {
-                var legacyDecalCachePath = CacheTexture(characterInfo.CustomizeData.LegacyBodyDecalPath);
-                material.SetProperty("LegacyBodyDecal_PngCachePath", Path.GetRelativePath(cacheDir, legacyDecalCachePath));
-            }
-        }
+        //
+        // if (characterInfo != null)
+        // {
+        //     if (characterInfo.CustomizeData?.DecalPath != null && materialInfo?.ApplyDecal == true)
+        //     {
+        //         var decalCachePath = CacheTexture(characterInfo.CustomizeData.DecalPath);
+        //         material.SetProperty("Decal_PngCachePath", Path.GetRelativePath(cacheDir, decalCachePath));
+        //         material.SetProperty("DecalPath", characterInfo.CustomizeData.DecalPath ?? "");
+        //     }
+        //     
+        //     if (characterInfo.CustomizeData?.LegacyBodyDecalPath != null && materialInfo?.ApplyLegacyDecal == true)
+        //     {
+        //         var legacyDecalCachePath = CacheTexture(characterInfo.CustomizeData.LegacyBodyDecalPath);
+        //         material.SetProperty("LegacyBodyDecal_PngCachePath", Path.GetRelativePath(cacheDir, legacyDecalCachePath));;
+        //         material.SetProperty("LegacyBodyDecalPath", characterInfo.CustomizeData.LegacyBodyDecalPath ?? "");
+        //     }
+        // }
 
         materialBuilder.Extras = material.ExtrasNode;
         

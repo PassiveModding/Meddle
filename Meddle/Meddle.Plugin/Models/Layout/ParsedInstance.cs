@@ -446,13 +446,13 @@ public class ParsedTextureInfo(string path, string pathFromMaterial, TextureReso
     public TextureResource Resource { get; } = resource;
 }
 
-public class ParsedMaterialInfo(string path, string pathFromModel, string shpk, IColorTableSet? colorTable, ParsedTextureInfo[] textures)
+public class ParsedMaterialInfo(string path, string pathFromModel, string shpk, OnRenderMaterialOutput? renderMaterialOutput, IColorTableSet? colorTable, ParsedTextureInfo[] textures)
 {
     public HandleString Path { get; } = new() { FullPath = path, GamePath = pathFromModel };
     public string Shpk { get; } = shpk;
+    public OnRenderMaterialOutput? RenderMaterialOutput { get; } = renderMaterialOutput;
     public ParsedStain? Stain0 { get; init; }
     public ParsedStain? Stain1 { get; init; }
-    public ParsedMaterialInfo? SkinSlotMaterial { get; init; }
     
     [JsonIgnore]
     public IColorTableSet? ColorTable { get; } = colorTable;
@@ -517,24 +517,24 @@ public record ParsedCharacterInfo
     public IReadOnlyList<ParsedModelInfo> Models;
     public readonly ParsedSkeleton Skeleton;
     public readonly ParsedAttach Attach;
-    private readonly ResolverService.ParsedHumanInfo humanInfo;
+    public readonly ParsedHumanInfo HumanInfo;
     public IReadOnlyList<ParsedCharacterInfo> Attaches = [];
-    public CustomizeData? CustomizeData => humanInfo.CustomizeData;
-    public CustomizeParameter? CustomizeParameter => humanInfo.CustomizeParameter;   
-    public IReadOnlyList<ParsedMaterialInfo?> SkinSlotMaterials => humanInfo.SkinSlotMaterials;
-    public IReadOnlyList<EquipmentModelId> EquipmentModelIds => humanInfo.EquipmentModelIds;
-    public GenderRace GenderRace => humanInfo.GenderRace;
+    public readonly DateTime ParsedAt = DateTime.UtcNow;
+    public CustomizeData? CustomizeData => HumanInfo.CustomizeData;
+    public CustomizeParameter? CustomizeParameter => HumanInfo.CustomizeParameter;   
+    public IReadOnlyList<EquipmentModelId> EquipmentModelIds => HumanInfo.EquipmentModelIds;
+    public GenderRace GenderRace => HumanInfo.GenderRace;
 
     public ParsedCharacterInfo(
         ParsedModelInfo[] models,
         ParsedSkeleton skeleton,
         ParsedAttach attach,
-        ResolverService.ParsedHumanInfo humanInfo)
+        ParsedHumanInfo humanInfo)
     {
         Models = models;
         Skeleton = skeleton;
         Attach = attach;
-        this.humanInfo = humanInfo;
+        this.HumanInfo = humanInfo;
     }
 }
 
