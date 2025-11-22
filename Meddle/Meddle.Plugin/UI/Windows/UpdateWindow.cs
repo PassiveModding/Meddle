@@ -100,6 +100,20 @@ public class UpdateWindow : Window
                 new TextUpdateLine(" + Fix selecting moving characters from dropdowns not working sometimes."),
             ]
         },
+        new()
+        {
+            Tag = "Triangle Winding Fix, Decal Improvements",
+            Date = "2025-11-22",
+            Changes =
+            [
+                new WarningUpdateLine(" ! NOTE: MeddleTools is now distributed as a blender extension, please re-install following the instructions on the MeddleTools page."),
+                new LinkLine("https://github.com/PassiveModding/MeddleTools", Color: new Vector4(0.95f, 0.47f, 0.17f, 1)),
+                new TextUpdateLine(" + Added an option (enabled by default) to correct triangle winding for models exported from Meddle. " +
+                                   "This resolves a long-standing issue where blender would mess up face orientations on import for certain models."),
+                new TextUpdateLine(" + Added proper decal resolution and support for FC crest decals to be exported."),
+                new TextUpdateLine(" + Various improvements to improve stability when processing textures."),
+            ]
+        }
     ];
     
     public class UpdateLog
@@ -118,7 +132,7 @@ public class UpdateWindow : Window
     {
         public void Draw()
         {
-            ImGui.Text(Text);
+            ImGui.TextWrapped(Text);
         }
     }
     
@@ -128,7 +142,27 @@ public class UpdateWindow : Window
         {
             using (ImRaii.PushColor(ImGuiCol.Text, new Vector4(1f, 0.5f, 0.5f, 1f)))
             {
-                ImGui.Text(Text);
+                ImGui.TextWrapped(Text);
+            }
+        }
+    }
+    
+    public record LinkLine(string Label, string? Url = null, Vector4? Color = null) : IUpdateLine
+    {
+        public void Draw()
+        {
+            var url = Url ?? Label;
+            // button
+            using (ImRaii.PushColor(ImGuiCol.Button, Color ?? new Vector4(0.2f, 0.6f, 1f, 1f)))
+            {
+                if (ImGui.Button(Label))
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = url,
+                        UseShellExecute = true
+                    });
+                }
             }
         }
     }
