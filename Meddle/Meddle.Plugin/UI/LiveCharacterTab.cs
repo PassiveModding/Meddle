@@ -183,6 +183,9 @@ public unsafe class LiveCharacterTab : ITab
 
                 return info;
             }, character->NameString.GetCharacterName(config, character->ObjectKind));
+            
+            ImGui.SameLine();
+            UiUtil.HintCircle("Attaches are weapons, mounts, companions, parasols, etc. If you wish to export them separately, use the export buttons in their respective sections.");
         }
 
         DrawDrawObject(drawObject, character->NameString.GetCharacterName(config, character->ObjectKind));
