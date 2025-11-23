@@ -7,7 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using OtterTex;
 
 namespace Meddle.Plugin;
 
@@ -68,7 +67,6 @@ public sealed class Plugin : IDalamudPlugin
             Logger = app.Services.GetRequiredService<ILogger<Plugin>>();
             NotificationManager = app.Services.GetRequiredService<INotificationManager>();
             Meddle.Utils.Global.Logger = app.Services.GetRequiredService<ILogger<Meddle.Utils.Global>>();
-            NativeDll.Initialize(app.Services.GetRequiredService<IDalamudPluginInterface>().AssemblyLocation.DirectoryName);
 
             app.Start();
         }

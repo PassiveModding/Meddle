@@ -1,5 +1,6 @@
 ﻿using System.Runtime.InteropServices;
-using OtterTex;
+using BCnEncoder.Shared.ImageFiles;
+
 // ReSharper disable InconsistentNaming
 
 namespace Meddle.Utils.Files;
@@ -159,61 +160,77 @@ public class TexFile
         return TextureBuffer.AsSpan(offset, length);
     }
 
-    public static TexDimension GetTexDimensionFromAttribute(Attribute attribute)
+    public static D3D10ResourceDimension GetTexDimensionFromAttribute(Attribute attribute)
     {
         var dimension = attribute switch
         {
-            Attribute.TextureType1D => TexDimension.Tex1D,
-            Attribute.TextureType2D => TexDimension.Tex2D,
-            Attribute.TextureType3D => TexDimension.Tex3D,
-            Attribute.TextureType2DArray => TexDimension.Tex2D,
-            Attribute.TextureTypeCube => TexDimension.Tex2D,
+            Attribute.TextureType1D => D3D10ResourceDimension.D3D10ResourceDimensionTexture1D,
+            Attribute.TextureType2D => D3D10ResourceDimension.D3D10ResourceDimensionTexture2D,
+            Attribute.TextureType3D => D3D10ResourceDimension.D3D10ResourceDimensionTexture3D,
+            Attribute.TextureType2DArray => D3D10ResourceDimension.D3D10ResourceDimensionTexture2D,
+            Attribute.TextureTypeCube => D3D10ResourceDimension.D3D10ResourceDimensionTexture2D,
             _ => throw new NotImplementedException($"Unknown texture dimension: {attribute} [{attribute:X2}]")
         };
 
         return dimension;
     }
 
-    public static DXGIFormat GetDxgiFormatFromTextureFormat(TextureFormat format)
+    public static DxgiFormat GetDxgiFormatFromTextureFormat(TextureFormat format)
     {
         var dxf = format switch
         {
-            TextureFormat.Unknown => DXGIFormat.Unknown,
-            TextureFormat.L8_UNORM => DXGIFormat.R8UNorm,
-            TextureFormat.A8_UNORM => DXGIFormat.A8UNorm,
-            TextureFormat.R8_UNORM => DXGIFormat.R8UNorm,
-            TextureFormat.R8_UINT => DXGIFormat.R8UInt,
-            TextureFormat.R16_UINT => DXGIFormat.R16UInt,
-            TextureFormat.R32_UINT => DXGIFormat.R32UInt,
-            TextureFormat.R8G8_UNORM => DXGIFormat.R8G8UNorm,
-            TextureFormat.B4G4R4A4_UNORM => DXGIFormat.B4G4R4A4UNorm,
-            TextureFormat.B5G5R5A1_UNORM => DXGIFormat.B5G5R5A1UNorm,
-            TextureFormat.B8G8R8A8_UNORM => DXGIFormat.B8G8R8A8UNorm,
-            TextureFormat.B8G8R8X8_UNORM => DXGIFormat.B8G8R8X8UNorm,
-            TextureFormat.R16F => DXGIFormat.R16Float,
-            TextureFormat.R32F => DXGIFormat.R32Float,
-            TextureFormat.R16G16F => DXGIFormat.R16G16Float,
-            TextureFormat.R32G32F => DXGIFormat.R32G32Float,
-            TextureFormat.R11G11B10F => DXGIFormat.R11G11B10Float,
-            TextureFormat.R16G16B16A16F => DXGIFormat.R16G16B16A16Float,
-            TextureFormat.R32G32B32A32F => DXGIFormat.R32G32B32A32Float,
-            TextureFormat.BC1_UNORM => DXGIFormat.BC1UNorm,
-            TextureFormat.BC2_UNORM => DXGIFormat.BC2UNorm,
-            TextureFormat.BC3_UNORM => DXGIFormat.BC3UNorm,
-            TextureFormat.D16_UNORM => DXGIFormat.D16UNorm,
-            TextureFormat.D24_UNORM_S8_UINT => DXGIFormat.D24UNormS8UInt,
+            TextureFormat.Unknown => DxgiFormat.DxgiFormatUnknown,
+            TextureFormat.L8_UNORM => DxgiFormat.DxgiFormatR8Unorm,
+            TextureFormat.A8_UNORM => DxgiFormat.DxgiFormatA8Unorm,
+            TextureFormat.R8_UNORM => DxgiFormat.DxgiFormatR8Unorm,
+            TextureFormat.R8_UINT => DxgiFormat.DxgiFormatR8Uint,
+            TextureFormat.R16_UINT => DxgiFormat.DxgiFormatR16Uint,
+            TextureFormat.R32_UINT => DxgiFormat.DxgiFormatR32Uint,
+            TextureFormat.R8G8_UNORM => DxgiFormat.DxgiFormatR8G8Unorm,
+            TextureFormat.B4G4R4A4_UNORM => DxgiFormat.DxgiFormatB4G4R4A4Unorm,
+            TextureFormat.B5G5R5A1_UNORM => DxgiFormat.DxgiFormatB5G5R5A1Unorm,
+            TextureFormat.B8G8R8A8_UNORM => DxgiFormat.DxgiFormatB8G8R8A8Unorm,
+            TextureFormat.B8G8R8X8_UNORM => DxgiFormat.DxgiFormatB8G8R8X8Unorm,
+            TextureFormat.R16F => DxgiFormat.DxgiFormatR16Float,
+            TextureFormat.R32F => DxgiFormat.DxgiFormatR32Float,
+            TextureFormat.R16G16F => DxgiFormat.DxgiFormatR16G16Float,
+            TextureFormat.R32G32F => DxgiFormat.DxgiFormatR32G32Float,
+            TextureFormat.R11G11B10F => DxgiFormat.DxgiFormatR11G11B10Float,
+            TextureFormat.R16G16B16A16F => DxgiFormat.DxgiFormatR16G16B16A16Float,
+            TextureFormat.R32G32B32A32F => DxgiFormat.DxgiFormatR32G32B32A32Float,
+            TextureFormat.BC1_UNORM => DxgiFormat.DxgiFormatBc1Unorm,
+            TextureFormat.BC2_UNORM => DxgiFormat.DxgiFormatBc2Unorm,
+            TextureFormat.BC3_UNORM => DxgiFormat.DxgiFormatBc3Unorm,
+            TextureFormat.D16_UNORM => DxgiFormat.DxgiFormatD16Unorm,
+            TextureFormat.D24_UNORM_S8_UINT => DxgiFormat.DxgiFormatD24UnormS8Uint,
             // TextureFormat.D16_UNORM_2 => DXGIFormat.D16UNorm,
             // TextureFormat.D24_UNORM_S8_UINT_2 => DXGIFormat.D24UNormS8UInt,
-            TextureFormat.BC4_UNORM => DXGIFormat.BC4UNorm,
-            TextureFormat.BC5_UNORM => DXGIFormat.BC5UNorm,
-            TextureFormat.BC6H_SF16 => DXGIFormat.BC6HSF16,
-            TextureFormat.BC7_UNORM => DXGIFormat.BC7UNorm,
-            TextureFormat.R16_UNORM => DXGIFormat.R16UNorm,
-            TextureFormat.R16G16_UNORM => DXGIFormat.R16G16UNorm,
+            TextureFormat.BC4_UNORM => DxgiFormat.DxgiFormatBc4Unorm,
+            TextureFormat.BC5_UNORM => DxgiFormat.DxgiFormatBc5Unorm,
+            TextureFormat.BC6H_SF16 => DxgiFormat.DxgiFormatBc6HSf16,
+            TextureFormat.BC7_UNORM => DxgiFormat.DxgiFormatBc7Unorm,
+            TextureFormat.R16_UNORM => DxgiFormat.DxgiFormatR16Unorm,
+            TextureFormat.R16G16_UNORM => DxgiFormat.DxgiFormatR16G16Unorm,
             // TextureFormat.R10G10B10A2_UNORM_2 => DXGIFormat.R10G10B10A2UNorm,
-            TextureFormat.R10G10B10A2_UNORM => DXGIFormat.R10G10B10A2UNorm,
+            TextureFormat.R10G10B10A2_UNORM => DxgiFormat.DxgiFormatR10G10B10A2Unorm,
             // TextureFormat.D24_UNORM_S8_UINT_3 => DXGIFormat.D24UNormS8UInt,
             
+            // TextureFormat.TypeShift => expr,
+            // TextureFormat.TypeMask => expr,
+            // TextureFormat.ComponentShift => expr,
+            // TextureFormat.ComponentMask => expr,
+            // TextureFormat.BppShift => expr,
+            // TextureFormat.BppMask => expr,
+            // TextureFormat.EnumMask => expr,
+            // TextureFormat.TypeInteger => expr,
+            // TextureFormat.TypeFloat => expr,
+            // TextureFormat.TypeDxt => expr,
+            // TextureFormat.TypeSpecial => expr,
+            // TextureFormat.TypeBc57 => expr,
+            // TextureFormat.D16_UNORM_2 => expr,
+            // TextureFormat.D24_UNORM_S8_UINT_2 => expr,
+            // TextureFormat.R10G10B10A2_UNORM_2 => expr,
+            // TextureFormat.D24_UNORM_S8_UINT_3 => expr,
             _ => throw new NotImplementedException($"Unknown texture format: {format}")
         };
 

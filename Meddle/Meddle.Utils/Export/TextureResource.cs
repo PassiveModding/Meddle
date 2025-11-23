@@ -1,12 +1,12 @@
 ﻿using System.Numerics;
 using System.Text.Json.Serialization;
-using OtterTex;
+using BCnEncoder.Shared.ImageFiles;
 
 namespace Meddle.Utils.Export;
 
-public readonly struct TextureResource(DXGIFormat format, uint width, uint height, uint mipLevels, uint arraySize, TexDimension dimension, D3DResourceMiscFlags miscFlags, byte[] data)
+public readonly struct TextureResource(DxgiFormat format, uint width, uint height, uint mipLevels, uint arraySize, D3D10ResourceDimension dimension, bool isCube, byte[] data)
 {
-    public DXGIFormat Format { get; init; } = format;
+    public DxgiFormat Format { get; init; } = format;
     public uint Width { get; init; } = width;
     public uint Height { get; init; } = height;
     
@@ -15,9 +15,10 @@ public readonly struct TextureResource(DXGIFormat format, uint width, uint heigh
     
     public uint MipLevels { get; init; } = mipLevels;
     public uint ArraySize { get; init; } = arraySize;
-    public TexDimension Dimension { get; init; } = dimension;
-    public D3DResourceMiscFlags MiscFlags { get; init; } = miscFlags;
+    public D3D10ResourceDimension Dimension { get; init; } = dimension;
     
+    public bool IsCube { get; } = isCube;
+
     [JsonIgnore]
     public byte[] Data { get; init; } = data;
 }

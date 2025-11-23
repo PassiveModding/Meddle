@@ -1,32 +1,20 @@
-﻿using Meddle.Utils.Export;
+﻿using BCnEncoder.Decoder;
+using BCnEncoder.ImageSharp;
+using BCnEncoder.Shared;
+using BCnEncoder.Shared.ImageFiles;
+using Meddle.Utils.Export;
 using Meddle.Utils.Files;
-using Microsoft.Extensions.Logging;
-using OtterTex;
+using SixLabors.ImageSharp;
 using SkiaSharp;
+using Buffer = System.Buffer;
 
 namespace Meddle.Utils.Helpers;
 
 public static class ImageUtils
 {
-    // public static int GetStride(this TexFile.TextureFormat format, int width)
-    // {
-    //     return format switch
-    //     {
-    //         TexFile.TextureFormat.BC1_UNORM => (width + 3) / 4 * 8,
-    //         TexFile.TextureFormat.BC2_UNORM => (width + 3) / 4 * 16,
-    //         TexFile.TextureFormat.BC3_UNORM => (width + 3) / 4 * 16,
-    //         TexFile.TextureFormat.BC5_UNORM => width * 2,
-    //         TexFile.TextureFormat.BC7_UNORM => (width + 3) / 4 * 16,
-    //         _ => width * 4,
-    //     };
-    // }
-
     public static TextureResource ToResource(this TexFile file)
     {
         var h = file.Header;
-        D3DResourceMiscFlags flags = 0;
-        if (h.Type.HasFlag(TexFile.Attribute.TextureTypeCube))
-            flags |= D3DResourceMiscFlags.TextureCube;
         return new TextureResource(
             TexFile.GetDxgiFormatFromTextureFormat(h.Format),
             h.Width,
@@ -34,247 +22,188 @@ public static class ImageUtils
             h.CalculatedMips,
             h.CalculatedArraySize,
             TexFile.GetTexDimensionFromAttribute(h.Type),
-            flags,
+            h.Type.HasFlag(TexFile.Attribute.TextureTypeCube),
             file.TextureBuffer);
     }
 
-    public static ReadOnlySpan<byte> ImageAsPng(this Image image)
+    public static SKBitmap GetTexData(TexFile tex, int arrayLevel, int mipLevel, int slice)
     {
-        unsafe
+        // var meta = GetTexMeta(tex);
+        // ScratchImage si;
+        // Image img;
+        // if (tex.Header.Type == TexFile.Attribute.TextureType2DArray)
+        // {
+        //     // workaround due to ffxiv texture array weirdness
+        //     var texSlice = tex.SliceSpan(mipLevel, arrayLevel, out var sliceSize, out var sliceWidth,
+        //                                  out var sliceHeight);
+        //     meta.Width = sliceWidth;
+        //     meta.Height = sliceHeight;
+        //     meta.ArraySize = 1;
+        //     meta.MipLevels = 1;
+        //
+        //     si = ScratchImage.Initialize(meta);
+        //     unsafe
+        //     {
+        //         fixed (byte* data = si.Pixels)
+        //         {
+        //             var span = new Span<byte>(data, si.Pixels.Length);
+        //             texSlice.CopyTo(span);
+        //         }
+        //     }
+        //
+        //     si.GetRGBA(out var rgba);
+        //     img = rgba.GetImage(0, 0, 0);
+        // }
+        // else if (tex.Header.Type == TexFile.Attribute.TextureTypeCube)
+        // {
+        //     meta.ArraySize = 6;
+        //     meta.MiscFlags = D3DResourceMiscFlags.TextureCube;
+        //
+        //     si = ScratchImage.Initialize(meta);
+        //     unsafe
+        //     {
+        //         fixed (byte* data = si.Pixels)
+        //         {
+        //             var span = new Span<byte>(data, si.Pixels.Length);
+        //             tex.TextureBuffer.CopyTo(span);
+        //         }
+        //     }
+        //
+        //     si.GetRGBA(out var rgba);
+        //     img = rgba.GetImage(0, arrayLevel, 0);
+        // }
+        // else
+        // {
+        //     si = ScratchImage.Initialize(meta);
+        //     unsafe
+        //     {
+        //         fixed (byte* data = si.Pixels)
+        //         {
+        //             var span = new Span<byte>(data, si.Pixels.Length);
+        //             tex.TextureBuffer.CopyTo(span);
+        //         }
+        //     }
+        //
+        //     si.GetRGBA(out var rgba);
+        //     img = rgba.GetImage(mipLevel, 0, slice);
+        // }
+        //
+        // return img;
+        var resource = tex.ToResource();
+        if (resource is {ArraySize: > 1, IsCube: false})
         {
-            var bufferCopy = image.Span.ToArray();
-            fixed (byte* data = bufferCopy)
-            {
-                using var bitmap = new SKBitmap();
-                var info = new SKImageInfo(image.Width, image.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-
-                bitmap.InstallPixels(info, (IntPtr)data, image.Width * 4);
-
-                var str = new SKDynamicMemoryWStream();
-                bitmap.Encode(str, SKEncodedImageFormat.Png, 100);
-
-                return str.DetachAsData().AsSpan();
-            }
-        }
-    }
-
-    // public static TexMeta GetTexMeta(TextureResource resource)
-    // {
-    //     var meta = new TexMeta
-    //     {
-    //         Width = resource.Width,
-    //         Height = resource.Height,
-    //         Depth = 1, // 3D textures would have other values, but we're only handling kernelTexture->D3D11Texture2D
-    //         MipLevels = resource.MipLevels,
-    //         ArraySize = resource.ArraySize,
-    //         Format = resource.Format,
-    //         Dimension = resource.Dimension,
-    //         MiscFlags = resource.MiscFlags.HasFlag(D3DResourceMiscFlags.TextureCube) ? D3DResourceMiscFlags.TextureCube : 0,
-    //         MiscFlags2 = 0,
-    //     };
-    //     
-    //     return meta;
-    // }
-
-    public static TexMeta GetTexMeta(TexFile tex)
-    {
-        D3DResourceMiscFlags miscFlags = 0;
-        if (tex.Header.Type == TexFile.Attribute.TextureTypeCube)
-        {
-            miscFlags = D3DResourceMiscFlags.TextureCube;
-        }
-
-        var meta = new TexMeta
-        {
-            Width = tex.Header.Width,
-            Height = tex.Header.Height,
-            Depth = tex.Header.Depth,
-            MipLevels = tex.Header.CalculatedMips,
-            ArraySize = tex.Header.CalculatedArraySize,
-            Format = TexFile.GetDxgiFormatFromTextureFormat(tex.Header.Format),
-            Dimension = TexFile.GetTexDimensionFromAttribute(tex.Header.Type),
-            MiscFlags = miscFlags,
-            MiscFlags2 = 0,
-        };
-
-        return meta;
-    }
-
-    public static Image GetTexData(TexFile tex, int arrayLevel, int mipLevel, int slice)
-    {
-        var meta = GetTexMeta(tex);
-        ScratchImage si;
-        Image img;
-        if (tex.Header.Type == TexFile.Attribute.TextureType2DArray)
-        {
-            // workaround due to ffxiv texture array weirdness
             var texSlice = tex.SliceSpan(mipLevel, arrayLevel, out var sliceSize, out var sliceWidth,
                                          out var sliceHeight);
-            meta.Width = sliceWidth;
-            meta.Height = sliceHeight;
-            meta.ArraySize = 1;
-            meta.MipLevels = 1;
-
-            si = ScratchImage.Initialize(meta);
-            unsafe
-            {
-                fixed (byte* data = si.Pixels)
-                {
-                    var span = new Span<byte>(data, si.Pixels.Length);
-                    texSlice.CopyTo(span);
-                }
-            }
-
-            si.GetRGBA(out var rgba);
-            img = rgba.GetImage(0, 0, 0);
+            
+            var singleResource = new TextureResource(
+                resource.Format,
+                (uint)sliceWidth,
+                (uint)sliceHeight,
+                1,
+                1,
+                resource.Dimension,
+                false,
+                texSlice.ToArray());
+            resource = singleResource;
         }
-        else if (tex.Header.Type == TexFile.Attribute.TextureTypeCube)
+        else if (resource.IsCube)
         {
-            meta.ArraySize = 6;
-            meta.MiscFlags = D3DResourceMiscFlags.TextureCube;
-
-            si = ScratchImage.Initialize(meta);
-            unsafe
-            {
-                fixed (byte* data = si.Pixels)
-                {
-                    var span = new Span<byte>(data, si.Pixels.Length);
-                    tex.TextureBuffer.CopyTo(span);
-                }
-            }
-
-            si.GetRGBA(out var rgba);
-            img = rgba.GetImage(0, arrayLevel, 0);
+            throw new NotImplementedException("Cube map extraction not implemented yet.");
         }
-        else
-        {
-            si = ScratchImage.Initialize(meta);
-            unsafe
-            {
-                fixed (byte* data = si.Pixels)
-                {
-                    var span = new Span<byte>(data, si.Pixels.Length);
-                    tex.TextureBuffer.CopyTo(span);
-                }
-            }
-
-            si.GetRGBA(out var rgba);
-            img = rgba.GetImage(mipLevel, 0, slice);
-        }
-
-        return img;
+        
+        var bitmap = resource.ToBitmap();
+        return bitmap;
     }
 
+    public static byte[] ImageAsPng(this SKBitmap bitmap)
+    {
+        using var image = SKImage.FromBitmap(bitmap);
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        return data.ToArray();
+    }
+    
     public static byte[] GetRawRgbaData(TexFile tex, int arrayLevel, int mipLevel, int slice)
     {
         var img = GetTexData(tex, arrayLevel, mipLevel, slice);
-        if (img.Format != DXGIFormat.R8G8B8A8UNorm)
-            throw new ArgumentException("Image must be in RGBA format.", nameof(tex));
-
-        // assume RGBA
-        return img.Span.ToArray();
+        var pixels = img.GetPixels();
+        var data = new byte[img.Width * img.Height * 4];
+        unsafe
+        {
+            var span = new Span<byte>((void*)pixels, data.Length);
+            span.CopyTo(data);
+        }
+        return data;
     }
 
-    // public static unsafe SkTexture ToTexture(this Image img, Vector2? resize = null)
-    // {
-    //     if (img.Format != DXGIFormat.R8G8B8A8UNorm)
-    //         throw new ArgumentException("Image must be in RGBA format.", nameof(img));
-    //     // assume RGBA
-    //     var data = img.Span;
-    //     var bitmap = new SKBitmap(img.Width, img.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-    //     fixed (byte* ptr = data)
-    //     {
-    //         bitmap.InstallPixels(new SKImageInfo(img.Width, img.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul), (IntPtr)ptr, img.Width * 4);
-    //     }
-    //     
-    //     if (resize != null)
-    //     {
-    //         bitmap = bitmap.Resize(new SKImageInfo((int)resize.Value.X, (int)resize.Value.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul),
-    //                                new SKSamplingOptions(SKCubicResampler.Mitchell));
-    //     }
-    //     
-    //     return new SkTexture(bitmap);
-    // }
-    //
-    // public static SkTexture ToTexture(this TextureResource resource, Vector2 size)
-    // {
-    //     if (resource.Width == (int)size.X && resource.Height == (int)size.Y)
-    //     {
-    //         return resource.ToTexture();
-    //     }
-    //     
-    //     var bitmap = resource.ToBitmap();
-    //     bitmap = bitmap.Resize(new SKImageInfo((int)size.X, (int)size.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul), 
-    //                            new SKSamplingOptions(SKCubicResampler.Mitchell));
-    //     return new SkTexture(bitmap);
-    // }
-
-    public static SkTexture ToTexture(this TextureResource resource, (int width, int height)? resize = null)
+    public static SkTexture ToTexture(this TextureResource resource)
     {
         var bitmap = resource.ToBitmap();
-
-        if (resize != null)
-        {
-            bitmap = bitmap.Resize(new SKImageInfo(resize.Value.width, resize.Value.height, SKColorType.Rgba8888, SKAlphaType.Unpremul),
-                                   new SKSamplingOptions(SKCubicResampler.Mitchell));
-        }
-
         return new SkTexture(bitmap);
     }
 
     public static unsafe SKBitmap ToBitmap(this TextureResource resource)
     {
-        var meta = FromResource(resource);
-        var image = ScratchImage.Initialize(meta);
-        // copy data - ensure destination not too short
-        fixed (byte* data = image.Pixels)
+        var decoder = new BcDecoder();
+        using var dataStream = new MemoryStream(resource.Data);
+
+        ColorRgba32[] image;
+        if (resource.Format.IsCompressedFormat())
         {
-            var span = new Span<byte>(data, image.Pixels.Length);
-            if (resource.Data.Length > span.Length)
+            image = decoder.DecodeRaw(dataStream, (int)resource.Width, (int)resource.Height, resource.Format.ToCompressionFormat());
+        }
+        else
+        {
+            throw new NotImplementedException("Uncompressed format decoding not implemented yet.");
+        }
+        var bitmap = new SKBitmap((int)resource.Width, (int)resource.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
+        var pixels = bitmap.GetPixels();
+        var span = new Span<byte>((void*)pixels, bitmap.RowBytes * bitmap.Height);
+        for (var y = 0; y < resource.Height; y++)
+        {
+            for (var x = 0; x < resource.Width; x++)
             {
-                resource.Data[..span.Length].CopyTo(span);
-                Global.Logger.LogDebug("Data too large for scratch image. " +
-                                       "{Length} > {Length2} " +
-                                       "{Width}x{Height} {Format}\n" +
-                                       "Trimmed to fit.",
-                                       resource.Data.Length, span.Length, resource.Width,
-                                       resource.Height, resource.Format);
-            }
-            else
-            {
-                resource.Data.CopyTo(span);
+                var color = image[y * resource.Width + x];
+                var index = y * bitmap.RowBytes + x * 4;
+                span[index] = color.r;
+                span[index + 1] = color.g;
+                span[index + 2] = color.b;
+                span[index + 3] = color.a;
             }
         }
-
-        image.GetRGBA(out var rgba);
-        var img = rgba.GetImage(0, 0, 0);
-        if (img.Format != DXGIFormat.R8G8B8A8UNorm)
-            throw new ArgumentException("Image must be in RGBA format.", nameof(resource));
-        
-        var bitmap = new SKBitmap(img.Width, img.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-        var pixels = bitmap.GetPixels();
-        var destinationSpan = new Span<byte>((void*)pixels, img.Width * img.Height * 4);
-        img.Span.CopyTo(destinationSpan);
-        
         return bitmap;
     }
 
-    public static TexMeta FromResource(TextureResource resource)
+    public static CompressionFormat ToCompressionFormat(this DxgiFormat format)
     {
-        var meta = new TexMeta
+        return format switch
         {
-            Height = (int)resource.Height,
-            Width = (int)resource.Width,
-            Depth = 1, // 3D textures would have other values, but we're only handling kernelTexture->D3D11Texture2D
-            MipLevels = (int)resource.MipLevels,
-            ArraySize = (int)resource.ArraySize,
-            Format = resource.Format,
-            Dimension = resource.Dimension,
-            MiscFlags = resource.MiscFlags.HasFlag(D3DResourceMiscFlags.TextureCube) ? D3DResourceMiscFlags.TextureCube : 0,
-            MiscFlags2 = 0,
+            DxgiFormat.DxgiFormatBc1Typeless or
+            DxgiFormat.DxgiFormatBc1Unorm or
+            DxgiFormat.DxgiFormatBc1UnormSrgb => CompressionFormat.Bc1,
+            DxgiFormat.DxgiFormatBc2Typeless or
+            DxgiFormat.DxgiFormatBc2Unorm or
+            DxgiFormat.DxgiFormatBc2UnormSrgb => CompressionFormat.Bc2,
+            DxgiFormat.DxgiFormatBc3Typeless or
+            DxgiFormat.DxgiFormatBc3Unorm or
+            DxgiFormat.DxgiFormatBc3UnormSrgb => CompressionFormat.Bc3,
+            DxgiFormat.DxgiFormatBc4Typeless or
+            DxgiFormat.DxgiFormatBc4Unorm or
+            DxgiFormat.DxgiFormatBc4Snorm => CompressionFormat.Bc4, 
+            DxgiFormat.DxgiFormatBc5Typeless or
+            DxgiFormat.DxgiFormatBc5Unorm or
+            DxgiFormat.DxgiFormatBc5Snorm => CompressionFormat.Bc5,
+            DxgiFormat.DxgiFormatBc6HTypeless or
+            DxgiFormat.DxgiFormatBc6HUf16 => CompressionFormat.Bc6U,
+            DxgiFormat.DxgiFormatBc6HSf16 => CompressionFormat.Bc6S,
+            DxgiFormat.DxgiFormatBc7Typeless or
+            DxgiFormat.DxgiFormatBc7Unorm or
+            DxgiFormat.DxgiFormatBc7UnormSrgb => CompressionFormat.Bc7,
+            DxgiFormat.DxgiFormatAtcExt => CompressionFormat.Atc,
+            DxgiFormat.DxgiFormatAtcExplicitAlphaExt => CompressionFormat.AtcExplicitAlpha,
+            DxgiFormat.DxgiFormatAtcInterpolatedAlphaExt => CompressionFormat.AtcInterpolatedAlpha,
+
+            _ => throw new NotSupportedException($"Unsupported format: {format}"),
         };
-        
-        return meta;
     }
     
     public static byte[] AdjustStride(int oldStride, int newStride, int height, byte[] data)

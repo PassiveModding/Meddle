@@ -1,6 +1,6 @@
 ﻿using System.Runtime.InteropServices;
+using BCnEncoder.Shared.ImageFiles;
 using Meddle.Utils.Export;
-using OtterTex;
 using SharpGen.Runtime;
 using Vortice.Direct3D11;
 using Format = Vortice.DXGI.Format;
@@ -91,13 +91,12 @@ public static unsafe class DxHelper
         var rowPitch = map.RowPitch;
         var resource = new TextureResource
         {
-            Format = (DXGIFormat)desc.Format,
+            Format = (DxgiFormat)desc.Format,
             Width = desc.Width,
             Height = desc.Height,
             MipLevels = desc.MipLevels,
             ArraySize = desc.ArraySize,
-            Dimension = (TexDimension)r.Dimension,
-            MiscFlags = (D3DResourceMiscFlags)desc.MiscFlags,
+            Dimension = (D3D10ResourceDimension)r.Dimension,
             Data = bufCopy
         };
 
