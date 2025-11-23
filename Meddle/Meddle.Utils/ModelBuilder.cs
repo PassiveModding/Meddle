@@ -100,12 +100,12 @@ public static class ModelBuilder
             for (var i = 0; i < mesh.SubMeshes.Count; i++)
             {
                 var modelSubMesh = mesh.SubMeshes[i];
-                var subMesh = meshBuilder.BuildSubMesh(modelSubMesh);
+                var (subMesh, indexMapping) = meshBuilder.BuildSubMesh(modelSubMesh);
                 subMesh.Name = $"{modelPathName}_{i}";
                 var subMeshStart = (int)modelSubMesh.IndexOffset;
                 var subMeshEnd = subMeshStart + (int)modelSubMesh.IndexCount;
 
-                var shapeNames = meshBuilder.BuildShapes(model.Shapes, subMesh, subMeshStart, subMeshEnd);
+                var shapeNames = meshBuilder.BuildShapes(model.Shapes, subMesh, indexMapping, subMeshStart, subMeshEnd);
 
                 meshes.Add(new MeshExport(subMesh, modelSubMesh, shapeNames.ToArray()));
             }

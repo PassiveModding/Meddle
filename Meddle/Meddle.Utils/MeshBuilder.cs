@@ -79,10 +79,13 @@ public class MeshBuilder
     }
 
     /// <summary>Creates a mesh from the given sub mesh.</summary>
-    public IMeshBuilder<MaterialBuilder> BuildSubMesh(SubMesh subMesh)
+    public (IMeshBuilder<MaterialBuilder> builder, Dictionary<int, int> indexMapping) BuildSubMesh(SubMesh subMesh)
     {
         var ret = (IMeshBuilder<MaterialBuilder>)Activator.CreateInstance(MeshBuilderT, string.Empty)!;
         var primitive = ret.UsePrimitive(MaterialBuilder);
+
+        // Build a mapping from XIV index buffer positions to glTF vertex indices
+        var indexMapping = new Dictionary<int, int>();
 
         if (subMesh.IndexCount + subMesh.IndexOffset > Mesh.Indices.Count)
             throw new InvalidOperationException("SubMesh index count is out of bounds.");
@@ -97,17 +100,26 @@ public class MeshBuilder
             var triC = Vertices[indC];
             
             // Check if winding order matches vertex normals, flip if needed
+            // Map the index buffer position to the glTF vertex index
+            // Note: AddTriangle returns -1 for degenerate triangles (collapsed/duplicate vertices)
             if (ShouldFlipWinding(Mesh.Vertices[indA], Mesh.Vertices[indB], Mesh.Vertices[indC]))
             {
-                primitive.AddTriangle(triA, triC, triB);
+                // Map to original positions: A->o+0, B->o+1, C->o+2
+                var result = primitive.AddTriangle(triA, triC, triB);
+                indexMapping[o] = result.A;
+                indexMapping[o + 1] = result.C;
+                indexMapping[o + 2] = result.B;
             }
             else
             {
-                primitive.AddTriangle(triA, triB, triC);
+                var result = primitive.AddTriangle(triA, triB, triC);
+                indexMapping[o] = result.A;
+                indexMapping[o + 1] = result.B;
+                indexMapping[o + 2] = result.C;
             }
         }
 
-        return ret;
+        return (ret, indexMapping);
     }
 
     /// <summary>Creates a mesh from the entire mesh.</summary>
@@ -176,12 +188,12 @@ public class MeshBuilder
     }
 
     /// <summary>Builds shape keys (known as morph targets in glTF).</summary>
-    public IReadOnlyList<string> BuildShapes(IReadOnlyList<ModelShape> shapes, IMeshBuilder<MaterialBuilder> builder, int subMeshStart, int subMeshEnd)
+    public IReadOnlyList<string> BuildShapes(IReadOnlyList<ModelShape> shapes, IMeshBuilder<MaterialBuilder> builder, Dictionary<int, int> indexMapping, int subMeshStart, int subMeshEnd)
     {
         var primitive = builder.Primitives.First();
-        var triangles = primitive.Triangles;
-        var vertices = primitive.Vertices;
+        var primitiveVertices = primitive.Vertices;
         var shapeNames = new List<string>();
+        
         foreach (var shape in shapes)
         {
             var vertexList = new List<(IVertexGeometry, IVertexGeometry)>();
@@ -189,21 +201,28 @@ public class MeshBuilder
             {
                 foreach (var (baseIdx, otherIdx) in shapeMesh.Values)
                 {
-                    if (baseIdx < subMeshStart || baseIdx >= subMeshEnd) continue; // different submesh?
-                    var triIdx = (baseIdx - subMeshStart) / 3;
-                    var vertexIdx = (baseIdx - subMeshStart) % 3;
+                    if (baseIdx < subMeshStart || baseIdx >= subMeshEnd) continue;
                     
-                    if (triangles.Count <= triIdx) continue;
-                    
-                    var triA = triangles[triIdx];
-                    var vertexA = vertices[vertexIdx switch
+                    if (!indexMapping.TryGetValue(baseIdx, out var gltfIndex))
                     {
-                        0 => triA.A,
-                        1 => triA.B,
-                        _ => triA.C,
-                    }];
+                        Global.Logger.LogDebug("Shape {ShapeName} mapping targets index {BaseIdx} which is not in the index mapping", shape.Name, baseIdx);
+                        continue;
+                    }
 
-                    vertexList.Add((vertexA.GetGeometry(), Vertices[otherIdx].GetGeometry()));
+                    // Check for degenerate triangles (AddTriangle returns -1 for collapsed/duplicate vertices)
+                    if (gltfIndex == -1)
+                    {
+                        continue;
+                    }
+
+                    if (gltfIndex < 0 || gltfIndex >= primitiveVertices.Count)
+                    {
+                        Global.Logger.LogWarning("Shape {ShapeName} mapping baseIdx {BaseIdx} -> gltfIndex {GltfIndex} is out of range [0, {Count})", 
+                            shape.Name, baseIdx, gltfIndex, primitiveVertices.Count);
+                        continue;
+                    }
+
+                    vertexList.Add((primitiveVertices[gltfIndex].GetGeometry(), Vertices[otherIdx].GetGeometry()));
                 }
             }
             
@@ -216,7 +235,9 @@ public class MeshBuilder
                 morph.SetVertex(a, b);
             }
         }
-
+        
+        // Named morph targets aren't part of the specification, however `MESH.extras.targetNames`
+        // is a commonly-accepted means of providing the data.
         builder.Extras = JsonNode.Parse(JsonSerializer.Serialize(new Dictionary<string, string[]>
         {
             { "targetNames", shapeNames.ToArray() }
