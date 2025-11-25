@@ -73,6 +73,7 @@ public static class ParseMaterialUtil
                 var materialPtr = model->MaterialsSpan[materialIndex];
                 if (materialPtr == null || materialPtr.Value == null)
                 {
+                    materials.Add(null);
                     continue;
                 }
                 
