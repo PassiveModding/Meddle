@@ -43,7 +43,6 @@ public class ParsedHkaPose
         HkModelSpaceMatrices = hkModelSpaceMatrices;
     }
 
-    [JsonIgnore]
     public IReadOnlyList<Transform> Pose { get; }
 
     [JsonIgnore]

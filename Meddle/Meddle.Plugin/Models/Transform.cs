@@ -58,7 +58,6 @@ public readonly record struct Transform
     [JsonIgnore]
     public Vector3 Scale { get; init; }
 
-    [JsonIgnore]
     public AffineTransform AffineTransform => GetAffine();
 
     private bool IsFinite(Vector3 value)
@@ -76,6 +75,12 @@ public readonly record struct Transform
         return !(float.IsNaN(value) || float.IsInfinity(value));
     }
     
+    private bool HasZeroOrNearZeroScale(Vector3 scale)
+    {
+        const float epsilon = 1e-6f;
+        return Math.Abs(scale.X) < epsilon || Math.Abs(scale.Y) < epsilon || Math.Abs(scale.Z) < epsilon;
+    }
+    
     private AffineTransform GetAffine()
     {
         try
@@ -84,6 +89,11 @@ public readonly record struct Transform
             if (!IsFinite(Scale))
             {
                 Plugin.Logger.LogWarning("Transform contains non-finite scale, using default: {Scale} -> {DefaultValue}", Scale, Vector3.One);
+                scale = Vector3.One;
+            }
+            else if (HasZeroOrNearZeroScale(Scale))
+            {
+                Plugin.Logger.LogWarning("Transform contains zero or near-zero scale, using default: {Scale} -> {DefaultValue}", Scale, Vector3.One);
                 scale = Vector3.One;
             }
             else
