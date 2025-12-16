@@ -67,9 +67,9 @@ public static class ObjectUtil
         return true;
     }
 
-    public static Vector3 GetDistanceToLocalPlayer(this IClientState clientState, IGameObject obj)
+    public static Vector3 GetDistanceToLocalPlayer(this IObjectTable objectTable, IGameObject obj)
     {
-        if (clientState.LocalPlayer is {Position: var charPos})
+        if (objectTable.LocalPlayer is {Position: var charPos})
             return Vector3.Abs(obj.Position - charPos);
         return new Vector3(obj.YalmDistanceX, 0, obj.YalmDistanceZ);
     }
