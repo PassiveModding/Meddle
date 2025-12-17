@@ -219,22 +219,16 @@ public record ParsedStain
         Color = ImGui.ColorConvertU32ToFloat4(UiUtil.SeColorToRgba(SeColor));
         RowId = stain.RowId;
         Name = stain.Name.ExtractText();
-        Name2 = stain.Name2.ExtractText();
         Shade = stain.Shade;
         SubOrder = stain.SubOrder;
-        Unknown1 = stain.Unknown1;
-        Unknown2 = stain.Unknown2;
     }
     
     public uint SeColor { get; }
     public Vector4 Color { get; }
     public uint RowId { get; }
     public string Name { get; }
-    public string Name2 { get; }
     public uint Shade { get; }
     public uint SubOrder { get; }
-    public bool Unknown1 { get; }
-    public bool Unknown2 { get; }
     
     public static implicit operator ParsedStain(Stain stain) => new(stain);
     public static implicit operator ParsedStain?(Stain? stain) => stain == null ? null : new ParsedStain(stain.Value);
