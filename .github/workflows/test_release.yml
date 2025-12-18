@@ -73,10 +73,12 @@ jobs:
                   -p:AssemblyVersion=${{ env.VERSION }} \
                   -p:FileVersion=${{ env.VERSION }}
                   
-            - name: Generate Checksums
+            - name: Generate Checksums & Export ApiLevel
               working-directory: Meddle/Meddle.Plugin/bin/Release/Meddle.Plugin
               run: |
                   sha512sum latest.zip >> checksums.sha512
+                  dalamud_api_level=$(jq -r '.DalamudApiLevel' Meddle.Plugin.json)
+                  echo "DALAMUD_API_LEVEL=$dalamud_api_level" >> $GITHUB_ENV
 
             - name: Create GitHub Release
               uses: softprops/action-gh-release@v2
@@ -124,7 +126,8 @@ jobs:
                   jq --arg version "${{ env.VERSION }}" \
                   --arg repo_url "$repo_url/releases/download/$tag_name/latest.zip" \
                   '.[0].TestingAssemblyVersion = $version |
-                  .[0].DownloadLinkTesting = $repo_url' \
+                  .[0].DownloadLinkTesting = $repo_url |
+                  .[0].TestingDalamudApiLevel = '"${{ env.DALAMUD_API_LEVEL }}"'' \
                   repo.json > tmp.json && mv tmp.json repo.json
 
                   cat repo.json
