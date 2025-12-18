@@ -36,12 +36,12 @@ jobs:
             DOWNLOAD_PATH: ${{ github.event.inputs.dalamud_branch }}
         steps:
             - name: Checkout Repository
-              uses: actions/checkout@v4
+              uses: actions/checkout@v6
               with:
                   submodules: true # Grab any submodules that may be required
 
             - name: Setup .NET
-              uses: actions/setup-dotnet@v4
+              uses: actions/setup-dotnet@v5
               with:
                   dotnet-version: 10.0.x
 
@@ -79,7 +79,7 @@ jobs:
                   sha512sum latest.zip >> checksums.sha512
 
             - name: Create GitHub Release
-              uses: softprops/action-gh-release@v1
+              uses: softprops/action-gh-release@v2
               with:
                   tag_name: testing_v${{ env.VERSION }}${{ env.DOWNLOAD_PATH && format('_{0}', env.DOWNLOAD_PATH) || '' }}
                   name: Test Release v${{ env.VERSION }}${{ env.DOWNLOAD_PATH && format(' ({0})', env.DOWNLOAD_PATH) || '' }}
@@ -93,7 +93,7 @@ jobs:
                   fail_on_unmatched_files: true # If the files arent found, fail the workflow and abort the release.
 
             - name: Upload Artifacts
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v6
               with:
                   name: Release Artifacts
                   path: |

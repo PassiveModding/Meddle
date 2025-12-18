@@ -32,13 +32,13 @@ jobs:
             IsCI: true
         steps:
             -   name: Checkout Repository
-                uses: actions/checkout@v4
+                uses: actions/checkout@v6
                 with:
                     fetch-depth: 0 # We don't need the history for testing builds, so we can save some time by not fetching it
                     submodules: true # Grab any submodules that may be required
 
             -   name: Setup .NET
-                uses: actions/setup-dotnet@v4
+                uses: actions/setup-dotnet@v5
                 with:
                     dotnet-version: ${{ matrix.dotnet-version }}
 
@@ -60,7 +60,7 @@ jobs:
                 run: dotnet build -c Release --no-restore --nologo -o ./bin/${{ matrix.dalamud-version }}/Release
 
             -   name: Upload Artifact
-                uses: actions/upload-artifact@v4
+                uses: actions/upload-artifact@v6
                 with:
                     name: Meddle.Plugin-${{ matrix.dalamud-version }}-${{ github.sha }}
                     path: Meddle/Meddle.Plugin/bin/${{ matrix.dalamud-version }}/Release
