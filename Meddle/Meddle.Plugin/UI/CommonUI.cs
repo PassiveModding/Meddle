@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
@@ -7,11 +8,11 @@ using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
-using Dalamud.Bindings.ImGui;
+using Meddle.Plugin.Services;
 using Meddle.Plugin.Utils;
 using ObjectKind = Dalamud.Game.ClientState.Objects.Enums.ObjectKind;
 
-namespace Meddle.Plugin.Services.UI;
+namespace Meddle.Plugin.UI;
 
 public class CommonUi : IDisposable, IService
 {
@@ -26,29 +27,10 @@ public class CommonUi : IDisposable, IService
         this.objectTable = objectTable;
         this.config = config;
     }
-    
-    public unsafe ICharacter[] GetCharacters(ObjectUtil.ValidationFlags flags = ObjectUtil.ValidationFlags.None)
-    {
-        if (objectTable.LocalPlayer != null)
-        {
-            return objectTable.OfType<ICharacter>()
-                              .Where(obj => obj.IsValid() && obj.IsValidCharacterBase(flags))
-                              .OrderBy(c => objectTable.GetDistanceToLocalPlayer(c).LengthSquared())
-                              .ToArray();
-        }
-        else
-        {
-            // login/char creator produces "invalid" characters but are still usable I guess
-            return objectTable.OfType<ICharacter>()
-                              .Where(obj => obj.IsValidHuman(flags))
-                              .OrderBy(c => objectTable.GetDistanceToLocalPlayer(c).LengthSquared())
-                              .ToArray();
-        }
-    }
 
-    public unsafe void DrawMultiCharacterSelect(ref List<ICharacter> selectedCharacters, ObjectUtil.ValidationFlags flags = ObjectUtil.ValidationFlags.None)
+    public unsafe void DrawMultiCharacterSelect(ref List<ICharacter> selectedCharacters, CharacterValidationFlags flags = CharacterValidationFlags.None)
     {
-        ICharacter[] objects = GetCharacters(flags);
+        ICharacter[] objects = objectTable.GetCharacters(flags);
 
         ImGui.Text("Select Characters");
         var selected = new List<ICharacter>();
@@ -113,9 +95,9 @@ public class CommonUi : IDisposable, IService
         }
     }
 
-    public unsafe void DrawCharacterSelect(ref ICharacter? selectedCharacter, ObjectUtil.ValidationFlags flags = ObjectUtil.ValidationFlags.None)
+    public unsafe void DrawCharacterSelect(ref ICharacter? selectedCharacter, CharacterValidationFlags flags = CharacterValidationFlags.None)
     {
-        ICharacter[] objects = GetCharacters(flags);
+        ICharacter[] objects = objectTable.GetCharacters(flags);
 
         selectedCharacter ??= objects.FirstOrDefault() ?? objectTable.LocalPlayer;
 

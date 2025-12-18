@@ -3,7 +3,6 @@ using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using SharpGLTF.Transforms;
-using CSCharacter = FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
 
 namespace Meddle.Plugin.Utils;
 
@@ -22,55 +21,5 @@ public static class ObjectUtil
     public static string ToFormatted(this Quaternion vector)
     {
         return $"<X: {vector.X:0.00} Y: {vector.Y:0.00} Z: {vector.Z:0.00} W: {vector.W:0.00}>";
-    }
-
-    [Flags]
-    public enum ValidationFlags
-    {
-        None = 0,
-        IsVisible = 1 << 0
-    }
-    
-    public static unsafe bool IsValidHuman(this ICharacter obj, ValidationFlags flags = ValidationFlags.None)
-    {
-        var drawObject = ((CSCharacter*)obj.Address)->GameObject.DrawObject;
-        if (drawObject == null)
-            return false;
-        if (drawObject->Object.GetObjectType() != ObjectType.CharacterBase)
-            return false;
-        if (((CharacterBase*)drawObject)->GetModelType() != CharacterBase.ModelType.Human)
-            return false;
-
-        if (flags.HasFlag(ValidationFlags.IsVisible) && !drawObject->IsVisible)
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    public static unsafe bool IsValidCharacterBase(this ICharacter obj, ValidationFlags flags = ValidationFlags.None)
-    {
-        if (!obj.IsValid())
-            return false;
-        var drawObject = ((CSCharacter*)obj.Address)->GameObject.DrawObject;
-        if (drawObject == null)
-            return false;
-        if (drawObject->Object.GetObjectType() != ObjectType.CharacterBase)
-            return false;
-
-        if (flags.HasFlag(ValidationFlags.IsVisible) && !drawObject->IsVisible)
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    public static Vector3 GetDistanceToLocalPlayer(this IObjectTable objectTable, IGameObject obj)
-    {
-        if (objectTable.LocalPlayer is {Position: var charPos})
-            return Vector3.Abs(obj.Position - charPos);
-        return new Vector3(obj.YalmDistanceX, 0, obj.YalmDistanceZ);
     }
 }

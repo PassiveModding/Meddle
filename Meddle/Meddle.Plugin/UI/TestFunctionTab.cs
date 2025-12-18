@@ -8,7 +8,6 @@ using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Services;
-using Meddle.Plugin.Services.UI;
 using Meddle.Plugin.Utils;
 using Microsoft.Extensions.Logging;
 
@@ -41,7 +40,7 @@ public class TestFunctionTab : ITab
     
     public unsafe void Draw()
     {
-        commonUi.DrawCharacterSelect(ref selectedCharacter, ObjectUtil.ValidationFlags.IsVisible);
+        commonUi.DrawCharacterSelect(ref selectedCharacter, CharacterValidationFlags.IsVisible);
         if (output != null)
         {
             var serialized = System.Text.Json.JsonSerializer.Serialize(output, new System.Text.Json.JsonSerializerOptions

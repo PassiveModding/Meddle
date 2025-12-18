@@ -4,7 +4,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <RootNamespace>Meddle.Plugin</RootNamespace>
-        <LangVersion>13</LangVersion>
+        <LangVersion>14</LangVersion>
         <TargetFramework>net10.0-windows</TargetFramework>
     </PropertyGroup>
 
