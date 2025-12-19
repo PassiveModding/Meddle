@@ -4,19 +4,19 @@
     "Name": "Meddle",
     "InternalName": "Meddle.Plugin",
     "Description": "Did I mention I'm a model? Export models to glTF format.",
-    "AssemblyVersion": "0.1.46",
-    "TestingAssemblyVersion": "0.1.47",
+    "AssemblyVersion": "0.1.47.1",
+    "TestingAssemblyVersion": "0.1.47.1",
     "RepoUrl": "https://github.com/PassiveModding/Meddle",
     "IconUrl": "https://github.com/PassiveModding/Meddle/raw/main/icon.png",
     "ApplicableVersion": "any",
-    "DalamudApiLevel": 13,
+    "DalamudApiLevel": 14,
     "TestingDalamudApiLevel": 14,
     "Tags": [
       "Xande",
       "Models"
     ],
-    "DownloadLinkInstall": "https://github.com/PassiveModding/Meddle/releases/download/v0.1.46/latest.zip",
-    "DownloadLinkTesting": "https://github.com/PassiveModding/Meddle/releases/download/testing_v0.1.47_stg/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/PassiveModding/Meddle/releases/download/v0.1.46/latest.zip"
+    "DownloadLinkInstall": "https://github.com/PassiveModding/Meddle/releases/download/v0.1.47.1_stg/latest.zip",
+    "DownloadLinkTesting": "https://github.com/PassiveModding/Meddle/releases/download/v0.1.47.1_stg/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/PassiveModding/Meddle/releases/download/v0.1.47.1_stg/latest.zip"
   }
 ]
