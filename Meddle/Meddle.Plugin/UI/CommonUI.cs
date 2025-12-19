@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
@@ -7,11 +8,11 @@ using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
-using Dalamud.Bindings.ImGui;
+using Meddle.Plugin.Services;
 using Meddle.Plugin.Utils;
 using ObjectKind = Dalamud.Game.ClientState.Objects.Enums.ObjectKind;
 
-namespace Meddle.Plugin.Services.UI;
+namespace Meddle.Plugin.UI;
 
 public class CommonUi : IDisposable, IService
 {
@@ -26,29 +27,10 @@ public class CommonUi : IDisposable, IService
         this.objectTable = objectTable;
         this.config = config;
     }
-    
-    public unsafe ICharacter[] GetCharacters(ObjectUtil.ValidationFlags flags = ObjectUtil.ValidationFlags.None)
-    {
-        if (clientState.LocalPlayer != null)
-        {
-            return objectTable.OfType<ICharacter>()
-                              .Where(obj => obj.IsValid() && obj.IsValidCharacterBase(flags))
-                              .OrderBy(c => clientState.GetDistanceToLocalPlayer(c).LengthSquared())
-                              .ToArray();
-        }
-        else
-        {
-            // login/char creator produces "invalid" characters but are still usable I guess
-            return objectTable.OfType<ICharacter>()
-                              .Where(obj => obj.IsValidHuman(flags))
-                              .OrderBy(c => clientState.GetDistanceToLocalPlayer(c).LengthSquared())
-                              .ToArray();
-        }
-    }
 
-    public unsafe void DrawMultiCharacterSelect(ref List<ICharacter> selectedCharacters, ObjectUtil.ValidationFlags flags = ObjectUtil.ValidationFlags.None)
+    public unsafe void DrawMultiCharacterSelect(ref List<ICharacter> selectedCharacters, CharacterValidationFlags flags = CharacterValidationFlags.None)
     {
-        ICharacter[] objects = GetCharacters(flags);
+        ICharacter[] objects = objectTable.GetCharacters(flags);
 
         ImGui.Text("Select Characters");
         var selected = new List<ICharacter>();
@@ -113,14 +95,14 @@ public class CommonUi : IDisposable, IService
         }
     }
 
-    public unsafe void DrawCharacterSelect(ref ICharacter? selectedCharacter, ObjectUtil.ValidationFlags flags = ObjectUtil.ValidationFlags.None)
+    public unsafe void DrawCharacterSelect(ref ICharacter? selectedCharacter, CharacterValidationFlags flags = CharacterValidationFlags.None)
     {
-        ICharacter[] objects = GetCharacters(flags);
+        ICharacter[] objects = objectTable.GetCharacters(flags);
 
-        selectedCharacter ??= objects.FirstOrDefault() ?? clientState.LocalPlayer;
+        selectedCharacter ??= objects.FirstOrDefault() ?? objectTable.LocalPlayer;
 
         ImGui.Text("Select Character");
-        if (selectedCharacter?.IsValid() == false && clientState.LocalPlayer != null)
+        if (selectedCharacter?.IsValid() == false && objectTable.LocalPlayer != null)
         {
             selectedCharacter = null;
         }
@@ -145,9 +127,9 @@ public class CommonUi : IDisposable, IService
         
         if (selectTarget)
         {
-            if (clientState.LocalPlayer is {TargetObject: not null})
+            if (objectTable.LocalPlayer is {TargetObject: not null})
             {
-                var target = clientState.LocalPlayer.TargetObject;
+                var target = objectTable.LocalPlayer.TargetObject;
                 if (target is ICharacter targetCharacter && targetCharacter.IsValidCharacterBase())
                 {
                     selectedCharacter = targetCharacter;
@@ -220,7 +202,7 @@ public class CommonUi : IDisposable, IService
             ? $"[{obj.Address:X8}:{obj.GameObjectId:X}]" 
             : string.Empty;
         string distanceText = includeDistance
-            ? $" - {clientState.GetDistanceToLocalPlayer(obj).Length():0}y"
+            ? $" - {objectTable.GetDistanceToLocalPlayer(obj).Length():0}y"
             : string.Empty;
         
         return

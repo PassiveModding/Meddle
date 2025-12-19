@@ -319,7 +319,7 @@ public partial class LayoutWindow : ITab
     {
         DrawExportSingle(instance);
         
-        if (config.DisplayDebugInfo && instance is ParsedBgPartsInstance bg)
+        if (config.DisplayDebugInfo && instance is ParsedBgPartsInstance {ModelPtr: not null} bg)
         {
             // open mdl/material window
             ImGui.SameLine();

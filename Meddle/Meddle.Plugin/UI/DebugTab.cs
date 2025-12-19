@@ -15,7 +15,6 @@ using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Services;
-using Meddle.Plugin.Services.UI;
 using Meddle.Plugin.UI.Layout;
 using Meddle.Plugin.Utils;
 using Meddle.Utils.Constants;
@@ -36,7 +35,6 @@ public class DebugTab : ITab
     private readonly CommonUi commonUi;
     private readonly IGameGui gui;
     private readonly LayoutService layoutService;
-    private readonly ParseService parseService;
     private readonly PbdHooks pbdHooks;
     private readonly INotificationManager notificationManager;
     private readonly SqPack sqPack;
@@ -66,7 +64,7 @@ public class DebugTab : ITab
     public DebugTab(Configuration config, SigUtil sigUtil, CommonUi commonUi, 
                     IGameGui gui, IClientState clientState, 
                     LayoutService layoutService,
-                    ParseService parseService, PbdHooks pbdHooks,
+                    PbdHooks pbdHooks,
                     INotificationManager notificationManager,
                     ITextureProvider textureProvider,
                     SqPack sqPack,
@@ -80,7 +78,6 @@ public class DebugTab : ITab
         this.gui = gui;
         this.clientState = clientState;
         this.layoutService = layoutService;
-        this.parseService = parseService;
         this.pbdHooks = pbdHooks;
         this.notificationManager = notificationManager;
         this.textureProvider = textureProvider;
@@ -225,12 +222,7 @@ public class DebugTab : ITab
         {
             DrawAddresses();
         }
-
-        if (ImGui.CollapsingHeader("Cache Info"))
-        {
-            DrawCacheInfo();
-        }
-
+        
         if (ImGui.CollapsingHeader("Stain Info"))
         {
             DrawStainInfo();
@@ -491,56 +483,7 @@ public class DebugTab : ITab
         UiUtil.Text($"LayoutWorld: {(nint)layoutWorld:X8}", $"{(nint)layoutWorld:X8}");
         UiUtil.Text($"ActiveLayout: {(nint)activeLayout:X8}", $"{(nint)activeLayout:X8}");
     }
-
-    private void DrawCacheInfo()
-    {
-        if (ImGui.Button("Clear Caches"))
-        {
-            parseService.ClearCaches();
-        }
-        
-        using var table = ImRaii.Table("##CacheInfo", 2, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingFixedFit);
-        ImGui.TableSetupColumn("Type");
-        ImGui.TableSetupColumn("Path");
-        ImGui.TableHeadersRow();
-        
-        foreach (var (path, _) in parseService.ShpkCache)
-        {
-            ImGui.TableNextRow();
-            ImGui.TableNextColumn();
-            ImGui.Text("Shpk");
-            ImGui.TableNextColumn();
-            ImGui.Text(path);
-        }
-
-        foreach (var (path, _) in parseService.MtrlCache)
-        {
-            ImGui.TableNextRow();
-            ImGui.TableNextColumn();
-            ImGui.Text("Mtrl");
-            ImGui.TableNextColumn();
-            ImGui.Text(path);
-        }
-        
-        foreach (var (path, _) in parseService.MdlCache)
-        {
-            ImGui.TableNextRow();
-            ImGui.TableNextColumn();
-            ImGui.Text("Mdl");
-            ImGui.TableNextColumn();
-            ImGui.Text(path);
-        }
-
-        foreach (var (path, _) in parseService.TexCache)
-        {
-            ImGui.TableNextRow();
-            ImGui.TableNextColumn();
-            ImGui.Text("Tex");
-            ImGui.TableNextColumn();
-            ImGui.Text(path);
-        }
-    }
-
+    
     private unsafe void DrawSelectedCharacter()
     {
         using var indent = ImRaii.PushIndent();

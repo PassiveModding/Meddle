@@ -72,7 +72,7 @@ public class Category : IDisposable
             return false;
         }
 
-        data = SqPackUtil.ReadFile(entry.Offset, datFilePaths[entry.DataFileId]);
+        data = SqPackUtil.ReadFile(entry.Offset, datFilePaths[entry.DataFileId]) ?? throw new Exception($"Failed to read file with hash {hash:X}");
         return true;
     }
 

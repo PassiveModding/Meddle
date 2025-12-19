@@ -9,7 +9,6 @@ using FFXIVClientStructs.Interop;
 using Dalamud.Bindings.ImGui;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Services;
-using Meddle.Plugin.Services.UI;
 using Meddle.Plugin.Utils;
 using Microsoft.Extensions.Logging;
 using SharpGLTF.Transforms;
@@ -25,6 +24,7 @@ public class AnimationTab : ITab
 {
     private readonly AnimationExportService animationExportService;
     private readonly CommonUi commonUi;
+    private readonly IObjectTable objectTable;
     private readonly Configuration config;
     private readonly List<(DateTime Time, AttachSet[])> frames = [];
     private readonly IFramework framework;
@@ -45,12 +45,14 @@ public class AnimationTab : ITab
         IFramework framework, ILogger<AnimationTab> logger,
         AnimationExportService animationExportService,
         CommonUi commonUi,
+        IObjectTable objectTable,
         Configuration config)
     {
         this.framework = framework;
         this.logger = logger;
         this.animationExportService = animationExportService;
         this.commonUi = commonUi;
+        this.objectTable = objectTable;
         this.config = config;
         this.framework.Update += OnFrameworkUpdate;
     }
@@ -182,7 +184,7 @@ public class AnimationTab : ITab
             return;
         }
 
-        var characters = commonUi.GetCharacters()
+        var characters = objectTable.GetCharacters()
                                  .Where(x => selectedCharacters.Any(s => s.Address == x.Address)).ToArray();
         if (characters.Length == 0)
         {

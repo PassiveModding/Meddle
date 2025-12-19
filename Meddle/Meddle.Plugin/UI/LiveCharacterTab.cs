@@ -15,7 +15,6 @@ using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Layout;
 using Meddle.Plugin.Services;
-using Meddle.Plugin.Services.UI;
 using Meddle.Plugin.UI.Layout;
 using Meddle.Plugin.UI.Windows;
 using Meddle.Plugin.Utils;
@@ -51,7 +50,6 @@ public unsafe class LiveCharacterTab : ITab
 
     private readonly ILogger<LiveCharacterTab> log;
     private readonly SqPack pack;
-    private readonly ParseService parseService;
     private readonly PbdHooks pbd;
     private readonly Dictionary<nint, bool> selectedModels = new();
     private readonly TextureCache textureCache;
@@ -69,7 +67,6 @@ public unsafe class LiveCharacterTab : ITab
     public LiveCharacterTab(
         ILogger<LiveCharacterTab> log,
         ITextureProvider textureProvider,
-        ParseService parseService,
         TextureCache textureCache,
         ResolverService resolverService,
         StainProvider stainProvider,
@@ -83,7 +80,6 @@ public unsafe class LiveCharacterTab : ITab
     {
         this.log = log;
         this.textureProvider = textureProvider;
-        this.parseService = parseService;
         this.textureCache = textureCache;
         this.resolverService = resolverService;
         this.stainProvider = stainProvider;
@@ -104,7 +100,7 @@ public unsafe class LiveCharacterTab : ITab
     public void Draw()
     {
         UiUtil.DrawProgress(exportTask, progress, cancelToken);
-        commonUi.DrawCharacterSelect(ref selectedCharacter, ObjectUtil.ValidationFlags.IsVisible);
+        commonUi.DrawCharacterSelect(ref selectedCharacter, CharacterValidationFlags.IsVisible);
         if (selectedCharacter != null)
         {
             var charPtr = (CSCharacter*)selectedCharacter.Address;
