@@ -481,9 +481,10 @@ public class ParsedMaterialInfo(string path, string pathFromModel, string shpk, 
     }
 }
 
-public class ParsedModelInfo(string path, string pathFromCharacter, DeformerCachedStruct? deformer, Model.ShapeAttributeGroup? shapeAttributeGroup, ParsedMaterialInfo?[] materials, Stain? stain0, Stain? stain1) 
+public class ParsedModelInfo(string path, string pathFromCharacter, bool enabled, DeformerCachedStruct? deformer, Model.ShapeAttributeGroup? shapeAttributeGroup, ParsedMaterialInfo?[] materials, Stain? stain0, Stain? stain1) 
 {
     public HandleString Path { get; } = new() { FullPath = path, GamePath = pathFromCharacter };
+    public bool Enabled { get; } = enabled;
     public ParsedStain? Stain0 { get; } = stain0;
     public ParsedStain? Stain1 { get; } = stain1;
     public DeformerCachedStruct? Deformer { get; } = deformer;

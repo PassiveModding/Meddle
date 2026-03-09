@@ -53,7 +53,11 @@ public partial class Configuration : IPluginConfiguration
         
         [Obsolete("Use PoseMode instead", true)]
         public bool ExportPose { get; set; } = true;
+        
+        [Obsolete("Use ApplyVisibilityFlags instead", true)]
         public bool RemoveAttributeDisabledSubmeshes { get; set; } = true;
+        
+        public bool ApplyVisibilityFlags { get; set; } = true;
         public bool SkipHiddenBgParts { get; set; }
         public bool UseDeformer { get; set; } = true;
         
@@ -78,7 +82,8 @@ public partial class Configuration : IPluginConfiguration
                 // ExportPose = ExportPose,
                 // TextureMode = TextureMode,
                 PoseMode = PoseMode,
-                RemoveAttributeDisabledSubmeshes = RemoveAttributeDisabledSubmeshes,
+                // RemoveAttributeDisabledSubmeshes = RemoveAttributeDisabledSubmeshes,
+                ApplyVisibilityFlags = ApplyVisibilityFlags,
                 SkipHiddenBgParts = SkipHiddenBgParts,
                 // RootAttachHandling = RootAttachHandling
                 UseDeformer = UseDeformer,
@@ -90,9 +95,10 @@ public partial class Configuration : IPluginConfiguration
 
         public void SetDefaultCloneOptions()
         {
-            RemoveAttributeDisabledSubmeshes = true;
+            // RemoveAttributeDisabledSubmeshes = true;
             SkipHiddenBgParts = true;
             UseDeformer = true;
+            ApplyVisibilityFlags = true;
         }
         
         public void Apply(ExportConfiguration other)
@@ -102,7 +108,8 @@ public partial class Configuration : IPluginConfiguration
             // ExportPose = other.ExportPose;
             // TextureMode = other.TextureMode;
             PoseMode = other.PoseMode;
-            RemoveAttributeDisabledSubmeshes = other.RemoveAttributeDisabledSubmeshes;
+            // RemoveAttributeDisabledSubmeshes = other.RemoveAttributeDisabledSubmeshes;
+            ApplyVisibilityFlags = other.ApplyVisibilityFlags;
             SkipHiddenBgParts = other.SkipHiddenBgParts;
             // RootAttachHandling = other.RootAttachHandling;
             UseDeformer = other.UseDeformer;

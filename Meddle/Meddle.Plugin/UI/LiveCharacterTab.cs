@@ -14,6 +14,7 @@ using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Layout;
+using Meddle.Plugin.Models.Structs;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.UI.Layout;
 using Meddle.Plugin.UI.Windows;
@@ -493,6 +494,11 @@ public unsafe class LiveCharacterTab : ITab
             header += $"[{(HumanModelSlotIndex)model->SlotIndex}]";
         }
         header += $" {modelName}";
+        bool modelEnabled = ((MeddleModel*)model)->BodyVisible;
+        if (!modelEnabled)
+        {
+            header += " (Hidden)";
+        }
         if (ImGui.CollapsingHeader(header))
         {
             UiUtil.Text($"Game File Name: {modelName}", modelName);
@@ -536,7 +542,8 @@ public unsafe class LiveCharacterTab : ITab
             {
                 ImGui.Text("No deformer info found");
             }
-
+            ImGui.Text($"Model Enabled: {modelEnabled}");
+            
             var modelShapeAttributes = StructExtensions.ParseModelShapeAttributes(model);
             DrawShapeAttributeTable(modelShapeAttributes);
 

@@ -172,16 +172,27 @@ public static class UiUtil
 
         if (flags.HasFlag(ExportConfigDrawFlags.ShowSubmeshOptions))
         {
-            var removeAttributeDisabledSubmeshes = exportConfiguration.RemoveAttributeDisabledSubmeshes;
-            if (ImGui.Checkbox("Remove unused character features", ref removeAttributeDisabledSubmeshes))
+            // var removeAttributeDisabledSubmeshes = exportConfiguration.RemoveAttributeDisabledSubmeshes;
+            // if (ImGui.Checkbox("Remove unused character features", ref removeAttributeDisabledSubmeshes))
+            // {
+            //     exportConfiguration.RemoveAttributeDisabledSubmeshes = removeAttributeDisabledSubmeshes;
+            //     changed = true;
+            // }
+            //
+            // ImGui.SameLine();
+            // HintCircle("Certain character features can be toggled on and off in the character creator,\n" +
+            //            "this will make sure the export only includes the features that are currently enabled.");
+            
+            var applyEqpFlags = exportConfiguration.ApplyVisibilityFlags;
+            if (ImGui.Checkbox("Apply Visibility Flags", ref applyEqpFlags))
             {
-                exportConfiguration.RemoveAttributeDisabledSubmeshes = removeAttributeDisabledSubmeshes;
+                exportConfiguration.ApplyVisibilityFlags = applyEqpFlags;
                 changed = true;
             }
-
+            
             ImGui.SameLine();
-            HintCircle("Certain character features can be toggled on and off in the character creator,\n" +
-                       "this will make sure the export only includes the features that are currently enabled.");
+            HintCircle("If enabled, the export will apply visibility flags based on EQP manipulations and certain in-game toggles (such as additional character features)\n" +
+                       "This will make sure the export only includes the models/submeshes that are currently visible on the character.");
         }
         
         if (flags.HasFlag(ExportConfigDrawFlags.ShowTerrainOptions))

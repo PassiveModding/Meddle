@@ -134,6 +134,7 @@ public static class ParseMaterialUtil
             var modelInfo = new ParsedModelInfo(
                 model->ModelResourceHandle->FileName.ParseString(), 
                 characterBase->ResolveMdlPath(model->SlotIndex), 
+                ((MeddleModel*)model)->BodyVisible,
                 deform, 
                 StructExtensions.ParseModelShapeAttributes(model), 
                 materials.ToArray(), 

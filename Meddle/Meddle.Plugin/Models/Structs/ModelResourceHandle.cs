@@ -13,6 +13,15 @@ public unsafe struct MeddleModelResourceHandle
     public ModelResourceHandleData GetData() => new(Base->ModelData);
 } 
 
+[StructLayout(LayoutKind.Explicit, Size = 0x158)]
+public unsafe struct MeddleModel
+{
+    [FieldOffset(0x0)] public FFXIVClientStructs.FFXIV.Client.Graphics.Render.Model* Base;
+    [FieldOffset(0x28)] public uint Flags; // bit 0: body visible, bit 1: attributes dirty, bit 2: shapes dirty
+    
+    public bool BodyVisible => (Flags & 1) != 0;
+} 
+
 
 public readonly struct ModelResourceHandleData
 {

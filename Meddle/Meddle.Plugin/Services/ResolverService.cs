@@ -189,7 +189,7 @@ public class ResolverService : IService
             materials.Add(materialInfo);
         }
 
-        var modelInfo = new ParsedModelInfo(path, path, null, null, materials.ToArray(), null, null);
+        var modelInfo = new ParsedModelInfo(path, path, true, null, null, materials.ToArray(), null, null);
         return modelInfo;
     }
 

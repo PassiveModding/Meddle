@@ -47,6 +47,12 @@ public class CharacterComposer
             return;
         }
         
+        if (!m.Enabled && exportConfig.ApplyVisibilityFlags)
+        {
+            Plugin.Logger.LogDebug("Skipping disabled model {ModelPath}", m.Path.GamePath);
+            return;
+        }
+        
         var mdlFile = composerCache.GetMdlFile(m.Path.FullPath);
         Plugin.Logger.LogInformation("Loaded model {modelPath}", m.Path.FullPath);
         var materialBuilders = new MaterialBuilder[m.Materials.Length];
@@ -122,13 +128,13 @@ public class CharacterComposer
 
         var enabledAttributes = Model.GetEnabledValues(model.EnabledAttributeMask, model.AttributeMasks).ToArray();
         var meshes = ModelBuilder.BuildMeshes(model, materialBuilders, skinningContext.Bones, deform, exportConfig.CreateMeshBuilderOptions());
-        foreach (var mesh in meshes)
+        foreach (var meshExport in meshes)
         {
             var extrasDict = new Dictionary<string, string>
             {
                 {"modelGamePath", m.Path.GamePath},
                 {"modelFullPath", m.Path.FullPath},
-                {"meshShapes", mesh.Shapes != null ? string.Join(",", mesh.Shapes) : ""},
+                {"meshShapes", meshExport.Shapes != null ? string.Join(",", meshExport.Shapes) : ""},
                 {"modelEnabledAttributes", string.Join(",", enabledAttributes)},
                 {"modelAttributes", string.Join(",", model.AttributeMasks.Select(x => x.name))},
                 {"nodeType", "CharacterMesh"}
@@ -150,7 +156,7 @@ public class CharacterComposer
             }
 
             // for shape keys to work, mesh.Mesh.Extras already has an object with a field 'targetNames' which names all the shape keys. need to preserve that.
-            var extras = mesh.Mesh.Extras?.AsObject();
+            var extras = meshExport.Mesh.Extras?.AsObject();
             if (extras != null)
             {
                 foreach (var kvp in extrasDict)
@@ -161,38 +167,38 @@ public class CharacterComposer
                     }
                 }
                 
-                mesh.Mesh.Extras = extras;
+                meshExport.Mesh.Extras = extras;
             }
             else
             {
-                mesh.Mesh.Extras = JsonNode.Parse(JsonSerializer.Serialize(extrasDict, MaterialComposer.JsonOptions));
+                meshExport.Mesh.Extras = JsonNode.Parse(JsonSerializer.Serialize(extrasDict, MaterialComposer.JsonOptions));
             }
             
             InstanceBuilder instance;
             if (skinningContext.Bones.Count > 0)
             {
-                instance = scene.AddSkinnedMesh(mesh.Mesh, skinningContext.Transform, skinningContext.Bones.Cast<NodeBuilder>().ToArray());
+                instance = scene.AddSkinnedMesh(meshExport.Mesh, skinningContext.Transform, skinningContext.Bones.Cast<NodeBuilder>().ToArray());
             }
             else
             {
-                instance = scene.AddRigidMesh(mesh.Mesh, skinningContext.Transform);
+                instance = scene.AddRigidMesh(meshExport.Mesh, skinningContext.Transform);
             }
 
-            if (model.Shapes.Count != 0 && mesh.Shapes != null)
+            if (model.Shapes.Count != 0 && meshExport.Shapes != null)
             {
                 // This will set the morphing value to 1 if the shape is enabled, 0 if not
                 var enabledShapes = Model.GetEnabledValues(model.EnabledShapeMask, model.ShapeMasks)
                                          .ToArray();
                 var shapes = model.Shapes
-                                  .Where(x => mesh.Shapes.Contains(x.Name))
+                                  .Where(x => meshExport.Shapes.Contains(x.Name))
                                   .Select(x => (x, enabledShapes.Contains(x.Name)));
                 instance.Content.UseMorphing().SetValue(shapes.Select(x => x.Item2 ? 1f : 0).ToArray());
             }
             
-            if (mesh.Submesh != null)
+            if (meshExport.Submesh != null && exportConfig.ApplyVisibilityFlags)
             {
                 // Remove subMeshes that are not enabled
-                if (!mesh.Submesh.Attributes.All(enabledAttributes.Contains) && exportConfig.RemoveAttributeDisabledSubmeshes)
+                if (!meshExport.Submesh.Attributes.All(x => enabledAttributes.Contains(x)))
                 {
                     instance.Remove();
                 }
