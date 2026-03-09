@@ -25,7 +25,7 @@ public static unsafe class DxHelper
         var ret = GetResourceData(tex,
                                   CloneResource,
                                   GetData);
-
+        
         return ret;
     }
 
@@ -62,30 +62,30 @@ public static unsafe class DxHelper
     private static (TextureResource Resource, uint RowPitch) GetData(ID3D11Texture2D1 r, MappedSubresource map)
     {
         var desc = r.Description1;
+        int dataSize;
         if (desc.Format is Format.BC1_UNorm or Format.BC2_UNorm or Format.BC3_UNorm or Format.BC4_UNorm
             or Format.BC5_UNorm or Format.BC7_UNorm)
         {
             var blockHeight = Math.Max(1, (desc.Height + 3) / 4);
-            if (map.RowPitch * blockHeight != map.DepthPitch)
+            dataSize = (int)(map.RowPitch * blockHeight);
+            if (dataSize > map.DepthPitch)
             {
                 throw new InvalidDataException(
-                    $"Invalid/unknown texture size for {desc.Format}: RowPitch = {map.RowPitch}; Height = {desc.Height}; Block Height = {blockHeight}; DepthPitch = {map.DepthPitch}");
+                    $"Invalid/unknown texture size for {desc.Format}: RowPitch = {map.RowPitch}; Height = {desc.Height}; Block Height = {blockHeight}; DepthPitch = {map.DepthPitch}; Calculated size = {dataSize}");
             }
         }
         else
         {
-            if (map.RowPitch * desc.Height != map.DepthPitch)
+            dataSize = (int)(map.RowPitch * desc.Height);
+            if (dataSize > map.DepthPitch)
             {
                 throw new InvalidDataException(
-                    $"Invalid/unknown texture size for {desc.Format}: RowPitch = {map.RowPitch}; Height = {desc.Height}; DepthPitch = {map.DepthPitch}");
+                    $"Invalid/unknown texture size for {desc.Format}: RowPitch = {map.RowPitch}; Height = {desc.Height}; DepthPitch = {map.DepthPitch}; Calculated size = {dataSize}");
             }
         }
 
-        var buf = new byte[map.DepthPitch];
-        Marshal.Copy(map.DataPointer, buf, 0, buf.Length);
-
-        var bufCopy = new byte[buf.Length];
-        buf.CopyTo(bufCopy, 0);
+        var bufCopy = new byte[dataSize];
+        Marshal.Copy(map.DataPointer, bufCopy, 0, dataSize);
 
         // Vortice and OtterTex use different enums but the values *should* be the same so just cast
         var rowPitch = map.RowPitch;
