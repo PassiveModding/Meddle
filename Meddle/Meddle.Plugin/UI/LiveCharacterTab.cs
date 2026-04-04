@@ -551,8 +551,8 @@ public unsafe class LiveCharacterTab : ITab
             {
                 var localMaterialIdx = materialIdx;
                 var materialPtr = model->MaterialsSpan[localMaterialIdx];
-                DrawMaterial(materialPtr.Value, materialIdx, slotIdx => GetColorTableTexture(cBase, slotIdx, localMaterialIdx),
-                             GetMaterialName(model, localMaterialIdx));
+                var colorTableLazy = new Lazy<Pointer<Texture>>(() => GetColorTableTexture(cBase, (int)model->SlotIndex, localMaterialIdx));
+                DrawMaterial(materialPtr.Value, materialIdx, colorTableLazy, GetMaterialName(model, localMaterialIdx));
             }
         }
     }
@@ -713,7 +713,7 @@ public unsafe class LiveCharacterTab : ITab
         return materialName;
     }
 
-    private void DrawMaterial(Pointer<CSMaterial> mtPtr, int materialIdx, Func<int, Pointer<Texture>>? getColorTableTexture, string? materialName)
+    private void DrawMaterial(Pointer<CSMaterial> mtPtr, int materialIdx, Lazy<Pointer<Texture>> getColorTableTexture, string? materialName)
     {
         if (mtPtr == null || mtPtr.Value == null || mtPtr.Value->MaterialResourceHandle == null)
         {
@@ -819,7 +819,7 @@ public unsafe class LiveCharacterTab : ITab
             ImGui.Text($"Shader Flags: 0x{material->ShaderFlags:X8}");
 
 
-            var colorTableTexturePtr = getColorTableTexture?.Invoke(materialIdx);
+            var colorTableTexturePtr = getColorTableTexture.Value;
             if (colorTableTexturePtr != null && colorTableTexturePtr.Value != null &&
                 ImGui.CollapsingHeader("Color Table"))
             {
