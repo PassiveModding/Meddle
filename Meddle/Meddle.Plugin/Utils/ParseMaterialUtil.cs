@@ -205,6 +205,11 @@ public static class ParseMaterialUtil
             EquipmentModelIds = equipData.ToArray()
         };
     }
+
+    public static int ResolveColorTableSetIndex(int slotIdx, int materialIdx)
+    {
+        return (slotIdx * CharacterBase.MaterialsPerSlot) + materialIdx;
+    }
     
     private static unsafe IColorTableSet? GetColorTableSet(Pointer<Model> modelPtr, Pointer<Material> materialPtr, uint materialIndex, Dictionary<int, IColorTableSet> colorTableSets)
     {
@@ -221,7 +226,7 @@ public static class ParseMaterialUtil
         
         var model = modelPtr.Value;
         var material = materialPtr.Value;
-        if (colorTableSets.TryGetValue((int)(modelPtr.Value->SlotIndex * CharacterBase.MaterialsPerSlot) + (int)materialIndex, out var gpuColorTable))
+        if (colorTableSets.TryGetValue(ResolveColorTableSetIndex((int)model->SlotIndex, (int)materialIndex), out var gpuColorTable))
         {
             colorTable = gpuColorTable;
         }

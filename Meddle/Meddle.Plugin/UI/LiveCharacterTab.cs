@@ -697,7 +697,7 @@ public unsafe class LiveCharacterTab : ITab
             return null;
         }
 
-        var colorTableTexturePtr = cPtr.Value->ColorTableTexturesSpan[(slotIdx * CSCharacterBase.MaterialsPerSlot) + materialIdx];
+        var colorTableTexturePtr = cPtr.Value->ColorTableTexturesSpan[ParseMaterialUtil.ResolveColorTableSetIndex(slotIdx, materialIdx)];
         return colorTableTexturePtr;
     }
 
