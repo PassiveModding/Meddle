@@ -5,6 +5,7 @@ using Dalamud.Interface.Textures;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
+using FFXIVClientStructs.FFXIV.Client.Graphics.Render;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Services;
@@ -13,21 +14,21 @@ using Microsoft.Extensions.Logging;
 
 namespace Meddle.Plugin.UI;
 
-public class TestFunctionTab : ITab
+public class ColorTableTester : ITab
 {
-    private readonly ILogger<TestFunctionTab> log;
+    private readonly ILogger<ColorTableTester> log;
     private readonly Configuration config;
     private readonly CommonUi commonUi;
     private readonly TextureCache textureCache;
     private readonly ITextureProvider textureProvider;
     private ICharacter? selectedCharacter;
     private OnRenderMaterialOutput? output;
-    public string Name => "Test Functions";
+    public string Name => "ColorTable Tester";
     public int Order => 100;
     public MenuType MenuType => MenuType.Debug;
     
-    public TestFunctionTab(
-        ILogger<TestFunctionTab> log,
+    public ColorTableTester(
+        ILogger<ColorTableTester> log,
         Configuration config,
         CommonUi commonUi, TextureCache textureCache, ITextureProvider textureProvider)
     {
@@ -103,56 +104,45 @@ public class TestFunctionTab : ITab
             ImGui.Text("Model is not human");
             return;
         }
-            
-            
+        
+        
+        // cPtr.Value->ColorTableTexturesSpan[(slotIdx * CSCharacterBase.MaterialsPerSlot) + materialIdx];
         var human = (Human*)cBase;
-        for (int i = 0; i < human->ModelsSpan.Length; i++)
+        for (var modelIdx = 0; modelIdx < human->ModelsSpan.Length; modelIdx++)
         {
-            var model = human->ModelsSpan[i];
+            var model = human->ModelsSpan[modelIdx];
             if (model == null || model.Value == null)
             {
-                ImGui.Text($"Model {i} is null");
                 continue;
             }
-            
-            if (model.Value->ModelResourceHandle == null)
+
+            for (var materialIdx = 0; materialIdx < model.Value->MaterialsSpan.Length; materialIdx++)
             {
-                ImGui.Text($"Model {i} resource handle is null");
-                continue;
-            }
-            
-            using var id = ImRaii.PushId($"model_{i}");
-            using var modelNode = ImRaii.TreeNode($"Model {i} - {model.Value->ModelResourceHandle->FileName.ToString()}");
-            if (modelNode.Success)
-            {
-                for (int j = 0; j < model.Value->MaterialsSpan.Length; j++)
+                var material = model.Value->MaterialsSpan[materialIdx];
+                if (material == null || material.Value == null)
                 {
-                    var material = model.Value->MaterialsSpan[j];
-                    if (material == null || material.Value == null)
-                    {
-                        ImGui.Text($"Material {j} is null");
-                        continue;
-                    }
-                    
-                    if (material.Value->MaterialResourceHandle == null)
-                    {
-                        ImGui.Text($"Material {j} resource handle is null");
-                        continue;
-                    }
-                    
-                    using var matId = ImRaii.PushId($"material_{j}");
-                    using var materialNode = ImRaii.TreeNode($"Material {j} - {material.Value->MaterialResourceHandle->FileName.ToString()}");
-                    if (materialNode.Success)
-                    {
-                        var materialShpk = material.Value->MaterialResourceHandle->ShpkName.ToString();
-                        ImGui.Text($"Material SHPK: {materialShpk}");
-                        if (ImGui.Button("Resolve"))
-                        {
-                            var resolveOutput = OnRenderMaterialUtil.ResolveHumanOnRenderMaterial(human, model, (uint)j);
-                            output = resolveOutput;
-                        }
-                    }
+                    continue;
                 }
+                
+                
+            }
+        }
+        for (var colorTableIdx = 0; colorTableIdx < human->ColorTableTexturesSpan.Length; colorTableIdx++)
+        {
+            var colorTableTexture = human->ColorTableTexturesSpan[colorTableIdx];
+            if (colorTableTexture == null || colorTableTexture.Value == null)
+            {
+                // ImGui.Text($"Color table texture {i} is null");
+                continue;
+            }
+
+            var slotIdx = colorTableIdx / CharacterBase.MaterialsPerSlot;
+            var materialIdx = colorTableIdx % CharacterBase.MaterialsPerSlot;
+            
+            if (ImGui.CollapsingHeader($"Color Table Texture {colorTableIdx} - {colorTableTexture.Value->ActualWidth}x{colorTableTexture.Value->ActualHeight}"))
+            {
+                var colorTable = ParseMaterialUtil.ParseColorTableTexture(colorTableTexture);
+                UiUtil.DrawColorTable(colorTable);
             }
         }
     }
