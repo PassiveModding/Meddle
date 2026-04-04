@@ -134,6 +134,7 @@ public class CharacterComposer
             {
                 {"modelGamePath", m.Path.GamePath},
                 {"modelFullPath", m.Path.FullPath},
+                {"modelEnabled", m.Enabled.ToString()},
                 {"meshShapes", meshExport.Shapes != null ? string.Join(",", meshExport.Shapes) : ""},
                 {"modelEnabledAttributes", string.Join(",", enabledAttributes)},
                 {"modelAttributes", string.Join(",", model.AttributeMasks.Select(x => x.name))},
