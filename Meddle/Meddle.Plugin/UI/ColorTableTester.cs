@@ -105,40 +105,15 @@ public class ColorTableTester : ITab
             return;
         }
         
-        
-        // cPtr.Value->ColorTableTexturesSpan[(slotIdx * CSCharacterBase.MaterialsPerSlot) + materialIdx];
         var human = (Human*)cBase;
-        for (var modelIdx = 0; modelIdx < human->ModelsSpan.Length; modelIdx++)
-        {
-            var model = human->ModelsSpan[modelIdx];
-            if (model == null || model.Value == null)
-            {
-                continue;
-            }
-
-            for (var materialIdx = 0; materialIdx < model.Value->MaterialsSpan.Length; materialIdx++)
-            {
-                var material = model.Value->MaterialsSpan[materialIdx];
-                if (material == null || material.Value == null)
-                {
-                    continue;
-                }
-                
-                
-            }
-        }
         for (var colorTableIdx = 0; colorTableIdx < human->ColorTableTexturesSpan.Length; colorTableIdx++)
         {
             var colorTableTexture = human->ColorTableTexturesSpan[colorTableIdx];
             if (colorTableTexture == null || colorTableTexture.Value == null)
             {
-                // ImGui.Text($"Color table texture {i} is null");
                 continue;
             }
 
-            var slotIdx = colorTableIdx / CharacterBase.MaterialsPerSlot;
-            var materialIdx = colorTableIdx % CharacterBase.MaterialsPerSlot;
-            
             if (ImGui.CollapsingHeader($"Color Table Texture {colorTableIdx} - {colorTableTexture.Value->ActualWidth}x{colorTableTexture.Value->ActualHeight}"))
             {
                 var colorTable = ParseMaterialUtil.ParseColorTableTexture(colorTableTexture);
