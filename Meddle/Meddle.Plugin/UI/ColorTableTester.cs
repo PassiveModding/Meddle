@@ -5,8 +5,10 @@ using Dalamud.Interface.Textures;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
+using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Render;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
+using FFXIVClientStructs.Interop;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Services;
 using Meddle.Plugin.Utils;
@@ -105,7 +107,31 @@ public class ColorTableTester : ITab
             return;
         }
         
+        
+        // cPtr.Value->ColorTableTexturesSpan[(slotIdx * CSCharacterBase.MaterialsPerSlot) + materialIdx];
         var human = (Human*)cBase;
+        // var colorTableContexts = new List<(Pointer<Model> Model, Pointer<Material> Material, Pointer<Texture> Texture, int ColorTableIdx)>();
+        var colorTableDict = new Dictionary<int, (Pointer<Model> Model, Pointer<Material> Material)>();
+        for (var modelIdx = 0; modelIdx < human->ModelsSpan.Length; modelIdx++)
+        {
+            var model = human->ModelsSpan[modelIdx];
+            if (model == null || model.Value == null)
+            {
+                continue;
+            }
+
+            for (var materialIdx = 0; materialIdx < model.Value->MaterialsSpan.Length; materialIdx++)
+            {
+                var material = model.Value->MaterialsSpan[materialIdx];
+                if (material == null || material.Value == null)
+                {
+                    continue;
+                }
+
+                var index = ParseMaterialUtil.ResolveColorTableSetIndex((int)model.Value->SlotIndex, materialIdx);
+                colorTableDict[index] = (model, material);
+            }
+        }
         for (var colorTableIdx = 0; colorTableIdx < human->ColorTableTexturesSpan.Length; colorTableIdx++)
         {
             var colorTableTexture = human->ColorTableTexturesSpan[colorTableIdx];
@@ -114,7 +140,16 @@ public class ColorTableTester : ITab
                 continue;
             }
 
-            if (ImGui.CollapsingHeader($"Color Table Texture {colorTableIdx} - {colorTableTexture.Value->ActualWidth}x{colorTableTexture.Value->ActualHeight}"))
+            if (!colorTableDict.TryGetValue(colorTableIdx, out var modelMaterial))
+            {
+                continue;
+            }
+
+            var modelName = modelMaterial.Model.Value->ModelResourceHandle->FileName;
+            var materialName = modelMaterial.Material.Value->MaterialResourceHandle->FileName;
+            var shortMaterialName = Path.GetFileName(materialName.ToString());
+            
+            if (ImGui.CollapsingHeader($"Color Table Texture {colorTableIdx} - {shortMaterialName} - {colorTableTexture.Value->ActualWidth}x{colorTableTexture.Value->ActualHeight}"))
             {
                 var colorTable = ParseMaterialUtil.ParseColorTableTexture(colorTableTexture);
                 UiUtil.DrawColorTable(colorTable);
