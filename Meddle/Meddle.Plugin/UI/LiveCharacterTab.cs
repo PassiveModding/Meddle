@@ -775,7 +775,7 @@ public unsafe class LiveCharacterTab : ITab
 
                     if (i < material->MaterialResourceHandle->TextureCount)
                     {
-                        var textureName = material->MaterialResourceHandle->TexturePath(i);
+                        var textureName = material->MaterialResourceHandle->TexturePath(i).ToString();
                         var gpuTex = DxHelper.ExportTextureResource(textureEntry.Texture->Texture);
                         var textureData = gpuTex.Resource.ToTexture();
                         textureBuffer[textureName] = textureData;
@@ -814,7 +814,7 @@ public unsafe class LiveCharacterTab : ITab
             ImGui.Text($"Material Index: {materialIdx}");
             ImGui.Text($"Texture Count: {material->TextureCount}");
             ImGui.Text($"Ref Count: {material->RefCount}");
-            var shpkName = material->MaterialResourceHandle->ShpkName;
+            var shpkName = material->MaterialResourceHandle->ShpkName.ToString();
             UiUtil.Text($"Shader Package: {shpkName}", shpkName);
             ImGui.Text($"Shader Flags: 0x{material->ShaderFlags:X8}");
 
@@ -851,7 +851,7 @@ public unsafe class LiveCharacterTab : ITab
         using var textureId = ImRaii.PushId($"{(nint)textureEntry.Texture}");
         string? textureName = null;
         if (texIdx < material->MaterialResourceHandle->TextureCount)
-            textureName = material->MaterialResourceHandle->TexturePath(texIdx);
+            textureName = material->MaterialResourceHandle->TexturePath(texIdx).ToString();
         var textureFileName = textureEntry.Texture->FileName.ParseString();
         ImGui.TableNextRow();
         ImGui.TableSetColumnIndex(0);

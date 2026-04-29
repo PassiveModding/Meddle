@@ -250,7 +250,7 @@ public class LayoutService : IService, IDisposable
                 string? path = null;
                 if (primaryPath.HasValue)
                 {
-                    path = primaryPath;
+                    path = primaryPath.ToString();
                 }
 
                 return new ParsedUnsupportedInstance((nint)instanceLayout, 
@@ -387,7 +387,7 @@ public class LayoutService : IService, IDisposable
         }
 
         var primaryPath = sharedGroup->GetPrimaryPath();
-        string path = primaryPath.HasValue ? primaryPath : throw new Exception("SharedGroup has no primary path");
+        string path = primaryPath.HasValue ? primaryPath.ToString() : throw new Exception("SharedGroup has no primary path");
 
         var furnitureMatch = context.Housing.Furniture.FirstOrDefault(item => item.LayoutInstance == sharedGroupPtr);
         if (furnitureMatch is not null)
@@ -441,7 +441,7 @@ public class LayoutService : IService, IDisposable
         }
 
         var primaryPath = bgPart->GetPrimaryPath();
-        string path = primaryPath.HasValue ? primaryPath : throw new Exception("BgPart has no primary path");
+        string path = primaryPath.HasValue ? primaryPath.ToString() : throw new Exception("BgPart has no primary path");
         
         var bgChangeHandle = graphics->GetBgChangeMaterial();
         (int BgChangeMaterialIndex, string Path)? bgChangeMaterial = null;
@@ -640,13 +640,13 @@ public class LayoutService : IService, IDisposable
         var furniture = type switch
         {
             HousingTerritoryType.Indoor => ((IndoorTerritory*)territory)->FurnitureManager.FurnitureMemory,
-            HousingTerritoryType.Outdoor => ((OutdoorTerritory*)territory)->FurnitureStruct.FurnitureMemory,
+            HousingTerritoryType.Outdoor => ((OutdoorTerritory*)territory)->FurnitureManager.FurnitureMemory,
             _ => []
         };
         var objectManager = type switch
         {
             HousingTerritoryType.Indoor => &((IndoorTerritory*)territory)->FurnitureManager.ObjectManager,
-            HousingTerritoryType.Outdoor => &((OutdoorTerritory*)territory)->FurnitureStruct.ObjectManager,
+            HousingTerritoryType.Outdoor => &((OutdoorTerritory*)territory)->FurnitureManager.ObjectManager,
             _ => null
         };
 

@@ -185,7 +185,7 @@ public static unsafe class OnRenderMaterialUtil
          */
 
         var slotShpk = materialAtIndex.Value->MaterialResourceHandle->ShpkName;
-        if (slotShpk != "characterstockings.shpk")
+        if (slotShpk.ToString() != "characterstockings.shpk")
         {
             return;
         }
@@ -228,7 +228,7 @@ public static unsafe class OnRenderMaterialUtil
             }
 
             string? path = null;
-            string? pathFromMaterial = skinMaterialHandle->TextureCount > i ? skinMaterialHandle->TexturePath(i) : null;
+            string? pathFromMaterial = skinMaterialHandle->TextureCount > i ? skinMaterialHandle->TexturePath(i).ToString() : null;
             if (entry.Texture != null && entry.Texture->Texture != null)
             {
                 path = entry.Texture->FileName.ToString();

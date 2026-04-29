@@ -1,4 +1,4 @@
-﻿<Project Sdk="Dalamud.NET.Sdk/14.0.1">
+﻿<Project Sdk="Dalamud.NET.Sdk/15.0.0">
     <PropertyGroup>
         <Version>0.0.1</Version>
         <ImplicitUsings>enable</ImplicitUsings>
@@ -15,6 +15,7 @@
         <Reference Include="OtterTex">
             <HintPath>..\Meddle.Utils\Lib\OtterTex.dll</HintPath>
         </Reference>
+        <PackageReference Update="DalamudPackager" Version="15.0.0" />
     </ItemGroup>
 
     <ItemGroup>

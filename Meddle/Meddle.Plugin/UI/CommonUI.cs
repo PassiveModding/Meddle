@@ -193,7 +193,7 @@ public class CommonUi : IDisposable, IService
         var modelType = ((CharacterBase*)drawObject)->GetModelType();
 
         var name = obj.Name.TextValue;
-        if (obj.ObjectKind == ObjectKind.Player && !string.IsNullOrWhiteSpace(config.PlayerNameOverride))
+        if (obj.ObjectKind == ObjectKind.Pc && !string.IsNullOrWhiteSpace(config.PlayerNameOverride))
         {
             name = config.PlayerNameOverride;
         }
