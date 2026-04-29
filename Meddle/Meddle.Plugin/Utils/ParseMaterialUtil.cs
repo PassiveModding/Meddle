@@ -172,11 +172,9 @@ public static class ParseMaterialUtil
         {
             SkinColor = customizeCBuf.SkinColor,
             MuscleTone = customizeCBuf.MuscleTone,
-            SkinFresnelValue0 = customizeCBuf.SkinFresnelValue0,
             LipColor = customizeCBuf.LipColor,
             MainColor = customizeCBuf.MainColor,
             FacePaintUvMultiplier = customizeCBuf.FacePaintUVMultiplier,
-            HairFresnelValue0 = customizeCBuf.HairFresnelValue0,
             MeshColor = customizeCBuf.MeshColor,
             FacePaintUvOffset = customizeCBuf.FacePaintUVOffset,
             LeftColor = customizeCBuf.LeftColor,

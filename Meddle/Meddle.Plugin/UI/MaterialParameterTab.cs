@@ -126,14 +126,7 @@ public class MaterialParameterTab : ITab
             {
                 parameter.MuscleTone = customizeParameters!.Value.MuscleTone;
             }
-
-            ImGui.ColorEdit4("Skin Fresnel", ref parameter.SkinFresnelValue0);
-            ImGui.SameLine();
-            if (ImGui.Button("Restore##SkinFresnel"))
-            {
-                parameter.SkinFresnelValue0 = customizeParameters!.Value.SkinFresnelValue0;
-            }
-
+            
             ImGui.ColorEdit4("Lip Color", ref parameter.LipColor);
             ImGui.SameLine();
             if (ImGui.Button("Restore##LipColor"))
@@ -154,21 +147,6 @@ public class MaterialParameterTab : ITab
             {
                 parameter.FacePaintUVMultiplier = customizeParameters!.Value.FacePaintUVMultiplier;
             }
-
-            ImGui.ColorEdit3("Hair Fresnel", ref parameter.HairFresnelValue0);
-            ImGui.SameLine();
-            if (ImGui.Button("Restore##HairFresnel"))
-            {
-                parameter.HairFresnelValue0 = customizeParameters!.Value.HairFresnelValue0;
-            }
-
-            ImGui.DragFloat("Unk0", ref parameter.Unk0, 0.01f, -10.0f, 10.0f, "%.2f");
-            ImGui.SameLine();
-            if (ImGui.Button("Restore##Unk0"))
-            {
-                parameter.Unk0 = customizeParameters!.Value.Unk0;
-            }
-
             ImGui.ColorEdit3("Mesh Color", ref parameter.MeshColor);
             ImGui.SameLine();
             if (ImGui.Button("Restore##MeshColor"))
