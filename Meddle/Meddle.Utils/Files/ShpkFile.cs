@@ -12,6 +12,7 @@ public class ShpkFile
     private const uint Dx11Magic = 0x31315844u; // bytes of DX11
 
     private const uint Shpk13_1 = 0x0D01;
+    private const uint Shpk14_1 = 0x0E01;
     
     public const uint MaterialParamsConstantId = 0x64D12851u; // g_MaterialParameter is a cbuffer filled from the ad hoc section of the mtrl
     
@@ -24,6 +25,8 @@ public class ShpkFile
     public uint? Unk131A;
     public uint? Unk131B;
     public uint? Unk131C;
+
+    public uint? Unk141A;
     //public byte[] Blobs;
     //public byte[] Strings;
     public Shader[] VertexShaders;
@@ -70,6 +73,10 @@ public class ShpkFile
             Unk131A = reader.ReadUInt32();
             Unk131B = reader.ReadUInt32();
             Unk131C = reader.ReadUInt32();
+        }
+        if (FileHeader.Version >= Shpk14_1)
+        {
+            Unk141A = reader.ReadUInt32();
         }
         
         // var blobs = data[(int)FileHeader.BlobsOffset..(int)FileHeader.StringsOffset];
