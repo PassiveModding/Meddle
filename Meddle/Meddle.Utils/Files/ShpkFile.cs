@@ -12,6 +12,7 @@ public class ShpkFile
     private const uint Dx11Magic = 0x31315844u; // bytes of DX11
 
     private const uint Shpk13_1 = 0x0D01;
+    private const uint Shpk14_1 = 0x0E01;
     
     public const uint MaterialParamsConstantId = 0x64D12851u; // g_MaterialParameter is a cbuffer filled from the ad hoc section of the mtrl
     
@@ -21,9 +22,11 @@ public class ShpkFile
     
     public ShpkHeader FileHeader;
 
-    public uint? Unk131A;
-    public uint? Unk131B;
-    public uint? Unk131C;
+    public uint? HullShaderCount;
+    public uint? DomainShaderCount;
+    public uint? GeometryShaderCount;
+
+    public uint? Unk141A;
     //public byte[] Blobs;
     //public byte[] Strings;
     public Shader[] VertexShaders;
@@ -67,9 +70,13 @@ public class ShpkFile
 
         if (FileHeader.Version >= Shpk13_1)
         {
-            Unk131A = reader.ReadUInt32();
-            Unk131B = reader.ReadUInt32();
-            Unk131C = reader.ReadUInt32();
+            HullShaderCount = reader.ReadUInt32();
+            DomainShaderCount = reader.ReadUInt32();
+            GeometryShaderCount = reader.ReadUInt32();
+        }
+        if (FileHeader.Version >= Shpk14_1)
+        {
+            Unk141A = reader.ReadUInt32();
         }
         
         // var blobs = data[(int)FileHeader.BlobsOffset..(int)FileHeader.StringsOffset];
@@ -164,14 +171,14 @@ public class ShpkFile
         var id = r.ReadUInt32();
         var vertexShader = r.ReadUInt32();
         var pixelShader = r.ReadUInt32();
-        uint? unk131G = null;
-        uint? unk131H = null;
-        uint? unk131I = null;
+        uint? hullShader = null;
+        uint? domainShader = null;
+        uint? geometryShader = null;
         if (FileHeader.Version >= Shpk13_1)
         {
-            unk131G = r.ReadUInt32();
-            unk131H = r.ReadUInt32();
-            unk131I = r.ReadUInt32();
+            hullShader = r.ReadUInt32();
+            domainShader = r.ReadUInt32();
+            geometryShader = r.ReadUInt32();
         }
         
         return new Pass
@@ -179,9 +186,9 @@ public class ShpkFile
             Id = id,
             VertexShader = vertexShader,
             PixelShader = pixelShader,
-            Unk131G = unk131G,
-            Unk131H = unk131H,
-            Unk131I = unk131I
+            HullShader = hullShader,
+            DomainShader = domainShader,
+            GeometryShader = geometryShader
         };
     }
 
@@ -237,9 +244,9 @@ public class ShpkFile
         public uint Id;
         public uint VertexShader;
         public uint PixelShader;
-        public uint? Unk131G;
-        public uint? Unk131H;
-        public uint? Unk131I;
+        public uint? HullShader;
+        public uint? DomainShader;
+        public uint? GeometryShader;
     }
 
     public struct Key

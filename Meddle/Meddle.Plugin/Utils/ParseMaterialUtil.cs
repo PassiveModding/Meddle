@@ -92,7 +92,7 @@ public static class ParseMaterialUtil
                 string? materialPathFromModel;
                 if (model != null)
                 {
-                    materialPathFromModel = modelPtr.Value->ModelResourceHandle->GetMaterialFileNameBySlot((uint)materialIndex);
+                    materialPathFromModel = modelPtr.Value->ModelResourceHandle->GetMaterialFileNameBySlot((uint)materialIndex).ToString();
                 }
                 else
                 {
@@ -109,7 +109,7 @@ public static class ParseMaterialUtil
                     var texturePath = texturePtr.TextureResourceHandle->FileName.ParseString();
                     if (texIdx < material->TextureCount)
                     {
-                        var texturePathFromMaterial = material->MaterialResourceHandle->TexturePath(texIdx);
+                        var texturePathFromMaterial = material->MaterialResourceHandle->TexturePath(texIdx).ToString();
                         var (resource, _) = DxHelper.ExportTextureResource(texturePtr.TextureResourceHandle->Texture);
                         var textureInfo = new ParsedTextureInfo(texturePath, texturePathFromMaterial, resource);
                         textures.Add(textureInfo);
@@ -172,11 +172,9 @@ public static class ParseMaterialUtil
         {
             SkinColor = customizeCBuf.SkinColor,
             MuscleTone = customizeCBuf.MuscleTone,
-            SkinFresnelValue0 = customizeCBuf.SkinFresnelValue0,
             LipColor = customizeCBuf.LipColor,
             MainColor = customizeCBuf.MainColor,
             FacePaintUvMultiplier = customizeCBuf.FacePaintUVMultiplier,
-            HairFresnelValue0 = customizeCBuf.HairFresnelValue0,
             MeshColor = customizeCBuf.MeshColor,
             FacePaintUvOffset = customizeCBuf.FacePaintUVOffset,
             LeftColor = customizeCBuf.LeftColor,

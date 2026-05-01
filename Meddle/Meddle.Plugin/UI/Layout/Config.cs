@@ -113,7 +113,7 @@ public partial class LayoutWindow
             }
 
             var drawTypes = config.LayoutConfig.DrawTypes;
-            if (ImGui.BeginCombo("Draw Types", drawTypes.ToString()))
+            if (ImGui.BeginCombo("Draw Types", drawTypes.GetDescription()))
             {
                 foreach (var type in Enum.GetValues<ParsedInstanceType>())
                 {

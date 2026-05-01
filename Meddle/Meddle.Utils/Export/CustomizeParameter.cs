@@ -17,8 +17,6 @@ public class CustomizeParameter {
     
     public float MuscleTone;
 
-    public Vector4 SkinFresnelValue0;
-
     /// <summary>
     /// XYZ : Lip diffuse color, as squared RGB.
     /// W : Lip opacity.
@@ -30,8 +28,6 @@ public class CustomizeParameter {
     /// </summary>
     public Vector3 MainColor;
     public float FacePaintUvMultiplier;
-
-    public Vector3 HairFresnelValue0;
     
     /// <summary>
     /// XYZ : Hair highlight color, as squared RGB.

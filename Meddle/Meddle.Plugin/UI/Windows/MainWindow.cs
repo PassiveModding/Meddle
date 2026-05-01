@@ -3,6 +3,7 @@ using System.Numerics;
 using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Windowing;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.UI.Layout;
 using Microsoft.Extensions.Logging;
