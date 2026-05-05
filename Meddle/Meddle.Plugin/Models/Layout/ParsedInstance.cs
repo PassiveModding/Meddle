@@ -127,16 +127,20 @@ public class ParsedWorldDecalInstance : ParsedInstance, ISearchableInstance
 
 public class ParsedSharedInstance : ParsedInstance, IPathInstance, ISearchableInstance
 {
+    public string Name { get; }
     public HandleString Path { get; }
     public IReadOnlyList<ParsedInstance> Children { get; }
 
-    public ParsedSharedInstance(nint id, Transform transform, string path, IReadOnlyList<ParsedInstance> children) : base(id, ParsedInstanceType.SharedGroup, transform)
+    public ParsedSharedInstance(nint id, Transform transform, string name, string path, IReadOnlyList<ParsedInstance> children) : base(id, ParsedInstanceType.SharedGroup, transform)
     {
+        Name = name;
         Path = path;
         Children = children;
     }
-    public ParsedSharedInstance(nint id, ParsedInstanceType type, Transform transform, string path, IReadOnlyList<ParsedInstance> children) : base(id, type, transform)
+    
+    public ParsedSharedInstance(nint id, ParsedInstanceType type, Transform transform, string name, string path, IReadOnlyList<ParsedInstance> children) : base(id, type, transform)
     {
+        Name = name;
         Path = path;
         Children = children;
     }
@@ -185,6 +189,11 @@ public class ParsedSharedInstance : ParsedInstance, IPathInstance, ISearchableIn
         if (Path.FullPath.Contains(query, StringComparison.OrdinalIgnoreCase) || 
             Path.GamePath.Contains(query, StringComparison.OrdinalIgnoreCase) ||
             "shared".Contains(query, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+        
+        if (Name.Contains(query, StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
@@ -238,9 +247,8 @@ public class ParsedHousingInstance : ParsedSharedInstance, ISearchableInstance
 {
     public ParsedHousingInstance(nint id, Transform transform, string path, string name, 
                                  ObjectKind kind, Stain? stain, Stain defaultStain, 
-                                 IReadOnlyList<ParsedInstance> children) : base(id, ParsedInstanceType.Housing, transform, path, children)
+                                 IReadOnlyList<ParsedInstance> children) : base(id, ParsedInstanceType.Housing, transform, name, path, children)
     {
-        Name = name;
         Kind = kind;
         Stain = stain;
         DefaultStain = defaultStain;
@@ -248,9 +256,28 @@ public class ParsedHousingInstance : ParsedSharedInstance, ISearchableInstance
 
     public ParsedStain? Stain { get; }
     public ParsedStain DefaultStain { get; }
-    
-    public string Name { get; }
     public ObjectKind Kind { get; }
+
+    public void SetStains()
+    {
+        foreach (var child in this.Flatten())
+        {
+            if (child is ParsedBgPartsInstance parsedBgPartsInstance)
+            {
+                if (Stain == null || Stain.RowId == 0)
+                {
+                    if (DefaultStain.RowId != 0)
+                    {
+                        parsedBgPartsInstance.Stain = DefaultStain;
+                    }
+                }
+                else
+                {
+                    parsedBgPartsInstance.Stain = Stain;
+                }
+            }
+        }
+    }
     
     public new bool Search(string query)
     {

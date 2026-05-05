@@ -4,10 +4,7 @@ using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Plugin.Services;
 using Dalamud.Bindings.ImGui;
-using FFXIVClientStructs.FFXIV.Client.Graphics.Render;
-using FFXIVClientStructs.FFXIV.Client.LayoutEngine.Layer;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
-using FFXIVClientStructs.Interop;
 using Meddle.Plugin.Models;
 using Meddle.Plugin.Models.Composer;
 using Meddle.Plugin.Models.Layout;
@@ -23,6 +20,7 @@ public partial class LayoutWindow : ITab
 {
     private readonly ComposerFactory composerFactory;
     private readonly MdlMaterialWindowManager mdlMaterialWindowManager;
+    private readonly IFramework framework;
     private readonly Configuration config;
     private readonly SqPack dataManager;
 
@@ -51,7 +49,6 @@ public partial class LayoutWindow : ITab
 
     private string? lastError;
     private string search = "";
-    private bool shouldUpdateState = true;
     private bool requestedPopup;
 
     public LayoutWindow(
@@ -64,6 +61,7 @@ public partial class LayoutWindow : ITab
         ResolverService resolverService,
         ComposerFactory composerFactory,
         MdlMaterialWindowManager mdlMaterialWindowManager,
+        IFramework framework,
         SqPack dataManager)
     {
         this.layoutService = layoutService;
@@ -75,6 +73,7 @@ public partial class LayoutWindow : ITab
         this.resolverService = resolverService;
         this.composerFactory = composerFactory;
         this.mdlMaterialWindowManager = mdlMaterialWindowManager;
+        this.framework = framework;
         this.dataManager = dataManager;
     }
 
@@ -89,15 +88,9 @@ public partial class LayoutWindow : ITab
         {
             UiUtil.DrawProgress(exportTask, progress, cancelToken);
 
-            if (shouldUpdateState)
-            {
-                SetupCurrentState();
-                shouldUpdateState = false;
-            }
-
+            SetupCurrentState();
             if (config.LayoutConfig.DrawOverlay)
             {
-                shouldUpdateState = true;
                 DrawOverlayWindow(out _, out var selected);
                 foreach (var group in selected)
                 {
@@ -144,7 +137,6 @@ public partial class LayoutWindow : ITab
     }
     private void DrawAll()
     {
-        shouldUpdateState = true;
         ImGui.InputText("Search", ref search, 100);
 
         using var id = ImRaii.PushId("layoutTable");
@@ -250,7 +242,6 @@ public partial class LayoutWindow : ITab
 
     private unsafe void SetupCurrentState()
     {
-        layoutService.RequestUpdate = true;
         currentLayout = layoutService.LastState ?? [];
         playerPosition = sigUtil.GetLocalPosition();
         if (config.LayoutConfig.OriginAdjustment == OriginAdjustment.Player)
@@ -269,7 +260,11 @@ public partial class LayoutWindow : ITab
         {
             searchOrigin = Vector3.Zero;
         }
-        layoutService.SearchOrigin = searchOrigin;
+        var requestTime = DateTime.UtcNow;
+        framework.RunOnTick(() =>
+        {
+            layoutService.UpdateState(searchOrigin, requestTime);
+        });
     }
     
     private void DrawExportSingle(ParsedInstance instance)

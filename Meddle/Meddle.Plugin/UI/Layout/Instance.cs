@@ -44,6 +44,7 @@ public partial class LayoutWindow
             ParsedBgPartsInstance bgObject => $"{bgObject.Type} - {bgObject.Path.GamePath} - {(bgObject.IsVisible ? "Visible" : "Hidden")}",
             ParsedUnsupportedInstance unsupported => $"{unsupported.Type} - {unsupported.InstanceType}",
             ParsedCharacterInstance character => $"{character.Type} - {character.Kind}",
+            ParsedSharedInstance sharedInstance => $"{sharedInstance.Type} - {sharedInstance.Name}",
             _ => $"{instance.Type}"
         };
         
