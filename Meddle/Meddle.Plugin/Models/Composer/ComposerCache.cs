@@ -220,6 +220,26 @@ public class ComposerCache
         }
         
         var tex = new TexFile(fileData);
+        if (tex.Header.Type.HasFlag(TexFile.Attribute.TextureTypeCube))
+        {
+            // Export each cube face
+            var basePath = Path.Combine(
+                Path.GetDirectoryName(cachePath)!,
+                Path.GetFileNameWithoutExtension(cachePath)
+            );
+        
+            var faceNames = new[] { "px", "nx", "py", "ny", "pz", "nz" };
+            for (int face = 0; face < 6; face++)
+            {
+                var img = ImageUtils.GetTexData(tex, face, 0, 0);
+                var data = img.ImageAsPng();
+                var facePath = $"{basePath}_{faceNames[face]}.png";
+                File.WriteAllBytes(Path.Combine(Path.GetDirectoryName(cachePath)!, facePath), data.ToArray());
+            }
+        
+            return basePath; // Return base path since multiple files were created
+        }
+        
         var texture = tex.ToResource().ToTexture();
         using var memoryStream = new MemoryStream();
         texture.Bitmap.Encode(memoryStream, SKEncodedImageFormat.Png, 100);
