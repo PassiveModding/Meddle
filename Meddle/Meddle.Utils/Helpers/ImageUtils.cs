@@ -130,8 +130,13 @@ public static class ImageUtils
         }
         else if (tex.Header.Type == TexFile.Attribute.TextureTypeCube)
         {
-            meta.ArraySize = 6;
-            meta.MiscFlags = D3DResourceMiscFlags.TextureCube;
+            var texSlice = tex.SliceSpan(mipLevel, arrayLevel, out var sliceSize, out var sliceWidth,
+                                         out var sliceHeight);
+            meta.Width = sliceWidth;
+            meta.Height = sliceHeight;
+            meta.ArraySize = 1;
+            meta.MipLevels = 1;
+            meta.MiscFlags = 0;
 
             si = ScratchImage.Initialize(meta);
             unsafe
@@ -139,12 +144,12 @@ public static class ImageUtils
                 fixed (byte* data = si.Pixels)
                 {
                     var span = new Span<byte>(data, si.Pixels.Length);
-                    tex.TextureBuffer.CopyTo(span);
+                    texSlice.CopyTo(span);
                 }
             }
 
             si.GetRGBA(out var rgba);
-            img = rgba.GetImage(0, arrayLevel, 0);
+            img = rgba.GetImage(0, 0, 0);
         }
         else
         {
