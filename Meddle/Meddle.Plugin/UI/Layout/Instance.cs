@@ -280,7 +280,7 @@ public partial class LayoutWindow
         
         var wrap = textureCache.GetOrAdd(path, () =>
         {
-            var texture = resource.ToBitmap();
+            using var texture = resource.ToBitmap();
             var wrap = textureProvider.CreateFromRaw(
                 RawImageSpecification.Rgba32(texture.Width, texture.Height), texture.GetPixelSpan());
             return wrap;

@@ -271,7 +271,10 @@ public class ComposerCache
         
         var texture = tex.ToResource().ToTexture();
         using var memoryStream = new MemoryStream();
-        texture.Bitmap.Encode(memoryStream, SKEncodedImageFormat.Png, 100);
+        using (var bitmap = texture.Bitmap)
+        {
+            bitmap.Encode(memoryStream, SKEncodedImageFormat.Png, 100);
+        }
         var textureBytes = memoryStream.ToArray();
         File.WriteAllBytes(pngCachePath, textureBytes);
         return pngCachePath;
@@ -380,7 +383,8 @@ public class ComposerCache
             {
                 var texCacheDir = Path.Combine(cacheDir, type);
                 Directory.CreateDirectory(texCacheDir);
-                var buf = tex.Bitmap.Bytes;
+                using var bitmap = tex.Bitmap;
+                var buf = bitmap.Bytes;
                 var hash = System.Security.Cryptography.SHA256.HashData(buf);
                 var hashStr = Convert.ToHexStringLower(hash);
                 // truncate the hash to 8 characters for the filename.
@@ -394,7 +398,7 @@ public class ComposerCache
                 {
                     using var fileStream = new FileStream(colorTablePath, FileMode.Create, FileAccess.Write);
                     using var skiaStream = new SKManagedWStream(fileStream);
-                    tex.Bitmap.Encode(skiaStream, SKEncodedImageFormat.Png, 100);
+                    bitmap.Encode(skiaStream, SKEncodedImageFormat.Png, 100);
                 }
                 return colorTablePath;
             }
