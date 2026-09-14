@@ -24,9 +24,17 @@ public class HookManager : IService, IDisposable
         if (sigScanner.TryScanText(signature, out var ptr))
         {
             logger.LogDebug("Found {delegateName} {signature} at {ptr:X}", delegateName, signature, ptr);
-            var hook = gameInterop.HookFromAddress(ptr, detour);
-            hooks.Add(hook);
-            return hook;
+            try
+            {
+                var hook = gameInterop.HookFromAddress(ptr, detour);
+                hooks.Add(hook);
+                return hook;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to create hook for {delegateName} {signature}", delegateName, signature);
+                return null!;
+            }
         }
         logger.LogError("Failed to find {delegateName} {signature}", delegateName, signature);
         return null!;
