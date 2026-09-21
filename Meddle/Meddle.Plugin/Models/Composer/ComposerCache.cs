@@ -277,7 +277,20 @@ public class ComposerCache
         return pngCachePath;
     }
     
-    public MaterialBuilder ComposeMaterial(string mtrlPath, 
+    private string? TryCacheTexture(string fullPath, string usage, string mtrlPath)
+    {
+        try
+        {
+            return CacheTexture(fullPath);
+        }
+        catch (Exception e)
+        {
+            Plugin.Logger.LogWarning(e, "Failed to cache {Usage} texture {Path} for material {Material}", usage, fullPath, mtrlPath);
+            return null;
+        }
+    }
+
+    public MaterialBuilder ComposeMaterial(string mtrlPath,
                                            ParsedMaterialInfo? materialInfo = null,
                                            IStainableInstance? stainInstance = null, 
                                            ParsedCharacterInfo? characterInfo = null)
@@ -308,9 +321,12 @@ public class ComposerCache
                 var render = materialInfo.RenderMaterialOutput;
                 if (render.DecalTexturePath != null)
                 {
-                    var decalCachePath = CacheTexture(render.DecalTexturePath);
-                    material.SetProperty("Decal_PngCachePath", Path.GetRelativePath(cacheDir, decalCachePath));
-                    material.SetProperty("DecalPath", render.DecalTexturePath);
+                    var decalCachePath = TryCacheTexture(render.DecalTexturePath, "Decal", mtrlPath);
+                    if (decalCachePath != null)
+                    {
+                        material.SetProperty("Decal_PngCachePath", Path.GetRelativePath(cacheDir, decalCachePath));
+                        material.SetProperty("DecalPath", render.DecalTexturePath);
+                    }
                 }
                 else if (render.DecalTexture != null)
                 {
@@ -331,9 +347,9 @@ public class ComposerCache
                             fullPath = match.Path.FullPath;
                         }
 
-                        var cachePath = CacheTexture(fullPath);
+                        var cachePath = TryCacheTexture(fullPath, "Skin", mtrlPath);
                         // var keyUsage = $"{key}".Replace("g_Sampler", "g_SamplerSkin");
-                        if (shaderPackage.Textures.TryGetValue(texture.TargetSamplerCrc, out var samplerName))
+                        if (cachePath != null && shaderPackage.Textures.TryGetValue(texture.TargetSamplerCrc, out var samplerName))
                         {
                             material.SetProperty($"{samplerName}", texture.TexturePath);
                             material.SetProperty($"{samplerName}_PngCachePath", Path.GetRelativePath(cacheDir, cachePath));
@@ -405,8 +421,9 @@ public class ComposerCache
                 fullPath = match.Path.FullPath;
             }
 
-            var cachePath = CacheTexture(fullPath);
-            
+            var cachePath = TryCacheTexture(fullPath, texture.Key, mtrlPath);
+            if (cachePath == null) continue;
+
             // remove full path prefix, get only dir below cache dir.
             material.SetProperty($"{texture.Key}_PngCachePath", Path.GetRelativePath(cacheDir, cachePath));
         }
