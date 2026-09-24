@@ -52,12 +52,14 @@ public sealed class Plugin : IDalamudPlugin
             host.ConfigureServices(services =>
             {
                 services.Configure<ConsoleLifetimeOptions>(options => options.SuppressStatusMessages = true);
+                var packDir = Path.GetDirectoryName(Environment.ProcessPath) ?? Environment.CurrentDirectory;
+                pluginLog.LogInformation("Getting SqPack at {Path}", packDir);
                 service.RegisterServices(services);
                 services
                     .AddServices(pluginInterface)    
                     .AddSingleton(config)
                     .AddUi()
-                    .AddSingleton(new SqPack.SqPack(Environment.CurrentDirectory));
+                    .AddSingleton(new SqPack.SqPack(packDir));
             });
 
             app = host.Build();
