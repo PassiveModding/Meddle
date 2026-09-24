@@ -121,7 +121,8 @@ public class OnRenderMaterialTester : IService
         {
             var wrap = textureCache.GetOrAdd($"{decalTexture.GetHashCode()}", () =>
             {
-                var textureData = decalTexture.Bitmap.GetPixelSpan();
+                using var bitmap = decalTexture.Bitmap;
+                var textureData = bitmap.GetPixelSpan();
                 return textureProvider.CreateFromRaw(
                     RawImageSpecification.Rgba32(decalTexture.Width, decalTexture.Height), textureData,
                     $"Meddle_Decal_{decalTexture.GetHashCode()}");

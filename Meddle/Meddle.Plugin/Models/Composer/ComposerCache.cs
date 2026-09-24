@@ -271,13 +271,29 @@ public class ComposerCache
         
         var texture = tex.ToResource().ToTexture();
         using var memoryStream = new MemoryStream();
-        texture.Bitmap.Encode(memoryStream, SKEncodedImageFormat.Png, 100);
+        using (var bitmap = texture.Bitmap)
+        {
+            bitmap.Encode(memoryStream, SKEncodedImageFormat.Png, 100);
+        }
         var textureBytes = memoryStream.ToArray();
         File.WriteAllBytes(pngCachePath, textureBytes);
         return pngCachePath;
     }
     
-    public MaterialBuilder ComposeMaterial(string mtrlPath, 
+    private string? TryCacheTexture(string fullPath, string usage, string mtrlPath)
+    {
+        try
+        {
+            return CacheTexture(fullPath);
+        }
+        catch (Exception e)
+        {
+            Plugin.Logger.LogWarning(e, "Failed to cache {Usage} texture {Path} for material {Material}", usage, fullPath, mtrlPath);
+            return null;
+        }
+    }
+
+    public MaterialBuilder ComposeMaterial(string mtrlPath,
                                            ParsedMaterialInfo? materialInfo = null,
                                            IStainableInstance? stainInstance = null, 
                                            ParsedCharacterInfo? characterInfo = null)
@@ -308,9 +324,12 @@ public class ComposerCache
                 var render = materialInfo.RenderMaterialOutput;
                 if (render.DecalTexturePath != null)
                 {
-                    var decalCachePath = CacheTexture(render.DecalTexturePath);
-                    material.SetProperty("Decal_PngCachePath", Path.GetRelativePath(cacheDir, decalCachePath));
-                    material.SetProperty("DecalPath", render.DecalTexturePath);
+                    var decalCachePath = TryCacheTexture(render.DecalTexturePath, "Decal", mtrlPath);
+                    if (decalCachePath != null)
+                    {
+                        material.SetProperty("Decal_PngCachePath", Path.GetRelativePath(cacheDir, decalCachePath));
+                        material.SetProperty("DecalPath", render.DecalTexturePath);
+                    }
                 }
                 else if (render.DecalTexture != null)
                 {
@@ -331,9 +350,9 @@ public class ComposerCache
                             fullPath = match.Path.FullPath;
                         }
 
-                        var cachePath = CacheTexture(fullPath);
+                        var cachePath = TryCacheTexture(fullPath, "Skin", mtrlPath);
                         // var keyUsage = $"{key}".Replace("g_Sampler", "g_SamplerSkin");
-                        if (shaderPackage.Textures.TryGetValue(texture.TargetSamplerCrc, out var samplerName))
+                        if (cachePath != null && shaderPackage.Textures.TryGetValue(texture.TargetSamplerCrc, out var samplerName))
                         {
                             material.SetProperty($"{samplerName}", texture.TexturePath);
                             material.SetProperty($"{samplerName}_PngCachePath", Path.GetRelativePath(cacheDir, cachePath));
@@ -364,7 +383,8 @@ public class ComposerCache
             {
                 var texCacheDir = Path.Combine(cacheDir, type);
                 Directory.CreateDirectory(texCacheDir);
-                var buf = tex.Bitmap.Bytes;
+                using var bitmap = tex.Bitmap;
+                var buf = bitmap.Bytes;
                 var hash = System.Security.Cryptography.SHA256.HashData(buf);
                 var hashStr = Convert.ToHexStringLower(hash);
                 // truncate the hash to 8 characters for the filename.
@@ -378,7 +398,7 @@ public class ComposerCache
                 {
                     using var fileStream = new FileStream(colorTablePath, FileMode.Create, FileAccess.Write);
                     using var skiaStream = new SKManagedWStream(fileStream);
-                    tex.Bitmap.Encode(skiaStream, SKEncodedImageFormat.Png, 100);
+                    bitmap.Encode(skiaStream, SKEncodedImageFormat.Png, 100);
                 }
                 return colorTablePath;
             }
@@ -405,8 +425,9 @@ public class ComposerCache
                 fullPath = match.Path.FullPath;
             }
 
-            var cachePath = CacheTexture(fullPath);
-            
+            var cachePath = TryCacheTexture(fullPath, texture.Key, mtrlPath);
+            if (cachePath == null) continue;
+
             // remove full path prefix, get only dir below cache dir.
             material.SetProperty($"{texture.Key}_PngCachePath", Path.GetRelativePath(cacheDir, cachePath));
         }

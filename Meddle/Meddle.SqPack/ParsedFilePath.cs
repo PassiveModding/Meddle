@@ -5,11 +5,18 @@ public record ParsedFilePath
     public ParsedFilePath(string path)
     {
         Path = path.ToLowerInvariant().Trim();
+        var lastSlash = Path.LastIndexOf('/');
+        if (lastSlash < 0)
+        {
+            // e.g. dummy/placeholder refs, such as "dummy.tex" with no folder component.
+            throw new ArgumentException($"'{Path}' is not a valid SqPack path, missing a folder separator", nameof(path));
+        }
+
         var pathParts = Path.Split('/');
         var category = pathParts[0];
         var fileName = pathParts[^1];
-        var folder = Path[..Path.LastIndexOf('/')];
-        
+        var folder = Path[..lastSlash];
+
         var folderHash = SqPack.GetHash(folder);
         var fileHash = SqPack.GetHash(fileName);
         var indexHash = ((ulong)folderHash << 32) | fileHash;

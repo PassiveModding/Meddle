@@ -145,7 +145,10 @@ public class FileExportDebugTab : ITab
                                                     var tex = new TexFile(file);
                                                     var texture = tex.ToResource().ToTexture();
                                                     using var memoryStream = new MemoryStream();
-                                                    texture.Bitmap.Encode(memoryStream, SKEncodedImageFormat.Png, 100);
+                                                    using (var bitmap = texture.Bitmap)
+                                                    {
+                                                        bitmap.Encode(memoryStream, SKEncodedImageFormat.Png, 100);
+                                                    }
                                                     var textureBytes = memoryStream.ToArray();
                                                     File.WriteAllBytes(Path.ChangeExtension(outPath, ".png"), textureBytes);
                                                     ExportUtil.OpenExportFolderInExplorer(exportPath, config, cancellationTokenSource.Token);

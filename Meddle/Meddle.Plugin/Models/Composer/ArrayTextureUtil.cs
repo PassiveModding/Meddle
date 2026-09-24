@@ -148,7 +148,10 @@ public static class ArrayTextureUtil
         // Save the combined image as a PNG
         var combinedImagePath = Path.Combine(outDir, $"{fileName}.{width}x{height}.vertical.png");
         using var memoryStream = new MemoryStream();
-        combinedImage.Bitmap.Encode(memoryStream, SKEncodedImageFormat.Png, 100);
+        using (var bitmap = combinedImage.Bitmap)
+        {
+            bitmap.Encode(memoryStream, SKEncodedImageFormat.Png, 100);
+        }
         var textureData = memoryStream.ToArray();
         File.WriteAllBytes(combinedImagePath, textureData);
         Plugin.Logger.LogInformation("Saved vertical array texture to {Path}", combinedImagePath);
