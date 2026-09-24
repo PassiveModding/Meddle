@@ -15,6 +15,7 @@ using Meddle.Plugin.Utils;
 using Microsoft.Extensions.Logging;
 using BgObject = Meddle.Plugin.Models.Structs.BgObject;
 using Camera = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Camera;
+using DecalLayoutInstance = Meddle.Plugin.Models.Structs.DecalLayoutInstance;
 using HousingFurniture = FFXIVClientStructs.FFXIV.Client.Game.HousingFurniture;
 using LightLayoutInstance = Meddle.Plugin.Models.Structs.LightLayoutInstance;
 using Object = FFXIVClientStructs.FFXIV.Client.Graphics.Scene.Object;

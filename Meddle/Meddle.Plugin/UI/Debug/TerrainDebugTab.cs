@@ -15,7 +15,7 @@ public class TerrainDebugTab : ITab
     private readonly SigUtil sigUtil;
     private readonly MdlMaterialWindowManager mdlMaterialWindowManager;
     private readonly SqPack.SqPack pack;
-    private Dictionary<string, object> fileCache = new();
+    private Dictionary<string, object?> fileCache = new();
     public TerrainDebugTab(SigUtil sigUtil, 
                            MdlMaterialWindowManager mdlMaterialWindowManager, SqPack.SqPack pack)
     {
@@ -61,10 +61,10 @@ public class TerrainDebugTab : ITab
             UiUtil.Text($"GfxTerrain: {(nint)terrainPtr->GfxTerrain:X8}", $"{(nint)terrainPtr->GfxTerrain:X8}");
             if (terrainPtr->GfxTerrain == null) continue;
 
-            var terrainFileName = terrainPtr->GfxTerrain->ResourceHandle->FileName.ToString();
+            var terrainFileName = terrainPtr->GfxTerrain->TerrainResourceHandle->FileName.ToString();
             var grassRoot = $"{terrainFileName.Split("/bgplate/")[0]}/grass";
             var grassPath = $"{grassRoot}/grass_zone_data.gzd";
-            using var tree = ImRaii.TreeNode($"Terrain Resource Handle: {(nint)terrainPtr->GfxTerrain->ResourceHandle:X8} {terrainFileName} {grassPath}");
+            using var tree = ImRaii.TreeNode($"Terrain Resource Handle: {(nint)terrainPtr->GfxTerrain->TerrainResourceHandle:X8} {terrainFileName} {grassPath}");
             if (tree)
             {
                 UiUtil.Text($"{terrainFileName}", terrainFileName);
