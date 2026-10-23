@@ -16,6 +16,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly ILogger pluginLog;
     public static ILogger<Plugin> Logger { get; private set; } = NullLogger<Plugin>.Instance;
     public static INotificationManager NotificationManager { get; private set; } = null!;
+    public static PathService PathService { get; private set; } = null!;
 
     public Plugin(IDalamudPluginInterface pluginInterface)
     {
@@ -65,6 +66,7 @@ public sealed class Plugin : IDalamudPlugin
             app = host.Build();
             Logger = app.Services.GetRequiredService<ILogger<Plugin>>();
             NotificationManager = app.Services.GetRequiredService<INotificationManager>();
+            PathService = app.Services.GetRequiredService<PathService>();
             Global.Logger = app.Services.GetRequiredService<ILogger<Global>>();
             NativeDll.Initialize(app.Services.GetRequiredService<IDalamudPluginInterface>().AssemblyLocation.DirectoryName);
             var pack = app.Services.GetRequiredService<SqPack.SqPack>();
