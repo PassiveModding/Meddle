@@ -820,7 +820,7 @@ public static class UiUtil
     {
         if (string.IsNullOrWhiteSpace(name))
         {
-            return $"Unknown{suffix}";
+            return suffix != null ? $"{kind}_{suffix}" : kind.ToString();
         }
         
         if (!string.IsNullOrWhiteSpace(config.PlayerNameOverride) && kind == ObjectKind.Pc)
