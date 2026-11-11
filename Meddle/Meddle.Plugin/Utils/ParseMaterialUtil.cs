@@ -116,6 +116,10 @@ public static class ParseMaterialUtil
                     }
                 }
 
+                // resolved path is a disk path when a mod replaces the shpk
+                var shpkHandle = material->MaterialResourceHandle->ShaderPackageResourceHandle;
+                var shpkPath = shpkHandle != null ? shpkHandle->FileName.ParseString() : null;
+
                 var materialInfo = new ParsedMaterialInfo(
                     materialPath,
                     materialPathFromModel,
@@ -125,7 +129,8 @@ public static class ParseMaterialUtil
                     textures.ToArray())
                 {
                     Stain0 = stain0,
-                    Stain1 = stain1
+                    Stain1 = stain1,
+                    ShpkPath = shpkPath
                 };
                 materials.Add(materialInfo);
             }

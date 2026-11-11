@@ -89,18 +89,20 @@ public class GgdRecord
 {
     public GgdRecordHeader Header;
     /// <summary>Instances in stream order: blade LOD0, LOD1, LOD2, then model slots 0..31.</summary>
-    public GgdInstance[] Instances;
+    public required GgdInstance[] Instances;
 
     public static GgdRecord Read(ref SpanBinaryReader reader)
     {
-        var record = new GgdRecord
+        var header = reader.Read<GgdRecordHeader>();
+
+        if (header.Magic != GgdFile.RecordMagic)
+            throw new InvalidDataException($"Invalid dgs record magic 0x{header.Magic:X8}");
+        var instances = reader.Read<GgdInstance>(header.TotalInstances).ToArray();
+        return new GgdRecord
         {
-            Header = reader.Read<GgdRecordHeader>()
+            Header = header,
+            Instances = instances
         };
-        if (record.Header.Magic != GgdFile.RecordMagic)
-            throw new InvalidDataException($"Invalid dgs record magic 0x{record.Header.Magic:X8}");
-        record.Instances = reader.Read<GgdInstance>(record.Header.TotalInstances).ToArray();
-        return record;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]

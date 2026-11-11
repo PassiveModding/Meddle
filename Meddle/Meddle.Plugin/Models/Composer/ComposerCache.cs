@@ -5,6 +5,7 @@ using Meddle.Formats.Files.MdlFile;
 using Meddle.Formats.Files.MtrlFile;
 using Meddle.Formats.Helpers;
 using Meddle.Plugin.Models.Layout;
+using Meddle.Plugin.Services;
 using Meddle.Utils;
 using Meddle.Utils.Files.Structs.Material;
 using Meddle.Utils.Helpers;
@@ -33,6 +34,8 @@ public class ComposerCache
     private readonly SqPack.SqPack pack;
     private readonly string cacheDir;
     private readonly Configuration.ExportConfiguration exportConfig;
+
+    private readonly ModdedPathMapper pathMapper = Plugin.PathService.CreateMapper();
 
     public ComposerCache(SqPack.SqPack pack, string cacheDir, Configuration.ExportConfiguration exportConfig)
     {
@@ -137,9 +140,12 @@ public class ComposerCache
         return item.Object;
     }
     
-    public ShaderPackage GetShaderPackage(string shpkName)
+    public ShaderPackage GetShaderPackage(string shpkName, string? resolvedPath = null)
     {
-        var shpkPath = $"shader/sm5/shpk/{shpkName}";
+        // modded shpks resolve to a disk path, keyed separately so they don't shadow the vanilla one
+        var shpkPath = !string.IsNullOrEmpty(resolvedPath) && Path.IsPathRooted(resolvedPath.TrimHandlePath())
+                           ? resolvedPath
+                           : $"shader/sm5/shpk/{shpkName}";
         return shpkCache.GetOrAdd(shpkPath, key =>
         {
             var shpkData = pack.GetFileOrReadFromDisk(key);
@@ -160,14 +166,12 @@ public class ComposerCache
         var cleanPath = fullPath.TrimHandlePath();
         var rooted = Path.IsPathRooted(cleanPath);
 
-        if (rooted)
-        {
-            var pathRoot = Path.GetPathRoot(cleanPath) ?? string.Empty;
-            cleanPath = cleanPath[pathRoot.Length..];
-        }
-
         // modded files are stored in a separate directory to prevent conflict if the same file is modded and unmodded.
         var basePath = rooted ? Path.Combine(cacheDir, "modded") : cacheDir;
+        if (rooted)
+        {
+            cleanPath = pathMapper.GetRelativePath(cleanPath);
+        }
 
         const int maxCharacters = 255;
         var charactersAvailable = maxCharacters - basePath.Length;
@@ -299,7 +303,7 @@ public class ComposerCache
                                            ParsedCharacterInfo? characterInfo = null)
     {
         var mtrlFile = GetMtrlFile(mtrlPath, out var mtrlCachePath);
-        var shaderPackage = GetShaderPackage(mtrlFile.GetShaderPackageName());
+        var shaderPackage = GetShaderPackage(mtrlFile.GetShaderPackageName(), materialInfo?.ShpkPath);
         var material = new MaterialComposer(mtrlFile, mtrlPath, shaderPackage);
         if (stainInstance != null)
         {

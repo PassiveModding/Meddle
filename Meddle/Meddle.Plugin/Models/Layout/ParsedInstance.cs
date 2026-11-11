@@ -471,6 +471,7 @@ public class ParsedMaterialInfo(string path, string pathFromModel, string shpk, 
 {
     public HandleString Path { get; } = new() { FullPath = path, GamePath = pathFromModel };
     public string Shpk { get; } = shpk;
+    public string? ShpkPath { get; init; }
     public OnRenderMaterialOutput? RenderMaterialOutput { get; } = renderMaterialOutput;
     public ParsedStain? Stain0 { get; init; }
     public ParsedStain? Stain1 { get; init; }
@@ -491,7 +492,7 @@ public class ParsedMaterialInfo(string path, string pathFromModel, string shpk, 
     {
         var hash = new StringBuilder();
         hash.Append($"FullPath: {Path.FullPath} GamePath: {Path.GamePath} ");
-        hash.Append($"Shpk: {Shpk} ");
+        hash.Append($"Shpk: {Shpk} {ShpkPath} ");
         for (var i = 0; i < Textures.Length; i++)
         {
             var texture = Textures[i];
