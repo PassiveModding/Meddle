@@ -113,10 +113,11 @@ public static class ImageUtils
 
                 bitmap.InstallPixels(info, (IntPtr)data, image.Width * 4);
 
-                var str = new SKDynamicMemoryWStream();
+                using var str = new SKDynamicMemoryWStream();
                 bitmap.Encode(str, SKEncodedImageFormat.Png, 100);
 
-                return str.DetachAsData().AsSpan();
+                using var png = str.DetachAsData();
+                return png.ToArray();
             }
         }
     }
