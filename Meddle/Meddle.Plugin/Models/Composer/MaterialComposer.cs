@@ -115,13 +115,6 @@ public class MaterialComposer
         {
             var keyMatch = constants.GetValueOrDefault(constant);
             SetProperty(keyMatch != null ? keyMatch.Value : $"0x{constant:X8}", value);
-            
-            // set compatibility names for older versions of MeddleTools that used different constant names
-            var alternateKeyNames = keyMatch?.CompatibilityNames ?? [];
-            foreach (var altKeyName in alternateKeyNames)
-            {                
-                SetProperty(altKeyName, value);
-            }
         }
         
         foreach (var (usage, path) in TextureUsageDict)
