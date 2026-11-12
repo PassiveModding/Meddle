@@ -71,19 +71,6 @@ public static class ImageUtils
     }
 
 
-    // public static int GetStride(this TexFile.TextureFormat format, int width)
-    // {
-    //     return format switch
-    //     {
-    //         TexFile.TextureFormat.BC1_UNORM => (width + 3) / 4 * 8,
-    //         TexFile.TextureFormat.BC2_UNORM => (width + 3) / 4 * 16,
-    //         TexFile.TextureFormat.BC3_UNORM => (width + 3) / 4 * 16,
-    //         TexFile.TextureFormat.BC5_UNORM => width * 2,
-    //         TexFile.TextureFormat.BC7_UNORM => (width + 3) / 4 * 16,
-    //         _ => width * 4,
-    //     };
-    // }
-
     public static TextureResource ToResource(this TexFile file)
     {
         var h = file.Header;
@@ -101,17 +88,19 @@ public static class ImageUtils
             file.TextureBuffer);
     }
 
-    public static ReadOnlySpan<byte> ImageAsPng(this Image image)
+    public static byte[] RgbaAsPng(ReadOnlySpan<byte> rgba, int width, int height)
     {
+        if (rgba.Length != width * height * 4)
+            throw new ArgumentException($"Expected {width * height * 4} bytes for {width}x{height}, got {rgba.Length}.", nameof(rgba));
+
         unsafe
         {
-            var bufferCopy = image.Span.ToArray();
-            fixed (byte* data = bufferCopy)
+            fixed (byte* data = rgba)
             {
                 using var bitmap = new SKBitmap();
-                var info = new SKImageInfo(image.Width, image.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
+                var info = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
 
-                bitmap.InstallPixels(info, (IntPtr)data, image.Width * 4);
+                bitmap.InstallPixels(info, (IntPtr)data, width * 4);
 
                 using var str = new SKDynamicMemoryWStream();
                 bitmap.Encode(str, SKEncodedImageFormat.Png, 100);
@@ -121,24 +110,6 @@ public static class ImageUtils
             }
         }
     }
-
-    // public static TexMeta GetTexMeta(TextureResource resource)
-    // {
-    //     var meta = new TexMeta
-    //     {
-    //         Width = resource.Width,
-    //         Height = resource.Height,
-    //         Depth = 1, // 3D textures would have other values, but we're only handling kernelTexture->D3D11Texture2D
-    //         MipLevels = resource.MipLevels,
-    //         ArraySize = resource.ArraySize,
-    //         Format = resource.Format,
-    //         Dimension = resource.Dimension,
-    //         MiscFlags = resource.MiscFlags.HasFlag(D3DResourceMiscFlags.TextureCube) ? D3DResourceMiscFlags.TextureCube : 0,
-    //         MiscFlags2 = 0,
-    //     };
-    //     
-    //     return meta;
-    // }
 
     public static TexMeta GetTexMeta(TexFile tex)
     {
@@ -164,119 +135,72 @@ public static class ImageUtils
         return meta;
     }
 
-    public static Image GetTexData(TexFile tex, int arrayLevel, int mipLevel, int slice)
+    public static (byte[] Data, int Width, int Height) GetRgbaImage(TexFile tex, int arrayLevel, int mipLevel, int slice)
     {
         var meta = GetTexMeta(tex);
-        ScratchImage si;
-        Image img;
-        if (tex.Header.Type == TexFile.Attribute.TextureType2DArray)
+        if (tex.Header.Type is TexFile.Attribute.TextureType2DArray or TexFile.Attribute.TextureTypeCube)
         {
             // workaround due to ffxiv texture array weirdness
-            var texSlice = tex.SliceSpan(mipLevel, arrayLevel, out var sliceSize, out var sliceWidth,
-                                         out var sliceHeight);
+            var texSlice = tex.SliceSpan(mipLevel, arrayLevel, out _, out var sliceWidth, out var sliceHeight);
             meta.Width = sliceWidth;
             meta.Height = sliceHeight;
             meta.ArraySize = 1;
             meta.MipLevels = 1;
-
-            si = ScratchImage.Initialize(meta);
-            unsafe
+            if (tex.Header.Type == TexFile.Attribute.TextureTypeCube)
             {
-                fixed (byte* data = si.Pixels)
-                {
-                    var span = new Span<byte>(data, si.Pixels.Length);
-                    texSlice.CopyTo(span);
-                }
+                meta.MiscFlags = 0;
             }
 
-            si.GetRGBA(out var rgba);
-            img = rgba.GetImage(0, 0, 0);
-        }
-        else if (tex.Header.Type == TexFile.Attribute.TextureTypeCube)
-        {
-            var texSlice = tex.SliceSpan(mipLevel, arrayLevel, out var sliceSize, out var sliceWidth,
-                                         out var sliceHeight);
-            meta.Width = sliceWidth;
-            meta.Height = sliceHeight;
-            meta.ArraySize = 1;
-            meta.MipLevels = 1;
-            meta.MiscFlags = 0;
-
-            si = ScratchImage.Initialize(meta);
-            unsafe
-            {
-                fixed (byte* data = si.Pixels)
-                {
-                    var span = new Span<byte>(data, si.Pixels.Length);
-                    texSlice.CopyTo(span);
-                }
-            }
-
-            si.GetRGBA(out var rgba);
-            img = rgba.GetImage(0, 0, 0);
-        }
-        else
-        {
-            si = ScratchImage.Initialize(meta);
-            unsafe
-            {
-                fixed (byte* data = si.Pixels)
-                {
-                    var span = new Span<byte>(data, si.Pixels.Length);
-                    tex.TextureBuffer.CopyTo(span);
-                }
-            }
-
-            si.GetRGBA(out var rgba);
-            img = rgba.GetImage(mipLevel, 0, slice);
+            return ReadRgba(meta, texSlice, 0, 0, false);
         }
 
-        return img;
+        return ReadRgba(meta, tex.TextureBuffer, mipLevel, slice, false);
     }
 
-    public static byte[] GetRawRgbaData(TexFile tex, int arrayLevel, int mipLevel, int slice)
+    private static (byte[] Data, int Width, int Height) ReadRgba(
+        TexMeta meta, ReadOnlySpan<byte> source, int mipLevel, int slice, bool trimOversized)
     {
-        var img = GetTexData(tex, arrayLevel, mipLevel, slice);
-        if (img.Format != DXGIFormat.R8G8B8A8UNorm)
-            throw new ArgumentException("Image must be in RGBA format.", nameof(tex));
+        var si = ScratchImage.Initialize(meta);
+        ScratchImage? rgba = null;
+        try
+        {
+            unsafe
+            {
+                fixed (byte* data = si.Pixels)
+                {
+                    var dest = new Span<byte>(data, si.Pixels.Length);
+                    if (trimOversized && source.Length > dest.Length)
+                    {
+                        Global.Logger.LogDebug("Data too large for scratch image. {Length} > {Length2} {Width}x{Height} {Format}. Trimmed to fit.",
+                                               source.Length, dest.Length, meta.Width, meta.Height, meta.Format);
+                        source = source[..dest.Length];
+                    }
 
-        // assume RGBA
-        return img.Span.ToArray();
+                    source.CopyTo(dest);
+                }
+            }
+
+            si.GetRGBA(out var converted);
+            rgba = converted;
+            var img = rgba.GetImage(mipLevel, 0, slice);
+            if (img.Format != DXGIFormat.R8G8B8A8UNorm)
+                throw new ArgumentException("Image must be in RGBA format.");
+
+            return (img.Span.ToArray(), (int)img.Width, (int)img.Height);
+        }
+        finally
+        {
+            if (rgba != null && !ReferenceEquals(rgba, si)) Release(rgba);
+            Release(si);
+        }
     }
 
-    // public static unsafe SkTexture ToTexture(this Image img, Vector2? resize = null)
-    // {
-    //     if (img.Format != DXGIFormat.R8G8B8A8UNorm)
-    //         throw new ArgumentException("Image must be in RGBA format.", nameof(img));
-    //     // assume RGBA
-    //     var data = img.Span;
-    //     var bitmap = new SKBitmap(img.Width, img.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-    //     fixed (byte* ptr = data)
-    //     {
-    //         bitmap.InstallPixels(new SKImageInfo(img.Width, img.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul), (IntPtr)ptr, img.Width * 4);
-    //     }
-    //     
-    //     if (resize != null)
-    //     {
-    //         bitmap = bitmap.Resize(new SKImageInfo((int)resize.Value.X, (int)resize.Value.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul),
-    //                                new SKSamplingOptions(SKCubicResampler.Mitchell));
-    //     }
-    //     
-    //     return new SkTexture(bitmap);
-    // }
-    //
-    // public static SkTexture ToTexture(this TextureResource resource, Vector2 size)
-    // {
-    //     if (resource.Width == (int)size.X && resource.Height == (int)size.Y)
-    //     {
-    //         return resource.ToTexture();
-    //     }
-    //     
-    //     var bitmap = resource.ToBitmap();
-    //     bitmap = bitmap.Resize(new SKImageInfo((int)size.X, (int)size.Y, SKColorType.Rgba8888, SKAlphaType.Unpremul), 
-    //                            new SKSamplingOptions(SKCubicResampler.Mitchell));
-    //     return new SkTexture(bitmap);
-    // }
+    private static void Release(ScratchImage image)
+    {
+        image.Dispose();
+        GC.SuppressFinalize(image);
+    }
+
 
     public static SkTexture ToTexture(this TextureResource resource, (int width, int height)? resize = null)
     {
@@ -292,40 +216,11 @@ public static class ImageUtils
         return new SkTexture(bitmap);
     }
 
-    public static unsafe SKBitmap ToBitmap(this TextureResource resource)
+    public static SKBitmap ToBitmap(this TextureResource resource)
     {
-        var meta = FromResource(resource);
-        var image = ScratchImage.Initialize(meta);
-        // copy data - ensure destination not too short
-        fixed (byte* data = image.Pixels)
-        {
-            var span = new Span<byte>(data, image.Pixels.Length);
-            if (resource.Data.Length > span.Length)
-            {
-                resource.Data[..span.Length].CopyTo(span);
-                Global.Logger.LogDebug("Data too large for scratch image. " +
-                                       "{Length} > {Length2} " +
-                                       "{Width}x{Height} {Format}\n" +
-                                       "Trimmed to fit.",
-                                       resource.Data.Length, span.Length, resource.Width,
-                                       resource.Height, resource.Format);
-            }
-            else
-            {
-                resource.Data.CopyTo(span);
-            }
-        }
-
-        image.GetRGBA(out var rgba);
-        var img = rgba.GetImage(0, 0, 0);
-        if (img.Format != DXGIFormat.R8G8B8A8UNorm)
-            throw new ArgumentException("Image must be in RGBA format.", nameof(resource));
-        
-        var bitmap = new SKBitmap(img.Width, img.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-        var pixels = bitmap.GetPixels();
-        var destinationSpan = new Span<byte>((void*)pixels, img.Width * img.Height * 4);
-        img.Span.CopyTo(destinationSpan);
-        
+        var (data, width, height) = ReadRgba(FromResource(resource), resource.Data, 0, 0, true);
+        var bitmap = new SKBitmap(width, height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
+        data.CopyTo(bitmap.GetPixelSpan());
         return bitmap;
     }
 

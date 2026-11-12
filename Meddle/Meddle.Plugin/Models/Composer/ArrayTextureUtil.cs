@@ -1,9 +1,7 @@
 ﻿using Meddle.Formats.Files;
 using Meddle.Formats.Helpers;
-using Meddle.Utils;
 using Meddle.Utils.Helpers;
 using Microsoft.Extensions.Logging;
-using OtterTex;
 using SkiaSharp;
 
 namespace Meddle.Plugin.Models.Composer;
@@ -71,15 +69,21 @@ public static class ArrayTextureUtil
 
         for (var i = 0; i < arraySize; i++)
         {
-            var img = ImageUtils.GetTexData(texFile, i, 0, 0);
-            if (img.Format != DXGIFormat.R8G8B8A8UNorm || img.Span.Length != sliceBytes)
+            var rgba = ImageUtils.GetRgbaImage(texFile, i, 0, 0).Data;
+            if (rgba.Length != sliceBytes)
             {
                 throw new InvalidDataException(
-                    $"Unexpected slice {i} of {gamePath}: {img.Format} {img.Width}x{img.Height}");
+                    $"Unexpected slice {i} of {gamePath}: {rgba.Length} bytes, expected {sliceBytes}");
             }
 
-            File.WriteAllBytes(Path.Combine(sliceDir, $"{fileName}.{i}.png"), img.ImageAsPng().ToArray());
-            img.Span.CopyTo(pixels.Slice(i * sliceBytes, sliceBytes));
+            using (var slice = new SKBitmap(width, height, SKColorType.Rgba8888, SKAlphaType.Unpremul))
+            {
+                rgba.CopyTo(slice.GetPixelSpan());
+                using var sliceStream = File.Create(Path.Combine(sliceDir, $"{fileName}.{i}.png"));
+                slice.Encode(sliceStream, SKEncodedImageFormat.Png, 100);
+            }
+
+            rgba.CopyTo(pixels.Slice(i * sliceBytes, sliceBytes));
         }
 
         var combinedImagePath = Path.Combine(sliceDir, $"{fileName}.{width}x{height}.vertical.png");
