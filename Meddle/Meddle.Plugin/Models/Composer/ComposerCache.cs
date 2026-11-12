@@ -264,10 +264,10 @@ public class ComposerCache
             var faceNames = new[] { "px", "nx", "py", "ny", "pz", "nz" };
             for (int face = 0; face < 6; face++)
             {
-                var img = ImageUtils.GetTexData(tex, face, 0, 0);
-                var data = img.ImageAsPng();
+                var (rgba, width, height) = ImageUtils.GetRgbaImage(tex, face, 0, 0);
+                var data = ImageUtils.RgbaAsPng(rgba, width, height);
                 var facePath = $"{basePath}_{faceNames[face]}.png";
-                File.WriteAllBytes(Path.Combine(Path.GetDirectoryName(cachePath)!, facePath), data.ToArray());
+                File.WriteAllBytes(Path.Combine(Path.GetDirectoryName(cachePath)!, facePath), data);
             }
         
             return basePath; // Return base path since multiple files were created
